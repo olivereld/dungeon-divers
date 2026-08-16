@@ -13,10 +13,10 @@ func _init() -> void:
 func generate(config: DungeonConfig, random_seed: int = 0) -> DungeonGraph:
 	if random_seed != 0:
 		_rng.seed = random_seed
-	elif config != null and config.use_fixed_seed:
+	elif config != null and config.seed != 0:
 		_rng.seed = config.seed
 	else:
-		_rng.randomize()
+		_rng.seed = 1337
 
 	_key_counter = 0
 	var graph := DungeonGraph.new()

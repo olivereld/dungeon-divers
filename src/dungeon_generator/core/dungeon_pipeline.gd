@@ -23,6 +23,7 @@ const _DoorPlacementSolverScript = preload("res://src/dungeon_generator/core/sol
 const _DelaunayTriangulatorScript = preload("res://src/dungeon_generator/core/algorithms/delaunay_triangulator.gd")
 const _MSTSolverScript = preload("res://src/dungeon_generator/core/algorithms/mst_solver.gd")
 const _AStarCarverScript = preload("res://src/dungeon_generator/core/algorithms/astar_carver.gd")
+const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
 
 var _seed_registry: DungeonSeedRegistry = DungeonSeedRegistry.new()
 var _mission_grammar := MissionGrammar.new()
@@ -38,7 +39,9 @@ var _fitness_evaluator := FitnessEvaluator.new()
 func get_seed_registry() -> DungeonSeedRegistry:
 	return _seed_registry
 
-func generate(config: DungeonConfig = null, max_retries: int = 8, force_new_seed: bool = false) -> DungeonResult:
+const MAX_ATTEMPTS: int = 5
+
+func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, force_new_seed: bool = false) -> DungeonResult:
 	if config == null:
 		config = DungeonConfig.new()
 
@@ -48,14 +51,32 @@ func generate(config: DungeonConfig = null, max_retries: int = 8, force_new_seed
 	var start_time: int = Time.get_ticks_msec()
 	generation_started.emit()
 
+	var base_seed: int = _resolve_seed(config, 0)
+
 	for attempt in range(max_retries):
-		var attempt_seed: int = _resolve_seed(config, attempt)
-		var rng := RandomNumberGenerator.new()
-		rng.seed = attempt_seed
+		# Derivar semillas deterministas para cada etapa
+		var mission_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"mission")
+		var layout_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"layout")
+		var topology_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"topology")
+		var corridor_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"corridor")
+		var variation_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"variation")
+		var connectivity_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"connectivity")
+
+		var rng_variation := RandomNumberGenerator.new()
+		rng_variation.seed = variation_seed
+
+		var rng_topology := RandomNumberGenerator.new()
+		rng_topology.seed = topology_seed
+
+		var rng_corridor := RandomNumberGenerator.new()
+		rng_corridor.seed = corridor_seed
+
+		var rng_connectivity := RandomNumberGenerator.new()
+		rng_connectivity.seed = connectivity_seed
 
 		# FASE 1: Gramática de Misiones
 		var p_start: int = Time.get_ticks_msec()
-		var mission_graph: DungeonGraph = _mission_grammar.generate(config, attempt_seed)
+		var mission_graph: DungeonGraph = _mission_grammar.generate(config, mission_seed)
 		phase_completed.emit("mission_grammar", float(Time.get_ticks_msec() - p_start))
 
 		# FASE 2: Validación de Resolubilidad
@@ -64,24 +85,24 @@ func generate(config: DungeonConfig = null, max_retries: int = 8, force_new_seed
 		phase_completed.emit("winnability_check", float(Time.get_ticks_msec() - p_start))
 
 		if not validation.is_winnable:
-			continue # Reintentar con otra semilla
+			continue # Reintentar con el siguiente attempt determinista
 
 		# FASE 3: Gramática Espacial (Layout de Habitaciones)
 		p_start = Time.get_ticks_msec()
-		var rooms: Array[RoomData] = _space_grammar.generate(mission_graph, config, attempt_seed)
+		var rooms: Array[RoomData] = _space_grammar.generate(mission_graph, config, layout_seed)
 		phase_completed.emit("space_grammar", float(Time.get_ticks_msec() - p_start))
 
 		# FASE 4: Construcción del CellGrid
 		p_start = Time.get_ticks_msec()
 		var grid := CellGrid.new(config.grid_width, config.grid_height, CellGrid.CellType.WALL)
-		_build_rooms(grid, rooms, config, rng)
+		_build_rooms(grid, rooms, config, rng_variation)
 		phase_completed.emit("room_construction", float(Time.get_ticks_msec() - p_start))
 
 		# FASE 5: Tallado de Corredores (Delaunay + MST + A* Carver) y Puertas Inteligentes
 		p_start = Time.get_ticks_msec()
-		_carve_room_connections(grid, rooms, config, rng)
+		_carve_room_connections(grid, rooms, config, rng_topology)
 		_door_placement_solver.place_doors(grid, rooms)
-		_ensure_room_access(grid, rooms, rng)
+		_ensure_room_access(grid, rooms, rng_corridor)
 		phase_completed.emit("corridor_carving", float(Time.get_ticks_msec() - p_start))
 
 		# FASE 6: Colocación de Marcadores Especiales (Spawn, Objetivo, Llaves, Puertas Bloqueadas)
@@ -89,12 +110,12 @@ func generate(config: DungeonConfig = null, max_retries: int = 8, force_new_seed
 
 		# FASE 7: Garantía de Conectividad mediante Flood Fill y Validación de Salas
 		p_start = Time.get_ticks_msec()
-		_flood_fill.ensure_connectivity(grid, _corridor_carver, rng)
+		_flood_fill.ensure_connectivity(grid, _corridor_carver, rng_connectivity)
 		var path_ok: bool = _flood_fill.verify_critical_path(grid) and _flood_fill.verify_all_rooms_reachable(grid, rooms)
 		phase_completed.emit("flood_fill_connectivity", float(Time.get_ticks_msec() - p_start))
 
 		if not path_ok:
-			continue # Reintentar si alguna sala quedó aislada o falla el camino crítico
+			continue # Reintentar deterministamente
 
 		# FASE 8: Evaluación de Calidad (Fitness)
 		var fitness: float = _fitness_evaluator.evaluate(grid, rooms, config)
@@ -106,7 +127,7 @@ func generate(config: DungeonConfig = null, max_retries: int = 8, force_new_seed
 		result.rooms = rooms
 		result.validation = validation
 		result.fitness_score = fitness
-		result.seed_used = attempt_seed
+		result.seed_used = base_seed
 		result.floor_number = config.floor_number
 		result.generation_time_ms = float(Time.get_ticks_msec() - start_time)
 
@@ -117,10 +138,10 @@ func generate(config: DungeonConfig = null, max_retries: int = 8, force_new_seed
 	return null
 
 func _resolve_seed(config: DungeonConfig, attempt_offset: int) -> int:
-	if config.use_fixed_seed:
+	if config.use_fixed_seed or config.seed != 0:
 		return config.seed + attempt_offset
-	var base_seed: int = config.seed if config.seed != 0 else randi()
-	return _seed_registry.get_or_create_seed(config.dungeon_id, config.floor_number, base_seed + attempt_offset)
+	var default_seed: int = 1337
+	return _seed_registry.get_or_create_seed(config.dungeon_id, config.floor_number, default_seed + attempt_offset)
 
 func _build_rooms(grid: CellGrid, rooms: Array[RoomData], config: DungeonConfig, rng: RandomNumberGenerator) -> void:
 	for room in rooms:

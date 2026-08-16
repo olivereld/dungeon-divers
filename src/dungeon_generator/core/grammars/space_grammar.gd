@@ -12,10 +12,10 @@ func _init() -> void:
 func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: int = 0) -> Array[RoomData]:
 	if random_seed != 0:
 		_rng.seed = random_seed
-	elif config != null and config.use_fixed_seed:
+	elif config != null and config.seed != 0:
 		_rng.seed = config.seed
 	else:
-		_rng.randomize()
+		_rng.seed = 1337
 
 	var rooms: Array[RoomData] = []
 	var grid_w: int = config.grid_width if config != null else 64

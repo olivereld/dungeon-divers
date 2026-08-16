@@ -42,6 +42,6 @@ extends Resource
 @export var biome_profile: BiomeProfile = null
 
 func get_effective_seed() -> int:
-	if use_fixed_seed:
+	if use_fixed_seed or seed != 0:
 		return seed
-	return randi()
+	return 1337
