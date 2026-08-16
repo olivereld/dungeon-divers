@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="BiomeProfile" format=3 uid="uid://c1t3n6entw244"]
+
+[ext_resource type="Script" uid="uid://dcq2t6xjn8518" path="res://src/dungeon_generator/config/biome_profile.gd" id="1_bio"]
+[ext_resource type="PackedScene" uid="uid://cr7hkn1pr1st0" path="res://models/dungeon/wall/wall.gltf" id="3_wal"]
+[ext_resource type="PackedScene" uid="uid://bqgw2508wxwav" path="res://models/dungeon/wall_corner/wall_corner.gltf" id="4_crn"]
+[ext_resource type="PackedScene" uid="uid://dajg7wkrgnlch" path="res://models/dungeon/wall_corner_small/wall_corner_small.gltf" id="5_crns"]
+[ext_resource type="PackedScene" uid="uid://bcpqitvyjerlp" path="res://models/dungeon/wall_endcap/wall_endcap.gltf" id="6_endc"]
+[ext_resource type="PackedScene" uid="uid://dkm5wkng0iscl" path="res://models/dungeon/floor_tile_small/floor_tile_small.gltf" id="7_dflr"]
+[ext_resource type="PackedScene" uid="uid://c8uwymtmqinyb" path="res://models/dungeon/wall_doorway/wall_doorway.gltf" id="8_dor"]
+[ext_resource type="PackedScene" uid="uid://co4eokeshc7mu" path="res://models/dungeon/wall_Tsplit/wall_Tsplit.gltf" id="9_tsplit"]
+[ext_resource type="PackedScene" uid="uid://ckhtsqvndoyd3" path="res://models/dungeon/column/column.gltf" id="10_col"]
+
+[resource]
+script = ExtResource("1_bio")
+floor_scene = ExtResource("7_dflr")
+dungeon_floor_scene = ExtResource("7_dflr")
+wall_scene = ExtResource("3_wal")
+wall_corner_scene = ExtResource("4_crn")
+wall_corner_small_scene = ExtResource("5_crns")
+wall_endcap_scene = ExtResource("6_endc")
+wall_tsplit_scene = ExtResource("9_tsplit")
+column_scene = ExtResource("10_col")
+door_scene = ExtResource("8_dor")
+floor_color = Color(0.18, 0.18, 0.18, 1)
+wall_color = Color(0.42, 0.42, 0.42, 1)
+door_color = Color(0.55, 0.37, 0.24, 1)
+locked_door_color = Color(0.91, 0.3, 0.24, 1)
+stairs_color = Color(0.24, 0.37, 0.55, 1)
+spawn_color = Color(0.18, 0.8, 0.44, 1)
+objective_color = Color(0.95, 0.77, 0.06, 1)
+corridor_color = Color(0.15, 0.15, 0.15, 1)

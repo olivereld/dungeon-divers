@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DungeonConfig" format=3 uid="uid://5lwdk45r4uxt"]
+
+[ext_resource type="Script" uid="uid://df4kdvcwd2rrq" path="res://src/dungeon_generator/config/dungeon_config.gd" id="1_cfg"]
+[ext_resource type="Resource" path="res://resources/biomes/wood_dungeon_biome.tres" id="2_bio"]
+
+[resource]
+script = ExtResource("1_cfg")
+dungeon_id = &"hybrid_depths"
+biome_profile = ExtResource("2_bio")

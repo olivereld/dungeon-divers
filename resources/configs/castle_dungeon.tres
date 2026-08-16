@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="DungeonConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/dungeon_generator/config/dungeon_config.gd" id="1_cfg"]
+
+[resource]
+script = ExtResource("1_cfg")
+dungeon_id = &"castle_keep"
+floor_number = 1
+seed = 0
+use_fixed_seed = false
+grid_width = 64
+grid_height = 64
+cell_size = 2.0
+wall_height = 2
+mission_depth = 6
+max_grammar_iterations = 30
+lock_key_frequency = 0.4
+optional_branch_chance = 0.3
+boss_enabled = true
+algorithm = "BSP"
+ca_fill_chance = 0.45
+ca_iterations = 4
+bsp_min_room = Vector2i(8, 8)
+bsp_max_room = Vector2i(16, 16)
+corridor_style = "L-Shaped"
+corridor_width = 2
+difficulty = 1.2
