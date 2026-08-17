@@ -74,3 +74,49 @@ func validate_structure(grid: CellGrid, rooms: Array[RoomData], connections: Arr
 			report.add_error("Connection %d references non-existent room_b_id: %d" % [conn.id, conn.room_b_id])
 
 	return report
+
+## Valida que una habitación individual tenga estrictamente una única región transitable conexa (sin islas).
+static func validate_room_internal_connectivity(grid: CellGrid, room: RoomData) -> Dictionary:
+	if grid == null or room == null:
+		return {
+			"is_valid": false,
+			"reason": "NULL_INPUT",
+			"room_id": -1,
+			"region_count": 0,
+			"regions": []
+		}
+
+	var rect := room.rect
+	var visited: Dictionary = {}
+	var regions: Array = []
+
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			var pos := Vector2i(x, y)
+			if grid.is_walkable(pos) and not visited.has(pos):
+				var region: Array[Vector2i] = []
+				var stack: Array[Vector2i] = [pos]
+				visited[pos] = true
+
+				while not stack.is_empty():
+					var curr: Vector2i = stack.pop_back()
+					region.append(curr)
+
+					for n in grid.get_neighbors_4(curr):
+						if rect.has_point(n) and grid.is_walkable(n) and not visited.has(n):
+							visited[n] = true
+							stack.append(n)
+
+				if not region.is_empty():
+					regions.append(region)
+
+	var is_valid: bool = (regions.size() == 1)
+	var reason: String = "OK" if is_valid else ("EMPTY_ROOM" if regions.is_empty() else "FRAGMENTED_ROOM")
+
+	return {
+		"is_valid": is_valid,
+		"reason": reason,
+		"room_id": room.id,
+		"region_count": regions.size(),
+		"regions": regions
+	}

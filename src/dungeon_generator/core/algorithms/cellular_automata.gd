@@ -32,8 +32,11 @@ func apply(grid: CellGrid, bounds: Rect2i, rng: RandomNumberGenerator) -> void:
 	if smooth_edges:
 		_smooth(grid, clipped)
 
-	# 4. Limpieza y garantía de transpirabilidad interior (mínimo 60% suelo)
+	# 4. Limpieza y garantía de transpirabilidad interior
 	_cleanup_interior(grid, clipped)
+
+	# 5. Garantía estricta de contigüidad interna (eliminar bolsas/islas de suelo aisladas)
+	_enforce_contiguous_floor(grid, clipped)
 
 func _step(grid: CellGrid, bounds: Rect2i) -> void:
 	var temp := grid.duplicate_grid()
@@ -77,3 +80,32 @@ func _cleanup_interior(grid: CellGrid, bounds: Rect2i) -> void:
 			if grid.get_cell(pos) == CellGrid.CellType.WALL:
 				if grid.count_neighbors(pos, CellGrid.CellType.FLOOR, false) >= 3:
 					grid.set_cell(pos, CellGrid.CellType.FLOOR)
+
+func _enforce_contiguous_floor(grid: CellGrid, bounds: Rect2i) -> void:
+	var center := bounds.position + bounds.size / 2
+	grid.set_cell(center, CellGrid.CellType.FLOOR)
+
+	# 1. Inundar desde el centro para encontrar toda la componente conexa principal
+	var main_floor_cells: Dictionary = {center: true}
+	var stack: Array[Vector2i] = [center]
+
+	while not stack.is_empty():
+		var curr: Vector2i = stack.pop_back()
+		var neighbors := [
+			curr + Vector2i(1, 0),
+			curr + Vector2i(-1, 0),
+			curr + Vector2i(0, 1),
+			curr + Vector2i(0, -1)
+		]
+		for n in neighbors:
+			if bounds.has_point(n) and not main_floor_cells.has(n):
+				if grid.get_cell(n) == CellGrid.CellType.FLOOR:
+					main_floor_cells[n] = true
+					stack.append(n)
+
+	# 2. Rellenar cualquier bolsillo/isla de suelo desconectada con WALL
+	for y in range(bounds.position.y, bounds.end.y):
+		for x in range(bounds.position.x, bounds.end.x):
+			var pos := Vector2i(x, y)
+			if grid.get_cell(pos) == CellGrid.CellType.FLOOR and not main_floor_cells.has(pos):
+				grid.set_cell(pos, CellGrid.CellType.WALL)

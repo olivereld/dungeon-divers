@@ -13,7 +13,6 @@ extends Control
 
 var _last_result: DungeonResult = null
 var _info_label: Label = null
-var _panel_bg: Panel = null
 
 func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_IGNORE

@@ -145,7 +145,10 @@ static func resolve_doors(
 
 	if not val_res["is_valid"]:
 		var reason: String = val_res.get("reason", "GLOBAL_VALIDATION_FAILED")
-		var failed_id: int = val_res.get("connection_id", candidate_pairs[0].connection_id if not candidate_pairs.is_empty() else -1)
+		var fallback_id: int = -1
+		if not candidate_pairs.is_empty() and candidate_pairs[0] != null:
+			fallback_id = candidate_pairs[0].connection_id
+		var failed_id: int = int(val_res.get("connection_id", fallback_id))
 		result.add_failure(failed_id, reason, val_res)
 		return result # Cero mutación en CellGrid
 

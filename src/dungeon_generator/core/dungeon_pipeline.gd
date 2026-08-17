@@ -18,6 +18,7 @@ const _DungeonResultScript = preload("res://src/dungeon_generator/core/data/dung
 const _RoomGraphBuilderScript = preload("res://src/dungeon_generator/core/topology/room_graph_builder.gd")
 const _EntranceSolverScript = preload("res://src/dungeon_generator/core/solvers/entrance_solver.gd")
 const _DoorResolverScript = preload("res://src/dungeon_generator/core/solvers/door_resolver.gd")
+const _StructuralValidatorScript = preload("res://src/dungeon_generator/core/validation/structural_validator.gd")
 
 var _seed_registry: DungeonSeedRegistry = DungeonSeedRegistry.new()
 var _mission_grammar := MissionGrammar.new()
@@ -91,6 +92,23 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		_build_rooms(grid, rooms, config, rng_variation)
 		phase_completed.emit("room_construction", float(Time.get_ticks_msec() - p_start))
 
+		# FASE 4.2: Validación de Conectividad Interna por Habitación
+		var rooms_valid: bool = true
+		for r in rooms:
+			var r_val = _StructuralValidatorScript.validate_room_internal_connectivity(grid, r)
+			if not r_val["is_valid"]:
+				rooms_valid = false
+				push_warning("[DungeonPipeline] Attempt %d: Room %d internal connectivity failed (reason: %s, regions: %d). Retrying..." % [
+					attempt,
+					r.id,
+					r_val.get("reason", "UNKNOWN"),
+					r_val.get("region_count", 0)
+				])
+				break
+
+		if not rooms_valid:
+			continue
+
 		# FASE 4.5: Construcción de Topología (Delaunay + MST + Ciclos)
 		p_start = Time.get_ticks_msec()
 		var topology_res = _RoomGraphBuilderScript.build_topology(rooms, topology_seed, config.extra_loop_chance)
@@ -141,11 +159,17 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 
 		# FASE 7: Garantía de Conectividad mediante Flood Fill y Validación de Salas
 		p_start = Time.get_ticks_msec()
-		var path_ok: bool = _flood_fill.verify_critical_path(grid) and _flood_fill.verify_all_rooms_reachable(grid, rooms)
+		var path_ok: bool = _flood_fill.verify_critical_path(grid) and _flood_fill.verify_100_percent_walkable_connected(grid)
 		phase_completed.emit("flood_fill_connectivity", float(Time.get_ticks_msec() - p_start))
 
 		if not path_ok:
-			push_warning("[DungeonPipeline] Attempt %d: FloodFill connectivity check failed. Retrying..." % attempt)
+			var diag := _flood_fill.get_connectivity_diagnostics(grid, rooms)
+			push_warning("[DungeonPipeline] Attempt %d: FloodFill 100%% connectivity check failed (Found %d regions, %d isolated islands: %s). Retrying..." % [
+				attempt,
+				diag.get("region_count", 0),
+				diag.get("isolated_regions_count", 0),
+				str(diag.get("isolated_regions", []))
+			])
 			continue
 
 		# FASE 8: Evaluación de Calidad (Fitness)

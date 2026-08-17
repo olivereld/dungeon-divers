@@ -37,9 +37,12 @@ func regenerate(force_new_seed: bool = false) -> void:
 		config.use_fixed_seed = false
 
 	# Generar mazmorra lógica (forzando nueva semilla si el usuario lo solicita)
-	_current_result = _pipeline.generate(config, 8, force_new_seed)
+	_current_result = _pipeline.generate(config, DungeonPipeline.MAX_ATTEMPTS, force_new_seed)
 	if _current_result == null:
-		push_error("Error generando mazmorra.")
+		push_error("[DungeonLevelController] Falló la generación tras %d intentos para '%s'. Presiona 'R' o 'Espacio' para reintentar con otra semilla." % [
+			DungeonPipeline.MAX_ATTEMPTS,
+			config.dungeon_id if ("dungeon_id" in config) else "default"
+		])
 		return
 
 	# Mapear a GridMap 3D

@@ -250,13 +250,17 @@ func _get_wall_tile_and_orientation(grid: CellGrid, pos: Vector2i, biome: BiomeP
 
 		# Esquinas interiores (2 transitables adyacentes formando L)
 		5:  # S + E
-			return {"index": corner_idx if has_corner else biome.wall_index, "orientation": rot_270}
+			var w_idx: int = corner_idx if has_corner else biome.wall_index
+			return {"index": w_idx, "orientation": rot_270}
 		9:  # N + E
-			return {"index": corner_idx if has_corner else biome.wall_index, "orientation": rot_0}
+			var w_idx: int = corner_idx if has_corner else biome.wall_index
+			return {"index": w_idx, "orientation": rot_0}
 		10: # N + W
-			return {"index": corner_idx if has_corner else biome.wall_index, "orientation": rot_90}
+			var w_idx: int = corner_idx if has_corner else biome.wall_index
+			return {"index": w_idx, "orientation": rot_90}
 		6:  # S + W
-			return {"index": corner_idx if has_corner else biome.wall_index, "orientation": rot_180}
+			var w_idx: int = corner_idx if has_corner else biome.wall_index
+			return {"index": w_idx, "orientation": rot_180}
 
 		# Muros en T (3 vecinos transitables -> 1 solo vecino de muro sólido que conecta)
 		11: # N + W + E transitables (Muro sólido al Sur)

@@ -149,3 +149,49 @@ func verify_all_rooms_reachable(grid: CellGrid, rooms: Array[RoomData]) -> bool:
 			return false
 
 	return true
+
+## Verifica estrictamente que el 100% de las celdas transitables pertenezcan a una única componente conexa.
+func verify_100_percent_walkable_connected(grid: CellGrid) -> bool:
+	var regions: Array = find_all_regions(grid)
+	return regions.size() <= 1
+
+## Genera un reporte detallado de diagnóstico de conectividad (de solo lectura).
+func get_connectivity_diagnostics(grid: CellGrid, rooms: Array[RoomData] = []) -> Dictionary:
+	var regions: Array = find_all_regions(grid)
+	var report: Dictionary = {
+		"region_count": regions.size(),
+		"main_region_size": regions[0].size() if not regions.is_empty() else 0,
+		"isolated_regions_count": maxi(0, regions.size() - 1),
+		"isolated_regions": []
+	}
+
+	if regions.size() > 1:
+		for i in range(1, regions.size()):
+			var sub_region: Array[Vector2i] = regions[i]
+			var sample_pos: Vector2i = sub_region[0]
+			var min_x: int = sample_pos.x
+			var max_x: int = sample_pos.x
+			var min_y: int = sample_pos.y
+			var max_y: int = sample_pos.y
+
+			for p in sub_region:
+				min_x = mini(min_x, p.x)
+				max_x = maxi(max_x, p.x)
+				min_y = mini(min_y, p.y)
+				max_y = maxi(max_y, p.y)
+
+			var containing_room_id: int = -1
+			for r in rooms:
+				if r != null and r.rect.has_point(sample_pos):
+					containing_room_id = r.id
+					break
+
+			report["isolated_regions"].append({
+				"index": i,
+				"size": sub_region.size(),
+				"sample_cell": sample_pos,
+				"bounding_box": Rect2i(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1),
+				"room_id": containing_room_id
+			})
+
+	return report
