@@ -4,12 +4,20 @@ extends Node3D
 ## Controlador de escena para generación, visualización e interacción con la mazmorra.
 
 @export var config: DungeonConfig = null
-@export var grid_map_mapper: GridMapMapper = null
 @export var visualizer: DungeonVisualizer = null
 @export var camera: Camera3D = null
 
+const _SemanticOrchestratorScript = preload("res://src/dungeon_generator/core/semantic/semantic_orchestrator.gd")
+const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
+
 var _pipeline: DungeonPipeline = DungeonPipeline.new()
+var _semantic_orchestrator := _SemanticOrchestratorScript.new()
+var _presentation_builder := _DungeonPresentationBuilderScript.new()
+
 var _current_result: DungeonResult = null
+var _current_semantic_result: DungeonSemanticResult = null
+var _current_presentation_root: Node3D = null
+
 var _camera_pivot := Vector3.ZERO
 var _zoom: float = 40.0
 var _is_top_down: bool = false
@@ -57,25 +65,43 @@ func regenerate(force_new_seed: bool = false) -> void:
 		config.seed = 0
 		config.use_fixed_seed = false
 
-	# Generar mazmorra lógica
+	# 1. Generar mazmorra física (Fases 1–6.1.1)
 	var new_result = _pipeline.generate(config, DungeonPipeline.MAX_ATTEMPTS, force_new_seed)
 	if new_result == null:
-		push_error("[DungeonLevelController] Falló la generación tras %d intentos para '%s'. Presiona 'R' o 'Espacio' para reintentar con otra semilla." % [
+		push_error("[DungeonLevelController] Falló la generación física tras %d intentos para '%s'." % [
 			DungeonPipeline.MAX_ATTEMPTS,
 			config.dungeon_id if ("dungeon_id" in config) else "default"
 		])
-		# Si ya existe una mazmorra previa, conservarla para no dejar la pantalla en negro
 		if _current_result != null:
 			return
-		_show_failure_ui()
+		_show_failure_ui("Generación física fallida tras %d intentos.\nPresiona [R] o [Espacio] para reintentar con otra semilla." % DungeonPipeline.MAX_ATTEMPTS)
+		return
+
+	# 2. Generar modelo semántico (Fase 7)
+	var new_semantic = _semantic_orchestrator.generate_semantics(new_result, config)
+	if new_semantic == null or not new_semantic.gameplay_valid:
+		push_error("[DungeonLevelController] Falló la validación semántica.")
+		if _current_semantic_result != null:
+			return
+		_show_failure_ui("Validación semántica fallida.\nPresiona [R] o [Espacio] para reintentar.")
+		return
+
+	# 3. Materializar representación 3D atómica (Fase 8)
+	var biome: BiomeProfile = config.biome_profile if config.biome_profile != null else BiomeProfile.new()
+	var pres_res = _presentation_builder.build_presentation(
+		new_semantic, self, biome, config, _current_presentation_root, true
+	)
+
+	if not pres_res.success:
+		push_error("[DungeonLevelController] Falló la presentación 3D:\n%s" % pres_res.to_debug_string())
+		if not pres_res.previous_presentation_preserved:
+			_show_failure_ui("Fallo en presentación 3D:\n" + pres_res.to_debug_string())
 		return
 
 	_hide_failure_ui()
 	_current_result = new_result
-
-	# Mapear a GridMap 3D
-	if grid_map_mapper != null:
-		grid_map_mapper.apply(_current_result.grid, config, _current_result.rooms)
+	_current_semantic_result = new_semantic
+	_current_presentation_root = pres_res.presentation_root
 
 	# Actualizar Overlay 2D
 	if visualizer != null:
@@ -86,16 +112,16 @@ func regenerate(force_new_seed: bool = false) -> void:
 
 var _failure_label: Label = null
 
-func _show_failure_ui() -> void:
+func _show_failure_ui(message: String = "") -> void:
 	if _failure_label == null:
 		_failure_label = Label.new()
-		_failure_label.text = "Generación fallida tras %d intentos.\nPresiona [R] o [Espacio] para reintentar." % DungeonPipeline.MAX_ATTEMPTS
 		_failure_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_failure_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		_failure_label.anchors_preset = Control.PRESET_FULL_RECT
-		_failure_label.add_theme_font_size_override("font_size", 24)
+		_failure_label.add_theme_font_size_override("font_size", 22)
 		_failure_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
 		add_child(_failure_label)
+	_failure_label.text = message if not message.is_empty() else "Generación fallida.\nPresiona [R] o [Espacio] para reintentar."
 	_failure_label.visible = true
 
 func _hide_failure_ui() -> void:

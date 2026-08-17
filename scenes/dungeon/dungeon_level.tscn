@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://cgsmu32e26idx" path="res://scenes/dungeon/dungeon_level_controller.gd" id="1_controller"]
 [ext_resource type="Resource" uid="uid://5lwdk45r4uxt" path="res://resources/configs/hybrid_dungeon.tres" id="2_config"]
-[ext_resource type="Script" uid="uid://y7p1wotpbtxb" path="res://src/dungeon_generator/render/gridmap_mapper.gd" id="3_mapper"]
 [ext_resource type="Script" uid="uid://0sgp6vjkq3pr" path="res://src/dungeon_generator/debug/dungeon_visualizer.gd" id="4_visualizer"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
@@ -20,10 +19,9 @@ sky = SubResource("Sky_1")
 ambient_light_source = 3
 ambient_light_color = Color(0.3, 0.35, 0.45, 1)
 
-[node name="DungeonLevel" type="Node3D" unique_id=43678652 node_paths=PackedStringArray("grid_map_mapper", "visualizer", "camera")]
+[node name="DungeonLevel" type="Node3D" unique_id=43678652 node_paths=PackedStringArray("visualizer", "camera")]
 script = ExtResource("1_controller")
 config = ExtResource("2_config")
-grid_map_mapper = NodePath("GridMapMapper")
 visualizer = NodePath("UI/DungeonVisualizer")
 camera = NodePath("Camera3D")
 
@@ -40,15 +38,6 @@ shadow_enabled = true
 transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 30, 40, 30)
 projection = 1
 size = 60.0
-
-[node name="FloorGridMap" type="GridMap" parent="." unique_id=423209025]
-
-[node name="WallGridMap" type="GridMap" parent="." unique_id=423209026]
-
-[node name="GridMapMapper" type="Node" parent="." unique_id=2145026880 node_paths=PackedStringArray("floor_grid_map", "wall_grid_map")]
-script = ExtResource("3_mapper")
-floor_grid_map = NodePath("../FloorGridMap")
-wall_grid_map = NodePath("../WallGridMap")
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=407210238]
 
