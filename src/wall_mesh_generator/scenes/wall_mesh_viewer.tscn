@@ -91,7 +91,15 @@ layout_mode = 2
 [node name="SectionWall" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "📐 Dimensiones del Muro"
+text = "📐 Geometría y Dimensiones"
+
+[node name="LabelPieceType" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+text = "Tipo de Pieza:"
+
+[node name="OptionPieceType" type="OptionButton" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="LabelLength" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
 unique_name_in_owner = true

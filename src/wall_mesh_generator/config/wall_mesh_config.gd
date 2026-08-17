@@ -1,47 +1,67 @@
 class_name WallMeshConfig
 extends Resource
 
-## Configuración para el generador procedural de paredes estilizadas (estilo Low-Poly / Hand-crafted).
-## Soporta pared de 2 cubos de alto con moldura superior, zócalo inferior,
-## panel de muro liso y parches de ladrillos en relieve redondeados.
+## Configuración para el generador procedural de paredes y esquinas estilizadas (estilo Zelda / KayKit).
+## Soporta piezas rectas (Wall) y esquinas en L de 90° (Corner) con cornisas biseladas y juntas en V.
 
-enum WallStyle {
-	STYLIZED_CLUSTERS, ## Estilo referencia: panel liso con molduras y parches aislados de ladrillos redondeados
-	FULL_MASONRY       ## Pared completa de mampostería tradicional
+enum PieceType {
+	WALL,   ## Pared recta modular
+	CORNER  ## Esquina en L de 90 grados con chaflán de esquina y cornisas continuas
 }
 
+enum WallStyle {
+	STYLIZED_CLUSTERS,
+	FULL_MASONRY
+}
+
+@export_group("Tipo de Pieza")
+@export var piece_type: PieceType = PieceType.WALL
+
 @export_group("Dimensiones de Pared")
-## Tamaño de una celda/cubo en metros (2.0m para coincidir con el dungeon)
+## Tamaño de una celda/cubo en metros (2.0m para coincidir con dungeon divers)
 @export_range(0.5, 10.0, 0.1) var cube_size: float = 2.0
 ## Altura de la pared en cubos (2 cubos = 4.0m si cube_size=2.0)
 @export_range(1, 10, 1) var cubes_high: int = 2
-## Longitud de la pared en cubos (2 cubos = 4.0m)
+## Longitud de la pared en cubos (para piezas rectas)
 @export_range(1, 20, 1) var wall_length_cubes: int = 2
-## Grosor del cuerpo principal del muro
-@export_range(0.1, 2.0, 0.05) var wall_thickness: float = 0.40
+## Grosor del cuerpo central del muro
+@export_range(0.1, 2.0, 0.05) var wall_thickness: float = 0.38
 
-@export_group("Molduras (Trims)")
-## Altura de la moldura/viga superior de piedra oscura
-@export_range(0.1, 1.0, 0.02) var top_trim_height: float = 0.45
-## Altura del zócalo/viga inferior de piedra oscura
-@export_range(0.1, 1.0, 0.02) var bottom_trim_height: float = 0.35
-## Saliente/voladizo de las molduras respecto a la pared
-@export_range(0.0, 0.2, 0.01) var trim_overhang: float = 0.04
-## Ancho de la ranura/junta vertical divisoria en las molduras
-@export_range(0.01, 0.1, 0.005) var trim_notch_width: float = 0.035
+@export_group("Perfil de Molduras (Trims con Chaflán a 45°)")
+## Altura total de la moldura/cornisa superior
+@export_range(0.2, 1.2, 0.02) var top_trim_height: float = 0.55
+## Altura del chaflán/pendiente a 45° inferior de la cornisa
+@export_range(0.04, 0.3, 0.01) var top_trim_slope_height: float = 0.12
+## Altura total del zócalo/base inferior
+@export_range(0.15, 1.0, 0.02) var bottom_trim_height: float = 0.40
+## Altura del chaflán/pendiente a 45° superior del zócalo
+@export_range(0.04, 0.3, 0.01) var bottom_trim_slope_height: float = 0.10
+## Vuelo / saliente hacia afuera de las molduras
+@export_range(0.02, 0.25, 0.01) var trim_overhang: float = 0.08
+
+@export_group("Juntas en V (V-Notches)")
+## Ancho de la ranura divisoria en V
+@export_range(0.02, 0.15, 0.005) var notch_width: float = 0.065
+## Profundidad de la ranura en V hacia el interior
+@export_range(0.01, 0.10, 0.005) var notch_depth: float = 0.040
+
+@export_group("Esquinas (Corner Settings)")
+## Chaflán a 45° en el vértice exterior de la esquina
+@export_range(0.02, 0.20, 0.01) var corner_outer_chamfer: float = 0.08
+## Chaflán/suavizado en el pliegue interior de la esquina
+@export_range(0.0, 0.10, 0.005) var corner_inner_chamfer: float = 0.03
 
 @export_group("Ladrillos Estilizados en Relieve")
-## Modo de pared
 @export var wall_style: WallStyle = WallStyle.STYLIZED_CLUSTERS
-## Ancho base de un ladrillo estilizado
+## Ancho base de un ladrillo
 @export_range(0.15, 1.0, 0.02) var brick_width: float = 0.42
-## Altura de un ladrillo estilizado
+## Altura de un ladrillo
 @export_range(0.08, 0.5, 0.01) var brick_height: float = 0.18
-## Cuánto sobresale el ladrillo hacia afuera del panel de pared
-@export_range(0.01, 0.15, 0.005) var brick_protrusion: float = 0.035
-## Bisel/redondeo suave en las aristas de los ladrillos (*pillowed corners*)
-@export_range(0.01, 0.06, 0.002) var pillowed_bevel: float = 0.030
-## Variación de rotación sutil de los ladrillos
+## Relieve hacia afuera del panel
+@export_range(0.01, 0.15, 0.005) var brick_protrusion: float = 0.038
+## Bisel/redondeo suave en los bordes de los ladrillos (*pillowed*)
+@export_range(0.01, 0.06, 0.002) var pillowed_bevel: float = 0.028
+## Variación de rotación sutil
 @export var brick_jitter_rot: float = 0.03
 
 @export_group("Semilla y Determinismo")
@@ -59,14 +79,20 @@ func get_wall_panel_height() -> float:
 
 func duplicate_config() -> WallMeshConfig:
 	var c := WallMeshConfig.new()
+	c.piece_type = piece_type
 	c.cube_size = cube_size
 	c.cubes_high = cubes_high
 	c.wall_length_cubes = wall_length_cubes
 	c.wall_thickness = wall_thickness
 	c.top_trim_height = top_trim_height
+	c.top_trim_slope_height = top_trim_slope_height
 	c.bottom_trim_height = bottom_trim_height
+	c.bottom_trim_slope_height = bottom_trim_slope_height
 	c.trim_overhang = trim_overhang
-	c.trim_notch_width = trim_notch_width
+	c.notch_width = notch_width
+	c.notch_depth = notch_depth
+	c.corner_outer_chamfer = corner_outer_chamfer
+	c.corner_inner_chamfer = corner_inner_chamfer
 	c.wall_style = wall_style
 	c.brick_width = brick_width
 	c.brick_height = brick_height

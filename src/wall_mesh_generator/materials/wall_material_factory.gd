@@ -2,7 +2,7 @@ class_name WallMaterialFactory
 extends RefCounted
 
 ## Fábrica de materiales PBR (StandardMaterial3D) para paredes estilizadas.
-## Controla los tonos de las molduras oscuras, el panel central y los ladrillos en relieve.
+## Desactiva el culling (CULL_DISABLED) para garantizar visibilidad 100% sólida desde cualquier ángulo y cámara.
 
 enum MaterialPreset {
 	STYLIZED_SLATE,      ## El estilo exacto de la referencia (molduras carbón, pared pizarra y ladrillos claros)
@@ -16,7 +16,7 @@ static func create_trim_material(preset: MaterialPreset = MaterialPreset.STYLIZE
 	mat.roughness = 0.70
 	mat.metallic = 0.05
 	mat.specular = 0.25
-	mat.cull_mode = BaseMaterial3D.CULL_BACK
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:
 		MaterialPreset.STYLIZED_SLATE:
@@ -35,7 +35,7 @@ static func create_panel_material(preset: MaterialPreset = MaterialPreset.STYLIZ
 	mat.roughness = 0.85
 	mat.metallic = 0.0
 	mat.specular = 0.15
-	mat.cull_mode = BaseMaterial3D.CULL_BACK
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:
 		MaterialPreset.STYLIZED_SLATE:
@@ -54,7 +54,7 @@ static func create_brick_material(preset: MaterialPreset = MaterialPreset.STYLIZ
 	mat.roughness = 0.60 # Más suave para que los biseles pillowed resalten con la luz
 	mat.metallic = 0.0
 	mat.specular = 0.35
-	mat.cull_mode = BaseMaterial3D.CULL_BACK
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:
 		MaterialPreset.STYLIZED_SLATE:

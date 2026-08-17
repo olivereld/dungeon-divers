@@ -87,7 +87,21 @@ func _init() -> void:
 	assert(full_seq_mesh.get_surface_count() == 3, "Complete sequence should render all 3 surfaces")
 	print("  [OK] Sequential controller successfully builds: Zócalo ➔ Panel ➔ Moldura ➔ Ladrillos")
 
-	# 6. Validar Fábrica de Materiales Estilizados
+	# 6. Validar Generación de Esquina en L (PieceType.CORNER)
+	var corner_config: WallMeshConfig = config.duplicate_config()
+	corner_config.piece_type = WallMeshConfig.PieceType.CORNER
+	var corner_manifest: Array[Dictionary] = builder.build_brick_manifest(corner_config)
+	assert(not corner_manifest.is_empty(), "Corner manifest must not be empty")
+
+	var corner_mesh: ArrayMesh = builder.build_wall_mesh(corner_config)
+	assert(corner_mesh != null and corner_mesh.get_surface_count() == 3, "Corner mesh must have all 3 surfaces")
+	var corner_aabb: AABB = corner_mesh.get_aabb()
+	assert(corner_aabb.size.x > 1.8 and corner_aabb.size.z > 1.8, "Corner should span in both X and Z dimensions")
+	print("  [OK] L-Corner piece generated successfully. AABB: %.2f x %.2f x %.2f m" % [
+		corner_aabb.size.x, corner_aabb.size.y, corner_aabb.size.z
+	])
+
+	# 7. Validar Fábrica de Materiales Estilizados
 	var trim_mat = mat_script.create_trim_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)
 	var panel_mat = mat_script.create_panel_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)
 	var brick_mat = mat_script.create_brick_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)

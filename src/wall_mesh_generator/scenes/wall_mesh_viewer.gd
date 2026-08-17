@@ -1,7 +1,7 @@
 extends Node3D
 
-## Controlador de la escena de pruebas interactiva para el generador de paredes estilizadas.
-## Proporciona cámara orbital 3D, controles de UI y reproducción de construcción secuencial.
+## Controlador de la escena de pruebas interactiva para el generador de paredes y esquinas estilizadas.
+## Permite seleccionar el tipo de pieza (Pared Recta / Esquina en L), ajustar dimensiones y ver la construcción secuencial.
 
 const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall_mesh_config.gd")
 const _WallMeshBuilderScript = preload("res://src/wall_mesh_generator/core/wall_mesh_builder.gd")
@@ -14,6 +14,7 @@ const _WallMaterialFactoryScript = preload("res://src/wall_mesh_generator/materi
 @onready var wall_mesh_instance: MeshInstance3D = $WallMeshInstance
 
 # Nodos UI
+@onready var option_piece_type: OptionButton = %OptionPieceType
 @onready var slider_length: HSlider = %SliderLength
 @onready var label_length: Label = %LabelLength
 @onready var slider_height_cubes: HSlider = %SliderHeightCubes
@@ -40,12 +41,13 @@ var _play_interval: float = 0.12
 var _is_dragging_orbit: bool = false
 var _last_mouse_pos: Vector2 = Vector2.ZERO
 var _camera_distance: float = 7.5
-var _camera_target: Vector3 = Vector3(2.0, 2.0, 0.0)
+var _camera_target: Vector3 = Vector3(1.0, 2.0, 1.0)
 
 func _ready() -> void:
 	_config = _WallMeshConfigScript.new()
+	_config.piece_type = _WallMeshConfigScript.PieceType.WALL
 	_config.cube_size = 2.0
-	_config.cubes_high = 2 # 2 cubos de alto = 4.0m
+	_config.cubes_high = 2
 	_config.wall_length_cubes = 2
 	_config.seed = 1337
 
@@ -57,6 +59,11 @@ func _ready() -> void:
 	_rebuild_wall(true)
 
 func _setup_ui() -> void:
+	option_piece_type.clear()
+	option_piece_type.add_item("🧱 Pared Recta (Wall)", 0)
+	option_piece_type.add_item("🔄 Esquina en L (Corner)", 1)
+	option_piece_type.select(0)
+
 	option_preset.clear()
 	option_preset.add_item("Stylized Slate (Referencia)", 0)
 	option_preset.add_item("Dungeon Warm Stone", 1)
@@ -77,6 +84,15 @@ func _setup_ui() -> void:
 	_update_ui_labels()
 
 func _connect_signals() -> void:
+	option_piece_type.item_selected.connect(func(idx: int):
+		_config.piece_type = idx as WallMeshConfig.PieceType
+		var is_corner: bool = (_config.piece_type == WallMeshConfig.PieceType.CORNER)
+		slider_length.editable = not is_corner
+		slider_length.modulate = Color(0.5, 0.5, 0.5, 0.5) if is_corner else Color.WHITE
+		_update_ui_labels()
+		_rebuild_wall(true)
+	)
+
 	slider_length.value_changed.connect(func(v: float):
 		_config.wall_length_cubes = int(v)
 		_update_ui_labels()
@@ -142,7 +158,10 @@ func _process(delta: float) -> void:
 				_pause()
 
 func _update_ui_labels() -> void:
-	label_length.text = "Longitud: %d cubos (%.1fm)" % [_config.wall_length_cubes, _config.get_total_length()]
+	if _config.piece_type == WallMeshConfig.PieceType.CORNER:
+		label_length.text = "Tipo: Esquina en L (%.1f x %.1f m)" % [_config.cube_size, _config.cube_size]
+	else:
+		label_length.text = "Longitud: %d cubos (%.1fm)" % [_config.wall_length_cubes, _config.get_total_length()]
 	label_height_cubes.text = "Altura: %d cubos (%.1fm)" % [_config.cubes_high, _config.get_total_height()]
 
 func _rebuild_wall(reset_seq: bool = true) -> void:
@@ -150,8 +169,11 @@ func _rebuild_wall(reset_seq: bool = true) -> void:
 	_sequence_controller.setup(_config, mode)
 	_sync_slider_range()
 
-	# Centrar la cámara en el muro
-	_camera_target = Vector3(_config.get_total_length() * 0.5, _config.get_total_height() * 0.5, 0.0)
+	# Centrar la cámara según el tipo de pieza
+	if _config.piece_type == WallMeshConfig.PieceType.CORNER:
+		_camera_target = Vector3(_config.cube_size * 0.5, _config.get_total_height() * 0.5, _config.cube_size * 0.5)
+	else:
+		_camera_target = Vector3(_config.get_total_length() * 0.5, _config.get_total_height() * 0.5, 0.0)
 	_update_camera_transform()
 
 	if reset_seq:
