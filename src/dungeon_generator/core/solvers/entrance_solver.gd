@@ -276,20 +276,23 @@ static func score_candidate_pair(
 
 	# 5. Penalización por conflicto con entradas previamente reservadas
 	var conflict_cost: float = 0.0
+
+	# Prohibir terminantemente que pos_a o pos_b compartan celda con cualquier entrada ya reservada
+	for r_id in reserved_positions.keys():
+		for res_pos in reserved_positions[r_id]:
+			if pos_a == res_pos or pos_b == res_pos or pos_a == pos_b:
+				return 1e8
+
 	var reserved_a: Array = reserved_positions.get(room_a.id, [])
 	for res_pos in reserved_a:
 		var manhattan: int = absi(pos_a.x - res_pos.x) + absi(pos_a.y - res_pos.y)
-		if manhattan == 0:
-			conflict_cost += conflict_pen * 10.0 # Posición idéntica prohibida
-		elif manhattan < min_spacing:
+		if manhattan < min_spacing:
 			conflict_cost += conflict_pen * (float(min_spacing - manhattan) / float(min_spacing))
 
 	var reserved_b: Array = reserved_positions.get(room_b.id, [])
 	for res_pos in reserved_b:
 		var manhattan: int = absi(pos_b.x - res_pos.x) + absi(pos_b.y - res_pos.y)
-		if manhattan == 0:
-			conflict_cost += conflict_pen * 10.0
-		elif manhattan < min_spacing:
+		if manhattan < min_spacing:
 			conflict_cost += conflict_pen * (float(min_spacing - manhattan) / float(min_spacing))
 
 	return dist_cost + align_cost + orientation_penalty + corner_dist_penalty + conflict_cost

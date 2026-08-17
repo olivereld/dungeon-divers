@@ -36,14 +36,21 @@ func regenerate(force_new_seed: bool = false) -> void:
 		config.seed = 0
 		config.use_fixed_seed = false
 
-	# Generar mazmorra lógica (forzando nueva semilla si el usuario lo solicita)
-	_current_result = _pipeline.generate(config, DungeonPipeline.MAX_ATTEMPTS, force_new_seed)
-	if _current_result == null:
+	# Generar mazmorra lógica
+	var new_result = _pipeline.generate(config, DungeonPipeline.MAX_ATTEMPTS, force_new_seed)
+	if new_result == null:
 		push_error("[DungeonLevelController] Falló la generación tras %d intentos para '%s'. Presiona 'R' o 'Espacio' para reintentar con otra semilla." % [
 			DungeonPipeline.MAX_ATTEMPTS,
 			config.dungeon_id if ("dungeon_id" in config) else "default"
 		])
+		# Si ya existe una mazmorra previa, conservarla para no dejar la pantalla en negro
+		if _current_result != null:
+			return
+		_show_failure_ui()
 		return
+
+	_hide_failure_ui()
+	_current_result = new_result
 
 	# Mapear a GridMap 3D
 	if grid_map_mapper != null:
@@ -55,6 +62,24 @@ func regenerate(force_new_seed: bool = false) -> void:
 
 	# Centrar cámara en la mazmorra
 	_center_camera_on_dungeon()
+
+var _failure_label: Label = null
+
+func _show_failure_ui() -> void:
+	if _failure_label == null:
+		_failure_label = Label.new()
+		_failure_label.text = "Generación fallida tras %d intentos.\nPresiona [R] o [Espacio] para reintentar." % DungeonPipeline.MAX_ATTEMPTS
+		_failure_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_failure_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_failure_label.anchors_preset = Control.PRESET_FULL_RECT
+		_failure_label.add_theme_font_size_override("font_size", 24)
+		_failure_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
+		add_child(_failure_label)
+	_failure_label.visible = true
+
+func _hide_failure_ui() -> void:
+	if _failure_label != null:
+		_failure_label.visible = false
 
 func _center_camera_on_dungeon() -> void:
 	if camera == null or _current_result == null:

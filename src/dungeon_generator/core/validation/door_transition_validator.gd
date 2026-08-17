@@ -85,6 +85,7 @@ static func validate_global(
 	var seen_connection_pairs: Dictionary = {}
 	var resolved_conn_ids: Dictionary = {}
 
+	# PASO 1: Validar identidades, duplicados y conflictos de posición globales
 	for pair in candidate_pairs:
 		if pair == null:
 			return {"is_valid": false, "reason": "NULL_DOOR_PAIR"}
@@ -120,7 +121,11 @@ static func validate_global(
 			return {"is_valid": false, "reason": "DOOR_CONFLICT", "pos": d_b.position}
 		seen_positions[d_b.position] = true
 
-		# 4. Validación local de cada puerta
+	# PASO 2: Validación local de cada puerta (ROOM <-> DOOR <-> CORRIDOR)
+	for pair in candidate_pairs:
+		var d_a: DoorPlacement = pair.door_a
+		var d_b: DoorPlacement = pair.door_b
+
 		var val_a := validate_local_transition(grid, d_a, room_map.get(d_a.room_id, null))
 		if not val_a["is_valid"]:
 			return val_a

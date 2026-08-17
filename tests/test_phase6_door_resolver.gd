@@ -93,11 +93,11 @@ func _init() -> void:
 
 	# Test 5: Conflicto de posición (Dos puertas en la misma celda causan fallo atómico)
 	var conflict_door_a := _DoorPlacementScript.new(0, 0, Vector2i(10, 10), _RoomEntranceScript.EAST, Vector2i(9, 10), Vector2i(11, 10))
-	var conflict_door_b := _DoorPlacementScript.new(1, 1, Vector2i(10, 10), _RoomEntranceScript.WEST, Vector2i(11, 10), Vector2i(9, 10))
+	var conflict_door_b := _DoorPlacementScript.new(1, 0, Vector2i(10, 10), _RoomEntranceScript.WEST, Vector2i(11, 10), Vector2i(9, 10))
 	var p_conf1 := _DoorPairScript.new(0, conflict_door_a, _DoorPlacementScript.new(0, 1, Vector2i(20, 10), _RoomEntranceScript.WEST, Vector2i(21, 10), Vector2i(19, 10)))
 	var p_conf2 := _DoorPairScript.new(1, conflict_door_b, _DoorPlacementScript.new(1, 2, Vector2i(30, 10), _RoomEntranceScript.WEST, Vector2i(31, 10), Vector2i(29, 10)))
 
-	var val_conf := _DoorTransitionValidatorScript.validate_global(grid1, [p_conf1, p_conf2], [conn_e, conn_s], [r_hub, r_east, r_south])
+	var val_conf := _DoorTransitionValidatorScript.validate_global(grid4, [p_conf1, p_conf2], [conn_e, conn_s], [r_hub, r_east, r_south])
 	assert(not val_conf["is_valid"] and val_conf["reason"] == "DOOR_CONFLICT", "Door position collision must trigger DOOR_CONFLICT")
 	print("  [OK] Test 5: Position conflict detected before commit")
 
@@ -140,8 +140,8 @@ func _init() -> void:
 	grid9_b.fill_rect(r1.rect, CellGrid.CellType.FLOOR)
 	grid9_b.fill_rect(r2.rect, CellGrid.CellType.FLOOR)
 
-	var c_res9_a = _AStarCarverScript.carve_corridors(grid9_a, [r1, r2], ent_res1.entrance_pairs, cfg)
-	var c_res9_b = _AStarCarverScript.carve_corridors(grid9_b, [r1, r2], ent_res1.entrance_pairs, cfg)
+	var c_res9_a = _AStarCarverScript.carve_corridors(grid9_a, [r1, r2], ent_res1.entrance_pairs, [conn1], cfg)
+	var c_res9_b = _AStarCarverScript.carve_corridors(grid9_b, [r1, r2], ent_res1.entrance_pairs, [conn1], cfg)
 
 	var d_res9_a = _DoorResolverScript.resolve_doors(grid9_a, [r1, r2], ent_res1.entrance_pairs, c_res9_a.paths, [conn1], cfg)
 	var d_res9_b = _DoorResolverScript.resolve_doors(grid9_b, [r1, r2], ent_res1.entrance_pairs, c_res9_b.paths, [conn1], cfg)

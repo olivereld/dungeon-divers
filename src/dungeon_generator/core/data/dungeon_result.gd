@@ -15,6 +15,7 @@ var door_pairs: Array = [] # Array[DoorPair]
 var validation: RefCounted = null
 var fitness_score: float = 0.0
 var seed_used: int = 0
+var seed_trace: Dictionary = {}
 var floor_number: int = 1
 var generation_time_ms: float = 0.0
 var metadata: Dictionary = {}

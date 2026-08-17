@@ -149,6 +149,7 @@ static func resolve_doors(
 		if not candidate_pairs.is_empty() and candidate_pairs[0] != null:
 			fallback_id = candidate_pairs[0].connection_id
 		var failed_id: int = int(val_res.get("connection_id", fallback_id))
+		push_warning("[DoorResolver] Failed global validation: %s (conn_id: %d, details: %s)" % [reason, failed_id, str(val_res)])
 		result.add_failure(failed_id, reason, val_res)
 		return result # Cero mutación en CellGrid
 

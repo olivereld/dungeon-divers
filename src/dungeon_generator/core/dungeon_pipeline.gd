@@ -19,6 +19,8 @@ const _RoomGraphBuilderScript = preload("res://src/dungeon_generator/core/topolo
 const _EntranceSolverScript = preload("res://src/dungeon_generator/core/solvers/entrance_solver.gd")
 const _DoorResolverScript = preload("res://src/dungeon_generator/core/solvers/door_resolver.gd")
 const _StructuralValidatorScript = preload("res://src/dungeon_generator/core/validation/structural_validator.gd")
+const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/room_connectivity_repair.gd")
+const _CorridorConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/corridor_connectivity_repair.gd")
 
 var _seed_registry: DungeonSeedRegistry = DungeonSeedRegistry.new()
 var _mission_grammar := MissionGrammar.new()
@@ -48,6 +50,10 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 	var base_seed: int = _resolve_seed(config, 0)
 
 	for attempt in range(max_retries):
+		var attempt_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"attempt")
+		var repair_seed_chain: Array[Dictionary] = []
+		var attempt_failed: bool = false
+
 		# Derivar semillas deterministas para cada etapa
 		var mission_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"mission")
 		var layout_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"layout")
@@ -92,21 +98,40 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		_build_rooms(grid, rooms, config, rng_variation)
 		phase_completed.emit("room_construction", float(Time.get_ticks_msec() - p_start))
 
-		# FASE 4.2: Validación de Conectividad Interna por Habitación
-		var rooms_valid: bool = true
+		# FASE 4.2 & 4.3: Validación y Reparación de Conectividad Interna por Habitación
 		for r in rooms:
 			var r_val = _StructuralValidatorScript.validate_room_internal_connectivity(grid, r)
 			if not r_val["is_valid"]:
-				rooms_valid = false
-				push_warning("[DungeonPipeline] Attempt %d: Room %d internal connectivity failed (reason: %s, regions: %d). Retrying..." % [
-					attempt,
-					r.id,
-					r_val.get("reason", "UNKNOWN"),
-					r_val.get("region_count", 0)
-				])
-				break
+				var room_repair_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"repair_room_%d" % r.id)
+				var rep_res = _RoomConnectivityRepairScript.repair_room_internal_connectivity(
+					grid, r, r_val, room_repair_seed
+				)
 
-		if not rooms_valid:
+				repair_seed_chain.append({
+					"stage": "room_repair",
+					"attempt": attempt,
+					"room_id": r.id,
+					"seed": room_repair_seed,
+					"success": rep_res.success,
+					"repairs_applied": rep_res.get("repairs_applied", [])
+				})
+
+				if not rep_res.success:
+					push_warning("[DungeonPipeline] Attempt %d: Room %d internal connectivity failed and could not be repaired. Retrying..." % [
+						attempt, r.id
+					])
+					attempt_failed = true
+					break
+
+				var post_val = _StructuralValidatorScript.validate_room_internal_connectivity(grid, r)
+				if not post_val["is_valid"]:
+					push_warning("[DungeonPipeline] Attempt %d: Room %d failed post-repair validation. Retrying..." % [
+						attempt, r.id
+					])
+					attempt_failed = true
+					break
+
+		if attempt_failed:
 			continue
 
 		# FASE 4.5: Construcción de Topología (Delaunay + MST + Ciclos)
@@ -123,7 +148,7 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 			push_warning("[DungeonPipeline] Attempt %d: EntranceSolver failed to resolve mandatory connections. Retrying..." % attempt)
 			continue
 
-		# FASE 5: Tallado de Corredores (A* Carver)
+		# FASE 5 & 5.3: Tallado y Reparación de Corredores (A* Carver + CorridorRepair)
 		p_start = Time.get_ticks_msec()
 		var corridor_res = _AStarCarverScript.carve_corridors(
 			grid,
@@ -135,8 +160,39 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		phase_completed.emit("corridor_carving", float(Time.get_ticks_msec() - p_start))
 
 		if not corridor_res.is_valid:
-			push_warning("[DungeonPipeline] Attempt %d: AStarCarver failed to carve required corridors. Retrying..." % attempt)
-			continue
+			var corridor_repair_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"repair_corridors")
+			var c_rep_res = _CorridorConnectivityRepairScript.repair_missing_corridors(
+				grid, rooms, entrance_res.entrance_pairs, topology_res.connections, corridor_res, corridor_repair_seed, config
+			)
+
+			repair_seed_chain.append({
+				"stage": "corridor_repair",
+				"attempt": attempt,
+				"seed": corridor_repair_seed,
+				"success": c_rep_res.success,
+				"repairs_applied": c_rep_res.get("repairs_applied", [])
+			})
+
+			if not c_rep_res.success:
+				push_warning("[DungeonPipeline] Attempt %d: AStarCarver failed to carve required corridors and repair failed. Retrying..." % attempt)
+				continue
+			corridor_res = c_rep_res.corridor_res
+
+		# 5.4 Re-asegurar contigüidad interna de todas las habitaciones tras el tallado de corredores
+		for r in rooms:
+			var r_check = _StructuralValidatorScript.validate_room_internal_connectivity(grid, r)
+			if not r_check["is_valid"]:
+				var post_repair_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"post_corridor_repair_room_%d" % r.id)
+				var post_rep = _RoomConnectivityRepairScript.repair_room_internal_connectivity(
+					grid, r, r_check, post_repair_seed
+				)
+				if post_rep.get("success", false):
+					repair_seed_chain.append({
+						"stage": "post_corridor_room_repair",
+						"attempt": attempt,
+						"room_id": r.id,
+						"seed": post_repair_seed
+					})
 
 		# FASE 6: Resolución de Puertas y Umbrales (Door Resolver)
 		p_start = Time.get_ticks_msec()
@@ -188,6 +244,12 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		result.validation = validation
 		result.fitness_score = fitness
 		result.seed_used = base_seed
+		result.seed_trace = {
+			"base_seed": base_seed,
+			"attempt": attempt,
+			"attempt_seed": attempt_seed,
+			"repair_seed_chain": repair_seed_chain
+		}
 		result.floor_number = config.floor_number
 		result.generation_time_ms = float(Time.get_ticks_msec() - start_time)
 
@@ -214,10 +276,10 @@ func _build_room_connections(rooms: Array[RoomData]) -> Array:
 	return conns
 
 func _resolve_seed(config: DungeonConfig, attempt_offset: int) -> int:
-	if config.use_fixed_seed or config.seed != 0:
+	if config.use_fixed_seed:
 		return config.seed + attempt_offset
-	var default_seed: int = 1337
-	return _seed_registry.get_or_create_seed(config.dungeon_id, config.floor_number, default_seed + attempt_offset)
+	var base: int = config.seed if config.seed != 0 else 1337
+	return _seed_registry.get_or_create_seed(config.dungeon_id, config.floor_number, base + attempt_offset)
 
 func _build_rooms(grid: CellGrid, rooms: Array[RoomData], config: DungeonConfig, rng: RandomNumberGenerator) -> void:
 	for room in rooms:

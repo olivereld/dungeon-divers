@@ -130,6 +130,17 @@ func get_metadata(pos: Vector2i, key: String, default_value: Variant = null) -> 
 		return _metadata[pos][key]
 	return default_value
 
+func get_cell_metadata_dict(pos: Vector2i) -> Dictionary:
+	if _metadata.has(pos):
+		return _metadata[pos].duplicate(true)
+	return {}
+
+func set_cell_metadata_dict(pos: Vector2i, data: Dictionary) -> void:
+	if data.is_empty():
+		_metadata.erase(pos)
+	else:
+		_metadata[pos] = data.duplicate(true)
+
 func find_cells_of_type(type: CellType) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var target_int: int = int(type)

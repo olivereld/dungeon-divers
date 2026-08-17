@@ -26,7 +26,7 @@ func _init() -> void:
 	var ent_res1 = _EntranceSolverScript.resolve([r1, r2], [conn1], grid1, cfg)
 	assert(ent_res1.is_valid and ent_res1.entrance_pairs.size() == 1, "Entrance resolution must succeed")
 
-	var carver_res1 = _AStarCarverScript.carve_corridors(grid1, [r1, r2], ent_res1.entrance_pairs, cfg)
+	var carver_res1 = _AStarCarverScript.carve_corridors(grid1, [r1, r2], ent_res1.entrance_pairs, [conn1], cfg)
 	assert(carver_res1.is_valid, "AStar carver must succeed for simple connection")
 	assert(carver_res1.paths.size() == 1, "Must produce 1 CorridorPath")
 	var path1: _CorridorPathScript = carver_res1.paths[0]
@@ -55,7 +55,7 @@ func _init() -> void:
 	var c_t = _RoomConnectionScript.new(0, 0, 1, true)
 	var c_b = _RoomConnectionScript.new(1, 0, 2, true)
 	var ent_res2 = _EntranceSolverScript.resolve([r_center, r_top, r_bottom], [c_t, c_b], grid2, cfg)
-	var carver_res2 = _AStarCarverScript.carve_corridors(grid2, [r_center, r_top, r_bottom], ent_res2.entrance_pairs, cfg)
+	var carver_res2 = _AStarCarverScript.carve_corridors(grid2, [r_center, r_top, r_bottom], ent_res2.entrance_pairs, [c_t, c_b], cfg)
 	assert(carver_res2.is_valid and carver_res2.paths.size() == 2, "Both connections must be carved")
 	print("  [OK] Test 2: Multi-connection corridors carved cleanly")
 
@@ -70,7 +70,7 @@ func _init() -> void:
 
 	var conn_ab = _RoomConnectionScript.new(0, 0, 2, true) # Conecta 0 con 2, ignorando la sala 1
 	var ent_res3 = _EntranceSolverScript.resolve([r_a, r_blocker, r_b], [conn_ab], grid3, cfg)
-	var carver_res3 = _AStarCarverScript.carve_corridors(grid3, [r_a, r_blocker, r_b], ent_res3.entrance_pairs, cfg)
+	var carver_res3 = _AStarCarverScript.carve_corridors(grid3, [r_a, r_blocker, r_b], ent_res3.entrance_pairs, [conn_ab], cfg)
 	assert(carver_res3.is_valid, "AStar must find a path circumventing the middle room")
 
 	var path3: _CorridorPathScript = carver_res3.paths[0]
@@ -93,7 +93,7 @@ func _init() -> void:
 
 	var conn_obs = _RoomConnectionScript.new(0, 0, 1, true)
 	var ent_obs = _EntranceSolverScript.resolve([r_obs_a, r_obs_b], [conn_obs], grid4, cfg)
-	var carver_obs = _AStarCarverScript.carve_corridors(grid4, [r_obs_a, r_obs_b], ent_obs.entrance_pairs, cfg)
+	var carver_obs = _AStarCarverScript.carve_corridors(grid4, [r_obs_a, r_obs_b], ent_obs.entrance_pairs, [conn_obs], cfg)
 	assert(carver_obs.is_valid, "AStar must navigate around the column obstacle")
 	for p in carver_obs.paths[0].centerline_cells:
 		assert(grid4.get_cell(p) != CellGrid.CellType.COLUMN, "Path cannot step on COLUMN cell: %s" % str(p))
@@ -114,7 +114,7 @@ func _init() -> void:
 
 	var conn_trap = _RoomConnectionScript.new(0, 0, 1, true)
 	var ent_trap = _EntranceSolverScript.resolve([r_trapped_a, r_trapped_b], [conn_trap], grid5, cfg)
-	var carver_trap = _AStarCarverScript.carve_corridors(grid5, [r_trapped_a, r_trapped_b], ent_trap.entrance_pairs, cfg)
+	var carver_trap = _AStarCarverScript.carve_corridors(grid5, [r_trapped_a, r_trapped_b], ent_trap.entrance_pairs, [conn_trap], cfg)
 
 	assert(not carver_trap.is_valid, "Trapped connection must report failure")
 	assert(carver_trap.failed_connection_ids.has(0), "Connection 0 must be in failed list")
@@ -133,7 +133,7 @@ func _init() -> void:
 
 	var conn_w = _RoomConnectionScript.new(0, 0, 1, true)
 	var ent_w = _EntranceSolverScript.resolve([r_w1, r_w2], [conn_w], grid6, cfg_w2)
-	var carver_w = _AStarCarverScript.carve_corridors(grid6, [r_w1, r_w2], ent_w.entrance_pairs, cfg_w2)
+	var carver_w = _AStarCarverScript.carve_corridors(grid6, [r_w1, r_w2], ent_w.entrance_pairs, [conn_w], cfg_w2)
 	assert(carver_w.is_valid, "Widening with width=2 must succeed")
 	var path_w: _CorridorPathScript = carver_w.paths[0]
 	assert(path_w.carved_cells.size() > path_w.centerline_cells.size(), "Carved cells must exceed centerline count due to widening")
@@ -153,8 +153,8 @@ func _init() -> void:
 	grid8_b.fill_rect(r1.rect, CellGrid.CellType.FLOOR)
 	grid8_b.fill_rect(r2.rect, CellGrid.CellType.FLOOR)
 
-	var res8_a = _AStarCarverScript.carve_corridors(grid8_a, [r1, r2], ent_res1.entrance_pairs, cfg)
-	var res8_b = _AStarCarverScript.carve_corridors(grid8_b, [r1, r2], ent_res1.entrance_pairs, cfg)
+	var res8_a = _AStarCarverScript.carve_corridors(grid8_a, [r1, r2], ent_res1.entrance_pairs, [conn1], cfg)
+	var res8_b = _AStarCarverScript.carve_corridors(grid8_b, [r1, r2], ent_res1.entrance_pairs, [conn1], cfg)
 
 	assert(res8_a.paths.size() == res8_b.paths.size(), "Path counts must match")
 	assert(res8_a.paths[0].centerline_cells == res8_b.paths[0].centerline_cells, "Centerline cells must match 100%%")

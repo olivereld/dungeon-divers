@@ -92,8 +92,15 @@ func _init() -> void:
 
 	# Test 6: Cardinalidad 1:1 de DoorPair (Detección de DUPLICATE_DOOR_PAIR y MISSING_DOOR_PAIR)
 	var grid6 := CellGrid.new(40, 20, CellGrid.CellType.WALL)
-	var dp6_a := _DoorPairScript.new(0, fake_door5, fake_door5)
-	var dp6_dup := _DoorPairScript.new(0, fake_door5, fake_door5) # Mismo connection_id = 0 (duplicado)
+	grid6.fill_rect(r3_a.rect, CellGrid.CellType.FLOOR)
+	grid6.fill_rect(r3_b.rect, CellGrid.CellType.FLOOR)
+	grid6.set_cell(Vector2i(9, 4), CellGrid.CellType.CORRIDOR)
+	grid6.set_cell(Vector2i(18, 4), CellGrid.CellType.CORRIDOR)
+
+	var door6_a := _DoorPlacementScript.new(0, 0, Vector2i(8, 4), _RoomEntranceScript.EAST, Vector2i(7, 4), Vector2i(9, 4))
+	var door6_b := _DoorPlacementScript.new(0, 1, Vector2i(19, 4), _RoomEntranceScript.WEST, Vector2i(20, 4), Vector2i(18, 4))
+	var dp6_a := _DoorPairScript.new(0, door6_a, door6_b)
+	var dp6_dup := _DoorPairScript.new(0, door6_a, door6_b) # Mismo connection_id = 0 (duplicado)
 	var val6_dup = _DoorTransitionValidatorScript.validate_global(grid6, [dp6_a, dp6_dup], [conn3], [r3_a, r3_b])
 	assert(not val6_dup["is_valid"] and val6_dup["reason"] == "DUPLICATE_DOOR_PAIR", "Duplicate DoorPair for same connection must fail")
 

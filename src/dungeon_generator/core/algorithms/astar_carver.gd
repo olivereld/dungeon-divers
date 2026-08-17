@@ -247,16 +247,14 @@ static func _carve_single_request(
 
 		total_cost += 1.0
 
-	# Asegurar que los interiores de entrada (inner_cell) sean transitable FLOOR si fueron afectados por CA
+	# Asegurar que los interiores de entrada (inner_cell) sean transitable FLOOR y se conecten al interior de la sala
 	var room_a: RoomData = room_map.get(req.room_a_id, null)
 	var room_b: RoomData = room_map.get(req.room_b_id, null)
 
 	var inner_a: Vector2i = req.start_boundary - req.start_direction
 	var inner_b: Vector2i = req.goal_boundary - req.goal_direction
-	if grid.is_in_bounds(inner_a) and grid.get_cell(inner_a) != CellGrid.CellType.CORRIDOR:
-		grid.set_cell(inner_a, CellGrid.CellType.FLOOR)
-	if grid.is_in_bounds(inner_b) and grid.get_cell(inner_b) != CellGrid.CellType.CORRIDOR:
-		grid.set_cell(inner_b, CellGrid.CellType.FLOOR)
+	_connect_inner_to_room_floor(grid, room_a, inner_a)
+	_connect_inner_to_room_floor(grid, room_b, inner_b)
 
 	# Registrar conexiones en los RoomData correspondientes
 	if room_a != null:
@@ -321,7 +319,7 @@ static func _validate_centerline(
 			if manhattan != 1:
 				return "NON_CARDINAL_STEP"
 
-		# Comprobar que no atraviese el interior de una habitación prohibida
+		# Comprobar que no atraviese el interior de una habitación ajena prohibida
 		var owner_id: int = _get_room_id_at(p, rooms)
 		if owner_id != -1 and owner_id != room_a_id and owner_id != room_b_id:
 			return "FORBIDDEN_ROOM"
@@ -332,8 +330,8 @@ static func _is_safe_widening_cell(
 	pos: Vector2i,
 	grid: CellGrid,
 	rooms: Array[RoomData],
-	room_a_id: int,
-	room_b_id: int
+	_room_a_id: int,
+	_room_b_id: int
 ) -> bool:
 	if not grid.is_in_bounds(pos):
 		return false
@@ -342,8 +340,9 @@ static func _is_safe_widening_cell(
 	if cell_type == CellGrid.CellType.COLUMN or cell_type == CellGrid.CellType.OBSTACLE or cell_type == CellGrid.CellType.VOID:
 		return false
 
+	# No ensanchar dentro de ninguna habitación para preservar su perímetro y geometría
 	var owner_id: int = _get_room_id_at(pos, rooms)
-	if owner_id != -1 and owner_id != room_a_id and owner_id != room_b_id:
+	if owner_id != -1:
 		return false
 
 	return true
@@ -425,3 +424,124 @@ static func _restore_modified_weights(astar: AStar2D, modified_nodes: Dictionary
 
 static func _get_cell_id(pos: Vector2i, grid_width: int) -> int:
 	return pos.y * grid_width + pos.x
+
+static func _connect_inner_to_room_floor(grid: CellGrid, room: RoomData, inner_pos: Vector2i, journal: RefCounted = null) -> void:
+	if room == null or grid == null or not grid.is_in_bounds(inner_pos):
+		return
+	if not room.rect.has_point(inner_pos):
+		return
+
+	if grid.get_cell(inner_pos) != CellGrid.CellType.CORRIDOR:
+		if journal != null and journal.has_method("record_cell"):
+			journal.record_cell(grid, inner_pos)
+		grid.set_cell(inner_pos, CellGrid.CellType.FLOOR)
+
+	# Obtener la componente de suelo principal del interior de la habitación
+	var main_floor_cells := _get_room_main_floor_cells(grid, room)
+	if main_floor_cells.has(inner_pos) or main_floor_cells.is_empty():
+		return # Ya está conectado a la componente principal de la sala
+
+	# Buscar la celda de la componente principal más cercana a inner_pos
+	var target_floor := Vector2i.ZERO
+	var min_dist: int = 999999
+	for p: Vector2i in main_floor_cells.keys():
+		var d: int = absi(p.x - inner_pos.x) + absi(p.y - inner_pos.y)
+		if d < min_dist:
+			min_dist = d
+			target_floor = p
+
+	if min_dist < 999999:
+		var path := _find_local_path_in_room(grid, room.rect, inner_pos, target_floor)
+		for pt in path:
+			if grid.is_in_bounds(pt) and not grid.is_walkable(pt):
+				if journal != null and journal.has_method("record_cell"):
+					journal.record_cell(grid, pt)
+				grid.set_cell(pt, CellGrid.CellType.FLOOR)
+
+static func _get_room_main_floor_cells(grid: CellGrid, room: RoomData) -> Dictionary:
+	var result: Dictionary = {}
+	var center := room.get_center()
+	var start_seed := center
+
+	if not grid.is_walkable(start_seed):
+		for y in range(room.rect.position.y, room.rect.end.y):
+			for x in range(room.rect.position.x, room.rect.end.x):
+				var p := Vector2i(x, y)
+				if grid.get_cell(p) == CellGrid.CellType.FLOOR:
+					start_seed = p
+					break
+			if start_seed != center:
+				break
+
+	if not grid.is_walkable(start_seed):
+		return result
+
+	var queue: Array[Vector2i] = [start_seed]
+	result[start_seed] = true
+
+	while not queue.is_empty():
+		var curr: Vector2i = queue.pop_back()
+		var n4 := [
+			curr + Vector2i(1, 0),
+			curr + Vector2i(-1, 0),
+			curr + Vector2i(0, 1),
+			curr + Vector2i(0, -1)
+		]
+		for n in n4:
+			if room.rect.has_point(n) and not result.has(n):
+				var t := grid.get_cell(n)
+				if t == CellGrid.CellType.FLOOR or t == CellGrid.CellType.SPAWN or t == CellGrid.CellType.OBJECTIVE:
+					result[n] = true
+					queue.append(n)
+
+	return result
+
+static func _find_local_path_in_room(
+	grid: CellGrid,
+	rect: Rect2i,
+	start_pos: Vector2i,
+	goal_pos: Vector2i
+) -> Array[Vector2i]:
+	if start_pos == goal_pos:
+		return [start_pos]
+
+	var astar := AStar2D.new()
+	var width: int = rect.size.x
+	var height: int = rect.size.y
+
+	for dy in range(height):
+		for dx in range(width):
+			var pos := Vector2i(rect.position.x + dx, rect.position.y + dy)
+			var id: int = dy * width + dx
+			astar.add_point(id, Vector2(pos.x, pos.y))
+
+			var cell_type := grid.get_cell(pos)
+			if cell_type == CellGrid.CellType.COLUMN or cell_type == CellGrid.CellType.OBSTACLE or cell_type == CellGrid.CellType.VOID:
+				astar.set_point_disabled(id, true)
+			elif grid.is_walkable(pos):
+				astar.set_point_weight_scale(id, 1.0)
+			else:
+				astar.set_point_weight_scale(id, 5.0)
+
+	for dy in range(height):
+		for dx in range(width):
+			var id: int = dy * width + dx
+			if dx + 1 < width:
+				var right_id: int = dy * width + (dx + 1)
+				astar.connect_points(id, right_id)
+			if dy + 1 < height:
+				var down_id: int = (dy + 1) * width + dx
+				astar.connect_points(id, down_id)
+
+	var start_id: int = (start_pos.y - rect.position.y) * width + (start_pos.x - rect.position.x)
+	var goal_id: int = (goal_pos.y - rect.position.y) * width + (goal_pos.x - rect.position.x)
+
+	if not astar.has_point(start_id) or not astar.has_point(goal_id):
+		return []
+
+	var point_path: PackedVector2Array = astar.get_point_path(start_id, goal_id)
+	var result: Array[Vector2i] = []
+	for p in point_path:
+		result.append(Vector2i(int(p.x), int(p.y)))
+
+	return result
