@@ -235,3 +235,7 @@ func _add_box_item(lib: MeshLibrary, index: int, size: Vector3, color: Color, it
 	lib.create_item(index)
 	lib.set_item_mesh(index, mesh)
 	lib.set_item_name(index, item_name)
+
+	var shape := BoxShape3D.new()
+	shape.size = size
+	lib.set_item_shapes(index, [shape, Transform3D.IDENTITY])

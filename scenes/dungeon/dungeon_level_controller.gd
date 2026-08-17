@@ -14,9 +14,12 @@ var _pipeline: DungeonPipeline = DungeonPipeline.new()
 var _semantic_orchestrator := _SemanticOrchestratorScript.new()
 var _presentation_builder := _DungeonPresentationBuilderScript.new()
 
+const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
+
 var _current_result: DungeonResult = null
 var _current_semantic_result: DungeonSemanticResult = null
 var _current_presentation_root: Node3D = null
+var _player: CharacterBody3D = null
 
 var _camera_pivot := Vector3.ZERO
 var _zoom: float = 40.0
@@ -107,8 +110,33 @@ func regenerate(force_new_seed: bool = false) -> void:
 	if visualizer != null:
 		visualizer.set_dungeon_result(_current_result)
 
+	# Posicionar o spawnear personaje de prueba
+	_spawn_or_reposition_player()
+
 	# Centrar cámara en la mazmorra
 	_center_camera_on_dungeon()
+
+func _spawn_or_reposition_player() -> void:
+	if _player == null:
+		_player = _PlayerTestScript.new()
+		_player.name = "PlayerTest"
+		add_child(_player)
+
+	var spawn_grid_pos := Vector2i.ZERO
+	if _current_semantic_result != null:
+		for obj in _current_semantic_result.objectives:
+			if obj.type == ObjectiveData.ObjectiveType.SPAWN:
+				spawn_grid_pos = obj.position
+				break
+		if spawn_grid_pos == Vector2i.ZERO and not _current_semantic_result.rooms.is_empty():
+			spawn_grid_pos = _current_semantic_result.rooms[0].center
+	elif _current_result != null and not _current_result.rooms.is_empty():
+		spawn_grid_pos = _current_result.rooms[0].center
+
+	var cell_size: float = config.cell_size if config != null else 2.0
+	var player_pos: Vector3 = GridToWorld.get_cell_center_world(spawn_grid_pos, cell_size, 0.5)
+	_player.position = player_pos
+	_player.velocity = Vector3.ZERO
 
 var _failure_label: Label = null
 
@@ -174,23 +202,24 @@ func _handle_camera_pan(delta: float) -> void:
 	var speed: float = _zoom * 1.5 * delta
 	var move_dir := Vector3.ZERO
 
+	# Cámara se mueve EXCLUSIVAMENTE con WASD (las flechas mueven al jugador)
 	if _is_top_down:
-		if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+		if Input.is_key_pressed(KEY_W):
 			move_dir += Vector3(0, 0, -1)
-		if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+		if Input.is_key_pressed(KEY_S):
 			move_dir += Vector3(0, 0, 1)
-		if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+		if Input.is_key_pressed(KEY_A):
 			move_dir += Vector3(-1, 0, 0)
-		if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+		if Input.is_key_pressed(KEY_D):
 			move_dir += Vector3(1, 0, 0)
 	else:
-		if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+		if Input.is_key_pressed(KEY_W):
 			move_dir += Vector3(-1, 0, -1).normalized()
-		if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+		if Input.is_key_pressed(KEY_S):
 			move_dir += Vector3(1, 0, 1).normalized()
-		if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+		if Input.is_key_pressed(KEY_A):
 			move_dir += Vector3(-1, 0, 1).normalized()
-		if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+		if Input.is_key_pressed(KEY_D):
 			move_dir += Vector3(1, 0, -1).normalized()
 
 	if move_dir != Vector3.ZERO:
@@ -214,6 +243,10 @@ func _input(event: InputEvent) -> void:
 			KEY_T, KEY_V:
 				_is_top_down = not _is_top_down
 				_update_camera_transform()
+			KEY_F:
+				if _player != null:
+					_camera_pivot = _player.global_position
+					_update_camera_transform()
 			KEY_1:
 				config = preload("res://resources/configs/cave_dungeon.tres").duplicate()
 				_on_random_seed_requested()
