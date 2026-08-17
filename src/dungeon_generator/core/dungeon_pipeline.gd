@@ -17,6 +17,7 @@ const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/gene
 const _RoomConnectionScript = preload("res://src/dungeon_generator/core/data/room_connection.gd")
 const _DungeonResultScript = preload("res://src/dungeon_generator/core/data/dungeon_result.gd")
 const _RoomGraphBuilderScript = preload("res://src/dungeon_generator/core/topology/room_graph_builder.gd")
+const _EntranceSolverScript = preload("res://src/dungeon_generator/core/solvers/entrance_solver.gd")
 
 var _seed_registry: DungeonSeedRegistry = DungeonSeedRegistry.new()
 var _mission_grammar := MissionGrammar.new()
@@ -96,12 +97,23 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		var topology_res = _RoomGraphBuilderScript.build_topology(rooms, topology_seed, config.extra_loop_chance)
 		phase_completed.emit("topology_builder", float(Time.get_ticks_msec() - p_start))
 
-		# FASE 5: Tallado de Corredores y Puertas Inteligentes
+		# FASE 4.8: Resolución de Entradas (Room Entrance Solver)
 		p_start = Time.get_ticks_msec()
-		_carve_room_connections(grid, rooms, topology_res.connections, config, rng_corridor)
+		var entrance_res = _EntranceSolverScript.resolve(rooms, topology_res.connections, grid, config)
+		phase_completed.emit("entrance_solver", float(Time.get_ticks_msec() - p_start))
+
+		if not entrance_res.is_valid:
+			continue # Reintentar si una conexión obligatoria no pudo resolverse
+
+		# FASE 5: Tallado de Corredores (A* Carver)
+		p_start = Time.get_ticks_msec()
+		var corridor_res = _AStarCarverScript.carve_corridors(grid, rooms, entrance_res.entrance_pairs, config)
 		_door_placement_solver.place_doors(grid, rooms)
 		_ensure_room_access(grid, rooms, rng_corridor)
 		phase_completed.emit("corridor_carving", float(Time.get_ticks_msec() - p_start))
+
+		if not corridor_res.is_valid:
+			continue # Reintentar si una conexión obligatoria no pudo tallarse
 
 		# FASE 6: Colocación de Marcadores Especiales (Spawn, Objetivo, Llaves, Puertas Bloqueadas)
 		_place_special_markers(grid, rooms, mission_graph)
@@ -124,6 +136,8 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		result.mission_graph = mission_graph
 		result.rooms = rooms
 		result.connections = topology_res.connections
+		result.entrance_pairs = entrance_res.entrance_pairs
+		result.corridor_paths = corridor_res.paths
 		result.validation = validation
 		result.fitness_score = fitness
 		result.seed_used = base_seed

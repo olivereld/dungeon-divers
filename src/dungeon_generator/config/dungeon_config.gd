@@ -35,6 +35,21 @@ extends Resource
 @export_range(0.0, 0.5, 0.05) var extra_loop_chance: float = 0.15
 @export var use_astar_carver: bool = true
 
+@export_group("Resolución de Entradas (Fase 4)")
+@export_range(0, 4, 1) var corner_margin: int = 1
+@export_range(1, 6, 1) var minimum_entrance_spacing: int = 2
+@export_range(0.1, 10.0, 0.1) var entrance_distance_weight: float = 1.0
+@export_range(0.1, 10.0, 0.1) var entrance_alignment_weight: float = 2.0
+@export_range(0.0, 50.0, 1.0) var entrance_corner_penalty: float = 5.0
+@export_range(10.0, 500.0, 10.0) var entrance_conflict_penalty: float = 100.0
+
+@export_group("Tallado A* (Fase 5)")
+@export_range(0.5, 10.0, 0.5) var corridor_cost_corridor: float = 1.0
+@export_range(5.0, 50.0, 1.0) var corridor_cost_wall: float = 15.0
+@export_range(10.0, 100.0, 5.0) var corridor_cost_room_floor: float = 35.0
+@export_range(100.0, 5000.0, 100.0) var corridor_cost_other_room: float = 1000.0
+@export_range(0, 3, 1) var corridor_bottleneck_distance: int = 1
+
 @export_group("Dificultad y Balance")
 @export_range(0.1, 3.0, 0.1) var difficulty: float = 1.0
 
