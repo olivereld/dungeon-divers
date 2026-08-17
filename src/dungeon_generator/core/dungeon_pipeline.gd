@@ -9,21 +9,14 @@ signal phase_completed(phase_name: String, elapsed_ms: float)
 signal generation_completed(result: DungeonResult)
 signal generation_failed(error: String)
 
-class DungeonResult extends RefCounted:
-	var grid: CellGrid
-	var mission_graph: DungeonGraph
-	var rooms: Array[RoomData] = []
-	var validation: WinnabilitySolver.ValidationResult
-	var fitness_score: float = 0.0
-	var seed_used: int = 0
-	var floor_number: int = 1
-	var generation_time_ms: float = 0.0
-
 const _DoorPlacementSolverScript = preload("res://src/dungeon_generator/core/solvers/door_placement_solver.gd")
 const _DelaunayTriangulatorScript = preload("res://src/dungeon_generator/core/algorithms/delaunay_triangulator.gd")
 const _MSTSolverScript = preload("res://src/dungeon_generator/core/algorithms/mst_solver.gd")
 const _AStarCarverScript = preload("res://src/dungeon_generator/core/algorithms/astar_carver.gd")
 const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
+const _RoomConnectionScript = preload("res://src/dungeon_generator/core/data/room_connection.gd")
+const _DungeonResultScript = preload("res://src/dungeon_generator/core/data/dungeon_result.gd")
+const _RoomGraphBuilderScript = preload("res://src/dungeon_generator/core/topology/room_graph_builder.gd")
 
 var _seed_registry: DungeonSeedRegistry = DungeonSeedRegistry.new()
 var _mission_grammar := MissionGrammar.new()
@@ -98,9 +91,14 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		_build_rooms(grid, rooms, config, rng_variation)
 		phase_completed.emit("room_construction", float(Time.get_ticks_msec() - p_start))
 
-		# FASE 5: Tallado de Corredores (Delaunay + MST + A* Carver) y Puertas Inteligentes
+		# FASE 4.5: Construcción de Topología (Delaunay + MST + Ciclos)
 		p_start = Time.get_ticks_msec()
-		_carve_room_connections(grid, rooms, config, rng_topology)
+		var topology_res = _RoomGraphBuilderScript.build_topology(rooms, topology_seed, config.extra_loop_chance)
+		phase_completed.emit("topology_builder", float(Time.get_ticks_msec() - p_start))
+
+		# FASE 5: Tallado de Corredores y Puertas Inteligentes
+		p_start = Time.get_ticks_msec()
+		_carve_room_connections(grid, rooms, topology_res.connections, config, rng_corridor)
 		_door_placement_solver.place_doors(grid, rooms)
 		_ensure_room_access(grid, rooms, rng_corridor)
 		phase_completed.emit("corridor_carving", float(Time.get_ticks_msec() - p_start))
@@ -121,10 +119,11 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		var fitness: float = _fitness_evaluator.evaluate(grid, rooms, config)
 
 		# Empaquetar resultado final
-		var result := DungeonResult.new()
+		var result := _DungeonResultScript.new()
 		result.grid = grid
 		result.mission_graph = mission_graph
 		result.rooms = rooms
+		result.connections = topology_res.connections
 		result.validation = validation
 		result.fitness_score = fitness
 		result.seed_used = base_seed
@@ -136,6 +135,22 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 
 	generation_failed.emit("Failed to generate a valid dungeon within max retries.")
 	return null
+
+func _build_room_connections(rooms: Array[RoomData]) -> Array:
+	var conns: Array = []
+	var seen_pairs: Dictionary = {}
+	var conn_id: int = 0
+	for room in rooms:
+		for target_id in room.connected_room_ids:
+			if target_id < 0 or target_id >= rooms.size() or target_id == room.id:
+				continue
+			var pair_key := "%d-%d" % [mini(room.id, target_id), maxi(room.id, target_id)]
+			if not seen_pairs.has(pair_key):
+				seen_pairs[pair_key] = true
+				var c := _RoomConnectionScript.new(conn_id, mini(room.id, target_id), maxi(room.id, target_id), true)
+				conns.append(c)
+				conn_id += 1
+	return conns
 
 func _resolve_seed(config: DungeonConfig, attempt_offset: int) -> int:
 	if config.use_fixed_seed or config.seed != 0:
@@ -163,17 +178,14 @@ func _build_rooms(grid: CellGrid, rooms: Array[RoomData], config: DungeonConfig,
 			_:
 				grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
 
-func _carve_room_connections(grid: CellGrid, rooms: Array[RoomData], config: DungeonConfig, rng: RandomNumberGenerator) -> void:
+func _carve_room_connections(grid: CellGrid, rooms: Array[RoomData], connections: Array, config: DungeonConfig, rng: RandomNumberGenerator) -> void:
+	var pair_connections: Array[Vector2i] = []
+	for conn in connections:
+		if conn != null:
+			pair_connections.append(Vector2i(conn.room_a_id, conn.room_b_id))
+
 	if config.use_astar_carver or config.corridor_style == "AStar":
-		# Pipeline Topológico v3: Delaunay + MST + A* Carver Ponderado
-		var delaunay_edges: Array = _DelaunayTriangulatorScript.triangulate(rooms)
-		var mst_connections: Array[Vector2i] = _MSTSolverScript.solve(
-			rooms.size(),
-			delaunay_edges,
-			config.extra_loop_chance,
-			rng
-		)
-		_AStarCarverScript.carve_connections(grid, rooms, mst_connections, config, rng)
+		_AStarCarverScript.carve_connections(grid, rooms, pair_connections, config, rng)
 	else:
 		# Fallback a trazador básico configurable
 		_corridor_carver.width = config.corridor_width
@@ -185,19 +197,19 @@ func _carve_room_connections(grid: CellGrid, rooms: Array[RoomData], config: Dun
 			_:
 				_corridor_carver.style = CorridorCarver.Style.L_SHAPED
 
-		var processed_pairs: Dictionary = {}
-		for room in rooms:
-			for target_id in room.connected_room_ids:
-				if target_id >= 0 and target_id < rooms.size():
-					var target_room: RoomData = rooms[target_id]
-					var pair_key := "%d-%d" % [mini(room.id, target_room.id), maxi(room.id, target_room.id)]
-					if not processed_pairs.has(pair_key):
-						processed_pairs[pair_key] = true
-						var start_pt: Vector2i = room.get_nearest_edge_point(target_room.get_center())
-						var end_pt: Vector2i = target_room.get_nearest_edge_point(room.get_center())
-						_corridor_carver.carve(grid, start_pt, end_pt, rng)
-						room.connections.append(start_pt)
-						target_room.connections.append(end_pt)
+		var id_to_room: Dictionary = {}
+		for r in rooms:
+			id_to_room[r.id] = r
+
+		for pair in pair_connections:
+			var room_a: RoomData = id_to_room.get(pair.x, null)
+			var room_b: RoomData = id_to_room.get(pair.y, null)
+			if room_a != null and room_b != null:
+				var start_pt: Vector2i = room_a.get_nearest_edge_point(room_b.get_center())
+				var end_pt: Vector2i = room_b.get_nearest_edge_point(room_a.get_center())
+				_corridor_carver.carve(grid, start_pt, end_pt, rng)
+				room_a.connections.append(start_pt)
+				room_b.connections.append(end_pt)
 
 func _place_special_markers(grid: CellGrid, rooms: Array[RoomData], mission_graph: DungeonGraph) -> void:
 	for room in rooms:

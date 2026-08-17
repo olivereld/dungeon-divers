@@ -11,11 +11,11 @@ func _init() -> void:
 
 	for i in range(20):
 		config.seed = randi()
-		var result: DungeonPipeline.DungeonResult = pipeline.generate(config, 8, true)
+		var result = pipeline.generate(config, 8, true)
 		assert(result != null, "Pipeline must successfully generate a dungeon for seed %d" % config.seed)
 
-		var grid := result.grid
-		var rooms := result.rooms
+		var grid = result.grid
+		var rooms = result.rooms
 
 		# 1. Verificar que todas las habitaciones estén conectadas entre sí
 		var all_rooms_ok: bool = flood.verify_all_rooms_reachable(grid, rooms)

@@ -9,12 +9,14 @@ enum CellType {
 	WALL = 0,          # Muro sólido
 	FLOOR = 1,         # Suelo transitable normal
 	DOOR = 2,          # Puerta normal
-	LOCKED_DOOR = 3,   # Puerta que requiere llave genérica
+	LOCKED_DOOR = 3,   # Puerta que requiere llave
 	STAIRS_DOWN = 4,   # Pasaje al siguiente piso (descenso)
 	STAIRS_UP = 5,     # Retorno al piso anterior (ascenso)
 	SPAWN = 6,         # Punto de aparición del jugador
 	OBJECTIVE = 7,     # Objetivo de misión
 	CORRIDOR = 8,      # Suelo de pasillo / corredor
+	COLUMN = 9,        # Columna o pilar estructural
+	OBSTACLE = 10,     # Obstáculo no perteneciente a pared
 }
 
 var width: int = 0
@@ -29,6 +31,16 @@ func _init(w: int = 32, h: int = 32, default_type: CellType = CellType.WALL) -> 
 	_cells.resize(total_cells)
 	_cells.fill(int(default_type))
 	_metadata.clear()
+
+func clear(default_type: CellType = CellType.VOID) -> void:
+	_cells.fill(int(default_type))
+	_metadata.clear()
+
+func get_width() -> int:
+	return width
+
+func get_height() -> int:
+	return height
 
 func is_in_bounds(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < width and pos.y >= 0 and pos.y < height
@@ -50,6 +62,10 @@ func is_walkable(pos: Vector2i) -> bool:
 	return t == CellType.FLOOR or t == CellType.DOOR or t == CellType.CORRIDOR \
 		or t == CellType.STAIRS_DOWN or t == CellType.STAIRS_UP \
 		or t == CellType.SPAWN or t == CellType.OBJECTIVE
+
+func is_solid(pos: Vector2i) -> bool:
+	var t: CellType = get_cell(pos)
+	return t == CellType.WALL or t == CellType.COLUMN or t == CellType.OBSTACLE or t == CellType.VOID
 
 func get_neighbors_4(pos: Vector2i) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -140,3 +156,38 @@ func fill_rect(rect: Rect2i, type: CellType) -> void:
 	for y in range(clipped.position.y, clipped.end.y):
 		for x in range(clipped.position.x, clipped.end.x):
 			set_cell(Vector2i(x, y), type)
+
+func to_debug_string() -> String:
+	var lines: PackedStringArray = []
+	for y in range(height):
+		var line_chars: PackedStringArray = []
+		var row_offset: int = y * width
+		for x in range(width):
+			var cell: CellType = _cells[row_offset + x] as CellType
+			match cell:
+				CellType.VOID:
+					line_chars.append(" ")
+				CellType.WALL:
+					line_chars.append("#")
+				CellType.FLOOR, CellType.CORRIDOR:
+					line_chars.append(".")
+				CellType.DOOR:
+					line_chars.append("D")
+				CellType.LOCKED_DOOR:
+					line_chars.append("L")
+				CellType.COLUMN:
+					line_chars.append("C")
+				CellType.OBSTACLE:
+					line_chars.append("X")
+				CellType.SPAWN:
+					line_chars.append("S")
+				CellType.OBJECTIVE:
+					line_chars.append("O")
+				CellType.STAIRS_DOWN:
+					line_chars.append(">")
+				CellType.STAIRS_UP:
+					line_chars.append("<")
+				_:
+					line_chars.append("?")
+		lines.append("".join(line_chars))
+	return "\n".join(lines)

@@ -11,7 +11,7 @@ extends Control
 @export var show_graph: bool = true
 @export var show_info_panel: bool = true
 
-var _last_result: DungeonPipeline.DungeonResult = null
+var _last_result: DungeonResult = null
 var _info_label: Label = null
 var _panel_bg: Panel = null
 
@@ -31,7 +31,7 @@ func _setup_info_panel() -> void:
 	_info_label.add_theme_constant_override("shadow_offset_y", 1)
 	add_child(_info_label)
 
-func set_dungeon_result(result: DungeonPipeline.DungeonResult) -> void:
+func set_dungeon_result(result: DungeonResult) -> void:
 	_last_result = result
 	_update_info_text()
 	queue_redraw()

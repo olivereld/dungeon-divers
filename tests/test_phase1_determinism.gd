@@ -16,8 +16,8 @@ func _init() -> void:
 		config2.seed = test_seed
 		config2.use_fixed_seed = true
 
-		var res1: DungeonPipeline.DungeonResult = pipeline.generate(config1, 5, true)
-		var res2: DungeonPipeline.DungeonResult = pipeline.generate(config2, 5, true)
+		var res1 = pipeline.generate(config1, 5, true)
+		var res2 = pipeline.generate(config2, 5, true)
 
 		assert(res1 != null, "Generation 1 must succeed for seed %d" % test_seed)
 		assert(res2 != null, "Generation 2 must succeed for seed %d" % test_seed)

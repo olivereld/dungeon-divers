@@ -9,7 +9,7 @@ extends Node3D
 @export var camera: Camera3D = null
 
 var _pipeline: DungeonPipeline = DungeonPipeline.new()
-var _current_result: DungeonPipeline.DungeonResult = null
+var _current_result: DungeonResult = null
 var _camera_pivot := Vector3.ZERO
 var _zoom: float = 40.0
 var _is_top_down: bool = false
