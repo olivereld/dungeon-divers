@@ -25,7 +25,7 @@ func _init() -> void:
 
 	var conn1 = _RoomConnectionScript.new(0, 0, 1, true)
 	var ent_res1 = _EntranceSolverScript.resolve([r1, r2], [conn1], grid1, cfg)
-	var carver_res1 = _AStarCarverScript.carve_corridors(grid1, [r1, r2], ent_res1.entrance_pairs, cfg)
+	var carver_res1 = _AStarCarverScript.carve_corridors(grid1, [r1, r2], ent_res1.entrance_pairs, [conn1], cfg)
 	assert(carver_res1.is_valid, "Corridor carving must succeed")
 
 	var door_res1 = _DoorResolverScript.resolve_doors(grid1, [r1, r2], ent_res1.entrance_pairs, carver_res1.paths, [conn1], cfg)
@@ -76,7 +76,7 @@ func _init() -> void:
 	var conn_e = _RoomConnectionScript.new(0, 0, 1, true)
 	var conn_s = _RoomConnectionScript.new(1, 0, 2, true)
 	var ent_res4 = _EntranceSolverScript.resolve([r_hub, r_east, r_south], [conn_e, conn_s], grid4, cfg)
-	var carver_res4 = _AStarCarverScript.carve_corridors(grid4, [r_hub, r_east, r_south], ent_res4.entrance_pairs, cfg)
+	var carver_res4 = _AStarCarverScript.carve_corridors(grid4, [r_hub, r_east, r_south], ent_res4.entrance_pairs, [conn_e, conn_s], cfg)
 	var door_res4 = _DoorResolverScript.resolve_doors(grid4, [r_hub, r_east, r_south], ent_res4.entrance_pairs, carver_res4.paths, [conn_e, conn_s], cfg)
 
 	assert(door_res4.is_valid, "Hub multi-connection door resolution must succeed")

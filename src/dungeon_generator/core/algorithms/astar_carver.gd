@@ -30,13 +30,14 @@ static func carve_connections(
 
 	var ent_res = _EntranceSolverScript.resolve(rooms, room_conns, grid, config)
 	if ent_res.is_valid:
-		carve_corridors(grid, rooms, ent_res.entrance_pairs, config)
+		carve_corridors(grid, rooms, ent_res.entrance_pairs, room_conns, config)
 
 ## Ejecuta el tallado para todos los pares de entrada proporcionados por Fase 4.
 static func carve_corridors(
 	grid: CellGrid,
 	rooms: Array[RoomData],
 	entrance_pairs: Array,
+	connections: Array = [],
 	config: DungeonConfig = null
 ) -> CorridorCarveResult:
 	var result = _CorridorCarveResultScript.new()
@@ -52,6 +53,12 @@ static func carve_corridors(
 	var width: int = grid.width
 	var height: int = grid.height
 
+	# Mapear conexiones para extraer atributos topológicos (is_required)
+	var conn_map: Dictionary = {}
+	for conn in connections:
+		if conn != null:
+			conn_map[conn.id] = conn
+
 	# 1. Crear el grafo base AStar2D con topología y pesos deterministas
 	var astar := _build_base_astar_graph(grid, cfg)
 
@@ -59,7 +66,8 @@ static func carve_corridors(
 	var requests: Array[CorridorRequest] = []
 	for pair in entrance_pairs:
 		if pair != null and pair.entrance_a != null and pair.entrance_b != null:
-			var is_req: bool = true
+			var conn = conn_map.get(pair.connection_id, null)
+			var is_req: bool = conn.is_required if (conn != null and "is_required" in conn) else true
 			var req := CorridorRequest.from_entrance_pair(pair, is_req)
 			if req != null:
 				requests.append(req)

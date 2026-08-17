@@ -50,9 +50,9 @@ static func validate_local_transition(grid: CellGrid, door: DoorPlacement, room:
 	if room_type != CellGrid.CellType.FLOOR and not grid.is_walkable(r_cell):
 		return {"is_valid": false, "reason": "ROOM_CELL_NOT_WALKABLE"}
 
-	# 4. Comprobar que corridor_cell sea un corredor válido
+	# 4. Comprobar que corridor_cell sea estrictamente un corredor válido
 	var corr_type := grid.get_cell(c_cell)
-	if corr_type != CellGrid.CellType.CORRIDOR and not grid.is_walkable(c_cell):
+	if corr_type != CellGrid.CellType.CORRIDOR:
 		return {"is_valid": false, "reason": "NO_CORRIDOR_AT_ENTRANCE"}
 
 	# 5. Coherencia de orientación cardinal
@@ -82,6 +82,7 @@ static func validate_global(
 			conn_map[c.id] = c
 
 	var seen_positions: Dictionary = {}
+	var seen_connection_pairs: Dictionary = {}
 	var resolved_conn_ids: Dictionary = {}
 
 	for pair in candidate_pairs:
@@ -92,6 +93,10 @@ static func validate_global(
 		if conn == null:
 			return {"is_valid": false, "reason": "ORPHAN_DOOR_NO_CONNECTION"}
 
+		# 1. Detectar duplicados de DoorPair para la misma conexión
+		if seen_connection_pairs.has(pair.connection_id):
+			return {"is_valid": false, "reason": "DUPLICATE_DOOR_PAIR", "connection_id": pair.connection_id}
+		seen_connection_pairs[pair.connection_id] = true
 		resolved_conn_ids[pair.connection_id] = true
 
 		var d_a: DoorPlacement = pair.door_a
@@ -100,7 +105,13 @@ static func validate_global(
 		if d_a == null or d_b == null:
 			return {"is_valid": false, "reason": "INCOMPLETE_DOOR_PAIR"}
 
-		# 1. Unicidad de posiciones (no dos puertas en la misma celda)
+		# 2. Validar correspondencia exacta de identidades con RoomConnection
+		if d_a.connection_id != conn.id or d_b.connection_id != conn.id:
+			return {"is_valid": false, "reason": "CONNECTION_ID_MISMATCH", "connection_id": conn.id}
+		if d_a.room_id != conn.room_a_id or d_b.room_id != conn.room_b_id:
+			return {"is_valid": false, "reason": "ROOM_IDENTITY_MISMATCH", "connection_id": conn.id}
+
+		# 3. Unicidad de posiciones (no dos puertas en la misma celda)
 		if seen_positions.has(d_a.position):
 			return {"is_valid": false, "reason": "DOOR_CONFLICT", "pos": d_a.position}
 		seen_positions[d_a.position] = true
@@ -109,7 +120,7 @@ static func validate_global(
 			return {"is_valid": false, "reason": "DOOR_CONFLICT", "pos": d_b.position}
 		seen_positions[d_b.position] = true
 
-		# 2. Validación local de cada puerta
+		# 4. Validación local de cada puerta
 		var val_a := validate_local_transition(grid, d_a, room_map.get(d_a.room_id, null))
 		if not val_a["is_valid"]:
 			return val_a
@@ -118,10 +129,10 @@ static func validate_global(
 		if not val_b["is_valid"]:
 			return val_b
 
-	# 3. Validar que todas las conexiones obligatorias tengan sus puertas
+	# 5. Validar que todas las conexiones obligatorias tengan sus puertas
 	for c in connections:
 		if c != null and c.is_required:
 			if not resolved_conn_ids.has(c.id):
-				return {"is_valid": false, "reason": "MANDATORY_CONNECTION_MISSING_DOORS", "connection_id": c.id}
+				return {"is_valid": false, "reason": "MISSING_DOOR_PAIR", "connection_id": c.id}
 
 	return {"is_valid": true, "reason": "OK"}

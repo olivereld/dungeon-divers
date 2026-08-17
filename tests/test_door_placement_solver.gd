@@ -1,29 +1,32 @@
 extends SceneTree
 
+const _DoorPlacementScript = preload("res://src/dungeon_generator/core/data/door_placement.gd")
+const _DoorTransitionValidatorScript = preload("res://src/dungeon_generator/core/validation/door_transition_validator.gd")
+const _RoomEntranceScript = preload("res://src/dungeon_generator/core/data/room_entrance.gd")
+
 func _init() -> void:
-	print("--- Running test_door_placement_solver ---")
-	var solver_script = preload("res://src/dungeon_generator/core/solvers/door_placement_solver.gd")
-	var solver = solver_script.new()
+	print("--- Running test_door_placement_solver (Migrated to DoorTransitionValidator) ---")
 
 	# Grid de prueba 10x10
 	var grid := CellGrid.new(10, 10, CellGrid.CellType.WALL)
+	var room := RoomData.new(0, Rect2i(1, 1, 4, 4))
+	grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
 
-	# 1. Caso Válido Vertical: Flanqueado por muros a Izquierda (2,3) y Derecha (4,3), camino libre Arriba (3,2) y Abajo (3,4)
-	grid.set_cell(Vector2i(3, 3), CellGrid.CellType.CORRIDOR)
-	grid.set_cell(Vector2i(3, 2), CellGrid.CellType.FLOOR)
-	grid.set_cell(Vector2i(3, 4), CellGrid.CellType.CORRIDOR)
-	grid.set_cell(Vector2i(2, 3), CellGrid.CellType.WALL)
-	grid.set_cell(Vector2i(4, 3), CellGrid.CellType.WALL)
-	assert(solver.is_valid_doorway(grid, Vector2i(3, 3)) == true, "Position (3,3) must be a valid vertical doorway")
+	# 1. Caso Válido: Transición ROOM (FLOOR) -> DOOR -> CORRIDOR hacia el Este
+	grid.set_cell(Vector2i(5, 2), CellGrid.CellType.DOOR)
+	grid.set_cell(Vector2i(6, 2), CellGrid.CellType.CORRIDOR)
 
-	# 2. Caso Inválido: En espacio abierto (sin muros a los lados)
-	grid.set_cell(Vector2i(2, 3), CellGrid.CellType.FLOOR) # Quitamos el muro izquierdo
-	assert(solver.is_valid_doorway(grid, Vector2i(3, 3)) == false, "Open position must be discarded as doorway")
+	var valid_door := _DoorPlacementScript.new(
+		0, 0, Vector2i(5, 2), _RoomEntranceScript.EAST, Vector2i(4, 2), Vector2i(6, 2)
+	)
+	var val_res := _DoorTransitionValidatorScript.validate_local_transition(grid, valid_door, room)
+	assert(val_res["is_valid"] == true, "Valid door transition must pass validation")
 
-	# 3. Caso Inválido: Puerta pegada a otra puerta
-	var existing: Array[Vector2i] = [Vector2i(3, 3)]
-	assert(solver._can_place_door_near(Vector2i(3, 4), existing) == false, "Adjacent door must be rejected")
-	assert(solver._can_place_door_near(Vector2i(3, 6), existing) == true, "Distant door must be accepted")
+	# 2. Caso Inválido: Sin corredor exterior
+	grid.set_cell(Vector2i(6, 2), CellGrid.CellType.WALL)
+	var val_invalid := _DoorTransitionValidatorScript.validate_local_transition(grid, valid_door, room)
+	assert(val_invalid["is_valid"] == false, "Door without corridor must fail")
+	assert(val_invalid["reason"] == "NO_CORRIDOR_AT_ENTRANCE", "Reason must be NO_CORRIDOR_AT_ENTRANCE")
 
-	print("[PASS] test_door_placement_solver succeeded.")
+	print("[PASS] test_door_placement_solver (migrated) succeeded.")
 	quit(0)

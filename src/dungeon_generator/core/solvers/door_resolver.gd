@@ -21,14 +21,26 @@ static func resolve_doors(
 ) -> DoorResolutionResult:
 	var result = _DoorResolutionResultScript.new()
 
-	if connections.is_empty() or entrance_pairs.is_empty():
+	if connections.is_empty():
 		result.is_valid = true
 		return result
 
 	var conn_map: Dictionary = {}
+	var has_required_conns: bool = false
 	for c in connections:
 		if c != null:
 			conn_map[c.id] = c
+			if c.is_required:
+				has_required_conns = true
+
+	# Si existen conexiones obligatorias pero no hay ningún entrance_pair, fallar inmediatamente
+	if entrance_pairs.is_empty():
+		if has_required_conns:
+			result.add_failure(-1, "MISSING_ENTRANCE_PAIRS")
+			return result
+		else:
+			result.is_valid = true
+			return result
 
 	var path_map: Dictionary = {}
 	for p in corridor_paths:
@@ -37,6 +49,7 @@ static func resolve_doors(
 
 	# --- PASO 1: RESOLVE ALL (Construir candidatos a DoorPair) ---
 	var candidate_pairs: Array = []
+	var seen_conn_ids: Dictionary = {}
 
 	for ep in entrance_pairs:
 		if ep == null or ep.entrance_a == null or ep.entrance_b == null:
@@ -44,8 +57,33 @@ static func resolve_doors(
 
 		var conn_id: int = ep.connection_id
 		var conn = conn_map.get(conn_id, null)
-		var is_required: bool = conn.is_required if (conn != null and "is_required" in conn) else true
+		if conn == null:
+			result.add_failure(conn_id, "ORPHAN_ENTRANCE_PAIR_NO_CONNECTION")
+			continue
 
+		var is_required: bool = conn.is_required if ("is_required" in conn) else true
+
+		# 1. Validar correspondencia exacta de identidades EntrancePair ↔ RoomConnection
+		var ent_a = ep.entrance_a
+		var ent_b = ep.entrance_b
+
+		if ent_a.room_id != conn.room_a_id or ent_b.room_id != conn.room_b_id:
+			if is_required:
+				result.add_failure(conn_id, "ENTRANCE_ROOM_MISMATCH")
+			else:
+				result.add_rejection(conn_id, "ENTRANCE_ROOM_MISMATCH")
+			continue
+
+		# 2. Detectar duplicados de DoorPair por conexión
+		if seen_conn_ids.has(conn_id):
+			if is_required:
+				result.add_failure(conn_id, "DUPLICATE_DOOR_PAIR")
+			else:
+				result.add_rejection(conn_id, "DUPLICATE_DOOR_PAIR")
+			continue
+		seen_conn_ids[conn_id] = true
+
+		# 3. Comprobar que exista un CorridorPath para esta conexión
 		var path = path_map.get(conn_id, null)
 		if path == null:
 			if is_required:
@@ -54,10 +92,7 @@ static func resolve_doors(
 				result.add_rejection(conn_id, "NO_CORRIDOR_PATH_FOR_OPTIONAL")
 			continue
 
-		var ent_a = ep.entrance_a
-		var ent_b = ep.entrance_b
-
-		# Verificar que el corredor alcance el outer_cell de ambas entradas
+		# 4. Verificar que el corredor alcance el outer_cell de ambas entradas
 		if not path.carved_cells.has(ent_a.outer_cell) or not path.carved_cells.has(ent_b.outer_cell):
 			if is_required:
 				result.add_failure(conn_id, "CORRIDOR_DOES_NOT_REACH_ENTRANCE")
@@ -85,6 +120,16 @@ static func resolve_doors(
 
 		var dp = _DoorPairScript.new(conn_id, door_a, door_b)
 		candidate_pairs.append(dp)
+
+	# Verificar que toda conexión aceptada tenga exactamente 1 DoorPair
+	for conn_id in path_map.keys():
+		if not seen_conn_ids.has(conn_id):
+			var conn = conn_map.get(conn_id, null)
+			var is_req: bool = conn.is_required if (conn != null and "is_required" in conn) else true
+			if is_req:
+				result.add_failure(conn_id, "MISSING_DOOR_PAIR")
+			else:
+				result.add_rejection(conn_id, "MISSING_DOOR_PAIR")
 
 	# Si alguna conexión obligatoria falló en la etapa de resolución inicial
 	if not result.is_valid:
