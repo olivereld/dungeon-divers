@@ -1,0 +1,236 @@
+[gd_scene load_steps=7 format=3 uid="uid://b8xwallmeshviewer01"]
+
+[ext_resource type="Script" path="res://src/wall_mesh_generator/scenes/wall_mesh_viewer.gd" id="1_viewer"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+sky_top_color = Color(0.35, 0.45, 0.6, 1)
+sky_horizon_color = Color(0.65, 0.7, 0.78, 1)
+ground_bottom_color = Color(0.15, 0.16, 0.18, 1)
+ground_horizon_color = Color(0.65, 0.7, 0.78, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_color = Color(0.4, 0.4, 0.45, 1)
+reflected_light_source = 2
+tonemap_mode = 2
+ssao_enabled = true
+glow_enabled = true
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_1"]
+size = Vector2(40, 40)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.2, 0.22, 0.25, 1)
+roughness = 0.9
+
+[node name="WallMeshViewer" type="Node3D"]
+script = ExtResource("1_viewer")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 10, 0)
+shadow_enabled = true
+directional_shadow_max_distance = 50.0
+
+[node name="FloorGrid" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("PlaneMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_floor")
+
+[node name="WallMeshInstance" type="MeshInstance3D" parent="."]
+
+[node name="CameraPivot" type="Node3D" parent="."]
+transform = Transform3D(0.92388, 0.149438, -0.352089, 0, 0.920505, 0.390731, 0.382683, -0.360983, 0.850436, 2, 2, 0)
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 8)
+current = true
+fov = 60.0
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="PanelContainer" type="PanelContainer" parent="UI"]
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 360.0
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/PanelContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="UI/PanelContainer/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "🧱 Wall Mesh Generator"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "2 Cubos de Alto (Procedural & Secuencial)"
+horizontal_alignment = 1
+
+[node name="HSeparator1" type="HSeparator" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="SectionWall" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "📐 Dimensiones del Muro"
+
+[node name="LabelLength" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Longitud: 2 cubos (4.0m)"
+
+[node name="SliderLength" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 8.0
+value = 2.0
+
+[node name="LabelHeightCubes" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Altura: 2 cubos (4.0m)"
+
+[node name="SliderHeightCubes" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 5.0
+value = 2.0
+
+[node name="HBoxToggles" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="CheckTopCap" type="CheckBox" parent="UI/PanelContainer/MarginContainer/VBox/HBoxToggles"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Remate Piedra"
+
+[node name="CheckMortar" type="CheckBox" parent="UI/PanelContainer/MarginContainer/VBox/HBoxToggles"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Mortero"
+
+[node name="HSeparator2" type="HSeparator" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="SectionStyle" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "🎨 Estilo y Semilla"
+
+[node name="LabelPreset" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+text = "Preset de Material:"
+
+[node name="OptionPreset" type="OptionButton" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HBoxSeed" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="LabelSeed" type="Label" parent="UI/PanelContainer/MarginContainer/VBox/HBoxSeed"]
+layout_mode = 2
+text = "Seed:"
+
+[node name="SpinSeed" type="SpinBox" parent="UI/PanelContainer/MarginContainer/VBox/HBoxSeed"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 999999.0
+value = 1337.0
+
+[node name="BtnRandomSeed" type="Button" parent="UI/PanelContainer/MarginContainer/VBox/HBoxSeed"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🎲"
+
+[node name="HSeparator3" type="HSeparator" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="SectionSeq" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "⏱ Construcción Secuencial"
+
+[node name="OptionSeqMode" type="OptionButton" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LabelProgressInfo" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Paso: 0 / 0 (0.0%)"
+
+[node name="SliderProgress" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BtnPlayPause" type="Button" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "▶ Construir Secuencial"
+
+[node name="HBoxStepControls" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="BtnResetSeq" type="Button" parent="UI/PanelContainer/MarginContainer/VBox/HBoxStepControls"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⏮ 0%"
+
+[node name="BtnStepPrev" type="Button" parent="UI/PanelContainer/MarginContainer/VBox/HBoxStepControls"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "◀ Paso"
+
+[node name="BtnStepNext" type="Button" parent="UI/PanelContainer/MarginContainer/VBox/HBoxStepControls"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Paso ▶"
+
+[node name="BtnCompleteSeq" type="Button" parent="UI/PanelContainer/MarginContainer/VBox/HBoxStepControls"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "100% ⏭"
+
+[node name="HSeparator4" type="HSeparator" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="LabelStats" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Vértices: 0 | Superficies: 0"
+
+[node name="HelpHint" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "💡 Click derecho/central + arrastrar: Orbitar\nRueda mouse: Zoom"
+autowrap_mode = 2

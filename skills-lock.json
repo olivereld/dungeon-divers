@@ -6,6 +6,12 @@
       "sourceType": "github",
       "skillPath": "plugins/game-development/skills/godot-gdscript-patterns/SKILL.md",
       "computedHash": "1bc6b34a15aebcb4f64b81d90d2105dee4adda9a93e4d13cd4c905a15f3abad3"
+    },
+    "writing-plans": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/writing-plans/SKILL.md",
+      "computedHash": "27c75044e444a4fc68798c3f799dc23eaff3a6bfabff32e6ad75bb20f881c094"
     }
   }
 }
