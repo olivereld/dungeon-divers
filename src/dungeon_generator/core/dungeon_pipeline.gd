@@ -278,7 +278,11 @@ func _build_room_connections(rooms: Array[RoomData]) -> Array:
 func _resolve_seed(config: DungeonConfig, attempt_offset: int) -> int:
 	if config.use_fixed_seed:
 		return config.seed + attempt_offset
-	var base: int = config.seed if config.seed != 0 else 1337
+	var base: int = config.seed
+	if base == 0:
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		base = rng.randi_range(100000, 999999999)
 	return _seed_registry.get_or_create_seed(config.dungeon_id, config.floor_number, base + attempt_offset)
 
 func _build_rooms(grid: CellGrid, rooms: Array[RoomData], config: DungeonConfig, rng: RandomNumberGenerator) -> void:

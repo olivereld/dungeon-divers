@@ -52,6 +52,7 @@ func _init() -> void:
 	root.add_child(controller)
 
 	controller.config = preload("res://resources/configs/hybrid_dungeon.tres").duplicate()
+	controller.config.biome_profile = biome
 	controller.regenerate(true)
 
 	var floor_cells_cnt: int = controller.grid_map_mapper.floor_grid_map.get_used_cells().size()

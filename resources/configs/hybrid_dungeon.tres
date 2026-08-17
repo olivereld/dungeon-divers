@@ -1,9 +1,27 @@
 [gd_resource type="Resource" script_class="DungeonConfig" format=3 uid="uid://5lwdk45r4uxt"]
 
 [ext_resource type="Script" uid="uid://df4kdvcwd2rrq" path="res://src/dungeon_generator/config/dungeon_config.gd" id="1_cfg"]
-[ext_resource type="Resource" path="res://resources/biomes/wood_dungeon_biome.tres" id="2_bio"]
 
 [resource]
 script = ExtResource("1_cfg")
 dungeon_id = &"hybrid_depths"
-biome_profile = ExtResource("2_bio")
+floor_number = 1
+seed = 0
+use_fixed_seed = false
+grid_width = 48
+grid_height = 48
+cell_size = 2.0
+wall_height = 2
+mission_depth = 5
+max_grammar_iterations = 25
+lock_key_frequency = 0.35
+optional_branch_chance = 0.25
+boss_enabled = true
+algorithm = "Hybrid"
+ca_fill_chance = 0.45
+ca_iterations = 4
+bsp_min_room = Vector2i(6, 6)
+bsp_max_room = Vector2i(14, 14)
+corridor_style = "AStar"
+corridor_width = 2
+difficulty = 1.0

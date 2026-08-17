@@ -18,8 +18,28 @@ func _ready() -> void:
 	if config == null:
 		config = preload("res://resources/configs/hybrid_dungeon.tres")
 
+	_connect_visualizer_signals()
 	_setup_camera()
 	regenerate(false)
+
+func _connect_visualizer_signals() -> void:
+	if visualizer != null:
+		if not visualizer.seed_submitted.is_connected(_on_seed_submitted):
+			visualizer.seed_submitted.connect(_on_seed_submitted)
+		if not visualizer.random_seed_requested.is_connected(_on_random_seed_requested):
+			visualizer.random_seed_requested.connect(_on_random_seed_requested)
+
+func _on_seed_submitted(p_seed: int) -> void:
+	if config != null:
+		config.seed = p_seed
+		config.use_fixed_seed = true
+		regenerate(false)
+
+func _on_random_seed_requested() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var random_seed: int = rng.randi_range(100000, 999999999)
+	_on_seed_submitted(random_seed)
 
 func _setup_camera() -> void:
 	if camera == null:
@@ -29,6 +49,7 @@ func _setup_camera() -> void:
 	_update_camera_transform()
 
 func regenerate(force_new_seed: bool = false) -> void:
+	_connect_visualizer_signals()
 	if config == null:
 		return
 
@@ -119,6 +140,11 @@ func _handle_camera_pan(delta: float) -> void:
 	if camera == null:
 		return
 
+	# No mover cámara si el usuario está escribiendo en un campo de texto
+	var focus_owner = get_viewport().gui_get_focus_owner()
+	if focus_owner is LineEdit or focus_owner is TextEdit:
+		return
+
 	var speed: float = _zoom * 1.5 * delta
 	var move_dir := Vector3.ZERO
 
@@ -146,25 +172,34 @@ func _handle_camera_pan(delta: float) -> void:
 		_update_camera_transform()
 
 func _input(event: InputEvent) -> void:
+	# Manejo de foco en interfaz de usuario
+	var focus_owner = get_viewport().gui_get_focus_owner()
+	if focus_owner is LineEdit or focus_owner is TextEdit:
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.keycode == KEY_ESCAPE:
+				focus_owner.release_focus()
+				get_viewport().set_input_as_handled()
+		return
+
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_R, KEY_SPACE:
-				regenerate(true)
+				_on_random_seed_requested()
 			KEY_T, KEY_V:
 				_is_top_down = not _is_top_down
 				_update_camera_transform()
 			KEY_1:
 				config = preload("res://resources/configs/cave_dungeon.tres").duplicate()
-				regenerate(true)
+				_on_random_seed_requested()
 			KEY_2:
 				config = preload("res://resources/configs/castle_dungeon.tres").duplicate()
-				regenerate(true)
+				_on_random_seed_requested()
 			KEY_3:
 				config = preload("res://resources/configs/hybrid_dungeon.tres").duplicate()
-				regenerate(true)
+				_on_random_seed_requested()
 			KEY_4:
 				config = preload("res://resources/configs/dungeon_128.tres").duplicate()
-				regenerate(true)
+				_on_random_seed_requested()
 
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
