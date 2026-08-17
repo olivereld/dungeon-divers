@@ -11,7 +11,7 @@ func _init() -> void:
 	config_32.algorithm = "CellularAutomata"
 	config_32.mission_depth = 4
 
-	var res_32: DungeonPipeline.DungeonResult = pipeline.generate(config_32)
+	var res_32: DungeonResult = pipeline.generate(config_32)
 	assert(res_32 != null, "Pipeline 32x32 CA should generate result")
 	assert(res_32.grid.width == 32 and res_32.grid.height == 32, "Grid dimensions should be 32x32")
 	assert(res_32.validation.is_winnable, "32x32 dungeon must be winnable")
@@ -26,7 +26,7 @@ func _init() -> void:
 	config_64.algorithm = "Hybrid"
 	config_64.mission_depth = 6
 
-	var res_64: DungeonPipeline.DungeonResult = pipeline.generate(config_64)
+	var res_64: DungeonResult = pipeline.generate(config_64)
 	assert(res_64 != null, "Pipeline 64x64 Hybrid should generate result")
 	assert(res_64.grid.width == 64 and res_64.grid.height == 64, "Grid dimensions should be 64x64")
 	assert(res_64.validation.is_winnable, "64x64 dungeon must be winnable")

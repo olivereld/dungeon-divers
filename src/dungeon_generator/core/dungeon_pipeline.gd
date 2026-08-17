@@ -18,6 +18,7 @@ const _RoomConnectionScript = preload("res://src/dungeon_generator/core/data/roo
 const _DungeonResultScript = preload("res://src/dungeon_generator/core/data/dungeon_result.gd")
 const _RoomGraphBuilderScript = preload("res://src/dungeon_generator/core/topology/room_graph_builder.gd")
 const _EntranceSolverScript = preload("res://src/dungeon_generator/core/solvers/entrance_solver.gd")
+const _DoorResolverScript = preload("res://src/dungeon_generator/core/solvers/door_resolver.gd")
 
 var _seed_registry: DungeonSeedRegistry = DungeonSeedRegistry.new()
 var _mission_grammar := MissionGrammar.new()
@@ -103,19 +104,35 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		phase_completed.emit("entrance_solver", float(Time.get_ticks_msec() - p_start))
 
 		if not entrance_res.is_valid:
-			continue # Reintentar si una conexión obligatoria no pudo resolverse
+			push_warning("[DungeonPipeline] Attempt %d: EntranceSolver failed to resolve mandatory connections. Retrying..." % attempt)
+			continue
 
 		# FASE 5: Tallado de Corredores (A* Carver)
 		p_start = Time.get_ticks_msec()
 		var corridor_res = _AStarCarverScript.carve_corridors(grid, rooms, entrance_res.entrance_pairs, config)
-		_door_placement_solver.place_doors(grid, rooms)
-		_ensure_room_access(grid, rooms, rng_corridor)
 		phase_completed.emit("corridor_carving", float(Time.get_ticks_msec() - p_start))
 
 		if not corridor_res.is_valid:
-			continue # Reintentar si una conexión obligatoria no pudo tallarse
+			push_warning("[DungeonPipeline] Attempt %d: AStarCarver failed to carve required corridors. Retrying..." % attempt)
+			continue
 
-		# FASE 6: Colocación de Marcadores Especiales (Spawn, Objetivo, Llaves, Puertas Bloqueadas)
+		# FASE 6: Resolución de Puertas y Umbrales (Door Resolver)
+		p_start = Time.get_ticks_msec()
+		var door_res = _DoorResolverScript.resolve_doors(
+			grid,
+			rooms,
+			entrance_res.entrance_pairs,
+			corridor_res.paths,
+			topology_res.connections,
+			config
+		)
+		phase_completed.emit("door_resolver", float(Time.get_ticks_msec() - p_start))
+
+		if not door_res.is_valid:
+			push_warning("[DungeonPipeline] Attempt %d: DoorResolver failed to resolve doors. Retrying..." % attempt)
+			continue
+
+		# FASE 6.5: Colocación de Marcadores Especiales (Spawn, Objetivo, Llaves, Puertas Bloqueadas)
 		_place_special_markers(grid, rooms, mission_graph)
 
 		# FASE 7: Garantía de Conectividad mediante Flood Fill y Validación de Salas
@@ -125,7 +142,8 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		phase_completed.emit("flood_fill_connectivity", float(Time.get_ticks_msec() - p_start))
 
 		if not path_ok:
-			continue # Reintentar deterministamente
+			push_warning("[DungeonPipeline] Attempt %d: FloodFill connectivity check failed. Retrying..." % attempt)
+			continue
 
 		# FASE 8: Evaluación de Calidad (Fitness)
 		var fitness: float = _fitness_evaluator.evaluate(grid, rooms, config)
@@ -138,6 +156,8 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		result.connections = topology_res.connections
 		result.entrance_pairs = entrance_res.entrance_pairs
 		result.corridor_paths = corridor_res.paths
+		result.doors = door_res.doors
+		result.door_pairs = door_res.door_pairs
 		result.validation = validation
 		result.fitness_score = fitness
 		result.seed_used = base_seed

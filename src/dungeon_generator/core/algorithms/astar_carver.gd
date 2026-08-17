@@ -8,6 +8,29 @@ extends RefCounted
 const _CorridorRequestScript = preload("res://src/dungeon_generator/core/data/corridor_request.gd")
 const _CorridorPathScript = preload("res://src/dungeon_generator/core/data/corridor_path.gd")
 const _CorridorCarveResultScript = preload("res://src/dungeon_generator/core/data/corridor_carve_result.gd")
+const _RoomConnectionScript = preload("res://src/dungeon_generator/core/data/room_connection.gd")
+const _EntranceSolverScript = preload("res://src/dungeon_generator/core/solvers/entrance_solver.gd")
+
+## Método de compatibilidad para llamadas con conexiones basadas en Vector2i.
+static func carve_connections(
+	grid: CellGrid,
+	rooms: Array[RoomData],
+	connections: Array[Vector2i],
+	config: DungeonConfig = null,
+	_rng: RandomNumberGenerator = null
+) -> void:
+	if connections.is_empty() or rooms.size() < 2:
+		return
+
+	var room_conns: Array = []
+	var cid: int = 0
+	for pair in connections:
+		room_conns.append(_RoomConnectionScript.new(cid, pair.x, pair.y, true))
+		cid += 1
+
+	var ent_res = _EntranceSolverScript.resolve(rooms, room_conns, grid, config)
+	if ent_res.is_valid:
+		carve_corridors(grid, rooms, ent_res.entrance_pairs, config)
 
 ## Ejecuta el tallado para todos los pares de entrada proporcionados por Fase 4.
 static func carve_corridors(
@@ -216,10 +239,18 @@ static func _carve_single_request(
 
 		total_cost += 1.0
 
-	# Registrar conexiones en los RoomData correspondientes
+	# Asegurar que los interiores de entrada (inner_cell) sean transitable FLOOR si fueron afectados por CA
 	var room_a: RoomData = room_map.get(req.room_a_id, null)
 	var room_b: RoomData = room_map.get(req.room_b_id, null)
 
+	var inner_a: Vector2i = req.start_boundary - req.start_direction
+	var inner_b: Vector2i = req.goal_boundary - req.goal_direction
+	if grid.is_in_bounds(inner_a) and grid.get_cell(inner_a) != CellGrid.CellType.CORRIDOR:
+		grid.set_cell(inner_a, CellGrid.CellType.FLOOR)
+	if grid.is_in_bounds(inner_b) and grid.get_cell(inner_b) != CellGrid.CellType.CORRIDOR:
+		grid.set_cell(inner_b, CellGrid.CellType.FLOOR)
+
+	# Registrar conexiones en los RoomData correspondientes
 	if room_a != null:
 		if not room_a.connections.has(req.start_boundary):
 			room_a.connections.append(req.start_boundary)

@@ -1,0 +1,119 @@
+class_name DoorResolver
+extends RefCounted
+
+## Resolvedor arquitectónico determinista de puertas y umbrales (Fase 6).
+## Transforma pares de entradas (EntrancePair) y corredores tallados (CorridorPath) en puertas lógicas (CellType.DOOR).
+## Implementa el flujo atómico Resolve ALL -> Validate ALL -> Commit ALL.
+
+const _DoorPlacementScript = preload("res://src/dungeon_generator/core/data/door_placement.gd")
+const _DoorPairScript = preload("res://src/dungeon_generator/core/data/door_pair.gd")
+const _DoorResolutionResultScript = preload("res://src/dungeon_generator/core/solvers/door_resolution_result.gd")
+const _DoorTransitionValidatorScript = preload("res://src/dungeon_generator/core/validation/door_transition_validator.gd")
+
+## Resuelve y coloca atómicamente todas las puertas del intento de generación.
+static func resolve_doors(
+	grid: CellGrid,
+	rooms: Array[RoomData],
+	entrance_pairs: Array,
+	corridor_paths: Array,
+	connections: Array,
+	config: DungeonConfig = null
+) -> DoorResolutionResult:
+	var result = _DoorResolutionResultScript.new()
+
+	if connections.is_empty() or entrance_pairs.is_empty():
+		result.is_valid = true
+		return result
+
+	var conn_map: Dictionary = {}
+	for c in connections:
+		if c != null:
+			conn_map[c.id] = c
+
+	var path_map: Dictionary = {}
+	for p in corridor_paths:
+		if p != null:
+			path_map[p.connection_id] = p
+
+	# --- PASO 1: RESOLVE ALL (Construir candidatos a DoorPair) ---
+	var candidate_pairs: Array = []
+
+	for ep in entrance_pairs:
+		if ep == null or ep.entrance_a == null or ep.entrance_b == null:
+			continue
+
+		var conn_id: int = ep.connection_id
+		var conn = conn_map.get(conn_id, null)
+		var is_required: bool = conn.is_required if (conn != null and "is_required" in conn) else true
+
+		var path = path_map.get(conn_id, null)
+		if path == null:
+			if is_required:
+				result.add_failure(conn_id, "NO_CORRIDOR_PATH_FOR_CONNECTION")
+			else:
+				result.add_rejection(conn_id, "NO_CORRIDOR_PATH_FOR_OPTIONAL")
+			continue
+
+		var ent_a = ep.entrance_a
+		var ent_b = ep.entrance_b
+
+		# Verificar que el corredor alcance el outer_cell de ambas entradas
+		if not path.carved_cells.has(ent_a.outer_cell) or not path.carved_cells.has(ent_b.outer_cell):
+			if is_required:
+				result.add_failure(conn_id, "CORRIDOR_DOES_NOT_REACH_ENTRANCE")
+			else:
+				result.add_rejection(conn_id, "CORRIDOR_DOES_NOT_REACH_ENTRANCE")
+			continue
+
+		var door_a = _DoorPlacementScript.new(
+			conn_id,
+			ent_a.room_id,
+			ent_a.boundary_cell,
+			ent_a.side,
+			ent_a.inner_cell,
+			ent_a.outer_cell
+		)
+
+		var door_b = _DoorPlacementScript.new(
+			conn_id,
+			ent_b.room_id,
+			ent_b.boundary_cell,
+			ent_b.side,
+			ent_b.inner_cell,
+			ent_b.outer_cell
+		)
+
+		var dp = _DoorPairScript.new(conn_id, door_a, door_b)
+		candidate_pairs.append(dp)
+
+	# Si alguna conexión obligatoria falló en la etapa de resolución inicial
+	if not result.is_valid:
+		return result
+
+	# --- PASO 2: VALIDATE ALL (Validación global de transiciones y conflictos) ---
+	var val_res := _DoorTransitionValidatorScript.validate_global(
+		grid,
+		candidate_pairs,
+		connections,
+		rooms
+	)
+
+	if not val_res["is_valid"]:
+		var reason: String = val_res.get("reason", "GLOBAL_VALIDATION_FAILED")
+		var failed_id: int = val_res.get("connection_id", candidate_pairs[0].connection_id if not candidate_pairs.is_empty() else -1)
+		result.add_failure(failed_id, reason, val_res)
+		return result # Cero mutación en CellGrid
+
+	# --- PASO 3: COMMIT ALL (Commit atómico de todas las puertas al CellGrid) ---
+	for dp in candidate_pairs:
+		grid.set_cell(dp.door_a.position, CellGrid.CellType.DOOR)
+		grid.set_cell(dp.door_b.position, CellGrid.CellType.DOOR)
+
+		result.add_door_pair(dp, {
+			"connection_id": dp.connection_id,
+			"door_a_pos": str(dp.door_a.position),
+			"door_b_pos": str(dp.door_b.position),
+			"status": "VALID"
+		})
+
+	return result
