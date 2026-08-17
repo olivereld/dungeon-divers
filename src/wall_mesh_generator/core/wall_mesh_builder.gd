@@ -3,6 +3,7 @@ extends RefCounted
 
 ## Ensamblador de mallas de pared y esquinas estilizadas.
 ## Soporta piezas rectas (Wall) y esquinas en L de 90° (Corner) con cornisas a 45°, zócalos y ladrillos en relieve.
+## Soporta modo `centered_origin` para integración directa con GridMap de Godot.
 
 const _BrickGeometryBuilderScript = preload("res://src/wall_mesh_generator/core/brick_geometry_builder.gd")
 
@@ -24,6 +25,7 @@ func _build_corner_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 	var arm_len: float = config.cube_size
 	var total_height: float = config.get_total_height()
 	var panel_h: float = config.get_wall_panel_height()
+	var offset: Vector3 = Vector3(-arm_len * 0.5, 0.0, -arm_len * 0.5) if config.centered_origin else Vector3.ZERO
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = config.seed
@@ -37,7 +39,7 @@ func _build_corner_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 		"category": &"bottom_trim",
 		"course": 0,
 		"type": &"corner_bottom_base",
-		"transform": Transform3D(Basis(), Vector3(0.0, bot_y, 0.0))
+		"transform": Transform3D(Basis(), Vector3(0.0, bot_y, 0.0) + offset)
 	})
 	part_idx += 1
 
@@ -48,7 +50,7 @@ func _build_corner_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 		"category": &"wall_panel",
 		"course": 1,
 		"type": &"corner_wall_panel",
-		"transform": Transform3D(Basis(), Vector3(0.0, panel_y, 0.0))
+		"transform": Transform3D(Basis(), Vector3(0.0, panel_y, 0.0) + offset)
 	})
 	part_idx += 1
 
@@ -59,7 +61,7 @@ func _build_corner_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 		"category": &"top_trim",
 		"course": 2,
 		"type": &"corner_top_cornice",
-		"transform": Transform3D(Basis(), Vector3(0.0, top_y, 0.0))
+		"transform": Transform3D(Basis(), Vector3(0.0, top_y, 0.0) + offset)
 	})
 	part_idx += 1
 
@@ -81,13 +83,13 @@ func _build_corner_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 	# Cluster superior en brazo X interior
 	manifest.append(_create_brick_raw(
 		part_idx, 3, Vector3(bw * 0.85, bh, brick_depth),
-		Vector3(arm_x_center + (bw * 0.1), arm_x_y + (bh * 0.9), inner_z),
+		Vector3(arm_x_center + (bw * 0.1), arm_x_y + (bh * 0.9), inner_z) + offset,
 		Basis(), config, rng
 	))
 	part_idx += 1
 	manifest.append(_create_brick_raw(
 		part_idx, 3, Vector3(bw * 0.80, bh, brick_depth),
-		Vector3(arm_x_center + (bw * 0.35), arm_x_y + (bh * 0.9) - bh - sp, inner_z),
+		Vector3(arm_x_center + (bw * 0.35), arm_x_y + (bh * 0.9) - bh - sp, inner_z) + offset,
 		Basis(), config, rng
 	))
 	part_idx += 1
@@ -95,7 +97,7 @@ func _build_corner_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 	# Cluster inferior en brazo X interior
 	manifest.append(_create_brick_raw(
 		part_idx, 4, Vector3(bw * 0.82, bh, brick_depth),
-		Vector3(arm_x_center, config.bottom_trim_height + (panel_h * 0.20), inner_z),
+		Vector3(arm_x_center, config.bottom_trim_height + (panel_h * 0.20), inner_z) + offset,
 		Basis(), config, rng
 	))
 	part_idx += 1
@@ -108,21 +110,21 @@ func _build_corner_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 	# Cluster superior en brazo Z interior
 	manifest.append(_create_brick_raw(
 		part_idx, 3, Vector3(bw * 0.85, bh, brick_depth),
-		Vector3(inner_x, arm_z_y + (bh * 0.8), arm_z_center + (bw * 0.15)),
+		Vector3(inner_x, arm_z_y + (bh * 0.8), arm_z_center + (bw * 0.15)) + offset,
 		basis_arm_z, config, rng
 	))
 	part_idx += 1
 
-	# Cluster inferior en brazo Z interior (2 ladrillos escalonados como en la imagen de esquina)
+	# Cluster inferior en brazo Z interior (2 ladrillos escalonados)
 	manifest.append(_create_brick_raw(
 		part_idx, 4, Vector3(bw * 0.80, bh, brick_depth),
-		Vector3(inner_x, config.bottom_trim_height + (panel_h * 0.22) + (bh * 0.5), arm_z_center + (bw * 0.1)),
+		Vector3(inner_x, config.bottom_trim_height + (panel_h * 0.22) + (bh * 0.5), arm_z_center + (bw * 0.1)) + offset,
 		basis_arm_z, config, rng
 	))
 	part_idx += 1
 	manifest.append(_create_brick_raw(
 		part_idx, 4, Vector3(bw * 0.85, bh, brick_depth),
-		Vector3(inner_x, config.bottom_trim_height + (panel_h * 0.22) - (bh * 0.5), arm_z_center - (bw * 0.2)),
+		Vector3(inner_x, config.bottom_trim_height + (panel_h * 0.22) - (bh * 0.5), arm_z_center - (bw * 0.2)) + offset,
 		basis_arm_z, config, rng
 	))
 	part_idx += 1
@@ -135,14 +137,14 @@ func _build_corner_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 
 	manifest.append(_create_brick_raw(
 		part_idx, 5, Vector3(bw * 0.85, bh, brick_depth),
-		Vector3(arm_x_center, arm_x_y + (bh * 0.5), outer_z),
+		Vector3(arm_x_center, arm_x_y + (bh * 0.5), outer_z) + offset,
 		basis_outer_x, config, rng
 	))
 	part_idx += 1
 
 	manifest.append(_create_brick_raw(
 		part_idx, 5, Vector3(bw * 0.85, bh, brick_depth),
-		Vector3(outer_x, arm_z_y + (bh * 0.5), arm_z_center),
+		Vector3(outer_x, arm_z_y + (bh * 0.5), arm_z_center) + offset,
 		basis_outer_z, config, rng
 	))
 	part_idx += 1
@@ -176,6 +178,7 @@ func _build_wall_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 	var total_length: float = config.get_total_length()
 	var total_height: float = config.get_total_height()
 	var panel_h: float = config.get_wall_panel_height()
+	var offset_x: float = -(total_length * 0.5) if config.centered_origin else 0.0
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = config.seed
@@ -190,7 +193,7 @@ func _build_wall_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 		"course": 0,
 		"type": &"trim_base",
 		"size": Vector3(total_length, config.bottom_trim_height, config.wall_thickness + config.trim_overhang * 2.0),
-		"transform": Transform3D(Basis(), Vector3(total_length * 0.5, bot_y, 0.0)),
+		"transform": Transform3D(Basis(), Vector3((total_length * 0.5) + offset_x, bot_y, 0.0)),
 		"slope_height": config.bottom_trim_slope_height
 	})
 	part_idx += 1
@@ -203,7 +206,7 @@ func _build_wall_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 		"course": 1,
 		"type": &"panel",
 		"size": Vector3(total_length, panel_h, config.wall_thickness),
-		"transform": Transform3D(Basis(), Vector3(total_length * 0.5, panel_y, 0.0)),
+		"transform": Transform3D(Basis(), Vector3((total_length * 0.5) + offset_x, panel_y, 0.0)),
 		"bevel": 0.010
 	})
 	part_idx += 1
@@ -216,7 +219,7 @@ func _build_wall_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 		"course": 2,
 		"type": &"trim_cornice",
 		"size": Vector3(total_length, config.top_trim_height, config.wall_thickness + config.trim_overhang * 2.0),
-		"transform": Transform3D(Basis(), Vector3(total_length * 0.5, top_y, 0.0)),
+		"transform": Transform3D(Basis(), Vector3((total_length * 0.5) + offset_x, top_y, 0.0)),
 		"slope_height": config.top_trim_slope_height
 	})
 	part_idx += 1
@@ -226,7 +229,7 @@ func _build_wall_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 	var segment_w: float = config.cube_size
 
 	for seg in range(num_segments):
-		var seg_origin_x: float = float(seg) * segment_w
+		var seg_origin_x: float = float(seg) * segment_w + offset_x
 		var is_odd_segment: bool = (seg % 2 == 1)
 
 		for side in [1, -1]:
@@ -376,7 +379,8 @@ func build_mesh_from_subset(
 				if config.piece_type == WallMeshConfig.PieceType.CORNER:
 					_BrickGeometryBuilderScript.append_corner_wall_panel(
 						st_panel, config.cube_size, config.get_wall_panel_height(),
-						config.wall_thickness, p["transform"], p.get("bevel", 0.012)
+						config.wall_thickness, p["transform"], p.get("bevel", 0.012),
+						config.trim_overhang, config.corner_outer_chamfer
 					)
 				else:
 					_BrickGeometryBuilderScript.append_beveled_box(

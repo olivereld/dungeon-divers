@@ -2,7 +2,7 @@ class_name WallMeshConfig
 extends Resource
 
 ## Configuración para el generador procedural de paredes y esquinas estilizadas (estilo Zelda / KayKit).
-## Soporta piezas rectas (Wall) y esquinas en L de 90° (Corner) con cornisas biseladas y juntas en V.
+## Soporta piezas rectas (Wall) y esquinas en L de 90° (Corner) con cornisas biseladas, juntas en V y centrado GridMap.
 
 enum PieceType {
 	WALL,   ## Pared recta modular
@@ -16,6 +16,10 @@ enum WallStyle {
 
 @export_group("Tipo de Pieza")
 @export var piece_type: PieceType = PieceType.WALL
+
+@export_group("Alineación y GridMap")
+## Centrar el origen en (0, 0, 0) para compatibilidad directa con GridMap de Godot
+@export var centered_origin: bool = false
 
 @export_group("Dimensiones de Pared")
 ## Tamaño de una celda/cubo en metros (2.0m para coincidir con dungeon divers)
@@ -80,6 +84,7 @@ func get_wall_panel_height() -> float:
 func duplicate_config() -> WallMeshConfig:
 	var c := WallMeshConfig.new()
 	c.piece_type = piece_type
+	c.centered_origin = centered_origin
 	c.cube_size = cube_size
 	c.cubes_high = cubes_high
 	c.wall_length_cubes = wall_length_cubes

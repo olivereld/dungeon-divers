@@ -9,6 +9,8 @@ const _GridMapMapperScript = preload("res://src/dungeon_generator/presentation/g
 const _DungeonEntitySpawnerScript = preload("res://src/dungeon_generator/presentation/dungeon_entity_spawner.gd")
 const _DungeonPresentationResultScript = preload("res://src/dungeon_generator/presentation/presentation_result.gd")
 const _PlaceholderFactoryScript = preload("res://src/dungeon_generator/render/placeholder_factory.gd")
+const _ContinuousWallMeshBuilderScript = preload("res://src/wall_mesh_generator/core/continuous_wall_mesh_builder.gd")
+const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall_mesh_config.gd")
 
 var _gridmap_mapper := _GridMapMapperScript.new()
 var _entity_spawner := _DungeonEntitySpawnerScript.new()
@@ -70,6 +72,22 @@ func build_presentation(
 	result.total_tiles_rendered = int(map_res.get("total_tiles", 0))
 	for diag in map_res.get("diagnostics", []):
 		result.diagnostics.append(diag)
+
+	# 4.1 Generar Malla Continua Unificada de Paredes (sin cortes ni solapamientos)
+	if biome.wall_scene == null:
+		var wall_builder := _ContinuousWallMeshBuilderScript.new()
+		var wall_config := _WallMeshConfigScript.new()
+		wall_config.cube_size = tile_size
+		wall_config.cubes_high = maxi(1, config.wall_height if config != null else 2)
+		wall_config.seed = config.seed if config != null else 1337
+
+		var wall_mesh: ArrayMesh = wall_builder.build_dungeon_wall_mesh(semantic_result.grid, wall_config)
+		if wall_mesh.get_surface_count() > 0:
+			var wall_inst := MeshInstance3D.new()
+			wall_inst.name = "ContinuousWalls"
+			wall_inst.mesh = wall_mesh
+			wall_inst.create_trimesh_collision()
+			staging_root.add_child(wall_inst)
 
 	# 5. Spawning de Entidades en Staging
 	var spawn_res: Dictionary = _entity_spawner.spawn_entities(

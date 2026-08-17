@@ -86,25 +86,23 @@ func map_grid(
 						total_tiles += 1
 
 				CellGrid.CellType.WALL:
-					# 1. Base continua bajo muros visibles
-					if grid.count_walkable_neighbors(cell_pos, true) > 0:
-						if dungeon_floor_idx >= 0:
-							target_floor_map.set_cell_item(Vector3i(x, 0, y), dungeon_floor_idx, 0)
-							total_tiles += 1
+					# Solo colocar base de suelo y muro en GridMap si hay modelos 3D estáticos asignados
+					if biome.wall_scene != null:
+						if grid.count_walkable_neighbors(cell_pos, true) > 0:
+							if dungeon_floor_idx >= 0:
+								target_floor_map.set_cell_item(Vector3i(x, 0, y), dungeon_floor_idx, 0)
+								total_tiles += 1
 
-						# 2. Muro 3D con orientación visual cosmética
-						var wall_info: Dictionary = _get_wall_tile_and_orientation(grid, cell_pos, biome)
-						var w_idx: int = wall_info["index"]
-						var w_orient: int = wall_info["orientation"]
-						if w_idx >= 0:
-							if target_wall_map != target_floor_map:
-								# Capa separada de muros en Y = 0
-								target_wall_map.set_cell_item(Vector3i(x, 0, y), w_idx, w_orient)
-							else:
-								# GridMap único: apilar muros a partir de Y = 1
-								for h in range(1, wall_h + 1):
-									target_wall_map.set_cell_item(Vector3i(x, h, y), w_idx, w_orient)
-							total_tiles += 1
+							var wall_info: Dictionary = _get_wall_tile_and_orientation(grid, cell_pos, biome)
+							var w_idx: int = wall_info["index"]
+							var w_orient: int = wall_info["orientation"]
+							if w_idx >= 0:
+								if target_wall_map != target_floor_map:
+									target_wall_map.set_cell_item(Vector3i(x, 0, y), w_idx, w_orient)
+								else:
+									for h in range(1, wall_h + 1):
+										target_wall_map.set_cell_item(Vector3i(x, h, y), w_idx, w_orient)
+								total_tiles += 1
 
 				CellGrid.CellType.COLUMN:
 					if dungeon_floor_idx >= 0:
