@@ -42,6 +42,9 @@ func get_width() -> int:
 func get_height() -> int:
 	return height
 
+func get_raw_byte_buffer() -> PackedByteArray:
+	return _cells.to_byte_array()
+
 func is_in_bounds(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < width and pos.y >= 0 and pos.y < height
 
@@ -140,6 +143,15 @@ func set_cell_metadata_dict(pos: Vector2i, data: Dictionary) -> void:
 		_metadata.erase(pos)
 	else:
 		_metadata[pos] = data.duplicate(true)
+
+func count_walkable_cells() -> int:
+	var count: int = 0
+	var total: int = _cells.size()
+	for i in range(total):
+		var t: int = _cells[i]
+		if t != int(CellType.WALL) and t != int(CellType.VOID) and t != int(CellType.COLUMN) and t != int(CellType.OBSTACLE):
+			count += 1
+	return count
 
 func find_cells_of_type(type: CellType) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []

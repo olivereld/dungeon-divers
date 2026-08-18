@@ -65,12 +65,20 @@ func _compute_aesthetic_metrics(corridors: Array, doors: Array) -> Dictionary:
 	var avg_turns: float = float(total_turns) / float(c_count) if c_count > 0 else 0.0
 
 	var min_door_dist: int = 999
-	for i in range(doors.size()):
-		for j in range(i + 1, doors.size()):
-			var da = doors[i]
-			var db = doors[j]
-			if da != null and db != null:
-				var m_dist: int = absi(da.position.x - db.position.x) + absi(da.position.y - db.position.y)
+	var doors_by_room: Dictionary = {}
+	for d in doors:
+		if d != null:
+			if not doors_by_room.has(d.room_id):
+				doors_by_room[d.room_id] = []
+			doors_by_room[d.room_id].append(d.position)
+
+	for r_id in doors_by_room.keys():
+		var r_doors: Array = doors_by_room[r_id]
+		for i in range(r_doors.size()):
+			for j in range(i + 1, r_doors.size()):
+				var p1: Vector2i = r_doors[i]
+				var p2: Vector2i = r_doors[j]
+				var m_dist: int = absi(p1.x - p2.x) + absi(p1.y - p2.y)
 				if m_dist < min_door_dist:
 					min_door_dist = m_dist
 

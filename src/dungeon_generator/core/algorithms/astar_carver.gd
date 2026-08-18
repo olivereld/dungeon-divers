@@ -62,8 +62,8 @@ static func carve_corridors(
 		if conn != null:
 			conn_map[conn.id] = conn
 
-	# 1. Crear el grafo base AStar2D para fallback y comprobaciones de accesibilidad
-	var astar := _build_base_astar_graph(grid, cfg)
+	# 1. Grafo base AStar2D (construido lazy únicamente si se requiere fallback clásico)
+	var astar: AStar2D = null
 
 	# 2. Convertir EntrancePairs o CorridorRequests y ordenar por prioridad
 	var requests: Array[CorridorRequest] = []
@@ -172,6 +172,8 @@ static func _carve_single_request(
 			routing_strategy = "AStar_TurnAware"
 		else:
 			# Fallback clásico mediante AStar2D si el direccional estricto fallara
+			if astar == null:
+				astar = _build_base_astar_graph(grid, config)
 			var classic_path := _find_classic_astar_path(astar, rooms, req, config, grid_width)
 			if not classic_path.is_empty():
 				centerline = classic_path
@@ -220,10 +222,10 @@ static func _carve_single_request(
 		else:
 			# Tallar como CORRIDOR en el grid
 			grid.set_cell(cell, CellGrid.CellType.CORRIDOR)
-			# Actualizar el peso dinámico en AStar para futuras conexiones
-			var cid: int = _get_cell_id(cell, grid_width)
-			var w_corridor: float = config.corridor_cost_corridor if ("corridor_cost_corridor" in config) else 1.0
-			astar.set_point_weight_scale(cid, w_corridor)
+			if astar != null:
+				var cid: int = _get_cell_id(cell, grid_width)
+				var w_corridor: float = config.corridor_cost_corridor if ("corridor_cost_corridor" in config) else 1.0
+				astar.set_point_weight_scale(cid, w_corridor)
 
 		total_cost += 1.0
 

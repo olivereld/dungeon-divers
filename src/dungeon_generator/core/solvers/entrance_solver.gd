@@ -47,6 +47,7 @@ static func resolve(
 
 	# 4. Estado de reservas por habitación
 	var reserved_positions: Dictionary = {}
+	var all_reserved_positions: Dictionary = {} # Vector2i -> bool
 	var reserved_sides: Dictionary = {}
 	var reserved_approaches: Dictionary = {}
 	for r in rooms:
@@ -95,6 +96,7 @@ static func resolve(
 			room_b,
 			conn,
 			reserved_positions,
+			all_reserved_positions,
 			reserved_sides,
 			reserved_approaches,
 			min_spacing,
@@ -132,6 +134,8 @@ static func resolve(
 		# Reservar las posiciones y lados seleccionados
 		reserved_positions[conn.room_a_id].append(ent_a.position)
 		reserved_positions[conn.room_b_id].append(ent_b.position)
+		all_reserved_positions[ent_a.position] = true
+		all_reserved_positions[ent_b.position] = true
 
 		reserved_sides[conn.room_a_id][ent_a.side] = reserved_sides[conn.room_a_id].get(ent_a.side, 0) + 1
 		reserved_sides[conn.room_b_id][ent_b.side] = reserved_sides[conn.room_b_id].get(ent_b.side, 0) + 1
@@ -238,121 +242,6 @@ static func _is_candidate_valid(pos: Vector2i, inner: Vector2i, outer: Vector2i,
 		return false
 	return true
 
-## Función centralizada de puntuación de un par de candidatos.
-static func score_candidate_pair(
-	cand_a: EntranceCandidate,
-	cand_b: EntranceCandidate,
-	room_a: RoomData,
-	room_b: RoomData,
-	reserved_positions: Dictionary,
-	reserved_sides: Dictionary,
-	reserved_approaches: Dictionary,
-	min_spacing: int,
-	config: DungeonConfig
-) -> float:
-	var dist_weight: float = config.entrance_distance_weight if "entrance_distance_weight" in config else 1.0
-	var align_weight: float = config.entrance_alignment_weight if "entrance_alignment_weight" in config else 2.0
-	var corner_pen: float = config.entrance_corner_penalty if "entrance_corner_penalty" in config else 5.0
-	var same_side_pen: float = config.same_side_door_penalty if "same_side_door_penalty" in config else 30.0
-	var proximity_pen: float = config.corridor_door_proximity_penalty if "corridor_door_proximity_penalty" in config else 50.0
-
-	var pos_a: Vector2i = cand_a.position
-	var pos_b: Vector2i = cand_b.position
-
-	# 1. Distancia euclídea entre los puntos de salida exterior
-	var dx: float = float(cand_b.outer_cell.x - cand_a.outer_cell.x)
-	var dy: float = float(cand_b.outer_cell.y - cand_a.outer_cell.y)
-	var dist_cost: float = sqrt(dx * dx + dy * dy) * dist_weight
-
-	# 2. Costo de alineación (penalizar desalineación ortogonal)
-	var align_cost: float = 0.0
-	var center_delta: Vector2i = room_b.get_center() - room_a.get_center()
-	var is_horizontal_dominant: bool = absi(center_delta.x) >= absi(center_delta.y)
-
-	if is_horizontal_dominant:
-		align_cost = absf(float(pos_b.y - pos_a.y)) * align_weight
-	else:
-		align_cost = absf(float(pos_b.x - pos_a.x)) * align_weight
-
-	# 3. Orientación cardinal relativa (preferir caras enfrentadas)
-	var orientation_penalty: float = 0.0
-	var desired_side_a: int = _get_preferred_side(room_a.get_center(), room_b.get_center())
-	var desired_side_b: int = _get_preferred_side(room_b.get_center(), room_a.get_center())
-
-	if cand_a.side != desired_side_a:
-		orientation_penalty += 15.0
-	if cand_b.side != desired_side_b:
-		orientation_penalty += 15.0
-
-	# 4. Proximidad a esquinas de la habitación
-	var corner_dist_penalty: float = 0.0
-	corner_dist_penalty += _calc_corner_penalty(cand_a, room_a, corner_pen)
-	corner_dist_penalty += _calc_corner_penalty(cand_b, room_b, corner_pen)
-
-	# 5. Restricción Dura: Prohibir terminantemente compartir la misma celda
-	for r_id in reserved_positions.keys():
-		for res_pos in reserved_positions[r_id]:
-			if pos_a == res_pos or pos_b == res_pos or pos_a == pos_b:
-				return 1e8 # Inviolable: nunca dos puertas en la misma celda física
-
-	# Penalización por proximidad en el perímetro de la misma sala (garantiza máximo espaciado)
-	var conflict_penalty: float = 0.0
-	var reserved_a: Array = reserved_positions.get(room_a.id, [])
-	for res_pos in reserved_a:
-		var manhattan: int = absi(pos_a.x - res_pos.x) + absi(pos_a.y - res_pos.y)
-		if manhattan < min_spacing:
-			conflict_penalty += 100.0 * float(min_spacing - manhattan)
-
-	var reserved_b: Array = reserved_positions.get(room_b.id, [])
-	for res_pos in reserved_b:
-		var manhattan: int = absi(pos_b.x - res_pos.x) + absi(pos_b.y - res_pos.y)
-		if manhattan < min_spacing:
-			conflict_penalty += 100.0 * float(min_spacing - manhattan)
-
-	# 6. Distribución entre caras de la habitación (penalizar reutilización de la misma cara)
-	var side_penalty: float = 0.0
-	if config.distribute_room_doors_across_sides:
-		var sides_a: Dictionary = reserved_sides.get(room_a.id, {})
-		var count_a: int = sides_a.get(cand_a.side, 0)
-		if count_a > 0:
-			side_penalty += same_side_pen * float(count_a)
-
-		var sides_b: Dictionary = reserved_sides.get(room_b.id, {})
-		var count_b: int = sides_b.get(cand_b.side, 0)
-		if count_b > 0:
-			side_penalty += same_side_pen * float(count_b)
-
-	# 7. Proximidad de aproximaciones (evitar pasillos paralelos pegados en outer_cells)
-	var approach_penalty: float = 0.0
-	var app_a: Array = reserved_approaches.get(room_a.id, [])
-	for prev_app in app_a:
-		if absi(cand_a.outer_cell.x - prev_app.x) + absi(cand_a.outer_cell.y - prev_app.y) <= 1:
-			approach_penalty += proximity_pen
-
-	var app_b: Array = reserved_approaches.get(room_b.id, [])
-	for prev_app in app_b:
-		if absi(cand_b.outer_cell.x - prev_app.x) + absi(cand_b.outer_cell.y - prev_app.y) <= 1:
-			approach_penalty += proximity_pen
-
-	# 8. Estimación de Calidad de Forma del Corredor (Fase 4 Refined)
-	var shape_penalty: float = 0.0
-	var out_a: Vector2i = cand_a.outer_cell
-	var out_b: Vector2i = cand_b.outer_cell
-	var dir_a: Vector2i = cand_a.outer_cell - cand_a.position
-	var dir_b: Vector2i = cand_b.outer_cell - cand_b.position
-
-	if (out_a.x == out_b.x and dir_a.x == 0 and dir_b.x == 0) or (out_a.y == out_b.y and dir_a.y == 0 and dir_b.y == 0):
-		# Colineal perfecto: permite recta directa de 0 giros
-		shape_penalty = 0.0
-	elif (dir_a.x != 0 and dir_b.y != 0) or (dir_a.y != 0 and dir_b.x != 0):
-		# Ortogonal 90°: permite L limpia de 1 giro
-		shape_penalty = 5.0
-	else:
-		# Caras paralelas desfasadas: requerirá 2 giros (Z o U)
-		shape_penalty = 20.0
-
-	return dist_cost + align_cost + orientation_penalty + corner_dist_penalty + conflict_penalty + side_penalty + approach_penalty + shape_penalty
-
 static func _calc_corner_penalty(cand: EntranceCandidate, room: RoomData, base_penalty: float) -> float:
 	var r: Rect2i = room.rect
 	var p: Vector2i = cand.position
@@ -379,6 +268,123 @@ static func _get_preferred_side(from_center: Vector2i, to_center: Vector2i) -> i
 	else:
 		return _RoomEntranceScript.SOUTH if diff.y > 0 else _RoomEntranceScript.NORTH
 
+static func _calc_candidate_unary_cost(
+	cand: EntranceCandidate,
+	room: RoomData,
+	desired_side: int,
+	reserved_pos_list: Array,
+	reserved_sides_map: Dictionary,
+	reserved_apps_list: Array,
+	min_spacing: int,
+	config: DungeonConfig
+) -> float:
+	var corner_pen: float = config.entrance_corner_penalty if "entrance_corner_penalty" in config else 5.0
+	var same_side_pen: float = config.same_side_door_penalty if "same_side_door_penalty" in config else 30.0
+	var proximity_pen: float = config.corridor_door_proximity_penalty if "corridor_door_proximity_penalty" in config else 50.0
+
+	var cost: float = 0.0
+	# 1. Orientación cardinal relativa
+	if cand.side != desired_side:
+		cost += 15.0
+
+	# 2. Proximidad a esquinas
+	cost += _calc_corner_penalty(cand, room, corner_pen)
+
+	# 3. Penalización por proximidad en el perímetro de la misma sala
+	var pos: Vector2i = cand.position
+	for res_pos in reserved_pos_list:
+		var manhattan: int = absi(pos.x - res_pos.x) + absi(pos.y - res_pos.y)
+		if manhattan < min_spacing:
+			cost += 100.0 * float(min_spacing - manhattan)
+
+	# 4. Distribución entre caras
+	if config.distribute_room_doors_across_sides:
+		var count: int = reserved_sides_map.get(cand.side, 0)
+		if count > 0:
+			cost += same_side_pen * float(count)
+
+	# 5. Proximidad de aproximaciones
+	for prev_app in reserved_apps_list:
+		if absi(cand.outer_cell.x - prev_app.x) + absi(cand.outer_cell.y - prev_app.y) <= 1:
+			cost += proximity_pen
+
+	return cost
+
+static func _calc_pairwise_cost(
+	cand_a: EntranceCandidate,
+	cand_b: EntranceCandidate,
+	room_a: RoomData,
+	room_b: RoomData,
+	config: DungeonConfig
+) -> float:
+	var dist_weight: float = config.entrance_distance_weight if "entrance_distance_weight" in config else 1.0
+	var align_weight: float = config.entrance_alignment_weight if "entrance_alignment_weight" in config else 2.0
+
+	# 1. Distancia euclídea entre los puntos de salida exterior
+	var dx: float = float(cand_b.outer_cell.x - cand_a.outer_cell.x)
+	var dy: float = float(cand_b.outer_cell.y - cand_a.outer_cell.y)
+	var dist_cost: float = sqrt(dx * dx + dy * dy) * dist_weight
+
+	# 2. Costo de alineación
+	var align_cost: float = 0.0
+	var center_delta: Vector2i = room_b.get_center() - room_a.get_center()
+	var is_horizontal_dominant: bool = absi(center_delta.x) >= absi(center_delta.y)
+
+	var pos_a: Vector2i = cand_a.position
+	var pos_b: Vector2i = cand_b.position
+	if is_horizontal_dominant:
+		align_cost = absf(float(pos_b.y - pos_a.y)) * align_weight
+	else:
+		align_cost = absf(float(pos_b.x - pos_a.x)) * align_weight
+
+	# 3. Estimación de Calidad de Forma del Corredor
+	var shape_penalty: float = 0.0
+	var out_a: Vector2i = cand_a.outer_cell
+	var out_b: Vector2i = cand_b.outer_cell
+	var dir_a: Vector2i = cand_a.outer_cell - cand_a.position
+	var dir_b: Vector2i = cand_b.outer_cell - cand_b.position
+
+	if (out_a.x == out_b.x and dir_a.x == 0 and dir_b.x == 0) or (out_a.y == out_b.y and dir_a.y == 0 and dir_b.y == 0):
+		shape_penalty = 0.0
+	elif (dir_a.x != 0 and dir_b.y != 0) or (dir_a.y != 0 and dir_b.x != 0):
+		shape_penalty = 5.0
+	else:
+		shape_penalty = 20.0
+
+	return dist_cost + align_cost + shape_penalty
+
+## Función centralizada de puntuación de un par de candidatos (compatibilidad legacy).
+static func score_candidate_pair(
+	cand_a: EntranceCandidate,
+	cand_b: EntranceCandidate,
+	room_a: RoomData,
+	room_b: RoomData,
+	reserved_positions: Dictionary,
+	all_reserved_positions: Dictionary,
+	reserved_sides: Dictionary,
+	reserved_approaches: Dictionary,
+	min_spacing: int,
+	config: DungeonConfig
+) -> float:
+	if cand_a.position == cand_b.position:
+		return 1e8
+	if all_reserved_positions.has(cand_a.position) or all_reserved_positions.has(cand_b.position):
+		return 1e8
+
+	var desired_side_a: int = _get_preferred_side(room_a.get_center(), room_b.get_center())
+	var desired_side_b: int = _get_preferred_side(room_b.get_center(), room_a.get_center())
+	var reserved_a: Array = reserved_positions.get(room_a.id, [])
+	var reserved_b: Array = reserved_positions.get(room_b.id, [])
+	var sides_a: Dictionary = reserved_sides.get(room_a.id, {})
+	var sides_b: Dictionary = reserved_sides.get(room_b.id, {})
+	var app_a: Array = reserved_approaches.get(room_a.id, [])
+	var app_b: Array = reserved_approaches.get(room_b.id, [])
+
+	var u_a: float = _calc_candidate_unary_cost(cand_a, room_a, desired_side_a, reserved_a, sides_a, app_a, min_spacing, config)
+	var u_b: float = _calc_candidate_unary_cost(cand_b, room_b, desired_side_b, reserved_b, sides_b, app_b, min_spacing, config)
+	var pair_cost: float = _calc_pairwise_cost(cand_a, cand_b, room_a, room_b, config)
+	return u_a + u_b + pair_cost
+
 static func _find_best_candidate_pair(
 	cands_a: Array[EntranceCandidate],
 	cands_b: Array[EntranceCandidate],
@@ -386,6 +392,7 @@ static func _find_best_candidate_pair(
 	room_b: RoomData,
 	conn: RefCounted,
 	reserved_positions: Dictionary,
+	all_reserved_positions: Dictionary,
 	reserved_sides: Dictionary,
 	reserved_approaches: Dictionary,
 	min_spacing: int,
@@ -396,23 +403,54 @@ static func _find_best_candidate_pair(
 	var best_cand_b: EntranceCandidate = null
 	var found_any := false
 
-	# Evaluación exhaustiva determinista
-	for ca in cands_a:
-		for cb in cands_b:
-			var score: float = score_candidate_pair(
-				ca,
-				cb,
-				room_a,
-				room_b,
-				reserved_positions,
-				reserved_sides,
-				reserved_approaches,
-				min_spacing,
-				config
-			)
+	var desired_side_a: int = _get_preferred_side(room_a.get_center(), room_b.get_center())
+	var desired_side_b: int = _get_preferred_side(room_b.get_center(), room_a.get_center())
+	var reserved_a: Array = reserved_positions.get(room_a.id, [])
+	var reserved_b: Array = reserved_positions.get(room_b.id, [])
+	var sides_a: Dictionary = reserved_sides.get(room_a.id, {})
+	var sides_b: Dictionary = reserved_sides.get(room_b.id, {})
+	var app_a: Array = reserved_approaches.get(room_a.id, [])
+	var app_b: Array = reserved_approaches.get(room_b.id, [])
+
+	var unary_a: Array[float] = []
+	unary_a.resize(cands_a.size())
+	for i in range(cands_a.size()):
+		var ca := cands_a[i]
+		if all_reserved_positions.has(ca.position):
+			unary_a[i] = 1e8
+		else:
+			unary_a[i] = _calc_candidate_unary_cost(ca, room_a, desired_side_a, reserved_a, sides_a, app_a, min_spacing, config)
+
+	var unary_b: Array[float] = []
+	unary_b.resize(cands_b.size())
+	for j in range(cands_b.size()):
+		var cb := cands_b[j]
+		if all_reserved_positions.has(cb.position):
+			unary_b[j] = 1e8
+		else:
+			unary_b[j] = _calc_candidate_unary_cost(cb, room_b, desired_side_b, reserved_b, sides_b, app_b, min_spacing, config)
+
+	# Evaluación exhaustiva optimizada con costos unarios precalculados
+	for i in range(cands_a.size()):
+		var u_a: float = unary_a[i]
+		if u_a >= 1e8:
+			continue
+		var ca: EntranceCandidate = cands_a[i]
+
+		for j in range(cands_b.size()):
+			var u_b: float = unary_b[j]
+			if u_b >= 1e8:
+				continue
+			var cb: EntranceCandidate = cands_b[j]
+
+			if ca.position == cb.position:
+				continue
+
+			var pairwise_cost: float = _calc_pairwise_cost(ca, cb, room_a, room_b, config)
+			var score: float = u_a + u_b + pairwise_cost
 
 			if score >= 1e8:
-				continue # Rechazar candidatos inválidos o en conflicto duro
+				continue
 
 			if not found_any or score < best_score:
 				best_score = score
@@ -420,7 +458,6 @@ static func _find_best_candidate_pair(
 				best_cand_b = cb
 				found_any = true
 			elif is_equal_approx(score, best_score):
-				# Desempate determinista lexicográfico
 				if _tie_breaker_a_over_b(ca, cb, best_cand_a, best_cand_b, conn.id):
 					best_score = score
 					best_cand_a = ca

@@ -39,16 +39,10 @@ static func evaluate(ctx: DungeonGenerationContext) -> QualityGateResult:
 			res.add_hard_failure("STRUCTURAL_ERROR: " + err)
 
 	# 1.2 Reachability & Connectivity (100% Floor Reachable)
-	var start_pos: Vector2i = Vector2i.ZERO
-	var spawn_cells = ctx.grid.find_cells_of_type(CellGrid.CellType.SPAWN)
-	if not spawn_cells.is_empty():
-		start_pos = spawn_cells[0]
-	elif not ctx.rooms.is_empty():
-		start_pos = ctx.rooms[0].get_center()
-
-	var reach_diag = _DungeonDistanceFieldScript.verify_100_percent_reachable(ctx.grid, start_pos)
-	if not reach_diag["is_100_percent_reachable"]:
-		res.add_hard_failure("UNREACHABLE_WALKABLE_CELLS: %d cells" % reach_diag["unreachable_cells"].size())
+	var total_walkable: int = ctx.grid.count_walkable_cells()
+	var reached_count: int = ctx.distance_field.size()
+	if reached_count < total_walkable:
+		res.add_hard_failure("UNREACHABLE_WALKABLE_CELLS: %d / %d reachable" % [reached_count, total_walkable])
 
 	# 1.3 Doors Validity (In Bounds, Walkable, Matched)
 	if ctx.doors.is_empty() and not ctx.connections.is_empty():
@@ -79,8 +73,8 @@ static func evaluate(ctx: DungeonGenerationContext) -> QualityGateResult:
 	res.fitness_score = fitness_evaluator.evaluate(ctx.grid, ctx.rooms, ctx.config)
 	res.soft_metrics = {
 		"fitness_score": res.fitness_score,
-		"reachable_cells": reach_diag["reachable_cells_count"],
-		"max_distance": reach_diag["max_distance"]
+		"reachable_cells": ctx.distance_field.size(),
+		"total_walkable_cells": total_walkable
 	}
 
 	return res
