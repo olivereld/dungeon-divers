@@ -36,7 +36,8 @@ func spawn_doors(
 	staging_root.add_child(doors_container)
 
 	# Preparar mallas procedurales de arco y puerta si no hay escena personalizada
-	var arch_mesh: ArrayMesh = null
+	var arch_mesh_blue: ArrayMesh = null
+	var arch_mesh_red: ArrayMesh = null
 	var door_leaf_mesh: ArrayMesh = null
 	var door_w: float = 1.06
 	var door_h: float = 2.49
@@ -53,15 +54,25 @@ func spawn_doors(
 		arch_cfg.cubes_high = maxi(1, wall_height)
 		arch_cfg.seed = seed
 
-		# 1. Malla del Marco de Piedra (Arco) - Azul para test visual
-		var arch_mat := StandardMaterial3D.new()
-		arch_mat.albedo_color = Color(0.2, 0.45, 0.9, 1.0) # Azul
-		arch_mat.roughness = 0.5
-		arch_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		# 1A. Arco Azul (Para OPEN_PASSAGE / Arcos Abiertos)
+		var arch_mat_blue := StandardMaterial3D.new()
+		arch_mat_blue.albedo_color = Color(0.2, 0.45, 0.9, 1.0) # Azul
+		arch_mat_blue.roughness = 0.5
+		arch_mat_blue.cull_mode = BaseMaterial3D.CULL_DISABLED
 
-		arch_mesh = builder.build_wall_mesh(arch_cfg)
-		for s in range(arch_mesh.get_surface_count()):
-			arch_mesh.surface_set_material(s, arch_mat)
+		arch_mesh_blue = builder.build_wall_mesh(arch_cfg)
+		for s in range(arch_mesh_blue.get_surface_count()):
+			arch_mesh_blue.surface_set_material(s, arch_mat_blue)
+
+		# 1B. Arco Rojo (Para Portales con Puerta Física)
+		var arch_mat_red := StandardMaterial3D.new()
+		arch_mat_red.albedo_color = Color(0.9, 0.2, 0.2, 1.0) # Rojo
+		arch_mat_red.roughness = 0.5
+		arch_mat_red.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+		arch_mesh_red = builder.build_wall_mesh(arch_cfg)
+		for s in range(arch_mesh_red.get_surface_count()):
+			arch_mesh_red.surface_set_material(s, arch_mat_red)
 
 		# 2. Malla de la Hoja de Madera y Aldaba - Rojo para test visual
 		door_w = arch_cfg.arch_opening_width - 0.02
@@ -92,28 +103,32 @@ func spawn_doors(
 
 		if biome != null and biome.door_scene != null:
 			portal_root = biome.door_scene.instantiate() as Node3D
-		elif arch_mesh != null:
-			portal_root = Node3D.new()
-			portal_root.name = "DoorPortal_%s" % manifest.door_id
+		else:
+			var is_open: bool = (manifest.door_type == _DoorTypeScript.DoorType.OPEN_PASSAGE)
+			var arch_mesh_to_use: ArrayMesh = arch_mesh_blue if is_open else arch_mesh_red
 
-			# Arco de piedra exterior con colisión
-			var arch_inst := MeshInstance3D.new()
-			arch_inst.name = "StoneArch"
-			arch_inst.mesh = arch_mesh
-			arch_inst.create_trimesh_collision()
-			portal_root.add_child(arch_inst)
+			if arch_mesh_to_use != null:
+				portal_root = Node3D.new()
+				portal_root.name = "DoorPortal_%s" % manifest.door_id
 
-			# Hoja de puerta interactiva y destructible (solo si NO es OPEN_PASSAGE)
-			if door_leaf_mesh != null and manifest.door_type != _DoorTypeScript.DoorType.OPEN_PASSAGE:
-				var door_entity := _DungeonDoorEntityScript.new()
-				door_entity.name = "DoorEntity"
-				door_entity.setup_procedural_door(
-					door_leaf_mesh,
-					door_w,
-					door_h,
-					door_th
-				)
-				portal_root.add_child(door_entity)
+				# Arco de piedra exterior con colisión (Rojo con puerta, Azul si es abierto)
+				var arch_inst := MeshInstance3D.new()
+				arch_inst.name = "StoneArch"
+				arch_inst.mesh = arch_mesh_to_use
+				arch_inst.create_trimesh_collision()
+				portal_root.add_child(arch_inst)
+
+				# Hoja de puerta interactiva y destructible (solo si NO es OPEN_PASSAGE)
+				if door_leaf_mesh != null and not is_open:
+					var door_entity := _DungeonDoorEntityScript.new()
+					door_entity.name = "DoorEntity"
+					door_entity.setup_procedural_door(
+						door_leaf_mesh,
+						door_w,
+						door_h,
+						door_th
+					)
+					portal_root.add_child(door_entity)
 
 		if portal_root != null:
 			var pos_3d: Vector3 = calculate_door_world_position(manifest.cell, manifest.side, tile_size)
