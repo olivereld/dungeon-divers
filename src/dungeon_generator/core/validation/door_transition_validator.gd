@@ -50,9 +50,9 @@ static func validate_local_transition(grid: CellGrid, door: DoorPlacement, room:
 	if room_type != CellGrid.CellType.FLOOR and not grid.is_walkable(r_cell):
 		return {"is_valid": false, "reason": "ROOM_CELL_NOT_WALKABLE"}
 
-	# 4. Comprobar que corridor_cell sea estrictamente un corredor válido
+	# 4. Comprobar que corridor_cell sea estrictamente un corredor o celda transitable válida
 	var corr_type := grid.get_cell(c_cell)
-	if corr_type != CellGrid.CellType.CORRIDOR:
+	if corr_type != CellGrid.CellType.CORRIDOR and corr_type != CellGrid.CellType.DOOR and corr_type != CellGrid.CellType.FLOOR:
 		return {"is_valid": false, "reason": "NO_CORRIDOR_AT_ENTRANCE"}
 
 	# 5. Coherencia de orientación cardinal

@@ -289,23 +289,25 @@ static func score_candidate_pair(
 	corner_dist_penalty += _calc_corner_penalty(cand_a, room_a, corner_pen)
 	corner_dist_penalty += _calc_corner_penalty(cand_b, room_b, corner_pen)
 
-	# 5. Restricción Dura: Prohibir compartir celda o estar a distancia Manhattan < min_spacing
+	# 5. Restricción Dura: Prohibir terminantemente compartir la misma celda
 	for r_id in reserved_positions.keys():
 		for res_pos in reserved_positions[r_id]:
 			if pos_a == res_pos or pos_b == res_pos or pos_a == pos_b:
-				return 1e8
+				return 1e8 # Inviolable: nunca dos puertas en la misma celda física
 
+	# Penalización por proximidad en el perímetro de la misma sala (garantiza máximo espaciado)
+	var conflict_penalty: float = 0.0
 	var reserved_a: Array = reserved_positions.get(room_a.id, [])
 	for res_pos in reserved_a:
 		var manhattan: int = absi(pos_a.x - res_pos.x) + absi(pos_a.y - res_pos.y)
 		if manhattan < min_spacing:
-			return 1e8 # Restricción dura inviolable
+			conflict_penalty += 100.0 * float(min_spacing - manhattan)
 
 	var reserved_b: Array = reserved_positions.get(room_b.id, [])
 	for res_pos in reserved_b:
 		var manhattan: int = absi(pos_b.x - res_pos.x) + absi(pos_b.y - res_pos.y)
 		if manhattan < min_spacing:
-			return 1e8 # Restricción dura inviolable
+			conflict_penalty += 100.0 * float(min_spacing - manhattan)
 
 	# 6. Distribución entre caras de la habitación (penalizar reutilización de la misma cara)
 	var side_penalty: float = 0.0
@@ -349,7 +351,7 @@ static func score_candidate_pair(
 		# Caras paralelas desfasadas: requerirá 2 giros (Z o U)
 		shape_penalty = 20.0
 
-	return dist_cost + align_cost + orientation_penalty + corner_dist_penalty + side_penalty + approach_penalty + shape_penalty
+	return dist_cost + align_cost + orientation_penalty + corner_dist_penalty + conflict_penalty + side_penalty + approach_penalty + shape_penalty
 
 static func _calc_corner_penalty(cand: EntranceCandidate, room: RoomData, base_penalty: float) -> float:
 	var r: Rect2i = room.rect

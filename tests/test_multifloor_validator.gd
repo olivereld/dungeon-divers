@@ -19,7 +19,7 @@ func _init() -> void:
 	config.seed = 133742
 	config.use_fixed_seed = true
 
-	var generator := multi_gen_script.new()
+	var generator = multi_gen_script.new()
 	var valid_result: DungeonMultiFloorResult = generator.generate_multi_floor(config)
 
 	var v_res: MultiFloorValidationResult = validator.validate(valid_result)

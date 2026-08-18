@@ -17,7 +17,7 @@ func _init() -> void:
 	config.seed = 133742
 	config.use_fixed_seed = true
 
-	var generator := multi_gen_script.new()
+	var generator = multi_gen_script.new()
 	var result: DungeonMultiFloorResult = generator.generate_multi_floor(config)
 
 	# 1. Validar Invariantes Globales del Resultado Multi-Piso
