@@ -14,6 +14,8 @@ signal floor_view_mode_changed(floor_index: int)
 signal generate_3d_requested()
 signal toggle_2d_view_requested()
 
+const _DungeonAsciiExporterScript = preload("res://src/dungeon_generator/debug/dungeon_ascii_exporter.gd")
+
 var _last_result: DungeonResult = null
 var _last_semantic: DungeonSemanticResult = null
 
@@ -27,6 +29,7 @@ var _opt_floor_view: OptionButton = null
 var _btn_generate_2d: Button = null
 var _btn_random: Button = null
 var _btn_copy: Button = null
+var _btn_copy_ascii: Button = null
 var _btn_build_3d: Button = null
 var _btn_back_to_2d: Button = null
 var _info_stats_label: RichTextLabel = null
@@ -210,10 +213,23 @@ func _setup_2d_full_interface() -> void:
 	update_floor_view_options(1)
 	sidebar_vbox.add_child(floors_hbox)
 
+	var actions_hbox := HBoxContainer.new()
+	actions_hbox.add_theme_constant_override("separation", 8)
+
 	_btn_generate_2d = Button.new()
-	_btn_generate_2d.text = "🔄 Aplicar Semilla / Regenerar"
+	_btn_generate_2d.text = "🔄 Regenerar"
+	_btn_generate_2d.size_flags_horizontal = SIZE_EXPAND_FILL
 	_btn_generate_2d.pressed.connect(_on_generate_pressed)
-	sidebar_vbox.add_child(_btn_generate_2d)
+	actions_hbox.add_child(_btn_generate_2d)
+
+	_btn_copy_ascii = Button.new()
+	_btn_copy_ascii.text = "📝 Copiar ASCII"
+	_btn_copy_ascii.tooltip_text = "Copiar el plano de la mazmorra en formato texto / código ASCII para pegar en chats"
+	_btn_copy_ascii.size_flags_horizontal = SIZE_EXPAND_FILL
+	_btn_copy_ascii.pressed.connect(_on_copy_ascii_pressed)
+	actions_hbox.add_child(_btn_copy_ascii)
+
+	sidebar_vbox.add_child(actions_hbox)
 
 	var sep2 := HSeparator.new()
 	sidebar_vbox.add_child(sep2)
@@ -568,6 +584,18 @@ func _on_copy_pressed() -> void:
 	if _last_result != null:
 		DisplayServer.clipboard_set(str(_last_result.seed_used))
 		_show_temporary_feedback("✓")
+
+func _on_copy_ascii_pressed() -> void:
+	if _last_result != null:
+		var ascii_text := _DungeonAsciiExporterScript.export_ascii(_last_result, _last_semantic, true)
+		DisplayServer.clipboard_set(ascii_text)
+		if _btn_copy_ascii != null:
+			var orig := _btn_copy_ascii.text
+			_btn_copy_ascii.text = "✓ ¡Copiado!"
+			get_tree().create_timer(1.2).timeout.connect(func():
+				if _btn_copy_ascii != null:
+					_btn_copy_ascii.text = orig
+			)
 
 func _show_temporary_feedback(msg: String) -> void:
 	if _btn_copy != null:
