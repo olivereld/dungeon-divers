@@ -222,6 +222,18 @@ func get_shortest_path(from_id: int, to_id: int) -> Array[int]:
 
 	return []
 
+func calculate_depths(from_id: int) -> Dictionary:
+	var depths: Dictionary = {from_id: 0}
+	var queue: Array[int] = [from_id]
+	while not queue.is_empty():
+		var curr: int = queue.pop_front()
+		var d: int = depths[curr]
+		for succ in get_successors(curr):
+			if not depths.has(succ):
+				depths[succ] = d + 1
+				queue.append(succ)
+	return depths
+
 func get_topological_order() -> Array[int]:
 	var in_degree: Dictionary = {}
 	for id in _nodes.keys():

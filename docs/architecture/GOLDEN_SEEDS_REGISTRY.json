@@ -1,0 +1,222 @@
+{
+	"100001": {
+		"boss_depth": 0,
+		"checksum": "3712519f8c12c6845d76ec84ce5b688090f84a10d42d4be43b1befab7151a589",
+		"edge_count": 8,
+		"fitness_score": 0.895521375868056,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100001
+	},
+	"100002": {
+		"boss_depth": 0,
+		"checksum": "a04cf2a3a3778870eac9d63f79dfe73c5ccb2987280441a98248b1793bda296a",
+		"edge_count": 9,
+		"fitness_score": 0.961981879340278,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 8,
+		"seed": 100002
+	},
+	"100003": {
+		"boss_depth": 0,
+		"checksum": "7b2d28c1c723562e9a88a9d2458c02bafbc58fa577f5e65abe6a76bd3080b300",
+		"edge_count": 8,
+		"fitness_score": 0.916883680555556,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100003
+	},
+	"100004": {
+		"boss_depth": 0,
+		"checksum": "9bdf3324e3d0493177348b7b456da118688efafe89e97d6b975b4fc81151c425",
+		"edge_count": 8,
+		"fitness_score": 0.916544596354167,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 5,
+		"room_count": 7,
+		"seed": 100004
+	},
+	"100005": {
+		"boss_depth": 0,
+		"checksum": "c4a9fbe30199589b72c30261d3e6a23f134a8d51e3f736fc0ded51cf8c067437",
+		"edge_count": 8,
+		"fitness_score": 0.948418511284722,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100005
+	},
+	"100006": {
+		"boss_depth": 0,
+		"checksum": "398a0483319bd7505ec9041fdb47d71890a243cf409ddafa798a0669503567a9",
+		"edge_count": 8,
+		"fitness_score": 0.897894965277778,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100006
+	},
+	"100007": {
+		"boss_depth": 0,
+		"checksum": "c69e9c90ced1774071c0fd9d381c9edf5936aece703d3801c7896787e526ba50",
+		"edge_count": 8,
+		"fitness_score": 0.9307861328125,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100007
+	},
+	"100008": {
+		"boss_depth": 0,
+		"checksum": "ff3b57e242ec5259f461f39ce2356ae38a234bf4d348bdadcda1425df5e8433a",
+		"edge_count": 8,
+		"fitness_score": 0.965372721354167,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100008
+	},
+	"100009": {
+		"boss_depth": 0,
+		"checksum": "dffc1d15856a3ff8774ee3f973ef9a797a16dc5109a5d318832c5dce50029881",
+		"edge_count": 8,
+		"fitness_score": 0.953504774305556,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 5,
+		"room_count": 7,
+		"seed": 100009
+	},
+	"100010": {
+		"boss_depth": 0,
+		"checksum": "ab5587d0cc6346ecf1193bae76512c981f7c33ef02f6ee579d6b5454320ae55d",
+		"edge_count": 8,
+		"fitness_score": 0.952487521701389,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100010
+	},
+	"100011": {
+		"boss_depth": 0,
+		"checksum": "8d177d88c8e4d144af2e23f5ea095e52500158104af3dab86b2e3981ef9a7864",
+		"edge_count": 8,
+		"fitness_score": 0.9429931640625,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100011
+	},
+	"100012": {
+		"boss_depth": 0,
+		"checksum": "0c1503e6d97f5cc2d360c5ca09835ad314e704b2aef95535479f94bd89c9c60a",
+		"edge_count": 8,
+		"fitness_score": 0.928412543402778,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100012
+	},
+	"100013": {
+		"boss_depth": 0,
+		"checksum": "4ed4d9eec0aabb46ab672278568883f895a86f752f315b44936652ea5478623e",
+		"edge_count": 8,
+		"fitness_score": 0.883314344618056,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 5,
+		"room_count": 7,
+		"seed": 100013
+	},
+	"100014": {
+		"boss_depth": 0,
+		"checksum": "4c06faea351821ef234814ad9d115a7f831e3f07b91da8576f8644cb52afe43c",
+		"edge_count": 9,
+		"fitness_score": 0.9307861328125,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 7,
+		"room_count": 8,
+		"seed": 100014
+	},
+	"100015": {
+		"boss_depth": 0,
+		"checksum": "d73783bb405856171fb34732769bdbb0a2b1d60e4472c7e36c555868dadee4dd",
+		"edge_count": 7,
+		"fitness_score": 0.967746310763889,
+		"floor_count": 1,
+		"loop_count": 1,
+		"max_depth": 5,
+		"room_count": 7,
+		"seed": 100015
+	},
+	"100016": {
+		"boss_depth": 0,
+		"checksum": "708732ad1255a6423071f6b0d4b49f642889205de79c586f468d8539ec7fcf43",
+		"edge_count": 7,
+		"fitness_score": 0.969441731770833,
+		"floor_count": 1,
+		"loop_count": 1,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100016
+	},
+	"100017": {
+		"boss_depth": 0,
+		"checksum": "d42811d16481e1bc7acfdc67cffc50ff5cb6db60e09cbb7da9d9a4a1fe9ebfb9",
+		"edge_count": 7,
+		"fitness_score": 0.919596354166667,
+		"floor_count": 1,
+		"loop_count": 1,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100017
+	},
+	"100018": {
+		"boss_depth": 0,
+		"checksum": "12c2acebefbbe66abead7b346b9f99470415d051ed5e96fde8a08ca58eb5f032",
+		"edge_count": 8,
+		"fitness_score": 0.902642144097222,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 3,
+		"room_count": 7,
+		"seed": 100018
+	},
+	"100019": {
+		"boss_depth": 0,
+		"checksum": "c0007af5e28e42db782405974e4b1fe96882f1cf61f618c8407555c6d7ec4039",
+		"edge_count": 8,
+		"fitness_score": 0.937228732638889,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 6,
+		"room_count": 7,
+		"seed": 100019
+	},
+	"100020": {
+		"boss_depth": 0,
+		"checksum": "7ee1667f2f120d47e278afbb38a0d78362d7476afd3b348f817779b5c6963218",
+		"edge_count": 8,
+		"fitness_score": 0.909762912326389,
+		"floor_count": 1,
+		"loop_count": 2,
+		"max_depth": 4,
+		"room_count": 7,
+		"seed": 100020
+	}
+}
