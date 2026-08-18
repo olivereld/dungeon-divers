@@ -7,7 +7,8 @@ extends SceneTree
 ## 3. Todas las semillas de la suite Golden generen mazmorras 100% deterministas y conformes con la política.
 
 const GOLDEN_SEEDS: Array[int] = [
-	221533744, # Semilla de la captura del usuario
+	221533744, # Semilla de la captura 1
+	812297351, # Semilla de la captura 2
 	1337,
 	42,
 	101,
