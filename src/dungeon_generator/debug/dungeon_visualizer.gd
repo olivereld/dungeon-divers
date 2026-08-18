@@ -15,6 +15,7 @@ signal generate_3d_requested()
 signal toggle_2d_view_requested()
 
 const _DungeonAsciiExporterScript = preload("res://src/dungeon_generator/debug/dungeon_ascii_exporter.gd")
+const _DoorPhysicalValidatorScript = preload("res://src/dungeon_generator/core/validation/door_physical_validator.gd")
 
 var _last_result: DungeonResult = null
 var _last_semantic: DungeonSemanticResult = null
@@ -464,8 +465,13 @@ func _draw_icon_marker(grid_pos: Vector2i, origin: Vector2, tile_scale: float, c
 	)
 
 func _draw_door_marker(door, origin: Vector2, tile_scale: float, DoorTypeScript) -> void:
-	if door == null or _preview_canvas == null:
+	if door == null or _preview_canvas == null or _last_result == null or _last_result.grid == null:
 		return
+
+	# Solo dibujar marcadores de puerta/arco si poseen paredes sólidas a ambos lados paralelos (jambas)
+	if not _DoorPhysicalValidatorScript.validate_door_jambs(_last_result.grid, door.position, door.side):
+		return
+
 	var pos: Vector2i = door.position
 	var rect := Rect2(origin + Vector2(pos.x, pos.y) * tile_scale, Vector2(tile_scale, tile_scale))
 	var is_open: bool = (door.door_type == DoorTypeScript.DoorType.OPEN_PASSAGE)
@@ -504,7 +510,7 @@ func toggle_2d_preview() -> void:
 		toggle_2d_view_requested.emit()
 
 func _update_stats_panel() -> void:
-	if _info_stats_label == null or _last_result == null:
+	if _info_stats_label == null or _last_result == null or _last_result.grid == null:
 		return
 
 	var res := _last_result
@@ -513,10 +519,12 @@ func _update_stats_panel() -> void:
 	var DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
 
 	for dp in res.door_pairs:
-		if dp.door_a.door_type == DoorTypeScript.DoorType.OPEN_PASSAGE: open_passages += 1
-		else: closed_doors += 1
-		if dp.door_b.door_type == DoorTypeScript.DoorType.OPEN_PASSAGE: open_passages += 1
-		else: closed_doors += 1
+		if dp.door_a != null and _DoorPhysicalValidatorScript.validate_door_jambs(res.grid, dp.door_a.position, dp.door_a.side):
+			if dp.door_a.door_type == DoorTypeScript.DoorType.OPEN_PASSAGE: open_passages += 1
+			else: closed_doors += 1
+		if dp.door_b != null and _DoorPhysicalValidatorScript.validate_door_jambs(res.grid, dp.door_b.position, dp.door_b.side):
+			if dp.door_b.door_type == DoorTypeScript.DoorType.OPEN_PASSAGE: open_passages += 1
+			else: closed_doors += 1
 
 	var spawn_pos_str := "N/A"
 	if _last_semantic != null:

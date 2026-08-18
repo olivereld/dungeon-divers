@@ -11,18 +11,22 @@ static func export_ascii(result: DungeonResult, semantic: DungeonSemanticResult 
 	var gw: int = grid.width
 	var gh: int = grid.height
 
-	# Mapear puertas
+	# Mapear puertas (solo aquellas con paredes sólidas a ambos lados paralelos)
 	var DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
+	var DoorPhysicalValidatorScript = preload("res://src/dungeon_generator/core/validation/door_physical_validator.gd")
 	var door_map: Dictionary = {}
+	var valid_doors_count: int = 0
 	if result.door_pairs != null:
 		for dp in result.door_pairs:
 			if dp != null:
-				if dp.door_a != null:
+				if dp.door_a != null and DoorPhysicalValidatorScript.validate_door_jambs(grid, dp.door_a.position, dp.door_a.side):
 					var is_open_a: bool = (dp.door_a.door_type == DoorTypeScript.DoorType.OPEN_PASSAGE)
 					door_map[dp.door_a.position] = "O" if is_open_a else "D"
-				if dp.door_b != null:
+					valid_doors_count += 1
+				if dp.door_b != null and DoorPhysicalValidatorScript.validate_door_jambs(grid, dp.door_b.position, dp.door_b.side):
 					var is_open_b: bool = (dp.door_b.door_type == DoorTypeScript.DoorType.OPEN_PASSAGE)
 					door_map[dp.door_b.position] = "O" if is_open_b else "D"
+					valid_doors_count += 1
 
 	# Mapear objetivos
 	var obj_map: Dictionary = {}
