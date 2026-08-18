@@ -4,6 +4,8 @@ extends RefCounted
 ## Traduce el grafo de misiones en habitaciones físicas (RoomData) posicionadas sin solapamiento
 ## y distribuidas armónicamente por el espacio disponible de la mazmorra.
 
+const _RoomSpatialSeparatorScript = preload("res://src/dungeon_generator/core/topology/room_spatial_separator.gd")
+
 var _rng: RandomNumberGenerator
 
 func _init() -> void:
@@ -56,6 +58,8 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 		node_to_room[node_id] = room
 		rooms.append(room)
 
+	# Consolidar separación espacial AABB con padding mínimo de 2 celdas
+	rooms = _RoomSpatialSeparatorScript.separate_rooms(rooms, grid_bounds, _rng, 2)
 	return rooms
 
 func _calculate_room_size(type: StringName, config: DungeonConfig, force_large: bool = false) -> Vector2i:
