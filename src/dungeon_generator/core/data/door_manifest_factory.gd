@@ -33,7 +33,8 @@ static func create_door_manifests(door_pairs: Array) -> Array[DungeonDoorManifes
 					door_a_id,
 					dp.door_a.position,
 					dp.door_a.corridor_cell,
-					dp.door_a.side
+					dp.door_a.side,
+					dp.door_a.door_type
 				)
 				manifests.append(m_a)
 
@@ -47,7 +48,8 @@ static func create_door_manifests(door_pairs: Array) -> Array[DungeonDoorManifes
 					door_b_id,
 					dp.door_b.position,
 					dp.door_b.corridor_cell,
-					dp.door_b.side
+					dp.door_b.side,
+					dp.door_b.door_type
 				)
 				manifests.append(m_b)
 

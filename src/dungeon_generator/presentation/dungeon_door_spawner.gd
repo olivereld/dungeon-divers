@@ -12,6 +12,7 @@ const _WallMeshBuilderScript = preload("res://src/wall_mesh_generator/core/wall_
 const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall_mesh_config.gd")
 const _WallMaterialFactoryScript = preload("res://src/wall_mesh_generator/materials/wall_material_factory.gd")
 const _DungeonDoorEntityScript = preload("res://src/dungeon_generator/presentation/entities/dungeon_door_entity.gd")
+const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
 
 ## Spawnea todas las puertas a partir de la lista de DungeonDoorManifest en el StagingRoot.
 func spawn_doors(
@@ -94,8 +95,8 @@ func spawn_doors(
 			arch_inst.create_trimesh_collision()
 			portal_root.add_child(arch_inst)
 
-			# Hoja de puerta interactiva y destructible
-			if door_leaf_mesh != null:
+			# Hoja de puerta interactiva y destructible (solo si NO es OPEN_PASSAGE)
+			if door_leaf_mesh != null and manifest.door_type != _DoorTypeScript.DoorType.OPEN_PASSAGE:
 				var door_entity := _DungeonDoorEntityScript.new()
 				door_entity.name = "DoorEntity"
 				door_entity.setup_procedural_door(
