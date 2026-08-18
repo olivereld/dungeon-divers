@@ -52,6 +52,19 @@ extends Resource
 @export_range(100.0, 5000.0, 100.0) var corridor_cost_other_room: float = 1000.0
 @export_range(0, 3, 1) var corridor_bottleneck_distance: int = 1
 
+@export_group("Calidad de Corredores (Fase Refined)")
+@export_range(0.0, 50.0, 0.5) var corridor_turn_penalty: float = 10.0
+@export_range(0.0, 20.0, 0.5) var corridor_proximity_penalty: float = 3.0
+@export_range(0, 4, 1) var corridor_max_preferred_turns: int = 2
+@export var prefer_orthogonal_routes: bool = true
+@export var allow_astar_fallback: bool = true
+
+@export_group("Calidad de Puertas (Fase Refined)")
+@export_range(2, 16, 1) var minimum_corridor_door_spacing: int = 5
+@export_range(0.0, 100.0, 1.0) var same_side_door_penalty: float = 30.0
+@export_range(0.0, 100.0, 1.0) var corridor_door_proximity_penalty: float = 50.0
+@export var distribute_room_doors_across_sides: bool = true
+
 @export_group("Dificultad y Balance")
 @export_range(0.1, 3.0, 0.1) var difficulty: float = 1.0
 
