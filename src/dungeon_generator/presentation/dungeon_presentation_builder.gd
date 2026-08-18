@@ -295,3 +295,186 @@ func _handle_failure_preservation(
 	else:
 		result.presentation_root = null
 		result.previous_presentation_preserved = false
+
+## Construye la presentación 3D consumiendo directamente un DungeonResult inmutable (Fase 16).
+## Desacoplado 100% en modo Read-Only: 0 mutaciones en el modelo lógico.
+func build_from_dungeon_result(
+	dungeon_result: DungeonResult,
+	parent_node: Node3D,
+	biome: BiomeProfile = null,
+	config: DungeonConfig = null,
+	active_presentation: Node3D = null,
+	use_placeholders_if_needed: bool = true
+) -> DungeonPresentationResult:
+	var result: DungeonPresentationResult = _DungeonPresentationResultScript.new()
+
+	if dungeon_result == null or dungeon_result.grid == null:
+		result.add_diagnostic("INVALID_DUNGEON_RESULT", "FATAL", "presentation_builder",
+			"DungeonResult or its CellGrid is null.")
+		_handle_failure_preservation(result, active_presentation)
+		return result
+
+	if biome == null:
+		biome = BiomeProfile.new()
+
+	if config == null:
+		config = DungeonConfig.new()
+
+	var tile_size: float = config.cell_size
+
+	# 1. Staging Root desacoplado
+	var staging_root := Node3D.new()
+	staging_root.name = "DungeonPresentationStaging"
+
+	# 2. Configurar MeshLibrary y Capas GridMap en Staging
+	var mesh_lib: MeshLibrary = null
+	if biome.has_custom_assets():
+		mesh_lib = biome.mesh_library
+	elif use_placeholders_if_needed:
+		mesh_lib = _placeholder_factory.create_placeholder_library(biome, tile_size)
+	else:
+		result.add_diagnostic("MISSING_MESH_LIBRARY", "FATAL", "presentation_builder",
+			"No MeshLibrary provided and placeholder fallback is disabled.")
+		staging_root.free()
+		_handle_failure_preservation(result, active_presentation)
+		return result
+
+	var floor_grid_map := GridMap.new()
+	floor_grid_map.name = "FloorGridMap"
+	floor_grid_map.cell_size = Vector3(tile_size, 0.02, tile_size)
+	floor_grid_map.mesh_library = mesh_lib
+	staging_root.add_child(floor_grid_map)
+
+	var wall_grid_map := GridMap.new()
+	wall_grid_map.name = "WallGridMap"
+	wall_grid_map.cell_size = Vector3(tile_size, tile_size, tile_size)
+	wall_grid_map.mesh_library = mesh_lib
+	staging_root.add_child(wall_grid_map)
+
+	# 3. Mapear CellGrid -> GridMap en Staging
+	var map_res: Dictionary = _gridmap_mapper.map_grid(
+		dungeon_result.grid, biome, floor_grid_map, wall_grid_map, config
+	)
+	result.total_tiles_rendered = int(map_res.get("total_tiles", 0))
+
+	# 4. Generar Malla Continua Unificada de Paredes
+	if biome.wall_scene == null:
+		var wall_builder := _ContinuousWallMeshBuilderScript.new()
+		var wall_config := _WallMeshConfigScript.new()
+		wall_config.cube_size = tile_size
+		wall_config.cubes_high = maxi(1, config.wall_height if config != null else 2)
+		wall_config.seed = config.seed if config != null else 1337
+
+		var opening_manifest = null
+		if dungeon_result.door_pairs != null and not dungeon_result.door_pairs.is_empty():
+			opening_manifest = _DoorManifestFactoryScript.create_wall_opening_manifest(dungeon_result.door_pairs)
+
+		var wall_mesh: ArrayMesh = wall_builder.build_dungeon_wall_mesh(
+			dungeon_result.grid, wall_config, 0, opening_manifest
+		)
+		if wall_mesh.get_surface_count() > 0:
+			var wall_inst := MeshInstance3D.new()
+			wall_inst.name = "ContinuousWalls"
+			wall_inst.mesh = wall_mesh
+			wall_inst.create_trimesh_collision()
+			staging_root.add_child(wall_inst)
+
+	# 5. Spawning de Puertas
+	if dungeon_result.door_pairs != null and not dungeon_result.door_pairs.is_empty():
+		var door_manifests = _DoorManifestFactoryScript.create_door_manifests(dungeon_result.door_pairs)
+		var door_res: Dictionary = _door_spawner.spawn_doors(
+			door_manifests, staging_root, biome, tile_size,
+			config.wall_height if config != null else 2,
+			config.seed if config != null else 1337,
+			dungeon_result.grid
+		)
+		for d_node in door_res.get("spawned_doors", []):
+			result.spawned_entities.append(d_node)
+
+	# 6. Spawning de Iluminación Focal (Fase 16: <= 12 OmniLights sin sombras)
+	_spawn_lighting(dungeon_result, staging_root, config)
+
+	# 7. Atomic Swap: Promover StagingRoot a ActiveRoot
+	if active_presentation != null:
+		if active_presentation.get_parent() != null:
+			active_presentation.get_parent().remove_child(active_presentation)
+		active_presentation.queue_free()
+
+	staging_root.name = "DungeonPresentation"
+	if parent_node != null:
+		parent_node.add_child(staging_root)
+
+	result.presentation_root = staging_root
+	result.staging_committed = true
+	result.previous_presentation_preserved = false
+	result.success = true
+
+	return result
+
+func _spawn_lighting(
+	dungeon_result: DungeonResult,
+	staging_root: Node3D,
+	config: DungeonConfig
+) -> void:
+	if dungeon_result == null or staging_root == null:
+		return
+
+	var lights_root := Node3D.new()
+	lights_root.name = "Lighting"
+	staging_root.add_child(lights_root)
+
+	var tile_size: float = config.cell_size if config != null else 2.0
+	var max_lights: int = 12
+	var spawned_count: int = 0
+
+	# 1. Punto clave: Spawn
+	var spawn_pos: Vector2i = Vector2i.ZERO
+	var spawn_cells = dungeon_result.grid.find_cells_of_type(CellGrid.CellType.SPAWN)
+	if not spawn_cells.is_empty():
+		spawn_pos = spawn_cells[0]
+		_create_omni_light(lights_root, spawn_pos, tile_size, Color(0.3, 0.7, 1.0), 8.0, 1.5)
+		spawned_count += 1
+
+	# 2. Puntos clave: Habitaciones según rol semántico
+	for r in dungeon_result.rooms:
+		if spawned_count >= max_lights:
+			break
+		if r == null:
+			continue
+
+		var center: Vector2i = r.get_center()
+		if center == spawn_pos:
+			continue
+
+		var color := Color(1.0, 0.85, 0.6) # Antorcha cálida por defecto
+		var energy := 1.2
+		var range_val := float(maxi(r.rect.size.x, r.rect.size.y)) * tile_size * 0.8
+
+		match r.room_type:
+			&"boss":
+				color = Color(1.0, 0.25, 0.2) # Rojo intenso
+				energy = 2.0
+			&"shrine", &"puzzle":
+				color = Color(0.4, 0.9, 0.6) # Verde místico
+				energy = 1.6
+			&"treasure":
+				color = Color(1.0, 0.85, 0.2) # Dorado brillante
+				energy = 1.8
+
+		_create_omni_light(lights_root, center, tile_size, color, range_val, energy)
+		spawned_count += 1
+
+func _create_omni_light(parent: Node3D, grid_pos: Vector2i, tile_size: float, color: Color, range_val: float, energy: float) -> OmniLight3D:
+	var light := OmniLight3D.new()
+	light.name = "OmniLight_%d_%d" % [grid_pos.x, grid_pos.y]
+	light.position = Vector3(
+		(float(grid_pos.x) + 0.5) * tile_size,
+		tile_size * 0.8,
+		(float(grid_pos.y) + 0.5) * tile_size
+	)
+	light.light_color = color
+	light.light_energy = energy
+	light.omni_range = range_val
+	light.shadow_enabled = false # Estricto: sin sombras para rendimiento máximo
+	parent.add_child(light)
+	return light
