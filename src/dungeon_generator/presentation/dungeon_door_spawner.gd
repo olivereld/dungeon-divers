@@ -53,13 +53,17 @@ func spawn_doors(
 		arch_cfg.cubes_high = maxi(1, wall_height)
 		arch_cfg.seed = seed
 
-		arch_mesh = builder.build_wall_mesh(arch_cfg)
-		if arch_mesh.get_surface_count() >= 3:
-			arch_mesh.surface_set_material(0, _WallMaterialFactoryScript.create_trim_material())
-			arch_mesh.surface_set_material(1, _WallMaterialFactoryScript.create_panel_material())
-			arch_mesh.surface_set_material(2, _WallMaterialFactoryScript.create_brick_material())
+		# 1. Malla del Marco de Piedra (Arco) - Azul para test visual
+		var arch_mat := StandardMaterial3D.new()
+		arch_mat.albedo_color = Color(0.2, 0.45, 0.9, 1.0) # Azul
+		arch_mat.roughness = 0.5
+		arch_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
-		# 2. Malla de la Hoja de Madera y Aldaba
+		arch_mesh = builder.build_wall_mesh(arch_cfg)
+		for s in range(arch_mesh.get_surface_count()):
+			arch_mesh.surface_set_material(s, arch_mat)
+
+		# 2. Malla de la Hoja de Madera y Aldaba - Rojo para test visual
 		door_w = arch_cfg.arch_opening_width - 0.02
 		door_h = arch_cfg.arch_opening_height - 0.01
 
@@ -71,10 +75,14 @@ func spawn_doors(
 		door_cfg.seed = seed
 		door_th = door_cfg.door_thickness
 
+		var door_mat := StandardMaterial3D.new()
+		door_mat.albedo_color = Color(0.9, 0.2, 0.2, 1.0) # Rojo
+		door_mat.roughness = 0.4
+		door_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
 		door_leaf_mesh = builder.build_wall_mesh(door_cfg)
-		if door_leaf_mesh.get_surface_count() >= 2:
-			door_leaf_mesh.surface_set_material(0, _WallMaterialFactoryScript.create_wood_material())
-			door_leaf_mesh.surface_set_material(1, _WallMaterialFactoryScript.create_iron_material())
+		for s in range(door_leaf_mesh.get_surface_count()):
+			door_leaf_mesh.surface_set_material(s, door_mat)
 
 	for manifest in door_manifests:
 		if manifest == null:
