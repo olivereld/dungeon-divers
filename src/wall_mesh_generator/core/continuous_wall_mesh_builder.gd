@@ -74,8 +74,18 @@ func build_dungeon_wall_mesh(
 			var n_wall_out := Vector3(t_out.z, 0.0, -t_out.x)
 
 			var miter: Vector3 = (n_wall_in + n_wall_out)
-			if miter.length_squared() < 0.001:
+			if miter.length_squared() < 0.0001:
 				miter = n_wall_in
+			else:
+				var m_dir: Vector3 = miter.normalized()
+				var dot: float = n_wall_in.dot(m_dir)
+				var m_scale: float = 1.0
+				if dot > 0.001:
+					m_scale = 1.0 / dot
+				# Clampear el factor miter a sqrt(2) (~1.4142) para suprimir picos y deformaciones
+				m_scale = minf(m_scale, 1.41421356)
+				miter = m_dir * m_scale
+
 			miter_dirs.append(miter)
 			normals_in.append(-n_wall_in)
 
@@ -206,6 +216,7 @@ func build_dungeon_wall_mesh(
 	var mesh := ArrayMesh.new()
 
 	# Superficie 0: Trims (Cornisas y Zócalos)
+	st_trims.index()
 	st_trims.generate_tangents()
 	mesh = st_trims.commit(mesh)
 	if mesh.get_surface_count() > 0:
@@ -214,6 +225,7 @@ func build_dungeon_wall_mesh(
 		mesh.surface_set_material(0, trim_mat)
 
 	# Superficie 1: WallPanel (Cuerpo liso de piedra)
+	st_panel.index()
 	st_panel.generate_tangents()
 	mesh = st_panel.commit(mesh)
 	if mesh.get_surface_count() > 1:
@@ -222,6 +234,7 @@ func build_dungeon_wall_mesh(
 		mesh.surface_set_material(1, panel_mat)
 
 	# Superficie 2: Bricks (Ladrillos estilizados en relieve)
+	st_bricks.index()
 	st_bricks.generate_tangents()
 	mesh = st_bricks.commit(mesh)
 	if mesh.get_surface_count() > 2:
@@ -317,28 +330,32 @@ func _append_brick(
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, size, t, config.pillowed_bevel)
 
 static func _add_quad(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3) -> void:
-	var normal: Vector3 = (p1 - p0).cross(p2 - p0).normalized()
+	var cross1: Vector3 = (p1 - p0).cross(p2 - p0)
+	if cross1.length_squared() >= 0.00001:
+		var normal1: Vector3 = cross1.normalized()
+		st.set_normal(normal1)
+		st.set_uv(Vector2(0.0, 0.0))
+		st.add_vertex(p0)
 
-	st.set_normal(normal)
-	st.set_uv(Vector2(0.0, 0.0))
-	st.add_vertex(p0)
+		st.set_normal(normal1)
+		st.set_uv(Vector2(1.0, 0.0))
+		st.add_vertex(p1)
 
-	st.set_normal(normal)
-	st.set_uv(Vector2(1.0, 0.0))
-	st.add_vertex(p1)
+		st.set_normal(normal1)
+		st.set_uv(Vector2(1.0, 1.0))
+		st.add_vertex(p2)
 
-	st.set_normal(normal)
-	st.set_uv(Vector2(1.0, 1.0))
-	st.add_vertex(p2)
+	var cross2: Vector3 = (p2 - p0).cross(p3 - p0)
+	if cross2.length_squared() >= 0.00001:
+		var normal2: Vector3 = cross2.normalized()
+		st.set_normal(normal2)
+		st.set_uv(Vector2(0.0, 0.0))
+		st.add_vertex(p0)
 
-	st.set_normal(normal)
-	st.set_uv(Vector2(0.0, 0.0))
-	st.add_vertex(p0)
+		st.set_normal(normal2)
+		st.set_uv(Vector2(1.0, 1.0))
+		st.add_vertex(p2)
 
-	st.set_normal(normal)
-	st.set_uv(Vector2(1.0, 1.0))
-	st.add_vertex(p2)
-
-	st.set_normal(normal)
-	st.set_uv(Vector2(0.0, 1.0))
-	st.add_vertex(p3)
+		st.set_normal(normal2)
+		st.set_uv(Vector2(0.0, 1.0))
+		st.add_vertex(p3)

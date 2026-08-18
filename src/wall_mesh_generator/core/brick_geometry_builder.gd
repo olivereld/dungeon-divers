@@ -525,7 +525,7 @@ static func append_pillowed_brick(
 	_add_quad_direct(st, transform, Vector3(-ix, iy, hz), Vector3(ix, iy, hz), Vector3(ix, hy, iz), Vector3(-ix, hy, iz))
 	_add_quad_direct(st, transform, Vector3(-ix, -hy, iz), Vector3(ix, -hy, iz), Vector3(ix, -iy, hz), Vector3(-ix, -iy, hz))
 	_add_quad_direct(st, transform, Vector3(-ix, hy, -iz), Vector3(ix, hy, -iz), Vector3(ix, iy, -hz), Vector3(-ix, iy, -hz))
-	_add_quad_direct(st, transform, Vector3(-ix, -hy, -iz), Vector3(ix, -hy, -iz), Vector3(ix, -hy, -iz), Vector3(-ix, -hy, -iz))
+	_add_quad_direct(st, transform, Vector3(-ix, -iy, -hz), Vector3(ix, -iy, -hz), Vector3(ix, -hy, -iz), Vector3(-ix, -hy, -iz))
 
 	_add_quad_direct(st, transform, Vector3(ix, -iy, hz), Vector3(hx, -iy, iz), Vector3(hx, iy, iz), Vector3(ix, iy, hz))
 	_add_quad_direct(st, transform, Vector3(-hx, -iy, iz), Vector3(-ix, -iy, hz), Vector3(-ix, iy, hz), Vector3(-hx, iy, iz))
