@@ -92,13 +92,25 @@ static func resolve_doors(
 				result.add_rejection(conn_id, "NO_CORRIDOR_PATH_FOR_OPTIONAL")
 			continue
 
-		# 4. Verificar que el corredor alcance el outer_cell de ambas entradas
+		# 4. Verificar que el corredor alcance el outer_cell de ambas entradas y correspondan a los extremos del centerline
 		if not path.carved_cells.has(ent_a.outer_cell) or not path.carved_cells.has(ent_b.outer_cell):
 			if is_required:
 				result.add_failure(conn_id, "CORRIDOR_DOES_NOT_REACH_ENTRANCE")
 			else:
 				result.add_rejection(conn_id, "CORRIDOR_DOES_NOT_REACH_ENTRANCE")
 			continue
+
+		if not path.centerline_cells.is_empty():
+			var p_start: Vector2i = path.centerline_cells[0]
+			var p_end: Vector2i = path.centerline_cells[-1]
+			var is_a_endpoint: bool = (ent_a.outer_cell == p_start or ent_a.outer_cell == p_end)
+			var is_b_endpoint: bool = (ent_b.outer_cell == p_start or ent_b.outer_cell == p_end)
+			if not is_a_endpoint or not is_b_endpoint or ent_a.outer_cell == ent_b.outer_cell:
+				if is_required:
+					result.add_failure(conn_id, "DOOR_NOT_AT_CORRIDOR_ENDPOINT")
+				else:
+					result.add_rejection(conn_id, "DOOR_NOT_AT_CORRIDOR_ENDPOINT")
+				continue
 
 		var door_a = _DoorPlacementScript.new(
 			conn_id,
