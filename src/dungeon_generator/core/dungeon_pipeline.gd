@@ -23,6 +23,7 @@ const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/
 const _CorridorConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/corridor_connectivity_repair.gd")
 const _CorridorPrunerScript = preload("res://src/dungeon_generator/core/algorithms/corridor_pruner.gd")
 const _RoomShapeGeneratorScript = preload("res://src/dungeon_generator/core/algorithms/room_shape_generator.gd")
+const _RoomIntegrityCleanerScript = preload("res://src/dungeon_generator/core/repair/room_integrity_cleaner.gd")
 
 var _seed_registry: DungeonSeedRegistry = DungeonSeedRegistry.new()
 var _mission_grammar := MissionGrammar.new()
@@ -196,7 +197,9 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 						"seed": post_repair_seed
 					})
 
-		# 5.5 Limpieza y podado de stubs ciegos y alcobas no deseadas en corredores
+		# 5.5 Limpieza de bolsillos huérfanos de sala y podado de stubs ciegos en corredores
+		_RoomIntegrityCleanerScript.clean_orphaned_room_pockets(grid, rooms)
+
 		var protected_cells: Array[Vector2i] = []
 		for ep in entrance_res.entrance_pairs:
 			if ep != null:
