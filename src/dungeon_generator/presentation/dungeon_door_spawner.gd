@@ -142,22 +142,11 @@ func spawn_doors(
 
 	return result
 
-## Calcula la posición 3D exacta del vano en la frontera entre celdas.
+## Calcula la posición 3D exacta del portal centrado en la celda de puerta.
 static func calculate_door_world_position(cell: Vector2i, side: int, tile_size: float = 2.0) -> Vector3:
 	var half: float = tile_size * 0.5
 	var center_x: float = (float(cell.x) * tile_size) + half
 	var center_z: float = (float(cell.y) * tile_size) + half
-
-	match side:
-		_RoomEntranceScript.NORTH:
-			return Vector3(center_x, 0.0, float(cell.y) * tile_size)
-		_RoomEntranceScript.SOUTH:
-			return Vector3(center_x, 0.0, float(cell.y + 1) * tile_size)
-		_RoomEntranceScript.WEST:
-			return Vector3(float(cell.x) * tile_size, 0.0, center_z)
-		_RoomEntranceScript.EAST:
-			return Vector3(float(cell.x + 1) * tile_size, 0.0, center_z)
-
 	return Vector3(center_x, 0.0, center_z)
 
 ## Calcula la rotación en el eje Y según el lado cardinal.

@@ -193,29 +193,12 @@ static func _should_have_wall(
 	if not grid.is_in_bounds(neighbor):
 		return true
 
-	var cell_type: int = grid.get_cell(cell)
-	var n_type: int = grid.get_cell(neighbor)
-
+	# Las paredes continuas solo se generan en la frontera entre el espacio
+	# transitable (suelo) y el espacio sólido no transitable (muro/vacío).
 	if not grid.is_walkable(neighbor):
 		if opening_manifest != null and opening_manifest.has_opening(cell, side):
 			return false
 		return true
 
-	# Si una celda es FLOOR (de habitación) y la vecina es CORRIDOR (o viceversa):
-	# Si NO hay un vano de puerta registrado en esa arista, DEBE haber pared divisoria entre la sala y el pasillo
-	if (cell_type == CellGrid.CellType.FLOOR and n_type == CellGrid.CellType.CORRIDOR) or \
-	   (cell_type == CellGrid.CellType.CORRIDOR and n_type == CellGrid.CellType.FLOOR):
-		var opp_side: int = _opposite_side(side)
-		if opening_manifest != null and (opening_manifest.has_opening(cell, side) or opening_manifest.has_opening(neighbor, opp_side)):
-			return false
-		return true
-
+	# Ambas celdas son transitables (suelo continuo): forman parte del espacio abierto sin muro divisorio
 	return false
-
-static func _opposite_side(side: int) -> int:
-	match side:
-		_RoomEntranceScript.NORTH: return _RoomEntranceScript.SOUTH
-		_RoomEntranceScript.SOUTH: return _RoomEntranceScript.NORTH
-		_RoomEntranceScript.EAST:  return _RoomEntranceScript.WEST
-		_RoomEntranceScript.WEST:  return _RoomEntranceScript.EAST
-	return side

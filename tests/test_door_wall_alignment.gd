@@ -27,7 +27,7 @@ func _init() -> void:
 
 	# Validar posiciones espaciales
 	var pos_a: Vector3 = SpawnerScript.calculate_door_world_position(door_manifests[0].cell, door_manifests[0].side, 2.0)
-	assert(is_equal_approx(pos_a.x, 18.0), "Door A world X must be 18.0 (cell 8 EAST boundary = (8+1)*2.0 = 18.0), got %f" % pos_a.x)
+	assert(is_equal_approx(pos_a.x, 17.0), "Door A world X must be 17.0 (cell 8 center = 8*2.0 + 1.0 = 17.0), got %f" % pos_a.x)
 	assert(is_equal_approx(pos_a.z, 11.0), "Door A world Z must be 11.0 (cell 5 center = 5*2.0 + 1.0 = 11.0), got %f" % pos_a.z)
 
 	var rot_a: float = SpawnerScript.calculate_door_orientation(door_manifests[0].side)

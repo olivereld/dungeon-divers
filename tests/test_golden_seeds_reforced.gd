@@ -9,6 +9,7 @@ extends SceneTree
 const GOLDEN_SEEDS: Array[int] = [
 	221533744, # Semilla de la captura 1
 	812297351, # Semilla de la captura 2
+	649654445, # Semilla de la captura 3
 	1337,
 	42,
 	101,
