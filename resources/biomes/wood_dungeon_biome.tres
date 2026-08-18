@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="BiomeProfile" format=3 uid="uid://c1t3n6entw244"]
 
-[ext_resource type="Script" path="res://src/dungeon_generator/presentation/biome_profile.gd" id="1_bio"]
+[ext_resource type="Script" uid="uid://crgvpdj8y1rh" path="res://src/dungeon_generator/presentation/biome_profile.gd" id="1_bio"]
 [ext_resource type="PackedScene" uid="uid://cr7hkn1pr1st0" path="res://models/dungeon/wall/wall.gltf" id="3_wal"]
 [ext_resource type="PackedScene" uid="uid://bqgw2508wxwav" path="res://models/dungeon/wall_corner/wall_corner.gltf" id="4_crn"]
 [ext_resource type="PackedScene" uid="uid://dajg7wkrgnlch" path="res://models/dungeon/wall_corner_small/wall_corner_small.gltf" id="5_crns"]
