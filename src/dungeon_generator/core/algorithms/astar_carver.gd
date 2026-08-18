@@ -1,15 +1,18 @@
 class_name AStarCarver
 extends RefCounted
 
-## Tallador determinista de corredores mediante AStar2D (Fase 5).
+## Tallador determinista de corredores mediante Planificador Ortogonal y A* Direccional (Fase 5 Refined).
+## Jerarquía de tallado:
+## 1. OrthogonalCorridorPlanner (Nivel 0 Recta, Nivel 1 L Limpia, Nivel 2 Multi-giro ortogonal)
+## 2. Direction-Aware A* Fallback (Penalización por giros en espacio de estados [celda, dirección])
 ## Implementa el flujo estricto Find -> Validate -> Commit sin fallbacks destructivos.
-## Respeta las entradas de Fase 4, penaliza salas ajenas, evita obstáculos y promueve la reutilización.
 
 const _CorridorRequestScript = preload("res://src/dungeon_generator/core/data/corridor_request.gd")
 const _CorridorPathScript = preload("res://src/dungeon_generator/core/data/corridor_path.gd")
 const _CorridorCarveResultScript = preload("res://src/dungeon_generator/core/data/corridor_carve_result.gd")
 const _RoomConnectionScript = preload("res://src/dungeon_generator/core/data/room_connection.gd")
 const _EntranceSolverScript = preload("res://src/dungeon_generator/core/solvers/entrance_solver.gd")
+const _OrthogonalPlannerScript = preload("res://src/dungeon_generator/core/algorithms/orthogonal_corridor_planner.gd")
 
 ## Método de compatibilidad para llamadas con conexiones basadas en Vector2i.
 static func carve_connections(
@@ -59,7 +62,7 @@ static func carve_corridors(
 		if conn != null:
 			conn_map[conn.id] = conn
 
-	# 1. Crear el grafo base AStar2D con topología y pesos deterministas
+	# 1. Crear el grafo base AStar2D para fallback y comprobaciones de accesibilidad
 	var astar := _build_base_astar_graph(grid, cfg)
 
 	# 2. Convertir EntrancePairs a CorridorRequests y ordenar por prioridad
@@ -104,6 +107,8 @@ static func carve_corridors(
 				"cost": path.cost,
 				"carved_cells": path.carved_cells.size(),
 				"reused_cells": path.reused_cells_count,
+				"turns": path.turn_count,
+				"strategy": path.routing_strategy,
 				"status": "SUCCESS"
 			})
 		else:
@@ -147,33 +152,31 @@ static func _carve_single_request(
 	if not grid.is_in_bounds(goal_pos):
 		return {"success": false, "reason": "GOAL_OUT_OF_BOUNDS"}
 
-	var start_id: int = _get_cell_id(start_pos, grid_width)
-	var goal_id: int = _get_cell_id(goal_pos, grid_width)
-
-	# 1. Configurar pesos específicos de esta conexión (aislar salas ajenas)
-	var modified_nodes: Dictionary = {}
-	_apply_room_isolation_weights(astar, rooms, req.room_a_id, req.room_b_id, config, grid_width, modified_nodes)
-
-	# Habilitar coste preferencial en start y goal
-	var orig_start_weight: float = astar.get_point_weight_scale(start_id)
-	var orig_goal_weight: float = astar.get_point_weight_scale(goal_id)
-	astar.set_point_weight_scale(start_id, 1.0)
-	astar.set_point_weight_scale(goal_id, 1.0)
-
-	# --- PASO 1: FIND (Búsqueda A*) ---
-	var point_path: PackedVector2Array = astar.get_point_path(start_id, goal_id)
-
-	# Restaurar pesos temporales de start, goal y salas ajenas
-	astar.set_point_weight_scale(start_id, orig_start_weight)
-	astar.set_point_weight_scale(goal_id, orig_goal_weight)
-	_restore_modified_weights(astar, modified_nodes)
-
-	if point_path.is_empty():
-		return {"success": false, "reason": "NO_PATH"}
-
 	var centerline: Array[Vector2i] = []
-	for p_vec in point_path:
-		centerline.append(Vector2i(int(p_vec.x), int(p_vec.y)))
+	var routing_strategy: String = "Unknown"
+
+	# --- PASO 1: FIND (Jerarquía: 1. OrthogonalPlanner -> 2. Direction-Aware A*) ---
+	if config.prefer_orthogonal_routes:
+		var ortho_res: Dictionary = _OrthogonalPlannerScript.plan_route(grid, rooms, req.room_a_id, req.room_b_id, start_pos, goal_pos, config)
+		if ortho_res.get("success", false):
+			centerline = ortho_res["centerline"]
+			routing_strategy = ortho_res.get("strategy", "Orthogonal")
+
+	# Fallback a A* direccional si el planificador ortogonal no encontró ruta o no está activado
+	if centerline.is_empty() and config.allow_astar_fallback:
+		var astar_res: Dictionary = _find_direction_aware_path(grid, rooms, room_map, req, config, grid_width, grid_height)
+		if astar_res.get("success", false):
+			centerline = astar_res["centerline"]
+			routing_strategy = "AStar_TurnAware"
+		else:
+			# Fallback clásico mediante AStar2D si el direccional estricto fallara
+			var classic_path := _find_classic_astar_path(astar, rooms, req, config, grid_width)
+			if not classic_path.is_empty():
+				centerline = classic_path
+				routing_strategy = "AStar_Classic"
+
+	if centerline.is_empty():
+		return {"success": false, "reason": "NO_PATH"}
 
 	# --- PASO 2: VALIDATE (Validación del camino central) ---
 	var val_error: String = _validate_centerline(centerline, start_pos, goal_pos, grid, rooms, req.room_a_id, req.room_b_id)
@@ -269,6 +272,9 @@ static func _carve_single_request(
 		if not room_b.connected_room_ids.has(req.room_a_id):
 			room_b.connected_room_ids.append(req.room_a_id)
 
+	# Calcular métricas de calidad estética del camino
+	var metrics: Dictionary = compute_path_metrics(centerline)
+
 	var path = _CorridorPathScript.new(
 		req.connection_id,
 		req.room_a_id,
@@ -276,13 +282,237 @@ static func _carve_single_request(
 		centerline,
 		candidate_carved_cells,
 		total_cost,
-		reused_count
+		reused_count,
+		metrics["turn_count"],
+		metrics["longest_straight_run"],
+		routing_strategy
 	)
+	path.straight_run_count = metrics["straight_run_count"]
 
 	return {
 		"success": true,
 		"path": path
 	}
+
+## Calcula métricas geométricas y estéticas sobre un centerline.
+static func compute_path_metrics(path: Array[Vector2i]) -> Dictionary:
+	if path.size() < 2:
+		return {
+			"turn_count": 0,
+			"straight_run_count": 1 if not path.is_empty() else 0,
+			"longest_straight_run": path.size()
+		}
+
+	var turns: int = 0
+	var runs: Array[int] = []
+	var current_run: int = 1
+	var current_dir: Vector2i = path[1] - path[0]
+
+	for i in range(1, path.size() - 1):
+		var next_dir: Vector2i = path[i + 1] - path[i]
+		if next_dir != current_dir:
+			turns += 1
+			runs.append(current_run)
+			current_run = 1
+			current_dir = next_dir
+		else:
+			current_run += 1
+
+	runs.append(current_run)
+
+	var longest: int = 0
+	for r in runs:
+		if r > longest:
+			longest = r
+
+	return {
+		"turn_count": turns,
+		"straight_run_count": runs.size(),
+		"longest_straight_run": longest
+	}
+
+## Búsqueda A* Direccional (Turn-Aware): explora en el espacio (posición, dirección_entrada)
+## penalizando severamente cada cambio de dirección para eliminar el patrón de escalera.
+static func _find_direction_aware_path(
+	grid: CellGrid,
+	rooms: Array[RoomData],
+	room_map: Dictionary,
+	req: CorridorRequest,
+	config: DungeonConfig,
+	grid_width: int,
+	grid_height: int
+) -> Dictionary:
+	var start_pos := req.start
+	var goal_pos := req.goal
+	var turn_penalty: float = config.corridor_turn_penalty
+	var cost_corridor: float = config.corridor_cost_corridor
+	var cost_wall: float = config.corridor_cost_wall
+	var cost_floor: float = config.corridor_cost_room_floor
+	var other_room_cost: float = config.corridor_cost_other_room
+
+	var directions: Array[Vector2i] = [
+		Vector2i(1, 0),
+		Vector2i(-1, 0),
+		Vector2i(0, 1),
+		Vector2i(0, -1)
+	]
+
+	# Cola de prioridad simulada (ordenada por f_score)
+	# Estado: String clave "x,y,dx,dy"
+	var open_set: Array[Dictionary] = []
+	var g_score: Dictionary = {}
+	var came_from: Dictionary = {}
+
+	var start_dir := req.start_direction
+	var start_key := "%d,%d,%d,%d" % [start_pos.x, start_pos.y, start_dir.x, start_dir.y]
+	g_score[start_key] = 0.0
+
+	var h_start: float = _heuristic_turn_aware(start_pos, start_dir, goal_pos, turn_penalty)
+	open_set.append({
+		"pos": start_pos,
+		"dir": start_dir,
+		"g": 0.0,
+		"f": h_start,
+		"key": start_key
+	})
+
+	var best_goal_state: String = ""
+	var min_goal_cost: float = INF
+	var iterations: int = 0
+	var max_iterations: int = grid_width * grid_height * 8
+
+	while not open_set.is_empty() and iterations < max_iterations:
+		iterations += 1
+
+		# Extraer nodo con menor f_score
+		var best_idx: int = 0
+		var best_f: float = open_set[0]["f"]
+		for i in range(1, open_set.size()):
+			if open_set[i]["f"] < best_f:
+				best_f = open_set[i]["f"]
+				best_idx = i
+
+		var current: Dictionary = open_set[best_idx]
+		open_set.remove_at(best_idx)
+
+		var curr_pos: Vector2i = current["pos"]
+		var curr_dir: Vector2i = current["dir"]
+		var curr_key: String = current["key"]
+		var curr_g: float = current["g"]
+
+		if curr_g > g_score.get(curr_key, INF):
+			continue
+
+		if curr_pos == goal_pos:
+			if curr_g < min_goal_cost:
+				min_goal_cost = curr_g
+				best_goal_state = curr_key
+				break
+
+		# Explorar vecinos cardinales
+		for d in directions:
+			var next_pos: Vector2i = curr_pos + d
+
+			if not grid.is_in_bounds(next_pos):
+				continue
+
+			var ctype: int = grid.get_cell(next_pos)
+			if ctype == CellGrid.CellType.VOID or ctype == CellGrid.CellType.COLUMN or ctype == CellGrid.CellType.OBSTACLE:
+				continue
+
+			# Coste de terreno
+			var step_cost: float = cost_wall
+			if ctype == CellGrid.CellType.CORRIDOR:
+				step_cost = cost_corridor
+			elif ctype == CellGrid.CellType.FLOOR or ctype == CellGrid.CellType.DOOR:
+				step_cost = cost_floor
+
+			# Penalización de sala ajena
+			var owner_id: int = _get_room_id_at(next_pos, rooms)
+			if owner_id != -1 and owner_id != req.room_a_id and owner_id != req.room_b_id:
+				step_cost += other_room_cost
+
+			# Penalización de giro si cambia de dirección respecto a curr_dir
+			var turn_cost: float = 0.0
+			if curr_dir != Vector2i.ZERO and d != curr_dir:
+				turn_cost = turn_penalty
+
+			var tentative_g: float = curr_g + step_cost + turn_cost
+			var next_key := "%d,%d,%d,%d" % [next_pos.x, next_pos.y, d.x, d.y]
+
+			if tentative_g < g_score.get(next_key, INF):
+				g_score[next_key] = tentative_g
+				came_from[next_key] = curr_key
+				var h: float = _heuristic_turn_aware(next_pos, d, goal_pos, turn_penalty)
+				open_set.append({
+					"pos": next_pos,
+					"dir": d,
+					"g": tentative_g,
+					"f": tentative_g + h,
+					"key": next_key
+				})
+
+	if best_goal_state.is_empty():
+		return {"success": false, "centerline": [] as Array[Vector2i]}
+
+	# Reconstruir camino hacia atrás
+	var path_reversed: Array[Vector2i] = []
+	var curr_trace: String = best_goal_state
+
+	while came_from.has(curr_trace):
+		var parts := curr_trace.split(",")
+		path_reversed.append(Vector2i(int(parts[0]), int(parts[1])))
+		curr_trace = came_from[curr_trace]
+
+	# Añadir punto inicial
+	var start_parts := curr_trace.split(",")
+	path_reversed.append(Vector2i(int(start_parts[0]), int(start_parts[1])))
+	path_reversed.reverse()
+
+	return {
+		"success": true,
+		"centerline": path_reversed
+	}
+
+static func _heuristic_turn_aware(pos: Vector2i, dir: Vector2i, goal: Vector2i, turn_penalty: float) -> float:
+	var manhattan: float = float(absi(goal.x - pos.x) + absi(goal.y - pos.y))
+	var extra_turns: float = 0.0
+
+	if pos.x != goal.x and pos.y != goal.y:
+		extra_turns = turn_penalty
+	elif (pos.x != goal.x and dir.y != 0) or (pos.y != goal.y and dir.x != 0):
+		extra_turns = turn_penalty
+
+	return manhattan + extra_turns
+
+static func _find_classic_astar_path(
+	astar: AStar2D,
+	rooms: Array[RoomData],
+	req: CorridorRequest,
+	config: DungeonConfig,
+	grid_width: int
+) -> Array[Vector2i]:
+	var start_id: int = _get_cell_id(req.start, grid_width)
+	var goal_id: int = _get_cell_id(req.goal, grid_width)
+
+	var modified_nodes: Dictionary = {}
+	_apply_room_isolation_weights(astar, rooms, req.room_a_id, req.room_b_id, config, grid_width, modified_nodes)
+
+	var orig_start: float = astar.get_point_weight_scale(start_id)
+	var orig_goal: float = astar.get_point_weight_scale(goal_id)
+	astar.set_point_weight_scale(start_id, 1.0)
+	astar.set_point_weight_scale(goal_id, 1.0)
+
+	var point_path: PackedVector2Array = astar.get_point_path(start_id, goal_id)
+
+	astar.set_point_weight_scale(start_id, orig_start)
+	astar.set_point_weight_scale(goal_id, orig_goal)
+	_restore_modified_weights(astar, modified_nodes)
+
+	var res: Array[Vector2i] = []
+	for p in point_path:
+		res.append(Vector2i(int(p.x), int(p.y)))
+	return res
 
 static func _validate_centerline(
 	path: Array[Vector2i],
