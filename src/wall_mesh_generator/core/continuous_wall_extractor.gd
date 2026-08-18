@@ -42,25 +42,21 @@ static func extract_wall_loops(
 			if not grid.is_walkable(cell):
 				continue
 
-			# Borde Norte (Norte es muro o vacío)
-			if not grid.is_walkable(cell + Vector2i(0, -1)):
-				if opening_manifest == null or not opening_manifest.has_opening(cell, _RoomEntranceScript.NORTH):
-					active_edges[Vector3i(x, y, EdgeDir.NORTH)] = true
+			# Borde Norte (Norte es muro, vacío o transición de sala a corredor sin vano)
+			if _should_have_wall(grid, cell, cell + Vector2i(0, -1), _RoomEntranceScript.NORTH, opening_manifest):
+				active_edges[Vector3i(x, y, EdgeDir.NORTH)] = true
 
-			# Borde Este (Este es muro o vacío)
-			if not grid.is_walkable(cell + Vector2i(1, 0)):
-				if opening_manifest == null or not opening_manifest.has_opening(cell, _RoomEntranceScript.EAST):
-					active_edges[Vector3i(x, y, EdgeDir.EAST)] = true
+			# Borde Este
+			if _should_have_wall(grid, cell, cell + Vector2i(1, 0), _RoomEntranceScript.EAST, opening_manifest):
+				active_edges[Vector3i(x, y, EdgeDir.EAST)] = true
 
-			# Borde Sur (Sur es muro o vacío)
-			if not grid.is_walkable(cell + Vector2i(0, 1)):
-				if opening_manifest == null or not opening_manifest.has_opening(cell, _RoomEntranceScript.SOUTH):
-					active_edges[Vector3i(x, y, EdgeDir.SOUTH)] = true
+			# Borde Sur
+			if _should_have_wall(grid, cell, cell + Vector2i(0, 1), _RoomEntranceScript.SOUTH, opening_manifest):
+				active_edges[Vector3i(x, y, EdgeDir.SOUTH)] = true
 
-			# Borde Oeste (Oeste es muro o vacío)
-			if not grid.is_walkable(cell + Vector2i(-1, 0)):
-				if opening_manifest == null or not opening_manifest.has_opening(cell, _RoomEntranceScript.WEST):
-					active_edges[Vector3i(x, y, EdgeDir.WEST)] = true
+			# Borde Oeste
+			if _should_have_wall(grid, cell, cell + Vector2i(-1, 0), _RoomEntranceScript.WEST, opening_manifest):
+				active_edges[Vector3i(x, y, EdgeDir.WEST)] = true
 
 	# 2. Trazar bucles cerrados siguiendo la continuidad geométrica exacta de aristas
 	var visited_edges: Dictionary = {} # Vector3i -> bool
@@ -129,27 +125,27 @@ static func _find_next_connected_edge(curr_edge: Vector3i, active_edges: Diction
 	match dir:
 		EdgeDir.NORTH:
 			candidates = [
-				Vector3i(x + 1, y - 1, EdgeDir.WEST),
-				Vector3i(x + 1, y, EdgeDir.NORTH),
 				Vector3i(x, y, EdgeDir.EAST),
+				Vector3i(x + 1, y, EdgeDir.NORTH),
+				Vector3i(x + 1, y - 1, EdgeDir.WEST),
 			]
 		EdgeDir.EAST:
 			candidates = [
-				Vector3i(x + 1, y + 1, EdgeDir.NORTH),
-				Vector3i(x, y + 1, EdgeDir.EAST),
 				Vector3i(x, y, EdgeDir.SOUTH),
+				Vector3i(x, y + 1, EdgeDir.EAST),
+				Vector3i(x + 1, y + 1, EdgeDir.NORTH),
 			]
 		EdgeDir.SOUTH:
 			candidates = [
-				Vector3i(x - 1, y + 1, EdgeDir.EAST),
-				Vector3i(x - 1, y, EdgeDir.SOUTH),
 				Vector3i(x, y, EdgeDir.WEST),
+				Vector3i(x - 1, y, EdgeDir.SOUTH),
+				Vector3i(x - 1, y + 1, EdgeDir.EAST),
 			]
 		EdgeDir.WEST:
 			candidates = [
-				Vector3i(x - 1, y - 1, EdgeDir.SOUTH),
-				Vector3i(x, y - 1, EdgeDir.WEST),
 				Vector3i(x, y, EdgeDir.NORTH),
+				Vector3i(x, y - 1, EdgeDir.WEST),
+				Vector3i(x - 1, y - 1, EdgeDir.SOUTH),
 			]
 
 	# Probar candidatos específicos de giro
@@ -186,3 +182,40 @@ static func _simplify_polygon(pts: Array[Vector2i]) -> Array[Vector2i]:
 			result.append(curr)
 
 	return result
+
+static func _should_have_wall(
+	grid: CellGrid,
+	cell: Vector2i,
+	neighbor: Vector2i,
+	side: int,
+	opening_manifest: WallOpeningManifest
+) -> bool:
+	if not grid.is_in_bounds(neighbor):
+		return true
+
+	var cell_type: int = grid.get_cell(cell)
+	var n_type: int = grid.get_cell(neighbor)
+
+	if not grid.is_walkable(neighbor):
+		if opening_manifest != null and opening_manifest.has_opening(cell, side):
+			return false
+		return true
+
+	# Si una celda es FLOOR (de habitación) y la vecina es CORRIDOR (o viceversa):
+	# Si NO hay un vano de puerta registrado en esa arista, DEBE haber pared divisoria entre la sala y el pasillo
+	if (cell_type == CellGrid.CellType.FLOOR and n_type == CellGrid.CellType.CORRIDOR) or \
+	   (cell_type == CellGrid.CellType.CORRIDOR and n_type == CellGrid.CellType.FLOOR):
+		var opp_side: int = _opposite_side(side)
+		if opening_manifest != null and (opening_manifest.has_opening(cell, side) or opening_manifest.has_opening(neighbor, opp_side)):
+			return false
+		return true
+
+	return false
+
+static func _opposite_side(side: int) -> int:
+	match side:
+		_RoomEntranceScript.NORTH: return _RoomEntranceScript.SOUTH
+		_RoomEntranceScript.SOUTH: return _RoomEntranceScript.NORTH
+		_RoomEntranceScript.EAST:  return _RoomEntranceScript.WEST
+		_RoomEntranceScript.WEST:  return _RoomEntranceScript.EAST
+	return side
