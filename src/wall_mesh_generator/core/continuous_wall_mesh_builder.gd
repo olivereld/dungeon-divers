@@ -99,17 +99,19 @@ func build_dungeon_wall_mesh(
 			var m1: Vector3 = miter_dirs[next_i]
 
 			# Vértices base sobre la línea de contorno
-			var p0_inner_thick: Vector3 = p0 - (m0 * (d * 0.5))
-			var p1_inner_thick: Vector3 = p1 - (m1 * (d * 0.5))
+			# Para la cara interior que da a la habitación/pasillo, la base de la pared (p_inner)
+			# debe estar anclada a la línea de contorno 'p' para no invadir el suelo de la sala
+			var p0_inner_thick: Vector3 = p0
+			var p1_inner_thick: Vector3 = p1
 
-			var p0_inner_thin: Vector3 = p0
-			var p1_inner_thin: Vector3 = p1
+			var p0_inner_thin: Vector3 = p0 + (m0 * (d * 0.5))
+			var p1_inner_thin: Vector3 = p1 + (m1 * (d * 0.5))
 
-			var p0_outer_thick: Vector3 = p0 + (m0 * (w_thick - d * 0.5))
-			var p1_outer_thick: Vector3 = p1 + (m1 * (w_thick - d * 0.5))
+			var p0_outer_thick: Vector3 = p0 + (m0 * w_thick)
+			var p1_outer_thick: Vector3 = p1 + (m1 * w_thick)
 
-			var p0_outer_thin: Vector3 = p0 + (m0 * w_thin)
-			var p1_outer_thin: Vector3 = p1 + (m1 * w_thin)
+			var p0_outer_thin: Vector3 = p0 + (m0 * (w_thick - d * 0.5))
+			var p1_outer_thin: Vector3 = p1 + (m1 * (w_thick - d * 0.5))
 
 			# --- 2.1 ZÓCALO INFERIOR (TRIMS) ---
 			var y_bot_base: float = 0.0
