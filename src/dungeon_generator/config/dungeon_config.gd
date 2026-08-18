@@ -65,6 +65,13 @@ extends Resource
 @export_range(0.0, 100.0, 1.0) var corridor_door_proximity_penalty: float = 50.0
 @export var distribute_room_doors_across_sides: bool = true
 
+@export_group("Política de Puertas (Fase Reforced)")
+@export var min_corridor_length_for_double_doors: int = 6
+@export var short_corridor_single_door_threshold: int = 3
+@export_range(0.0, 1.0, 0.05) var door_open_passage_chance: float = 0.25
+@export_range(0.0, 1.0, 0.05) var door_single_door_chance: float = 0.65
+@export_range(0.0, 1.0, 0.05) var door_double_door_chance: float = 0.10
+
 @export_group("Dificultad y Balance")
 @export_range(0.1, 3.0, 0.1) var difficulty: float = 1.0
 
