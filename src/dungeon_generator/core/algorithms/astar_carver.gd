@@ -183,46 +183,21 @@ static func _carve_single_request(
 	if not val_error.is_empty():
 		return {"success": false, "reason": val_error}
 
-	# --- PASO 3: WIDEN (Cálculo y validación de la región ensanchada) ---
+	# --- PASO 3: WIDEN (Cálculo y validación de la región ensanchada con preservación de esquinas y cuello de botella) ---
 	var c_width: int = config.corridor_width if ("corridor_width" in config) else 2
 	var bottleneck_dist: int = config.corridor_bottleneck_distance if ("corridor_bottleneck_distance" in config) else 1
 
-	var candidate_carved_cells: Array[Vector2i] = []
-	var seen_cells: Dictionary = {}
-
-	# Incluir los umbrales de frontera (boundary cells) y los outer cells
-	var boundary_cells := [req.start_boundary, req.goal_boundary]
-	for bc in boundary_cells:
-		if grid.is_in_bounds(bc) and not seen_cells.has(bc):
-			candidate_carved_cells.append(bc)
-			seen_cells[bc] = true
-
-	for p in centerline:
-		if not seen_cells.has(p):
-			candidate_carved_cells.append(p)
-			seen_cells[p] = true
-
-	# Ensanchamiento lateral si width >= 2
-	if c_width >= 2 and centerline.size() >= 2:
-		for i in range(centerline.size() - 1):
-			# Preservar el cuello de botella de 1 celda cerca de las entradas
-			if i < bottleneck_dist or i >= centerline.size() - 1 - bottleneck_dist:
-				continue
-
-			var curr: Vector2i = centerline[i]
-			var next: Vector2i = centerline[i + 1]
-			var dir: Vector2i = next - curr
-			var perp := Vector2i(-dir.y, dir.x)
-			if perp == Vector2i.ZERO:
-				continue
-
-			for offset in range(1, c_width):
-				var side_pt: Vector2i = curr + perp * offset
-				if not seen_cells.has(side_pt):
-					# Validar que el punto lateral sea seguro para tallar
-					if _is_safe_widening_cell(side_pt, grid, rooms, req.room_a_id, req.room_b_id):
-						candidate_carved_cells.append(side_pt)
-						seen_cells[side_pt] = true
+	var boundary_cells: Array[Vector2i] = [req.start_boundary, req.goal_boundary]
+	var candidate_carved_cells: Array[Vector2i] = _compute_widened_corridor_cells(
+		centerline,
+		boundary_cells,
+		c_width,
+		bottleneck_dist,
+		grid,
+		rooms,
+		req.room_a_id,
+		req.room_b_id
+	)
 
 	# Validar que toda la región a tallar no viole restricciones
 	for cell in candidate_carved_cells:
@@ -555,6 +530,69 @@ static func _validate_centerline(
 			return "FORBIDDEN_ROOM"
 
 	return ""
+
+static func _compute_widened_corridor_cells(
+	centerline: Array[Vector2i],
+	boundary_cells: Array[Vector2i],
+	c_width: int,
+	bottleneck_dist: int,
+	grid: CellGrid,
+	rooms: Array[RoomData],
+	room_a_id: int,
+	room_b_id: int
+) -> Array[Vector2i]:
+	var candidate_carved_cells: Array[Vector2i] = []
+	var seen_cells: Dictionary = {}
+
+	# 1. Incluir los umbrales de frontera (boundary cells)
+	for bc in boundary_cells:
+		if grid.is_in_bounds(bc) and not seen_cells.has(bc):
+			candidate_carved_cells.append(bc)
+			seen_cells[bc] = true
+
+	# 2. Incluir todo el centerline
+	for p in centerline:
+		if not seen_cells.has(p):
+			candidate_carved_cells.append(p)
+			seen_cells[p] = true
+
+	if c_width <= 1 or centerline.size() < 2:
+		return candidate_carved_cells
+
+	# 3. Ensanchamiento estructurado por segmentos
+	var start_idx: int = bottleneck_dist
+	var end_idx: int = centerline.size() - 1 - bottleneck_dist
+
+	for i in range(start_idx, end_idx + 1):
+		if i < 0 or i >= centerline.size():
+			continue
+
+		var curr: Vector2i = centerline[i]
+
+		# Determinar direcciones entrante y saliente
+		var dir_in: Vector2i = curr - centerline[i - 1] if i > 0 else (centerline[1] - curr)
+		var dir_out: Vector2i = centerline[i + 1] - curr if i < centerline.size() - 1 else dir_in
+
+		var perp_in := Vector2i(-dir_in.y, dir_in.x)
+		var perp_out := Vector2i(-dir_out.y, dir_out.x)
+
+		# Segmento recto
+		if dir_in == dir_out or perp_in == perp_out:
+			for offset in range(1, c_width):
+				var side_pt: Vector2i = curr + perp_in * offset
+				if not seen_cells.has(side_pt) and _is_safe_widening_cell(side_pt, grid, rooms, room_a_id, room_b_id):
+					candidate_carved_cells.append(side_pt)
+					seen_cells[side_pt] = true
+		else:
+			# Esquina / giro 90°: Llenar el bloque 2x2/3x3 en la unión
+			for o1 in range(0, c_width):
+				for o2 in range(0, c_width):
+					var corner_pt: Vector2i = curr + perp_in * o1 + perp_out * o2
+					if not seen_cells.has(corner_pt) and _is_safe_widening_cell(corner_pt, grid, rooms, room_a_id, room_b_id):
+						candidate_carved_cells.append(corner_pt)
+						seen_cells[corner_pt] = true
+
+	return candidate_carved_cells
 
 static func _is_safe_widening_cell(
 	pos: Vector2i,

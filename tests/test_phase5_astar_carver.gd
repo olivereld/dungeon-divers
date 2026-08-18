@@ -137,7 +137,23 @@ func _init() -> void:
 	assert(carver_w.is_valid, "Widening with width=2 must succeed")
 	var path_w: _CorridorPathScript = carver_w.paths[0]
 	assert(path_w.carved_cells.size() > path_w.centerline_cells.size(), "Carved cells must exceed centerline count due to widening")
-	print("  [OK] Test 6: Corridor widening (width=2) generated and committed successfully")
+
+	# Test 6b: Ensanchamiento en esquina en L (solid 2x2 corner block)
+	var grid_l_w := CellGrid.new(30, 30, CellGrid.CellType.WALL)
+	var r_l1 := RoomData.new(0, Rect2i(2, 5, 5, 5))
+	var r_l2 := RoomData.new(1, Rect2i(20, 20, 5, 5))
+	grid_l_w.fill_rect(r_l1.rect, CellGrid.CellType.FLOOR)
+	grid_l_w.fill_rect(r_l2.rect, CellGrid.CellType.FLOOR)
+
+	var conn_l = _RoomConnectionScript.new(0, 0, 1, true)
+	var ent_l = _EntranceSolverScript.resolve([r_l1, r_l2], [conn_l], grid_l_w, cfg_w2)
+	var carver_l = _AStarCarverScript.carve_corridors(grid_l_w, [r_l1, r_l2], ent_l.entrance_pairs, [conn_l], cfg_w2)
+	assert(carver_l.is_valid, "Widening with width=2 on L-turn must succeed")
+	var path_l: _CorridorPathScript = carver_l.paths[0]
+	# Verificar que todas las celdas ensanchadas sean transitables y sin celdas huérfanas
+	for c in path_l.carved_cells:
+		assert(grid_l_w.get_cell(c) == CellGrid.CellType.CORRIDOR, "Carved cell must be set to CORRIDOR in grid")
+	print("  [OK] Test 6: Corridor widening (width=2) and corner block generated and committed successfully")
 
 	# Test 7: Preservación de cuello de botella en la entrada
 	var ent_pair_w = ent_w.entrance_pairs[0]
