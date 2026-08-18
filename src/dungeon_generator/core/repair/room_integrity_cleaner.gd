@@ -29,14 +29,14 @@ static func clean_orphaned_room_pockets(
 		if not grid.is_in_bounds(center):
 			continue
 
-		# Si el centro fue cambiado accidentalmente a no transitable, buscar la celda FLOOR más cercana
+		# Si el centro fue cambiado accidentalmente a no transitable, buscar la celda transitable más cercana
 		var start_node := center
-		if grid.get_cell(start_node) != CellGrid.CellType.FLOOR:
+		if not grid.is_walkable(start_node):
 			var found_alt := false
 			for y in range(room.rect.position.y, room.rect.end.y):
 				for x in range(room.rect.position.x, room.rect.end.x):
 					var p := Vector2i(x, y)
-					if grid.get_cell(p) == CellGrid.CellType.FLOOR:
+					if grid.is_walkable(p):
 						start_node = p
 						found_alt = true
 						break
@@ -55,9 +55,7 @@ static func clean_orphaned_room_pockets(
 			for d in DIRS4:
 				var n: Vector2i = curr + d
 				if room.rect.has_point(n) and not reachable.has(n):
-					var c_type = grid.get_cell(n)
-					# Si es FLOOR o DOOR, es transitable dentro del cuerpo de la sala
-					if c_type == CellGrid.CellType.FLOOR or c_type == CellGrid.CellType.DOOR:
+					if grid.is_walkable(n):
 						reachable[n] = true
 						queue.push_back(n)
 

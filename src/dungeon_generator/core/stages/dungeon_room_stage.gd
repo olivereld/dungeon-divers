@@ -75,20 +75,21 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 			"BSP":
 				grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
 			"Hybrid":
-				if room.room_type == &"start" or room.room_type == &"goal" or room.room_type == &"boss":
-					if room.rect.size.x >= 8 and room.rect.size.y >= 8 and rng.randf() < 0.5:
-						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.PILLARED_HALL, rng)
-					else:
-						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, rng)
+				if room.room_type == &"start" or room.room_type == &"goal":
+					_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, rng)
 				else:
 					var roll: float = rng.randf()
-					if roll < 0.40:
+					if roll < 0.60:
+						# 60% Rectangle
 						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, rng)
-					elif roll < 0.65:
+					elif roll < 0.78:
+						# 18% Octagon
 						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OCTAGONAL_CHAMBER, rng)
-					elif roll < 0.85:
+					elif roll < 0.89:
+						# 11% Cruciform
 						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.CRUCIFORM_SANCTUARY, rng)
 					else:
+						# 11% Pillared
 						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.PILLARED_HALL, rng)
 			_:
 				grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
