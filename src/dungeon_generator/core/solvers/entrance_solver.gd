@@ -45,11 +45,15 @@ static func resolve(
 	# 3. Estructurar y ordenar conexiones por prioridad
 	var sorted_conns: Array = _sort_connections_by_priority(connections, room_map, candidates_by_room)
 
-	# 4. Estado de reservas por habitación (room_id -> Array[Vector2i])
+	# 4. Estado de reservas por habitación
 	var reserved_positions: Dictionary = {}
+	var reserved_sides: Dictionary = {}
+	var reserved_approaches: Dictionary = {}
 	for r in rooms:
 		if r != null:
 			reserved_positions[r.id] = []
+			reserved_sides[r.id] = {}
+			reserved_approaches[r.id] = []
 
 	# 5. Resolver cada conexión
 	for conn in sorted_conns:
@@ -91,6 +95,8 @@ static func resolve(
 			room_b,
 			conn,
 			reserved_positions,
+			reserved_sides,
+			reserved_approaches,
 			min_spacing,
 			cfg
 		)
@@ -123,9 +129,15 @@ static func resolve(
 			"status": "VALID"
 		})
 
-		# Reservar las posiciones seleccionadas
+		# Reservar las posiciones y lados seleccionados
 		reserved_positions[conn.room_a_id].append(ent_a.position)
 		reserved_positions[conn.room_b_id].append(ent_b.position)
+
+		reserved_sides[conn.room_a_id][ent_a.side] = reserved_sides[conn.room_a_id].get(ent_a.side, 0) + 1
+		reserved_sides[conn.room_b_id][ent_b.side] = reserved_sides[conn.room_b_id].get(ent_b.side, 0) + 1
+
+		reserved_approaches[conn.room_a_id].append(ent_a.outer_cell)
+		reserved_approaches[conn.room_b_id].append(ent_b.outer_cell)
 
 	return result
 
@@ -233,18 +245,21 @@ static func score_candidate_pair(
 	room_a: RoomData,
 	room_b: RoomData,
 	reserved_positions: Dictionary,
+	reserved_sides: Dictionary,
+	reserved_approaches: Dictionary,
 	min_spacing: int,
 	config: DungeonConfig
 ) -> float:
 	var dist_weight: float = config.entrance_distance_weight if "entrance_distance_weight" in config else 1.0
 	var align_weight: float = config.entrance_alignment_weight if "entrance_alignment_weight" in config else 2.0
 	var corner_pen: float = config.entrance_corner_penalty if "entrance_corner_penalty" in config else 5.0
-	var conflict_pen: float = config.entrance_conflict_penalty if "entrance_conflict_penalty" in config else 100.0
+	var same_side_pen: float = config.same_side_door_penalty if "same_side_door_penalty" in config else 30.0
+	var proximity_pen: float = config.corridor_door_proximity_penalty if "corridor_door_proximity_penalty" in config else 50.0
 
 	var pos_a: Vector2i = cand_a.position
 	var pos_b: Vector2i = cand_b.position
 
-	# 1. Distancia euclídea al cuadrado entre los puntos de salida exterior
+	# 1. Distancia euclídea entre los puntos de salida exterior
 	var dx: float = float(cand_b.outer_cell.x - cand_a.outer_cell.x)
 	var dy: float = float(cand_b.outer_cell.y - cand_a.outer_cell.y)
 	var dist_cost: float = sqrt(dx * dx + dy * dy) * dist_weight
@@ -274,10 +289,7 @@ static func score_candidate_pair(
 	corner_dist_penalty += _calc_corner_penalty(cand_a, room_a, corner_pen)
 	corner_dist_penalty += _calc_corner_penalty(cand_b, room_b, corner_pen)
 
-	# 5. Penalización por conflicto con entradas previamente reservadas
-	var conflict_cost: float = 0.0
-
-	# Prohibir terminantemente que pos_a o pos_b compartan celda con cualquier entrada ya reservada
+	# 5. Restricción Dura: Prohibir compartir celda o estar a distancia Manhattan < min_spacing
 	for r_id in reserved_positions.keys():
 		for res_pos in reserved_positions[r_id]:
 			if pos_a == res_pos or pos_b == res_pos or pos_a == pos_b:
@@ -287,15 +299,40 @@ static func score_candidate_pair(
 	for res_pos in reserved_a:
 		var manhattan: int = absi(pos_a.x - res_pos.x) + absi(pos_a.y - res_pos.y)
 		if manhattan < min_spacing:
-			conflict_cost += conflict_pen * (float(min_spacing - manhattan) / float(min_spacing))
+			return 1e8 # Restricción dura inviolable
 
 	var reserved_b: Array = reserved_positions.get(room_b.id, [])
 	for res_pos in reserved_b:
 		var manhattan: int = absi(pos_b.x - res_pos.x) + absi(pos_b.y - res_pos.y)
 		if manhattan < min_spacing:
-			conflict_cost += conflict_pen * (float(min_spacing - manhattan) / float(min_spacing))
+			return 1e8 # Restricción dura inviolable
 
-	return dist_cost + align_cost + orientation_penalty + corner_dist_penalty + conflict_cost
+	# 6. Distribución entre caras de la habitación (penalizar reutilización de la misma cara)
+	var side_penalty: float = 0.0
+	if config.distribute_room_doors_across_sides:
+		var sides_a: Dictionary = reserved_sides.get(room_a.id, {})
+		var count_a: int = sides_a.get(cand_a.side, 0)
+		if count_a > 0:
+			side_penalty += same_side_pen * float(count_a)
+
+		var sides_b: Dictionary = reserved_sides.get(room_b.id, {})
+		var count_b: int = sides_b.get(cand_b.side, 0)
+		if count_b > 0:
+			side_penalty += same_side_pen * float(count_b)
+
+	# 7. Proximidad de aproximaciones (evitar pasillos paralelos pegados en outer_cells)
+	var approach_penalty: float = 0.0
+	var app_a: Array = reserved_approaches.get(room_a.id, [])
+	for prev_app in app_a:
+		if absi(cand_a.outer_cell.x - prev_app.x) + absi(cand_a.outer_cell.y - prev_app.y) <= 1:
+			approach_penalty += proximity_pen
+
+	var app_b: Array = reserved_approaches.get(room_b.id, [])
+	for prev_app in app_b:
+		if absi(cand_b.outer_cell.x - prev_app.x) + absi(cand_b.outer_cell.y - prev_app.y) <= 1:
+			approach_penalty += proximity_pen
+
+	return dist_cost + align_cost + orientation_penalty + corner_dist_penalty + side_penalty + approach_penalty
 
 static func _calc_corner_penalty(cand: EntranceCandidate, room: RoomData, base_penalty: float) -> float:
 	var r: Rect2i = room.rect
@@ -330,6 +367,8 @@ static func _find_best_candidate_pair(
 	room_b: RoomData,
 	conn: RefCounted,
 	reserved_positions: Dictionary,
+	reserved_sides: Dictionary,
+	reserved_approaches: Dictionary,
 	min_spacing: int,
 	config: DungeonConfig
 ) -> Dictionary:
@@ -347,9 +386,14 @@ static func _find_best_candidate_pair(
 				room_a,
 				room_b,
 				reserved_positions,
+				reserved_sides,
+				reserved_approaches,
 				min_spacing,
 				config
 			)
+
+			if score >= 1e8:
+				continue # Rechazar candidatos inválidos o en conflicto duro
 
 			if not found_any or score < best_score:
 				best_score = score
@@ -357,28 +401,20 @@ static func _find_best_candidate_pair(
 				best_cand_b = cb
 				found_any = true
 			elif is_equal_approx(score, best_score):
-				# Desempate determinista estable
+				# Desempate determinista lexicográfico
 				if _tie_breaker_a_over_b(ca, cb, best_cand_a, best_cand_b, conn.id):
 					best_score = score
 					best_cand_a = ca
 					best_cand_b = cb
 
 	if not found_any or best_cand_a == null or best_cand_b == null:
-		return {"is_invalid": true, "reason": "NO_PAIRS_EVALUATED"}
-
-	# Comprobar si el mejor par viola una reserva estricta (misma posición)
-	var reserved_a: Array = reserved_positions.get(room_a.id, [])
-	var reserved_b: Array = reserved_positions.get(room_b.id, [])
-	if reserved_a.has(best_cand_a.position) or reserved_b.has(best_cand_b.position):
-		# Si la conexión es obligatoria y no hay otra, aún así devolvemos pero marcamos conflicto
-		if best_score > 500.0 and not conn.is_required:
-			return {"is_invalid": true, "reason": "STRICT_COLLISION_ON_OPTIONAL"}
+		return {"is_invalid": true, "reason": "NO_VALID_PAIRS", "score": 1e9}
 
 	return {
 		"is_invalid": false,
+		"score": best_score,
 		"cand_a": best_cand_a,
-		"cand_b": best_cand_b,
-		"score": best_score
+		"cand_b": best_cand_b
 	}
 
 ## Desempate determinista lexicográfico para garantizar reproducibilidad exacta.
