@@ -3,30 +3,13 @@ extends RefCounted
 
 ## Etapa 8: Validación de Conectividad (FloodFill) y Evaluación de Calidad (Fitness).
 
-const _FloodFillScript = preload("res://src/dungeon_generator/core/algorithms/flood_fill.gd")
-const _FitnessEvaluatorScript = preload("res://src/dungeon_generator/core/solvers/fitness_evaluator.gd")
 const _DungeonDistanceFieldScript = preload("res://src/dungeon_generator/core/algorithms/dungeon_distance_field.gd")
-
-var _flood_fill := _FloodFillScript.new()
-var _fitness_evaluator := _FitnessEvaluatorScript.new()
+const _DungeonQualityGateScript = preload("res://src/dungeon_generator/core/validation/dungeon_quality_gate.gd")
 
 func execute(ctx: DungeonGenerationContext) -> bool:
 	var t0 := Time.get_ticks_msec()
-	var path_ok: bool = _flood_fill.verify_critical_path(ctx.grid) and _flood_fill.verify_100_percent_walkable_connected(ctx.grid)
-	ctx.record_timing("flood_fill_connectivity", float(Time.get_ticks_msec() - t0))
 
-	if not path_ok:
-		var diag := _flood_fill.get_connectivity_diagnostics(ctx.grid, ctx.rooms)
-		push_warning("[DungeonValidationStage] Attempt %d: FloodFill connectivity check failed (Found %d regions, %d isolated islands: %s)." % [
-			ctx.attempt,
-			diag.get("region_count", 0),
-			diag.get("isolated_regions_count", 0),
-			str(diag.get("isolated_regions", []))
-		])
-		ctx.mark_attempt_failed("FLOOD_FILL_CONNECTIVITY_FAILED")
-		return false
-
-	# Calcular y almacenar el campo de distancias canónico (Single-pass BFS)
+	# 1. Calcular y almacenar el campo de distancias canónico (Single-pass BFS)
 	var start_pos: Vector2i = Vector2i.ZERO
 	var spawn_cells = ctx.grid.find_cells_of_type(CellGrid.CellType.SPAWN)
 	if not spawn_cells.is_empty():
@@ -36,7 +19,20 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 
 	ctx.distance_field = _DungeonDistanceFieldScript.compute_distance_field(ctx.grid, start_pos)
 
-	ctx.fitness_score = _fitness_evaluator.evaluate(ctx.grid, ctx.rooms, ctx.config)
+	# 2. Quality Gate Formal (Hard Constraints + Soft Fitness)
+	var qg_res = _DungeonQualityGateScript.evaluate(ctx)
+	ctx.record_timing("quality_gate_validation", float(Time.get_ticks_msec() - t0))
+
+	if not qg_res.hard_valid:
+		push_warning("[DungeonValidationStage] Attempt %d: Quality Gate Hard Failure: %s" % [
+			ctx.attempt,
+			str(qg_res.hard_failures)
+		])
+		ctx.mark_attempt_failed("QUALITY_GATE_HARD_FAILURE: " + str(qg_res.hard_failures))
+		return false
+
+	ctx.fitness_score = qg_res.fitness_score
+	ctx.validation_result = qg_res
 	ctx.metrics["aesthetic_metrics"] = _compute_aesthetic_metrics(ctx.corridor_paths, ctx.doors)
 	return true
 
