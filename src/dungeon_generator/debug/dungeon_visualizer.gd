@@ -205,9 +205,8 @@ func _update_info_label() -> void:
 	var text := "=== DUNGEON OVERLAY ===\n"
 	text += "Semilla: %d (Floor: %d)\n" % [_last_result.seed_used, _last_result.floor_number]
 	text += "Habitaciones: %d | Puertas: %d\n" % [_last_result.rooms.size(), _last_result.door_pairs.size()]
-	text += "Fitness: %.2f | Tiempo: %.1f ms\n" % [_last_result.fitness_score, _last_result.generation_time_ms]
-	text += "---------------------------------\n"
 	text += "[WASD] Mover Camara  [Rueda] Zoom\n"
+	text += "[Rueda Arrastrar] Orbitar Camara (Izquierda/Derecha)\n"
 	text += "[Flechas] Mover Jugador\n"
 	text += "[T] Cambiar Vista 3D / Cenital\n"
 	text += "[0-9] Aislar Piso  [R] Semilla Aleatoria\n"

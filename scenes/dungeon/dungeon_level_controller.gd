@@ -26,6 +26,8 @@ var _player: CharacterBody3D = null
 
 var _camera_pivot := Vector3.ZERO
 var _zoom: float = 40.0
+var _camera_yaw: float = 45.0
+var _is_orbiting: bool = false
 var _is_top_down: bool = false
 var _current_isolated_floor: int = -1
 
@@ -255,12 +257,12 @@ func _update_camera_transform() -> void:
 
 	var cam_distance: float = 60.0
 	if _is_top_down:
-		camera.rotation_degrees = Vector3(-90, 0, 0)
+		camera.rotation_degrees = Vector3(-90, _camera_yaw, 0)
 		camera.position = _camera_pivot + Vector3(0, cam_distance, 0)
 	else:
-		camera.rotation_degrees = Vector3(-45, 45, 0)
+		camera.rotation_degrees = Vector3(-45, _camera_yaw, 0)
 		var rot_rad_x: float = deg_to_rad(-45.0)
-		var rot_rad_y: float = deg_to_rad(45.0)
+		var rot_rad_y: float = deg_to_rad(_camera_yaw)
 		var offset := Vector3(
 			sin(rot_rad_y) * cos(rot_rad_x),
 			-sin(rot_rad_x),
@@ -283,25 +285,20 @@ func _handle_camera_pan(delta: float) -> void:
 	var speed: float = _zoom * 1.5 * delta
 	var move_dir := Vector3.ZERO
 
-	# Cámara se mueve EXCLUSIVAMENTE con WASD (las flechas mueven al jugador)
-	if _is_top_down:
-		if Input.is_key_pressed(KEY_W):
-			move_dir += Vector3(0, 0, -1)
-		if Input.is_key_pressed(KEY_S):
-			move_dir += Vector3(0, 0, 1)
-		if Input.is_key_pressed(KEY_A):
-			move_dir += Vector3(-1, 0, 0)
-		if Input.is_key_pressed(KEY_D):
-			move_dir += Vector3(1, 0, 0)
-	else:
-		if Input.is_key_pressed(KEY_W):
-			move_dir += Vector3(-1, 0, -1).normalized()
-		if Input.is_key_pressed(KEY_S):
-			move_dir += Vector3(1, 0, 1).normalized()
-		if Input.is_key_pressed(KEY_A):
-			move_dir += Vector3(-1, 0, 1).normalized()
-		if Input.is_key_pressed(KEY_D):
-			move_dir += Vector3(1, 0, -1).normalized()
+	# Direcciones relativas al ángulo horizontal (yaw) actual de la cámara
+	var rad_y: float = deg_to_rad(_camera_yaw)
+	var forward := Vector3(-sin(rad_y), 0, -cos(rad_y)).normalized()
+	var right := Vector3(cos(rad_y), 0, -sin(rad_y)).normalized()
+
+	# Cámara se mueve EXCLUSIVAMENTE con WASD
+	if Input.is_key_pressed(KEY_W):
+		move_dir += forward
+	if Input.is_key_pressed(KEY_S):
+		move_dir -= forward
+	if Input.is_key_pressed(KEY_A):
+		move_dir -= right
+	if Input.is_key_pressed(KEY_D):
+		move_dir += right
 
 	if move_dir != Vector3.ZERO:
 		_camera_pivot += move_dir.normalized() * speed
@@ -349,7 +346,9 @@ func _input(event: InputEvent) -> void:
 					visualizer.update_floor_view_options(config.total_floors if config != null else 1, next_f)
 
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+		if event.button_index == MOUSE_BUTTON_MIDDLE:
+			_is_orbiting = event.pressed
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_zoom = maxf(10.0, _zoom - 4.0)
 			if camera != null:
 				camera.size = _zoom
@@ -357,3 +356,8 @@ func _input(event: InputEvent) -> void:
 			_zoom = minf(200.0, _zoom + 4.0)
 			if camera != null:
 				camera.size = _zoom
+
+	if event is InputEventMouseMotion and _is_orbiting:
+		# Orbitar exclusivamente de izquierda a derecha (yaw), sin variación vertical
+		_camera_yaw -= event.relative.x * 0.4
+		_update_camera_transform()
