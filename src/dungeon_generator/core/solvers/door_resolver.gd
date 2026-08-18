@@ -9,6 +9,8 @@ const _DoorPlacementScript = preload("res://src/dungeon_generator/core/data/door
 const _DoorPairScript = preload("res://src/dungeon_generator/core/data/door_pair.gd")
 const _DoorResolutionResultScript = preload("res://src/dungeon_generator/core/solvers/door_resolution_result.gd")
 const _DoorTransitionValidatorScript = preload("res://src/dungeon_generator/core/validation/door_transition_validator.gd")
+const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
+const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
 
 ## Resuelve y coloca atómicamente todas las puertas del intento de generación.
 static func resolve_doors(
@@ -137,6 +139,15 @@ static func resolve_doors(
 			ent_b.outer_cell
 		)
 
+		var room_a = null
+		var room_b = null
+		for r in rooms:
+			if r != null:
+				if r.id == conn.room_a_id: room_a = r
+				elif r.id == conn.room_b_id: room_b = r
+
+		_apply_door_policy(door_a, door_b, room_a, room_b, path, config, conn_id)
+
 		var dp = _DoorPairScript.new(conn_id, door_a, door_b)
 		candidate_pairs.append(dp)
 
@@ -185,3 +196,96 @@ static func resolve_doors(
 		})
 
 	return result
+
+static func _apply_door_policy(
+	door_a: _DoorPlacementScript,
+	door_b: _DoorPlacementScript,
+	room_a: RoomData,
+	room_b: RoomData,
+	path: RefCounted,
+	config: DungeonConfig,
+	conn_id: int
+) -> void:
+	if config == null:
+		return
+
+	var base_seed: int = config.seed if config.seed != 0 else 1337
+	var conn_seed: int = _DungeonSeedFactoryScript.derive_seed(base_seed, 0, &"door_policy_conn_%d" % conn_id)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = conn_seed
+
+	var pri_a: int = _get_room_priority(room_a)
+	var pri_b: int = _get_room_priority(room_b)
+	var corr_len: int = path.centerline_cells.size() if (path != null and "centerline_cells" in path) else 0
+
+	# 1. Pasillo Ultra-Corto (<= threshold, default 3): Máximo 1 puerta física
+	if corr_len <= config.short_corridor_single_door_threshold:
+		if pri_a >= 4 or pri_b >= 4:
+			# Boss o Tesoro siempre exigen puerta física cerrada
+			if pri_a >= pri_b:
+				door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+				door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+			else:
+				door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+				door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		elif rng.randf() < config.door_open_passage_chance:
+			door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+			door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		else:
+			if pri_a > pri_b:
+				door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+				door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+			elif pri_b > pri_a:
+				door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+				door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+			else:
+				if rng.randf() < 0.5:
+					door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+					door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+				else:
+					door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+					door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		return
+
+	# 2. Pasillo Largo (>= min_corridor_length_for_double_doors)
+	if corr_len >= config.min_corridor_length_for_double_doors and rng.randf() < config.door_double_door_chance:
+		door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+		door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+		return
+
+	# 3. Pasillo Estándar
+	if pri_a >= 4 or pri_b >= 4:
+		if pri_a >= pri_b:
+			door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+			door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		else:
+			door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+			door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+	elif rng.randf() < config.door_open_passage_chance:
+		door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+	else:
+		if pri_a > pri_b:
+			door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+			door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		elif pri_b > pri_a:
+			door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+			door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		else:
+			if rng.randf() < 0.5:
+				door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+				door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+			else:
+				door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+				door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+
+static func _get_room_priority(room: RoomData) -> int:
+	if room == null:
+		return 0
+	match room.room_type:
+		&"boss": return 5
+		&"treasure": return 4
+		&"puzzle": return 3
+		&"normal": return 2
+		&"start": return 1
+		_: return 2
