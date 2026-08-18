@@ -40,7 +40,8 @@ const TEST_SUITES: Array[String] = [
 	"res://tests/test_orthogonal_corridor_planner.gd",
 	"res://tests/test_corridor_aesthetic_quality.gd",
 	"res://tests/test_door_spacing.gd",
-	"res://tests/test_door_endpoint_quality.gd"
+	"res://tests/test_door_endpoint_quality.gd",
+	"res://tests/test_golden_seeds_visual_quality.gd"
 ]
 
 func _init() -> void:
