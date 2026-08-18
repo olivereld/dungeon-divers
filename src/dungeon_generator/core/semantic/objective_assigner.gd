@@ -14,7 +14,9 @@ func assign_objectives(
 	depth_map: Dictionary = {},
 	grid: CellGrid = null,
 	config: DungeonConfig = null,
-	rng_seed: int = 0
+	rng_seed: int = 0,
+	critical_path_rooms: Array[int] = [],
+	connections: Array = []
 ) -> Array:
 	var objectives: Array = []
 	if rooms.is_empty():
@@ -27,6 +29,17 @@ func assign_objectives(
 	var room_map: Dictionary = {}
 	for r in rooms:
 		room_map[r.id] = r
+
+	# Calcular grado de cada habitación
+	var degrees: Dictionary = {}
+	for c in connections:
+		degrees[c.room_a_id] = degrees.get(c.room_a_id, 0) + 1
+		degrees[c.room_b_id] = degrees.get(c.room_b_id, 0) + 1
+
+	var max_depth: int = 0
+	for d in depth_map.values():
+		if int(d) > max_depth:
+			max_depth = int(d)
 
 	# 1. SPAWN (Obligatorio)
 	if room_map.has(start_room_id):
@@ -57,11 +70,39 @@ func assign_objectives(
 		))
 		obj_id_counter += 1
 
-	# 3. TESOROS / OBJETIVOS OPCIONALES
+	var used_rooms: Dictionary = { start_room_id: true, boss_room_id: true }
+
+	# 3. ELITE (1-2 en el Critical Path)
+	var cp_candidates: Array[RoomData] = []
+	for cp_id in critical_path_rooms:
+		if not used_rooms.has(cp_id) and room_map.has(cp_id):
+			cp_candidates.append(room_map[cp_id])
+
+	var elite_count: int = mini(cp_candidates.size(), 2 if cp_candidates.size() >= 3 else (1 if cp_candidates.size() >= 1 else 0))
+	for e_idx in range(elite_count):
+		var chosen_elite: RoomData = cp_candidates[e_idx]
+		var e_pos: Vector2i = chosen_elite.get_walkable_point(grid) if grid != null else chosen_elite.get_center()
+		objectives.append(_ObjectiveDataScript.new(
+			obj_id_counter,
+			_ObjectiveDataScript.ObjectiveType.ELITE,
+			chosen_elite.id,
+			e_pos,
+			true,
+			-1
+		))
+		obj_id_counter += 1
+		used_rooms[chosen_elite.id] = true
+
+	# 4. TESOROS (Hojas off-path, máx 4)
+	var treasure_count: int = 0
 	for r in rooms:
-		if r.id == start_room_id or r.id == boss_room_id:
+		if used_rooms.has(r.id):
 			continue
-		if r.room_type == &"treasure" or r.room_type == &"reward":
+		var is_leaf: bool = degrees.get(r.id, 0) == 1
+		var is_off_path: bool = not critical_path_rooms.has(r.id)
+		var is_explicit_treasure: bool = (r.room_type == &"treasure" or r.room_type == &"reward")
+
+		if (is_explicit_treasure or (is_leaf and is_off_path)) and treasure_count < 4:
 			var t_pos: Vector2i = r.get_walkable_point(grid) if grid != null else r.get_center()
 			objectives.append(_ObjectiveDataScript.new(
 				obj_id_counter,
@@ -72,24 +113,34 @@ func assign_objectives(
 				-1
 			))
 			obj_id_counter += 1
+			used_rooms[r.id] = true
+			treasure_count += 1
 
-	# Si no había salas de tesoro explícitas y la mazmorra tiene suficientes salas, colocar 1 cofre en sala secundaria
-	if objectives.size() == 2 and rooms.size() >= 5:
-		var candidate_treasure_rooms: Array[RoomData] = []
-		for r in rooms:
-			if r.id != start_room_id and r.id != boss_room_id:
-				candidate_treasure_rooms.append(r)
-		if not candidate_treasure_rooms.is_empty():
-			var chosen: RoomData = candidate_treasure_rooms[rng.randi_range(0, candidate_treasure_rooms.size() - 1)]
-			var pos: Vector2i = chosen.get_walkable_point(grid) if grid != null else chosen.get_center()
-			objectives.append(_ObjectiveDataScript.new(
-				obj_id_counter,
-				_ObjectiveDataScript.ObjectiveType.TREASURE,
-				chosen.id,
-				pos,
-				false,
-				-1
-			))
-			obj_id_counter += 1
+	# 5. SHRINES (1-2 en mid-depth, preferentemente off-path)
+	var shrine_candidates: Array[RoomData] = []
+	var min_mid: int = int(floor(float(max_depth) * 0.3))
+	var max_mid: int = int(ceil(float(max_depth) * 0.7))
+
+	for r in rooms:
+		if used_rooms.has(r.id):
+			continue
+		var d: int = int(depth_map.get(r.id, 0))
+		if d >= min_mid and d <= max_mid:
+			shrine_candidates.append(r)
+
+	var shrine_count: int = mini(shrine_candidates.size(), 1 if rooms.size() >= 5 else 0)
+	for s_idx in range(shrine_count):
+		var chosen_shrine: RoomData = shrine_candidates[s_idx]
+		var s_pos: Vector2i = chosen_shrine.get_walkable_point(grid) if grid != null else chosen_shrine.get_center()
+		objectives.append(_ObjectiveDataScript.new(
+			obj_id_counter,
+			_ObjectiveDataScript.ObjectiveType.SHRINE,
+			chosen_shrine.id,
+			s_pos,
+			false,
+			-1
+		))
+		obj_id_counter += 1
+		used_rooms[chosen_shrine.id] = true
 
 	return objectives

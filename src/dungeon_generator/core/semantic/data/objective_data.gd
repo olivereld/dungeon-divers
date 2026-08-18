@@ -12,7 +12,9 @@ enum ObjectiveType {
 	TREASURE,
 	STAIRS_DOWN,
 	STAIRS_UP,
-	LORE
+	LORE,
+	SHRINE,
+	ELITE
 }
 
 var objective_id: int = 0
@@ -46,6 +48,8 @@ static func type_to_string(p_type: ObjectiveType) -> String:
 		ObjectiveType.STAIRS_DOWN: return "STAIRS_DOWN"
 		ObjectiveType.STAIRS_UP: return "STAIRS_UP"
 		ObjectiveType.LORE: return "LORE"
+		ObjectiveType.SHRINE: return "SHRINE"
+		ObjectiveType.ELITE: return "ELITE"
 		_: return "UNKNOWN"
 
 func to_debug_string() -> String:
