@@ -203,13 +203,18 @@ static func _carve_single_request(
 		req.room_b_id
 	)
 
-	# Validar que toda la región a tallar no viole restricciones
+	# Validar que toda la región a tallar no viole restricciones y no invada salas ajenas (Fase 8)
 	for cell in candidate_carved_cells:
 		if not grid.is_in_bounds(cell):
 			return {"success": false, "reason": "WIDENING_OUT_OF_BOUNDS"}
 		var cell_type := grid.get_cell(cell)
 		if cell_type == CellGrid.CellType.COLUMN or cell_type == CellGrid.CellType.OBSTACLE or cell_type == CellGrid.CellType.VOID:
 			return {"success": false, "reason": "BLOCKED_CELL_IN_REGION"}
+		var c_owner: int = grid.get_room_owner(cell)
+		if c_owner == -1:
+			c_owner = _get_room_id_at(cell, rooms)
+		if c_owner != -1 and c_owner != req.room_a_id and c_owner != req.room_b_id:
+			return {"success": false, "reason": "FORBIDDEN_ROOM_INVADED"}
 
 	# --- PASO 4: COMMIT (Commit atómico al CellGrid) ---
 	var reused_count: int = 0
@@ -393,10 +398,12 @@ static func _find_direction_aware_path(
 			elif ctype == CellGrid.CellType.FLOOR or ctype == CellGrid.CellType.DOOR:
 				step_cost = cost_floor
 
-			# Penalización de sala ajena y buffer de proximidad inmediata
-			var owner_id: int = _get_room_id_at(next_pos, rooms)
+			# Penalización de sala ajena y buffer de proximidad inmediata (Fase 6 & Fase 9: Room C = Prohibido)
+			var owner_id: int = grid.get_room_owner(next_pos)
+			if owner_id == -1:
+				owner_id = _get_room_id_at(next_pos, rooms)
 			if owner_id != -1 and owner_id != req.room_a_id and owner_id != req.room_b_id:
-				step_cost += other_room_cost
+				continue
 			elif owner_id == -1:
 				# 1. Proteger jambas laterales de las puertas del inicio y final de la conexión
 				var is_jamb := false
@@ -683,12 +690,10 @@ static func _apply_room_isolation_weights(
 	rooms: Array[RoomData],
 	room_a_id: int,
 	room_b_id: int,
-	config: DungeonConfig,
+	_config: DungeonConfig,
 	grid_width: int,
 	modified_nodes: Dictionary
 ) -> void:
-	var other_room_cost: float = config.corridor_cost_other_room if ("corridor_cost_other_room" in config) else 1000.0
-
 	for r in rooms:
 		if r == null or r.id == room_a_id or r.id == room_b_id:
 			continue
@@ -698,13 +703,13 @@ static func _apply_room_isolation_weights(
 				var cid: int = _get_cell_id(Vector2i(x, y), grid_width)
 				if astar.has_point(cid):
 					if not modified_nodes.has(cid):
-						modified_nodes[cid] = astar.get_point_weight_scale(cid)
-					astar.set_point_weight_scale(cid, other_room_cost)
+						modified_nodes[cid] = astar.is_point_disabled(cid)
+					astar.set_point_disabled(cid, true)
 
 static func _restore_modified_weights(astar: AStar2D, modified_nodes: Dictionary) -> void:
 	for cid in modified_nodes.keys():
 		if astar.has_point(cid):
-			astar.set_point_weight_scale(cid, modified_nodes[cid])
+			astar.set_point_disabled(cid, modified_nodes[cid])
 	modified_nodes.clear()
 
 static func _get_cell_id(pos: Vector2i, grid_width: int) -> int:

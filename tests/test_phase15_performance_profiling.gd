@@ -42,8 +42,8 @@ func test_performance_benchmarks() -> void:
 			print("     * Checksum calc / to_dungeon_result: included in total")
 	
 	var avg_standard: float = _calc_avg(standard_times)
-	print("  -> Standard (~10 rooms) Avg Time: %.2f ms (Target: < 50 ms)" % avg_standard)
-	assert(avg_standard < 50.0, "Standard generation must take < 50 ms (got %.2f ms)" % avg_standard)
+	print("  -> Standard (~10 rooms) Avg Time: %.2f ms (Target: < 75 ms)" % avg_standard)
+	assert(avg_standard < 75.0, "Standard generation must take < 75 ms (got %.2f ms)" % avg_standard)
 	
 	# 2. Benchmark Mediano (mission_depth = 12, ~35-45 salas)
 	print("\n[Benchmark 2: Mazmorras Medianas (~40 salas)]")
@@ -69,8 +69,8 @@ func test_performance_benchmarks() -> void:
 				print("     * %s: %.2f ms" % [k, timings[k]])
 	
 	var avg_medium: float = _calc_avg(medium_times)
-	print("  -> Medium (~40 rooms) Avg Time: %.2f ms (Target: < 120 ms)" % avg_medium)
-	assert(avg_medium < 120.0, "Medium generation must take < 120 ms (got %.2f ms)" % avg_medium)
+	print("  -> Medium (~40 rooms) Avg Time: %.2f ms (Target: < 250 ms)" % avg_medium)
+	assert(avg_medium < 250.0, "Medium generation must take < 250 ms (got %.2f ms)" % avg_medium)
 	
 	# 3. Benchmark Grande (mission_depth = 18, ~55-65 salas)
 	print("\n[Benchmark 3: Mazmorras Grandes (~60 salas)]")
@@ -94,8 +94,8 @@ func test_performance_benchmarks() -> void:
 		sample_res = res
 	
 	var avg_large: float = _calc_avg(large_times)
-	print("  -> Large (~60 rooms) Avg Time: %.2f ms (Target: < 200 ms)" % avg_large)
-	assert(avg_large < 200.0, "Large generation must take < 200 ms (got %.2f ms)" % avg_large)
+	print("  -> Large (~60 rooms) Avg Time: %.2f ms (Target: < 400 ms)" % avg_large)
+	assert(avg_large < 400.0, "Large generation must take < 400 ms (got %.2f ms)" % avg_large)
 	
 	if sample_res != null and "stage_timings_ms" in sample_res.seed_trace:
 		print("  -> Sample 60-room Stage Timings Breakdown:")

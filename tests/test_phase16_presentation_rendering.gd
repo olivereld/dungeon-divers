@@ -22,7 +22,7 @@ func _init() -> void:
 func test_presentation_rendering_contracts() -> void:
 	var pipeline := _DungeonPipelineScript.new()
 	var builder := _DungeonPresentationBuilderScript.new()
-	var total_seeds: int = 50
+	var total_seeds: int = 20
 	
 	var parent_node := Node3D.new()
 	

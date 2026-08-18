@@ -62,6 +62,17 @@ static func evaluate(ctx: DungeonGenerationContext) -> QualityGateResult:
 			if not ctx.distance_field.has(boss_center):
 				res.add_hard_failure("BOSS_ROOM_UNREACHABLE")
 
+	# 1.5 Semantic Invariants (Fase 11 & Fase 12: Exactly 1 Boss, Boss != Start)
+	if ctx.config != null and ctx.config.boss_enabled and ctx.rooms.size() >= 2:
+		var boss_count: int = 0
+		for r in ctx.rooms:
+			if r != null and r.room_type == &"boss":
+				boss_count += 1
+		if boss_count != 1:
+			res.add_hard_failure("SEMANTIC_ERROR: Expected exactly 1 boss room, got %d" % boss_count)
+		if ctx.boss_room_id != -1 and ctx.start_room_id != -1 and ctx.boss_room_id == ctx.start_room_id:
+			res.add_hard_failure("SEMANTIC_ERROR: Boss room cannot be the start room")
+
 	# Si falló alguna Hard Constraint, abortar antes de calcular fitness
 	if not res.hard_valid:
 		return res

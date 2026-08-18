@@ -74,6 +74,10 @@ static func is_cell_valid_for_corridor(
 		return false
 
 	# Rechazar penetración en el interior de salas que no sean los extremos a conectar
+	var owner: int = grid.get_room_owner(cell)
+	if owner != -1 and owner != room_a_id and owner != room_b_id:
+		return false
+
 	for rid in room_map:
 		if rid != room_a_id and rid != room_b_id:
 			var r = room_map[rid]

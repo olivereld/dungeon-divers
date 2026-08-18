@@ -93,3 +93,10 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.PILLARED_HALL, rng)
 			_:
 				grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
+
+		# Asignar Room Ownership explícito a todas las celdas interiores de la sala
+		for y in range(room.rect.position.y, room.rect.end.y):
+			for x in range(room.rect.position.x, room.rect.end.x):
+				var pos := Vector2i(x, y)
+				if grid.is_walkable(pos):
+					grid.set_room_owner(pos, room.id)
