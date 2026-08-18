@@ -49,6 +49,7 @@ func _init() -> void:
 		var short_corridor_double_doors: int = 0
 		var total_open_passages: int = 0
 		var total_closed_doors: int = 0
+		var ValidatorScript = preload("res://src/dungeon_generator/core/validation/door_physical_validator.gd")
 
 		for dp in res.door_pairs:
 			var conn_id = dp.connection_id
@@ -57,18 +58,24 @@ func _init() -> void:
 			var door_a_closed: bool = (dp.door_a.door_type != DoorTypeScript.DoorType.OPEN_PASSAGE)
 			var door_b_closed: bool = (dp.door_b.door_type != DoorTypeScript.DoorType.OPEN_PASSAGE)
 
-			if door_a_closed: total_closed_doors += 1
-			else: total_open_passages += 1
+			if door_a_closed:
+				total_closed_doors += 1
+				assert(ValidatorScript.validate_door_jambs(res.grid, dp.door_a.position, dp.door_a.side), "Door A at %s must have solid lateral jambs" % str(dp.door_a.position))
+			else:
+				total_open_passages += 1
 
-			if door_b_closed: total_closed_doors += 1
-			else: total_open_passages += 1
+			if door_b_closed:
+				total_closed_doors += 1
+				assert(ValidatorScript.validate_door_jambs(res.grid, dp.door_b.position, dp.door_b.side), "Door B at %s must have solid lateral jambs" % str(dp.door_b.position))
+			else:
+				total_open_passages += 1
 
 			if length <= config.short_corridor_single_door_threshold:
 				if door_a_closed and door_b_closed:
 					short_corridor_double_doors += 1
 
 		assert(short_corridor_double_doors == 0, "Seed %d generated %d double doors in short corridors! Must be 0" % [s, short_corridor_double_doors])
-		print("  [PASS] Seed %10d: Rooms=%2d, Corridors=%2d, ClosedDoors=%2d, OpenPassages=%2d, ShortDoubleDoors=0" % [
+		print("  [PASS] Seed %10d: Rooms=%2d, Corridors=%2d, ClosedDoors=%2d, OpenPassages=%2d, ShortDoubleDoors=0, Jambs=OK" % [
 			s, res.rooms.size(), res.corridor_paths.size(), total_closed_doors, total_open_passages
 		])
 
