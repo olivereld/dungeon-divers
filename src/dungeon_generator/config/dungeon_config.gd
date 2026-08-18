@@ -17,6 +17,10 @@ extends Resource
 @export var cell_size: float = 2.0
 @export_range(1, 4, 1) var wall_height: int = 2
 
+@export_group("Densidad y Rango de Salas")
+@export_range(4, 50, 1) var min_target_rooms: int = 5
+@export_range(4, 50, 1) var max_target_rooms: int = 15
+
 @export_group("Gramática de Misión")
 @export_range(2, 20, 1) var mission_depth: int = 5
 @export_range(5, 100, 1) var max_grammar_iterations: int = 25
@@ -33,7 +37,7 @@ extends Resource
 
 @export_group("Corredores")
 @export_enum("L-Shaped", "Straight", "Organic", "AStar") var corridor_style: String = "AStar"
-@export_range(1, 3, 1) var corridor_width: int = 2
+@export_range(1, 4, 1) var corridor_width: int = 2
 @export_range(0.0, 0.5, 0.05) var extra_loop_chance: float = 0.15
 @export var use_astar_carver: bool = true
 
@@ -82,3 +86,39 @@ func get_effective_seed() -> int:
 	if use_fixed_seed or seed != 0:
 		return seed
 	return 1337
+
+## Preset Compacto (32x32)
+func apply_preset_compact() -> void:
+	grid_width = 32
+	grid_height = 32
+	mission_depth = 3
+	min_target_rooms = 4
+	max_target_rooms = 8
+	corridor_width = 1
+
+## Preset Estándar (64x64)
+func apply_preset_standard() -> void:
+	grid_width = 64
+	grid_height = 64
+	mission_depth = 5
+	min_target_rooms = 6
+	max_target_rooms = 14
+	corridor_width = 2
+
+## Preset Amplio (96x96)
+func apply_preset_large() -> void:
+	grid_width = 96
+	grid_height = 96
+	mission_depth = 8
+	min_target_rooms = 10
+	max_target_rooms = 22
+	corridor_width = 2
+
+## Preset Monumental (128x128)
+func apply_preset_massive() -> void:
+	grid_width = 128
+	grid_height = 128
+	mission_depth = 12
+	min_target_rooms = 15
+	max_target_rooms = 32
+	corridor_width = 3
