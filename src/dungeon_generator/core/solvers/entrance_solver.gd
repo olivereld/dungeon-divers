@@ -332,7 +332,24 @@ static func score_candidate_pair(
 		if absi(cand_b.outer_cell.x - prev_app.x) + absi(cand_b.outer_cell.y - prev_app.y) <= 1:
 			approach_penalty += proximity_pen
 
-	return dist_cost + align_cost + orientation_penalty + corner_dist_penalty + side_penalty + approach_penalty
+	# 8. Estimación de Calidad de Forma del Corredor (Fase 4 Refined)
+	var shape_penalty: float = 0.0
+	var out_a: Vector2i = cand_a.outer_cell
+	var out_b: Vector2i = cand_b.outer_cell
+	var dir_a: Vector2i = cand_a.outer_cell - cand_a.position
+	var dir_b: Vector2i = cand_b.outer_cell - cand_b.position
+
+	if (out_a.x == out_b.x and dir_a.x == 0 and dir_b.x == 0) or (out_a.y == out_b.y and dir_a.y == 0 and dir_b.y == 0):
+		# Colineal perfecto: permite recta directa de 0 giros
+		shape_penalty = 0.0
+	elif (dir_a.x != 0 and dir_b.y != 0) or (dir_a.y != 0 and dir_b.x != 0):
+		# Ortogonal 90°: permite L limpia de 1 giro
+		shape_penalty = 5.0
+	else:
+		# Caras paralelas desfasadas: requerirá 2 giros (Z o U)
+		shape_penalty = 20.0
+
+	return dist_cost + align_cost + orientation_penalty + corner_dist_penalty + side_penalty + approach_penalty + shape_penalty
 
 static func _calc_corner_penalty(cand: EntranceCandidate, room: RoomData, base_penalty: float) -> float:
 	var r: Rect2i = room.rect

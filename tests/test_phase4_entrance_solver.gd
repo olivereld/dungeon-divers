@@ -194,7 +194,20 @@ func _init() -> void:
 	for pair in dungeon_res.entrance_pairs:
 		assert(pair is _EntrancePairScript, "Each element must be an EntrancePair")
 		assert(pair.entrance_a != null and pair.entrance_b != null, "Entrance pair must have valid endpoints")
-	print("  [OK] Test 13: Pipeline integration and DungeonResult entrance_pairs populated successfully (%d pairs)" % dungeon_res.entrance_pairs.size())
+	# Test 14: Estimación de calidad de aproximación del corredor (Fase 4 Refined)
+	# Salas con solapamiento en Y deben seleccionar entradas colineales (mismo Y) para permitir línea recta (0 giros)
+	var r_overlap_a := RoomData.new(0, Rect2i(10, 10, 10, 10), &"overA")
+	var r_overlap_b := RoomData.new(1, Rect2i(35, 12, 10, 10), &"overB")
+	var grid_over := CellGrid.new(60, 60, CellGrid.CellType.WALL)
+	grid_over.fill_rect(r_overlap_a.rect, CellGrid.CellType.FLOOR)
+	grid_over.fill_rect(r_overlap_b.rect, CellGrid.CellType.FLOOR)
+
+	var conn_over = _RoomConnectionScript.new(0, 0, 1, true)
+	var res_over = _EntranceSolverScript.resolve([r_overlap_a, r_overlap_b], [conn_over], grid_over, cfg)
+	assert(res_over.is_valid and res_over.entrance_pairs.size() == 1, "Must resolve pair")
+	var pair_over = res_over.entrance_pairs[0]
+	assert(pair_over.entrance_a.position.y == pair_over.entrance_b.position.y, "Overlapping rooms must choose collinear entrances with identical Y for 0-turn straight corridor (A.y=%d, B.y=%d)" % [pair_over.entrance_a.position.y, pair_over.entrance_b.position.y])
+	print("  [OK] Test 14: Collinear approach quality prioritization verified (Y=%d)" % pair_over.entrance_a.position.y)
 
 	print("[PASS] test_phase4_entrance_solver completed successfully with 100% assertions passing!")
 	quit(0)
