@@ -21,6 +21,7 @@ const _DoorResolverScript = preload("res://src/dungeon_generator/core/solvers/do
 const _StructuralValidatorScript = preload("res://src/dungeon_generator/core/validation/structural_validator.gd")
 const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/room_connectivity_repair.gd")
 const _CorridorConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/corridor_connectivity_repair.gd")
+const _CorridorPrunerScript = preload("res://src/dungeon_generator/core/algorithms/corridor_pruner.gd")
 
 var _seed_registry: DungeonSeedRegistry = DungeonSeedRegistry.new()
 var _mission_grammar := MissionGrammar.new()
@@ -193,6 +194,19 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 						"room_id": r.id,
 						"seed": post_repair_seed
 					})
+
+		# 5.5 Limpieza y podado de stubs ciegos y alcobas no deseadas en corredores
+		var protected_cells: Array[Vector2i] = []
+		for ep in entrance_res.entrance_pairs:
+			if ep != null:
+				if ep.entrance_a != null:
+					protected_cells.append(ep.entrance_a.outer_cell)
+					protected_cells.append(ep.entrance_a.boundary_cell)
+				if ep.entrance_b != null:
+					protected_cells.append(ep.entrance_b.outer_cell)
+					protected_cells.append(ep.entrance_b.boundary_cell)
+
+		_CorridorPrunerScript.prune_dead_end_stubs(grid, protected_cells)
 
 		# FASE 6: Resolución de Puertas y Umbrales (Door Resolver)
 		p_start = Time.get_ticks_msec()
