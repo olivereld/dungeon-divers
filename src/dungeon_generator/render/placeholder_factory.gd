@@ -16,8 +16,8 @@ func create_placeholder_library(biome: BiomeProfile, cell_size: float) -> MeshLi
 
 	var floor_shape_size := Vector3(cell_size, 0.2, cell_size)
 
-	# 0 = FLOOR: Modelo 3D personalizado si existe, o plano 2D con colisión física
-	var custom_floor_mesh := _extract_mesh_from_scene(biome.floor_scene)
+	# 0 = FLOOR: Modelo 3D personalizado si existe, o plano 2D con colisión física (Amarillo)
+	var custom_floor_mesh := _extract_mesh_from_scene(biome.floor_scene, biome.floor_color)
 	if custom_floor_mesh != null:
 		lib.create_item(biome.floor_index)
 		lib.set_item_mesh(biome.floor_index, custom_floor_mesh)
@@ -73,16 +73,17 @@ func create_placeholder_library(biome: BiomeProfile, cell_size: float) -> MeshLi
 		else:
 			_add_procedural_wall_item(lib, biome.wall_corner_small_index, _WallMeshConfigScript.PieceType.CORNER, cell_size, "WallCornerSmall")
 
-	# 12 = DUNGEON_FLOOR: plano de piedra para base de pasillos
+	# 12 = DUNGEON_FLOOR: plano de piedra para base de pasillos (Verde)
 	if biome.dungeon_floor_index >= 0:
-		var custom_dungeon_floor_mesh := _extract_mesh_from_scene(biome.dungeon_floor_scene)
+		var corr_col: Color = biome.dungeon_floor_color if biome.dungeon_floor_color != Color.TRANSPARENT else biome.corridor_color
+		var custom_dungeon_floor_mesh := _extract_mesh_from_scene(biome.dungeon_floor_scene, corr_col)
 		if custom_dungeon_floor_mesh != null:
 			lib.create_item(biome.dungeon_floor_index)
 			lib.set_item_mesh(biome.dungeon_floor_index, custom_dungeon_floor_mesh)
 			lib.set_item_name(biome.dungeon_floor_index, "DungeonFloor")
 			_assign_collision_shape(lib, biome.dungeon_floor_index, floor_shape_size)
 		else:
-			_add_plane_item(lib, biome.dungeon_floor_index, Vector2(cell_size, cell_size), biome.dungeon_floor_color, "DungeonFloor")
+			_add_plane_item(lib, biome.dungeon_floor_index, Vector2(cell_size, cell_size), corr_col, "DungeonFloor")
 
 	# 13 = WALL_TSPLIT: Muro en T
 	if biome.wall_tsplit_index >= 0:
@@ -247,7 +248,7 @@ func _add_box_item(lib: MeshLibrary, index: int, size: Vector3, color: Color, it
 	lib.set_item_name(index, item_name)
 	_assign_collision_shape(lib, index, size)
 
-func _extract_mesh_from_scene(scene: PackedScene) -> Mesh:
+func _extract_mesh_from_scene(scene: PackedScene, tint_color: Color = Color.WHITE) -> Mesh:
 	if scene == null:
 		return null
 	var node: Node = scene.instantiate()
@@ -263,7 +264,7 @@ func _extract_mesh_from_scene(scene: PackedScene) -> Mesh:
 
 	if mesh_instances.size() == 1:
 		var single_mi: MeshInstance3D = mesh_instances[0]
-		var final_mesh: Mesh = _duplicate_mesh_with_material(single_mi)
+		var final_mesh: Mesh = _duplicate_mesh_with_material(single_mi, tint_color)
 		node.free()
 		return final_mesh
 
@@ -281,7 +282,16 @@ func _extract_mesh_from_scene(scene: PackedScene) -> Mesh:
 			if mat == null:
 				mat = mi.mesh.surface_get_material(s)
 			if mat != null:
-				st.set_material(mat)
+				if tint_color != Color.WHITE and mat is StandardMaterial3D:
+					var dup_mat: StandardMaterial3D = mat.duplicate()
+					dup_mat.albedo_color = tint_color
+					st.set_material(dup_mat)
+				else:
+					st.set_material(mat)
+			elif tint_color != Color.WHITE:
+				var new_mat := StandardMaterial3D.new()
+				new_mat.albedo_color = tint_color
+				st.set_material(new_mat)
 			st.append_from(mi.mesh, s, relative_xform)
 			st.commit(combined_mesh)
 
@@ -303,7 +313,7 @@ func _find_all_mesh_instances(current: Node, list: Array[MeshInstance3D]) -> voi
 	for child in current.get_children():
 		_find_all_mesh_instances(child, list)
 
-func _duplicate_mesh_with_material(mesh_instance: MeshInstance3D) -> Mesh:
+func _duplicate_mesh_with_material(mesh_instance: MeshInstance3D, tint_color: Color = Color.WHITE) -> Mesh:
 	var original: Mesh = mesh_instance.mesh
 	if original == null:
 		return null
@@ -312,9 +322,30 @@ func _duplicate_mesh_with_material(mesh_instance: MeshInstance3D) -> Mesh:
 	for s in range(mesh_instance.get_surface_override_material_count()):
 		var mat := mesh_instance.get_surface_override_material(s)
 		if mat != null:
-			mesh_copy.surface_set_material(s, mat)
+			var dup_mat: Material = mat.duplicate()
+			if tint_color != Color.WHITE and dup_mat is StandardMaterial3D:
+				(dup_mat as StandardMaterial3D).albedo_color = tint_color
+			mesh_copy.surface_set_material(s, dup_mat)
+
+	if mesh_copy.get_surface_count() > 0:
+		for s in range(mesh_copy.get_surface_count()):
+			var surf_mat := mesh_copy.surface_get_material(s)
+			if surf_mat == null:
+				surf_mat = original.surface_get_material(s)
+			if surf_mat != null:
+				var dup_mat: Material = surf_mat.duplicate()
+				if tint_color != Color.WHITE and dup_mat is StandardMaterial3D:
+					(dup_mat as StandardMaterial3D).albedo_color = tint_color
+				mesh_copy.surface_set_material(s, dup_mat)
+			elif tint_color != Color.WHITE:
+				var new_mat := StandardMaterial3D.new()
+				new_mat.albedo_color = tint_color
+				mesh_copy.surface_set_material(s, new_mat)
 
 	if mesh_instance.material_override != null and mesh_copy.get_surface_count() > 0:
-		mesh_copy.surface_set_material(0, mesh_instance.material_override)
+		var override_mat: Material = mesh_instance.material_override.duplicate()
+		if tint_color != Color.WHITE and override_mat is StandardMaterial3D:
+			(override_mat as StandardMaterial3D).albedo_color = tint_color
+		mesh_copy.surface_set_material(0, override_mat)
 
 	return mesh_copy

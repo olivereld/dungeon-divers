@@ -45,8 +45,8 @@ extends Resource
 @export var corridor_index: int = -1 # -1 = usar dungeon_floor_index si existe, o floor_index
 
 @export_group("Colores Placeholder (Exclusivo para QA / Debug)")
-@export var floor_color: Color = Color("#2d2d2d")
-@export var dungeon_floor_color: Color = Color("#3a3a3a")
+@export var floor_color: Color = Color("#f1d240")         # Suelo de habitación (Amarillo)
+@export var dungeon_floor_color: Color = Color("#38b861") # Suelo de pasillo (Verde)
 @export var wall_color: Color = Color("#6b6b6b")
 @export var column_color: Color = Color("#7f8c8d")
 @export var obstacle_color: Color = Color("#8e44ad")
@@ -55,7 +55,7 @@ extends Resource
 @export var stairs_color: Color = Color("#3c5e8b")
 @export var spawn_color: Color = Color("#2ecc71")
 @export var objective_color: Color = Color("#f1c40f")
-@export var corridor_color: Color = Color("#252525")
+@export var corridor_color: Color = Color("#38b861")      # Suelo de pasillo (Verde)
 
 func has_custom_assets() -> bool:
 	return mesh_library != null
