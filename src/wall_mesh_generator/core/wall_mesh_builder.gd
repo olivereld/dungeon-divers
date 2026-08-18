@@ -6,19 +6,50 @@ extends RefCounted
 ## grupos orgánicos de ladrillos, con variaciones dinámicas de tamaño, relieve, rotación y densidad.
 
 const _BrickGeometryBuilderScript = preload("res://src/wall_mesh_generator/core/brick_geometry_builder.gd")
+const _DoorGeometryBuilderScript = preload("res://src/wall_mesh_generator/core/door_geometry_builder.gd")
 
-## Genera el manifiesto ordenado de partes según el tipo de pieza (Wall, Corner o Arch).
+## Genera el manifiesto ordenado de partes según el tipo de pieza (Wall, Corner, Arch o Door).
 func build_brick_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 	if config == null:
 		config = WallMeshConfig.new()
 
 	match config.piece_type:
+		WallMeshConfig.PieceType.ARCH_WITH_DOOR:
+			return _build_arch_with_door_manifest(config)
+		WallMeshConfig.PieceType.DOOR:
+			return _build_door_manifest(config)
 		WallMeshConfig.PieceType.ARCH:
 			return _build_arch_manifest(config)
 		WallMeshConfig.PieceType.CORNER:
 			return _build_corner_manifest(config)
 		_:
 			return _build_wall_manifest(config)
+
+func _build_arch_with_door_manifest(config: WallMeshConfig) -> Array[Dictionary]:
+	var manifest: Array[Dictionary] = _build_arch_manifest(config)
+	var door_parts: Array[Dictionary] = _build_door_manifest(config)
+	var base_idx: int = manifest.size()
+	for dp in door_parts:
+		dp["index"] = base_idx
+		manifest.append(dp)
+		base_idx += 1
+	return manifest
+
+func _build_door_manifest(config: WallMeshConfig) -> Array[Dictionary]:
+	var manifest: Array[Dictionary] = []
+	manifest.append({
+		"index": 0,
+		"category": &"door_wood",
+		"course": 0,
+		"type": &"door_planks"
+	})
+	manifest.append({
+		"index": 1,
+		"category": &"door_iron",
+		"course": 1,
+		"type": &"door_knocker"
+	})
+	return manifest
 
 # ==============================================================================
 # 1. MANIFIESTO PARA ARCO DE ENTRADA (ARCH / DOORWAY)
@@ -410,6 +441,27 @@ func build_mesh_from_subset(
 	if active_count <= 0:
 		return ArrayMesh.new()
 
+	if config.piece_type == WallMeshConfig.PieceType.DOOR:
+		var st_wood := SurfaceTool.new()
+		var st_iron := SurfaceTool.new()
+		st_wood.begin(Mesh.PRIMITIVE_TRIANGLES)
+		st_iron.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var center_x: float = 0.0 if config.centered_origin else (config.door_width * 0.5)
+		_DoorGeometryBuilderScript.build_door_leaf_surfaces(st_wood, st_iron, config, Vector3(center_x, 0.0, 0.0))
+
+		var mesh := ArrayMesh.new()
+		var wood_arr := st_wood.commit_to_arrays()
+		if wood_arr.size() > 0 and wood_arr[Mesh.ARRAY_VERTEX] != null and wood_arr[Mesh.ARRAY_VERTEX].size() > 0:
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, wood_arr)
+			mesh.surface_set_name(mesh.get_surface_count() - 1, "DoorWood")
+
+		var iron_arr := st_iron.commit_to_arrays()
+		if iron_arr.size() > 0 and iron_arr[Mesh.ARRAY_VERTEX] != null and iron_arr[Mesh.ARRAY_VERTEX].size() > 0:
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, iron_arr)
+			mesh.surface_set_name(mesh.get_surface_count() - 1, "DoorIron")
+
+		return mesh
+
 	var st_trims := SurfaceTool.new()
 	var st_panel := SurfaceTool.new()
 	var st_bricks := SurfaceTool.new()
@@ -429,7 +481,7 @@ func build_mesh_from_subset(
 		match cat:
 			&"bottom_trim":
 				has_trims = true
-				if config.piece_type == WallMeshConfig.PieceType.ARCH:
+				if config.piece_type == WallMeshConfig.PieceType.ARCH or config.piece_type == WallMeshConfig.PieceType.ARCH_WITH_DOOR:
 					_BrickGeometryBuilderScript.append_arch_bottom_base(
 						st_trims, config.cube_size,
 						config.bottom_trim_height, config.bottom_trim_slope_height,
@@ -454,7 +506,7 @@ func build_mesh_from_subset(
 
 			&"top_trim":
 				has_trims = true
-				if config.piece_type == WallMeshConfig.PieceType.ARCH:
+				if config.piece_type == WallMeshConfig.PieceType.ARCH or config.piece_type == WallMeshConfig.PieceType.ARCH_WITH_DOOR:
 					_BrickGeometryBuilderScript.append_arch_top_cornice(
 						st_trims, config.cube_size,
 						config.top_trim_height, config.top_trim_slope_height,
@@ -479,7 +531,7 @@ func build_mesh_from_subset(
 
 			&"wall_panel":
 				has_panel = true
-				if config.piece_type == WallMeshConfig.PieceType.ARCH:
+				if config.piece_type == WallMeshConfig.PieceType.ARCH or config.piece_type == WallMeshConfig.PieceType.ARCH_WITH_DOOR:
 					_BrickGeometryBuilderScript.append_arch_wall_panel(
 						st_panel, config.cube_size, config.get_wall_panel_height(),
 						config.wall_thickness, config.arch_opening_width,
@@ -522,5 +574,32 @@ func build_mesh_from_subset(
 		st_bricks.generate_tangents()
 		mesh = st_bricks.commit(mesh)
 		mesh.surface_set_name(mesh.get_surface_count() - 1, "Bricks")
+
+	# Superficies 3 y 4: Puerta integrada para ARCH_WITH_DOOR
+	if config.piece_type == WallMeshConfig.PieceType.ARCH_WITH_DOOR:
+		var st_wood := SurfaceTool.new()
+		var st_iron := SurfaceTool.new()
+		st_wood.begin(Mesh.PRIMITIVE_TRIANGLES)
+		st_iron.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+		var total_width: float = config.cube_size
+		var offset_x: float = -(total_width * 0.5) if config.centered_origin else 0.0
+		var arch_center_x: float = (total_width * 0.5) + offset_x
+
+		var door_cfg := config.duplicate() as WallMeshConfig
+		door_cfg.door_width = config.arch_opening_width - 0.02
+		door_cfg.door_height = config.arch_opening_height - 0.01
+
+		_DoorGeometryBuilderScript.build_door_leaf_surfaces(st_wood, st_iron, door_cfg, Vector3(arch_center_x, 0.0, 0.0))
+
+		var wood_arr := st_wood.commit_to_arrays()
+		if wood_arr.size() > 0 and wood_arr[Mesh.ARRAY_VERTEX] != null and wood_arr[Mesh.ARRAY_VERTEX].size() > 0:
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, wood_arr)
+			mesh.surface_set_name(mesh.get_surface_count() - 1, "DoorWood")
+
+		var iron_arr := st_iron.commit_to_arrays()
+		if iron_arr.size() > 0 and iron_arr[Mesh.ARRAY_VERTEX] != null and iron_arr[Mesh.ARRAY_VERTEX].size() > 0:
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, iron_arr)
+			mesh.surface_set_name(mesh.get_surface_count() - 1, "DoorIron")
 
 	return mesh

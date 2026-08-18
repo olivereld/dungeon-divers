@@ -9,9 +9,11 @@ extends Resource
 ## - Distribución dinámica procedimental basada en ruido (Noise-Driven Brick Clusters)
 
 enum PieceType {
-	WALL,   ## Pared recta modular
-	CORNER, ## Esquina en L de 90 grados
-	ARCH    ## Arco de paso / portal con vano curvado y pilares
+	WALL,           ## Pared recta modular
+	CORNER,         ## Esquina en L de 90 grados
+	ARCH,           ## Arco de paso / portal con vano libre
+	DOOR,           ## Hoja de puerta de madera estilizada con aldaba
+	ARCH_WITH_DOOR  ## Portal completo: Arco de piedra + Hoja de puerta integrada
 }
 
 enum WallStyle {
@@ -25,6 +27,20 @@ enum WallStyle {
 @export_group("Alineación y GridMap")
 ## Centrar el origen en (0, 0, 0) para compatibilidad directa con GridMap de Godot
 @export var centered_origin: bool = false
+
+@export_group("Dimensiones de Puerta (Door Settings)")
+## Ancho de la hoja de puerta
+@export_range(0.5, 2.0, 0.02) var door_width: float = 1.04
+## Altura total de la hoja de puerta
+@export_range(1.0, 3.5, 0.05) var door_height: float = 2.40
+## Grosor de la hoja de madera
+@export_range(0.05, 0.3, 0.01) var door_thickness: float = 0.12
+## Número de tablones verticales
+@export_range(2, 6, 1) var door_plank_count: int = 3
+## Profundidad / saliente de los travesaños horizontales
+@export_range(0.01, 0.08, 0.005) var door_batten_depth: float = 0.035
+## Radio exterior del anillo de aldaba
+@export_range(0.04, 0.20, 0.01) var door_knocker_radius: float = 0.10
 
 @export_group("Dimensiones de Pared")
 ## Tamaño de una celda/cubo en metros (2.0m para coincidir con dungeon divers)

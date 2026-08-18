@@ -65,6 +65,8 @@ func _setup_ui() -> void:
 	option_piece_type.add_item("🧱 Pared Recta (Wall)", 0)
 	option_piece_type.add_item("🔄 Esquina en L (Corner)", 1)
 	option_piece_type.add_item("🚪 Arco de Entrada (Arch)", 2)
+	option_piece_type.add_item("🚪 Hoja de Puerta (Door Leaf)", 3)
+	option_piece_type.add_item("🏛️🚪 Portal Completo (Arco + Puerta)", 4)
 	option_piece_type.select(0)
 
 	option_preset.clear()
@@ -90,7 +92,12 @@ func _setup_ui() -> void:
 func _connect_signals() -> void:
 	option_piece_type.item_selected.connect(func(idx: int):
 		_config.piece_type = idx as WallMeshConfig.PieceType
-		var is_fixed_size: bool = (_config.piece_type == WallMeshConfig.PieceType.CORNER or _config.piece_type == WallMeshConfig.PieceType.ARCH)
+		var is_fixed_size: bool = (
+			_config.piece_type == WallMeshConfig.PieceType.CORNER or
+			_config.piece_type == WallMeshConfig.PieceType.ARCH or
+			_config.piece_type == WallMeshConfig.PieceType.DOOR or
+			_config.piece_type == WallMeshConfig.PieceType.ARCH_WITH_DOOR
+		)
 		slider_length.editable = not is_fixed_size
 		slider_length.modulate = Color(0.5, 0.5, 0.5, 0.5) if is_fixed_size else Color.WHITE
 		_update_ui_labels()
@@ -168,6 +175,10 @@ func _process(delta: float) -> void:
 
 func _update_ui_labels() -> void:
 	match _config.piece_type:
+		WallMeshConfig.PieceType.ARCH_WITH_DOOR:
+			label_length.text = "Tipo: Portal Completo (Arco de Piedra + Puerta)"
+		WallMeshConfig.PieceType.DOOR:
+			label_length.text = "Tipo: Hoja de Puerta (%.2f x %.2f m)" % [_config.door_width, _config.door_height]
 		WallMeshConfig.PieceType.ARCH:
 			label_length.text = "Tipo: Arco de Entrada (Vano: %.2fm)" % _config.arch_opening_width
 		WallMeshConfig.PieceType.CORNER:
@@ -184,8 +195,10 @@ func _rebuild_wall(reset_seq: bool = true) -> void:
 
 	# Centrar la cámara según el tipo de pieza
 	match _config.piece_type:
-		WallMeshConfig.PieceType.ARCH:
+		WallMeshConfig.PieceType.ARCH_WITH_DOOR, WallMeshConfig.PieceType.ARCH:
 			_camera_target = Vector3(0.0, _config.get_total_height() * 0.5, 0.0)
+		WallMeshConfig.PieceType.DOOR:
+			_camera_target = Vector3(0.0, _config.door_height * 0.5, 0.0)
 		WallMeshConfig.PieceType.CORNER:
 			_camera_target = Vector3(_config.cube_size * 0.5, _config.get_total_height() * 0.5, _config.cube_size * 0.5)
 		_:

@@ -68,6 +68,44 @@ static func create_brick_material(preset: MaterialPreset = MaterialPreset.STYLIZ
 
 	return mat
 
+static func create_wood_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.roughness = 0.76
+	mat.metallic = 0.0
+	mat.specular = 0.18
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	match preset:
+		MaterialPreset.STYLIZED_SLATE:
+			mat.albedo_color = Color(0.38, 0.25, 0.17) # Roble envejecido cálido estilizado
+		MaterialPreset.DUNGEON_WARM_STONE:
+			mat.albedo_color = Color(0.44, 0.30, 0.20)
+		MaterialPreset.DARK_CRYPT:
+			mat.albedo_color = Color(0.20, 0.16, 0.15) # Madera ennegrecida
+		MaterialPreset.SANDSTONE_RUINS:
+			mat.albedo_color = Color(0.50, 0.38, 0.26)
+
+	return mat
+
+static func create_iron_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.roughness = 0.42
+	mat.metallic = 0.88
+	mat.specular = 0.55
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	match preset:
+		MaterialPreset.STYLIZED_SLATE:
+			mat.albedo_color = Color(0.20, 0.21, 0.24) # Hierro forjado oscuro
+		MaterialPreset.DUNGEON_WARM_STONE:
+			mat.albedo_color = Color(0.25, 0.24, 0.23)
+		MaterialPreset.DARK_CRYPT:
+			mat.albedo_color = Color(0.12, 0.13, 0.15)
+		MaterialPreset.SANDSTONE_RUINS:
+			mat.albedo_color = Color(0.30, 0.27, 0.24)
+
+	return mat
+
 static func apply_materials_to_mesh_instance(
 	mesh_instance: MeshInstance3D,
 	preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE
@@ -78,6 +116,8 @@ static func apply_materials_to_mesh_instance(
 	var trim_mat := create_trim_material(preset)
 	var panel_mat := create_panel_material(preset)
 	var brick_mat := create_brick_material(preset)
+	var wood_mat := create_wood_material(preset)
+	var iron_mat := create_iron_material(preset)
 
 	var mesh: Mesh = mesh_instance.mesh
 	for s in range(mesh.get_surface_count()):
@@ -89,6 +129,10 @@ static func apply_materials_to_mesh_instance(
 				mesh_instance.set_surface_override_material(s, panel_mat)
 			"Bricks":
 				mesh_instance.set_surface_override_material(s, brick_mat)
+			"DoorWood":
+				mesh_instance.set_surface_override_material(s, wood_mat)
+			"DoorIron":
+				mesh_instance.set_surface_override_material(s, iron_mat)
 			_:
 				if s == 0:
 					mesh_instance.set_surface_override_material(0, trim_mat)

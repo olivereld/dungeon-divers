@@ -2,8 +2,11 @@ class_name ContinuousWallExtractor
 extends RefCounted
 
 ## Extractor de contornos y bucles perimetrales continuos a partir de un CellGrid.
-## Utiliza trazado de aristas dirigidas (Half-Edge Contour Following) para garantizar
-## que ningún contorno salte entre habitaciones ni genere diagonales espurias.
+## Utiliza trazado de aristas dirigidas (Half-Edge Contour Following) y soporta
+## "carving" de vanos por arista orientada a través de WallOpeningManifest (Fase 9).
+
+const _WallOpeningManifestScript = preload("res://src/dungeon_generator/core/data/wall_opening_manifest.gd")
+const _RoomEntranceScript = preload("res://src/dungeon_generator/core/data/room_entrance.gd")
 
 enum EdgeDir {
 	NORTH = 0, # Arista de (x, y) a (x+1, y)
@@ -16,8 +19,12 @@ class WallLoop:
 	var vertices: Array[Vector3] = []
 	var is_closed: bool = true
 
-## Extrae todos los bucles de contorno cerrados exactos de la mazmorra.
-static func extract_wall_loops(grid: CellGrid, cell_size: float = 2.0) -> Array[WallLoop]:
+## Extrae todos los bucles de contorno cerrados exactos de la mazmorra respetando vanos de puerta.
+static func extract_wall_loops(
+	grid: CellGrid,
+	cell_size: float = 2.0,
+	opening_manifest: WallOpeningManifest = null
+) -> Array[WallLoop]:
 	var loops: Array[WallLoop] = []
 	if grid == null:
 		return loops
@@ -25,7 +32,7 @@ static func extract_wall_loops(grid: CellGrid, cell_size: float = 2.0) -> Array[
 	var w: int = grid.width
 	var h: int = grid.height
 
-	# 1. Encontrar todas las aristas de frontera activas
+	# 1. Encontrar todas las aristas de frontera activas (omitiendo vanos de puerta registrados)
 	# Clave de arista única: Vector3i(cell_x, cell_y, edge_dir)
 	var active_edges: Dictionary = {} # Vector3i -> bool
 
@@ -37,19 +44,23 @@ static func extract_wall_loops(grid: CellGrid, cell_size: float = 2.0) -> Array[
 
 			# Borde Norte (Norte es muro o vacío)
 			if not grid.is_walkable(cell + Vector2i(0, -1)):
-				active_edges[Vector3i(x, y, EdgeDir.NORTH)] = true
+				if opening_manifest == null or not opening_manifest.has_opening(cell, _RoomEntranceScript.NORTH):
+					active_edges[Vector3i(x, y, EdgeDir.NORTH)] = true
 
 			# Borde Este (Este es muro o vacío)
 			if not grid.is_walkable(cell + Vector2i(1, 0)):
-				active_edges[Vector3i(x, y, EdgeDir.EAST)] = true
+				if opening_manifest == null or not opening_manifest.has_opening(cell, _RoomEntranceScript.EAST):
+					active_edges[Vector3i(x, y, EdgeDir.EAST)] = true
 
 			# Borde Sur (Sur es muro o vacío)
 			if not grid.is_walkable(cell + Vector2i(0, 1)):
-				active_edges[Vector3i(x, y, EdgeDir.SOUTH)] = true
+				if opening_manifest == null or not opening_manifest.has_opening(cell, _RoomEntranceScript.SOUTH):
+					active_edges[Vector3i(x, y, EdgeDir.SOUTH)] = true
 
 			# Borde Oeste (Oeste es muro o vacío)
 			if not grid.is_walkable(cell + Vector2i(-1, 0)):
-				active_edges[Vector3i(x, y, EdgeDir.WEST)] = true
+				if opening_manifest == null or not opening_manifest.has_opening(cell, _RoomEntranceScript.WEST):
+					active_edges[Vector3i(x, y, EdgeDir.WEST)] = true
 
 	# 2. Trazar bucles cerrados siguiendo la continuidad geométrica exacta de aristas
 	var visited_edges: Dictionary = {} # Vector3i -> bool
@@ -106,14 +117,13 @@ static func _get_edge_end_point(edge: Vector3i) -> Vector2i:
 		EdgeDir.WEST:  return Vector2i(x, y)
 	return Vector2i(x, y)
 
-## Encuentra la siguiente arista en el orden geométrico de giro (prioridad: giro izquierda, recto, giro derecha)
+## Encuentra la siguiente arista en el orden geométrico de giro (prioridad: giro exterior, recto, giro interior)
 static func _find_next_connected_edge(curr_edge: Vector3i, active_edges: Dictionary) -> Vector3i:
 	var end_pt: Vector2i = _get_edge_end_point(curr_edge)
 	var x: int = curr_edge.x
 	var y: int = curr_edge.y
 	var dir: int = curr_edge.z
 
-	# Candidatos según la dirección actual para mantener el orden estricto de contorno
 	var candidates: Array[Vector3i] = []
 
 	match dir:
@@ -142,7 +152,7 @@ static func _find_next_connected_edge(curr_edge: Vector3i, active_edges: Diction
 				Vector3i(x, y, EdgeDir.NORTH),
 			]
 
-	# Probar candidatos específicos
+	# Probar candidatos específicos de giro
 	for cand in candidates:
 		if active_edges.has(cand):
 			return cand

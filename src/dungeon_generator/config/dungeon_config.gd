@@ -6,6 +6,8 @@ extends Resource
 @export_group("Identificación y Semilla")
 @export var dungeon_id: StringName = &"dungeon_01"
 @export var floor_number: int = 1
+@export var total_floors: int = 1
+@export var floor_height: float = 6.0
 @export var seed: int = 0
 @export var use_fixed_seed: bool = false
 

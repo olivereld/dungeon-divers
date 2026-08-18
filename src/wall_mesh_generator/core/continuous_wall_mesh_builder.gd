@@ -14,7 +14,8 @@ const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall
 func build_dungeon_wall_mesh(
 	grid: CellGrid,
 	config: WallMeshConfig = null,
-	material_preset: int = 0
+	material_preset: int = 0,
+	opening_manifest: WallOpeningManifest = null
 ) -> ArrayMesh:
 	if grid == null:
 		return ArrayMesh.new()
@@ -22,7 +23,7 @@ func build_dungeon_wall_mesh(
 	if config == null:
 		config = _WallMeshConfigScript.new()
 
-	var loops: Array = _ContinuousWallExtractorScript.extract_wall_loops(grid, config.cube_size)
+	var loops: Array = _ContinuousWallExtractorScript.extract_wall_loops(grid, config.cube_size, opening_manifest)
 	if loops.is_empty():
 		return ArrayMesh.new()
 

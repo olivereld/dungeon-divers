@@ -115,12 +115,28 @@ func _init() -> void:
 		arch_aabb.size.x, arch_aabb.size.y, arch_aabb.size.z
 	])
 
-	# 8. Validar Fábrica de Materiales Estilizados
+	# 8. Validar Generación de Hoja de Puerta (PieceType.DOOR)
+	var door_config: WallMeshConfig = config.duplicate_config()
+	door_config.piece_type = WallMeshConfig.PieceType.DOOR
+	var door_mesh: ArrayMesh = builder.build_wall_mesh(door_config)
+	assert(door_mesh != null and door_mesh.get_surface_count() == 2, "Door leaf mesh must contain 2 surfaces (DoorWood, DoorIron)")
+	print("  [OK] Door leaf piece generated successfully")
+
+	# 9. Validar Generación de Portal Completo (PieceType.ARCH_WITH_DOOR)
+	var portal_config: WallMeshConfig = config.duplicate_config()
+	portal_config.piece_type = WallMeshConfig.PieceType.ARCH_WITH_DOOR
+	var portal_mesh: ArrayMesh = builder.build_wall_mesh(portal_config)
+	assert(portal_mesh != null and portal_mesh.get_surface_count() == 5, "Portal mesh must contain all 5 surfaces (Trims, WallPanel, Bricks, DoorWood, DoorIron)")
+	print("  [OK] Complete Portal (Arch + Door) generated successfully with 5 PBR surfaces")
+
+	# 10. Validar Fábrica de Materiales Estilizados
 	var trim_mat = mat_script.create_trim_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)
 	var panel_mat = mat_script.create_panel_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)
 	var brick_mat = mat_script.create_brick_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)
-	assert(trim_mat != null and panel_mat != null and brick_mat != null, "Materials must be created successfully")
-	print("  [OK] WallMaterialFactory stylized slate palette verified")
+	var wood_mat = mat_script.create_wood_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)
+	var iron_mat = mat_script.create_iron_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)
+	assert(trim_mat != null and panel_mat != null and brick_mat != null and wood_mat != null and iron_mat != null, "All 5 materials must be created successfully")
+	print("  [OK] WallMaterialFactory 5-surface PBR palette verified")
 
 	print("\n>>> ALL STYLIZED WALL MESH GENERATOR TESTS PASSED SUCCESSFULLY! <<<\n")
 	quit(0)

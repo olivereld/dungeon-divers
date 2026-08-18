@@ -1,0 +1,1374 @@
+Sí. Revisé el estado actual del repositorio y, con lo que acabas de aclarar, **yo no pasaría todavía a la Fase 9 de Hardening/Production Readiness que tenías escrita**.
+
+Hay un paso funcional importante antes: **terminar la mazmorra como mundo estructural**.
+
+El código actual ya tiene bastante más infraestructura de la que sugería el plan original: `DungeonPipeline` ya resuelve `EntrancePair`, `DoorPlacement` y `DoorPair`; el `DungeonResult` ya los conserva; y la Fase 7 semántica también recibe `door_pairs`.
+
+Además, el nuevo `wall_mesh_generator` ya existe como módulo separado, con constructores de paredes continuas, extracción de paredes, geometría de ladrillos y controlador de secuencia.
+
+Pero hay una diferencia importante:
+
+> **La estructura lógica de puertas existe; la materialización completa de puertas todavía no está cerrada. Y todavía no existe un contrato sólido para escaleras/pisos múltiples.**
+
+Por eso propondría el siguiente paso.
+
+# Fase 9 — Compleción Estructural de Dungeon: Puertas, Escaleras y Multi-Floor
+
+## Objetivo
+
+Transformar la dungeon actual en una unidad espacial completa:
+
+```text
+Dungeon
+│
+├── Floor 1
+│   ├── Rooms
+│   ├── Corridors
+│   ├── Walls
+│   ├── Doors
+│   ├── Start / Objectives
+│   └── Stair Down
+│
+├── Floor 2
+│   ├── Rooms
+│   ├── Corridors
+│   ├── Walls
+│   ├── Doors
+│   ├── Objectives
+│   └── Stair Up / Down
+│
+└── Floor N
+    ├── Rooms
+    ├── Corridors
+    ├── Walls
+    ├── Doors
+    └── Stair Up / Exit
+```
+
+Sin enemigos, IA, controlador del jugador, combate, inventario runtime ni gameplay runtime.
+
+Eso queda fuera.
+
+---
+
+# 1. Principio arquitectónico
+
+La arquitectura debe quedar:
+
+```text
+                 DUNGEON GENERATOR
+                        │
+        ┌───────────────┴────────────────┐
+        │                                │
+     PHYSICAL                         SEMANTIC
+        │                                │
+ CellGrid                         Start / Boss
+ Rooms                            Critical Path
+ Connections                      Keys / Locks
+ DoorPairs                        Objectives
+ Floor topology                   Stair topology
+        │                                │
+        └───────────────┬────────────────┘
+                        │
+                   PRESENTATION
+                        │
+              ┌─────────┼─────────┐
+              │         │         │
+           Floor      Walls      Doors
+          Geometry    Mesh       Mesh
+                        │
+                     Stairs
+```
+
+Y **nunca**:
+
+```text
+Dungeon Generator
+      ↓
+Player Controller
+Enemy AI
+Combat
+Inventory
+Boss AI
+```
+
+Eso no pertenece al módulo.
+
+---
+
+# 2. Estado actual que encontré
+
+Hay algo importante que corregir en la concepción del trabajo.
+
+## 2.1 Las puertas físicas ya existen
+
+El pipeline actual contiene explícitamente:
+
+```text
+EntranceSolver
+       ↓
+AStarCarver
+       ↓
+DoorResolver
+       ↓
+DoorPlacement
+DoorPair
+```
+
+El propio `DungeonPipeline` llama a `DoorResolver.resolve_doors()` y guarda `doors` y `door_pairs` en `DungeonResult`.
+
+Por tanto **no recomiendo crear otro generador de puertas**.
+
+Eso sería duplicar autoridad.
+
+La tarea es:
+
+> **hacer que las puertas sean un contrato estructural completo y que la presentación materialice todas las puertas correctamente.**
+
+Actualmente `DungeonEntitySpawner` utiliza `DoorPair` para `LockData`, pero el spawning normal está centrado en locks; no existe todavía una materialización equivalente y explícita de **todas las puertas estructurales**.
+
+---
+
+# 3. Nueva autoridad de puertas
+
+Debe quedar:
+
+```text
+RoomConnection
+      │
+      ▼
+EntrancePair
+      │
+      ▼
+DoorPair
+ ┌────┴────┐
+ ▼         ▼
+Door A    Door B
+```
+
+Y:
+
+```text
+LockData
+    │
+    └── connection_id
+             │
+             ▼
+          DoorPair
+```
+
+Nunca:
+
+```text
+Lock
+ ↓
+buscar vecinos
+ ↓
+adivinar puerta
+```
+
+La estructura existente de `DoorPlacement` ya tiene:
+
+* `connection_id`
+* `room_id`
+* `position`
+* `side`
+* `room_cell`
+* `corridor_cell`
+
+que es precisamente la información necesaria para materialización determinista.
+
+---
+
+# 4. Nuevo contrato `DungeonDoorManifest`
+
+Yo introduciría un contrato explícito para presentación.
+
+### Nuevo archivo
+
+```text
+src/dungeon_generator/presentation/data/dungeon_door_manifest.gd
+```
+
+Conceptualmente:
+
+```gdscript
+class_name DungeonDoorManifest
+extends RefCounted
+
+var connection_id: int
+var door_a: DoorPlacement
+var door_b: DoorPlacement
+var is_locked: bool
+var lock_id: int
+var required_key_id: int
+```
+
+Esto evita que el renderer tenga que interpretar toda la estructura semántica.
+
+La lógica sería:
+
+```text
+DoorPair
+   +
+LockData opcional
+   ↓
+DungeonDoorManifest
+```
+
+---
+
+# 5. `DungeonDoorSpawner`
+
+### Nuevo archivo
+
+```text
+src/dungeon_generator/presentation/dungeon_door_spawner.gd
+```
+
+Responsabilidad única:
+
+> materializar las puertas físicas ya resueltas.
+
+Debe recibir:
+
+```text
+DungeonSemanticResult
+DoorPair[]
+LockData[]
+BiomeProfile
+StagingRoot
+```
+
+Y producir:
+
+```text
+DoorVisual[]
+```
+
+Orden:
+
+```text
+sort connection_id
+        ↓
+DoorPair
+        ↓
+resolver lock asociado
+        ↓
+Door A
+Door B
+```
+
+Cada conexión debe producir exactamente el número esperado de puertas.
+
+Normalmente:
+
+```text
+1 connection
+    ↓
+2 door placements
+```
+
+---
+
+# 6. Invariante fundamental de puertas
+
+Agregar:
+
+```text
+for every RoomConnection:
+    exactly one DoorPair
+```
+
+y:
+
+```text
+DoorPair.connection_id == RoomConnection.id
+```
+
+Además:
+
+```text
+door_a.room_id == connection.room_a_id
+door_b.room_id == connection.room_b_id
+```
+
+Y:
+
+```text
+door_a.position != door_b.position
+```
+
+Esto debe convertirse en test.
+
+---
+
+# 7. Integración con Wall Mesh
+
+Aquí hay una cuestión MUY importante del módulo nuevo.
+
+Actualmente `DungeonPresentationBuilder` hace:
+
+```text
+GridMap
+   ↓
+ContinuousWallMeshBuilder
+   ↓
+MeshInstance3D
+```
+
+cuando `biome.wall_scene == null`.
+
+Eso está bien como primera integración, pero hay que endurecer la frontera.
+
+El `wall_mesh_generator` debe ser:
+
+```text
+CellGrid
+   ↓
+WallMeshGenerator
+   ↓
+ArrayMesh
+```
+
+y **nada más**.
+
+No debe conocer:
+
+* `DungeonSemanticResult`
+* `KeyData`
+* `LockData`
+* jugador
+* enemigos
+* bosses
+* inventario
+
+Su responsabilidad es únicamente:
+
+> convertir geometría de muro lógica en geometría visual.
+
+El módulo ya está bastante bien separado en:
+
+```text
+wall_mesh_generator/
+├── config/
+├── core/
+├── materials/
+└── scenes/
+```
+
+y contiene `ContinuousWallExtractor`, `ContinuousWallMeshBuilder`, `WallMeshBuilder`, `BrickGeometryBuilder` y `WallSequenceController`.
+
+---
+
+# 8. Problema que debemos resolver con las puertas + paredes
+
+Aquí está probablemente uno de los puntos más importantes de esta fase.
+
+Si generamos una pared continua a partir del `CellGrid`:
+
+```text
+████████████████
+████      ██████
+████      ██████
+████████████████
+```
+
+y existe una puerta:
+
+```text
+██████╔══╗██████
+██████║  ║██████
+██████╚══╝██████
+```
+
+la pared continua **no puede cerrar el vano de la puerta**.
+
+Por tanto necesitamos que:
+
+```text
+WallMeshGenerator
+```
+
+conozca una máscara de exclusión estructural:
+
+```text
+door openings
+```
+
+pero **sin conocer DoorPair directamente**.
+
+La solución correcta sería introducir un contrato geométrico neutral:
+
+```text
+WallOpening
+```
+
+por ejemplo:
+
+```text
+WallOpening
+    position
+    side
+    width
+    height
+    connection_id
+```
+
+Entonces:
+
+```text
+DoorPair
+   ↓
+DoorOpeningManifest
+   ↓
+WallMeshGenerator
+```
+
+Esto es mucho mejor que hacer que el generador de paredes conozca la semántica de puertas.
+
+---
+
+# 9. Nuevo `WallOpeningManifest`
+
+### Nuevo archivo
+
+```text
+src/wall_mesh_generator/data/wall_opening.gd
+```
+
+Contrato:
+
+```text
+WallOpening
+├── position
+├── side
+├── width
+├── height
+└── structural_id
+```
+
+Entonces:
+
+```text
+Dungeon DoorPair
+       ↓
+WallOpening
+       ↓
+ContinuousWallMeshBuilder
+```
+
+Resultado:
+
+```text
+Pared continua
+      +
+Van os estructurales
+      ↓
+Geometría final
+```
+
+Esto será especialmente importante cuando el estilo de paredes tenga:
+
+* esquinas
+* arcos
+* molduras
+* ladrillos
+* geometría continua
+
+porque la puerta debe abrir un hueco real y no simplemente poner un modelo delante de una pared.
+
+---
+
+# 10. Escaleras: nueva prioridad
+
+Aquí sí falta una capa conceptual.
+
+Actualmente `DungeonResult` ya tiene:
+
+```gdscript
+floor_number
+```
+
+pero eso **no es suficiente para representar una dungeon multi-floor**.
+
+Necesitamos diferenciar:
+
+```text
+qué piso soy
+```
+
+de:
+
+```text
+cómo conecto este piso con otro.
+```
+
+---
+
+# 11. Nuevo contrato `StairData`
+
+### Nuevo archivo
+
+```text
+src/dungeon_generator/core/data/stair_data.gd
+```
+
+Propongo:
+
+```text
+StairData
+├── stair_id
+├── floor_from
+├── floor_to
+├── room_id
+├── position
+├── direction
+├── type
+└── is_mandatory
+```
+
+Tipos:
+
+```text
+STAIRS_UP
+STAIRS_DOWN
+```
+
+Opcionalmente:
+
+```text
+LADDER_UP
+LADDER_DOWN
+```
+
+pero no lo implementaría todavía.
+
+Primero:
+
+```text
+STAIRS_UP
+STAIRS_DOWN
+```
+
+---
+
+# 12. Nuevo contrato `FloorConnection`
+
+Para permitir realmente pisos conectados:
+
+```text
+FloorConnection
+├── connection_id
+├── floor_a
+├── floor_b
+├── stair_a_id
+└── stair_b_id
+```
+
+Así:
+
+```text
+Floor 1
+   │
+   │ Stair A
+   │
+FloorConnection
+   │
+   │ Stair B
+   │
+Floor 2
+```
+
+Esto permite que una dungeon tenga:
+
+```text
+Floor 1
+  ↓
+Floor 2
+  ↓
+Floor 3
+  ↓
+Floor 4
+```
+
+sin que ningún sistema de gameplay esté involucrado.
+
+---
+
+# 13. `DungeonFloorData`
+
+También recomiendo dejar de representar un piso únicamente mediante `floor_number`.
+
+Crear:
+
+```text
+src/dungeon_generator/core/data/dungeon_floor_data.gd
+```
+
+Con:
+
+```text
+DungeonFloorData
+├── floor_id
+├── floor_number
+├── grid
+├── rooms
+├── connections
+├── entrance_pairs
+├── corridor_paths
+├── door_pairs
+├── stairs
+└── semantic_data
+```
+
+Y después:
+
+```text
+DungeonInstance
+│
+├── floor 1
+├── floor 2
+├── floor 3
+└── floor N
+```
+
+Esto es muchísimo más escalable.
+
+---
+
+# 14. Nuevo `DungeonMultiFloorResult`
+
+No cambiaría `DungeonResult` de golpe.
+
+Crearía:
+
+```text
+src/dungeon_generator/core/data/dungeon_multifloor_result.gd
+```
+
+Contrato:
+
+```text
+DungeonMultiFloorResult
+├── dungeon_id
+├── seed
+├── floors[]
+├── floor_connections[]
+├── entry_floor
+├── exit_floor
+└── metadata
+```
+
+Así preservamos:
+
+```text
+DungeonResult
+```
+
+como contrato de **un piso**, y:
+
+```text
+DungeonMultiFloorResult
+```
+
+como contrato de **una dungeon completa**.
+
+Esto evita romper todo el pipeline actual.
+
+---
+
+# 15. Generación Multi-Floor
+
+No recomiendo modificar inicialmente el algoritmo espacial.
+
+Hacer:
+
+```text
+DungeonPipeline.generate()
+```
+
+para un piso.
+
+Luego:
+
+```text
+DungeonMultiFloorGenerator
+```
+
+orquesta:
+
+```text
+floor 1
+   ↓
+floor 2
+   ↓
+floor 3
+   ↓
+...
+```
+
+Cada piso usa una semilla derivada:
+
+```text
+base_seed
+   │
+   ├── floor_1_seed
+   ├── floor_2_seed
+   ├── floor_3_seed
+   └── floor_N_seed
+```
+
+Por ejemplo:
+
+```text
+derive_seed(base_seed, floor_number, "floor")
+```
+
+Así la generación sigue siendo completamente determinista.
+
+---
+
+# 16. Regla de generación de escaleras
+
+No poner escaleras aleatoriamente sin validar.
+
+Para cada conexión:
+
+```text
+Floor N
+    ↓
+seleccionar room válida
+    ↓
+seleccionar posición transitable
+    ↓
+crear StairData
+    ↓
+Floor N+1
+    ↓
+seleccionar room válida
+    ↓
+crear StairData
+    ↓
+crear FloorConnection
+```
+
+Después validar:
+
+```text
+stairs_down.floor_to == next_floor
+stairs_up.floor_from == previous_floor
+```
+
+---
+
+# 17. Validación Multi-Floor
+
+Nuevo:
+
+```text
+multi_floor_validator.gd
+```
+
+Debe comprobar:
+
+### Física
+
+```text
+stairs.position es WALKABLE
+```
+
+### Sala
+
+```text
+stairs.room_id existe
+```
+
+### Piso
+
+```text
+floor_from != floor_to
+```
+
+### Conexión
+
+```text
+FloorConnection tiene ambos extremos
+```
+
+### Topología
+
+```text
+Floor 1 → Floor 2 → ... → Floor N
+```
+
+no puede contener:
+
+```text
+Floor 1 → Floor 3
+Floor 2 aislado
+```
+
+salvo que explícitamente se permita.
+
+---
+
+# 18. Regla inicial que recomiendo
+
+Para la primera versión:
+
+> **Una dungeon multi-floor debe ser verticalmente conectada.**
+
+Es decir:
+
+```text
+Floor 1
+  │
+  ▼
+Floor 2
+  │
+  ▼
+Floor 3
+  │
+  ▼
+Floor 4
+```
+
+No:
+
+```text
+Floor 1 ───── Floor 4
+    │
+Floor 2
+
+Floor 3 aislado
+```
+
+Después podemos permitir topologías más interesantes.
+
+---
+
+# 19. Materialización de escaleras
+
+Nuevo:
+
+```text
+src/dungeon_generator/presentation/dungeon_stair_spawner.gd
+```
+
+Responsabilidad:
+
+```text
+StairData
+    ↓
+PackedScene
+    ↓
+GridToWorld
+    ↓
+Node3D
+```
+
+Y:
+
+```text
+StairData
+    ↓
+metadata
+    ├── stair_id
+    ├── floor_from
+    └── floor_to
+```
+
+Pero **sin lógica de transición**.
+
+No:
+
+```gdscript
+player.change_floor()
+```
+
+Eso pertenece al futuro módulo de gameplay/world runtime.
+
+---
+
+# 20. Presentation final
+
+La Fase 8 debería evolucionar hacia:
+
+```text
+DungeonPresentationBuilder
+│
+├── GridMapMapper
+│
+├── WallMeshBuilder
+│
+├── DoorSpawner
+│
+├── StairSpawner
+│
+└── EntityMarkerSpawner
+```
+
+Y los entities actuales deben mantenerse como **representaciones**.
+
+Esto es especialmente importante porque el `DungeonEntitySpawner` actual puede instanciar `boss_scene`, pero conceptualmente eso debería ser un **marker/visual**, no un Boss AI.
+
+---
+
+# 21. Orden exacto de implementación
+
+Yo lo haría así.
+
+## Paso 1 — Congelar contratos actuales
+
+No tocar algoritmos de generación.
+
+Validar:
+
+```text
+DungeonResult
+DoorPlacement
+DoorPair
+EntrancePair
+RoomConnection
+DungeonSemanticResult
+```
+
+---
+
+## Paso 2 — Test de puertas físicas
+
+Crear:
+
+```text
+tests/doors/test_door_contract.gd
+tests/doors/test_door_resolver.gd
+tests/doors/test_door_pair_consistency.gd
+```
+
+Garantizar:
+
+```text
+connections == door_pairs
+```
+
+para todas las conexiones obligatorias.
+
+---
+
+## Paso 3 — `DungeonDoorManifest`
+
+Crear:
+
+```text
+presentation/data/dungeon_door_manifest.gd
+```
+
+---
+
+## Paso 4 — `DungeonDoorSpawner`
+
+Crear:
+
+```text
+presentation/dungeon_door_spawner.gd
+```
+
+Materializar:
+
+```text
+DoorPair → Door A + Door B
+```
+
+---
+
+## Paso 5 — Integrar puertas con Wall Mesh
+
+Crear:
+
+```text
+wall_mesh_generator/data/wall_opening.gd
+```
+
+y adaptar:
+
+```text
+ContinuousWallMeshBuilder
+```
+
+para aceptar:
+
+```text
+WallOpening[]
+```
+
+sin conocer `DungeonSemanticResult`.
+
+---
+
+## Paso 6 — Tests de geometría
+
+Especialmente:
+
+```text
+door opening ≠ wall
+```
+
+Test:
+
+```text
+Wall + Door
+```
+
+debe producir:
+
+```text
+██████      ██████
+██████      ██████
+██████      ██████
+```
+
+y nunca:
+
+```text
+██████████████████
+      Door
+```
+
+oculta dentro de la pared.
+
+---
+
+# 22. Paso 7 — `StairData`
+
+Crear:
+
+```text
+core/data/stair_data.gd
+```
+
+---
+
+# 23. Paso 8 — `FloorConnection`
+
+Crear:
+
+```text
+core/data/floor_connection.gd
+```
+
+---
+
+# 24. Paso 9 — `DungeonFloorData`
+
+Crear:
+
+```text
+core/data/dungeon_floor_data.gd
+```
+
+---
+
+# 25. Paso 10 — `DungeonMultiFloorResult`
+
+Crear:
+
+```text
+core/data/dungeon_multifloor_result.gd
+```
+
+---
+
+# 26. Paso 11 — `MultiFloorGenerator`
+
+Crear:
+
+```text
+core/multifloor/dungeon_multifloor_generator.gd
+```
+
+Pipeline:
+
+```text
+config
+  ↓
+derive floor seed
+  ↓
+DungeonPipeline
+  ↓
+validate floor
+  ↓
+place stairs
+  ↓
+next floor
+  ↓
+connect floors
+  ↓
+validate complete dungeon
+```
+
+---
+
+# 27. Paso 12 — Multi-Floor Validator
+
+Crear:
+
+```text
+core/validation/multifloor_validator.gd
+```
+
+---
+
+# 28. Paso 13 — Stair Spawner
+
+Crear:
+
+```text
+presentation/dungeon_stair_spawner.gd
+```
+
+---
+
+# 29. Paso 14 — Integración con Presentation Builder
+
+Nuevo pipeline:
+
+```text
+DungeonMultiFloorResult
+        ↓
+Floor Presentation Builder
+        ↓
+┌──────────────────────┐
+│ Floor Grid            │
+│ Continuous Walls      │
+│ Doors                 │
+│ Stairs                │
+│ Semantic Markers      │
+└──────────────────────┘
+```
+
+manteniendo el `StagingRoot + Atomic Swap` que ya implementaste.
+
+---
+
+# 30. Tests mínimos
+
+## Puertas
+
+```text
+test_door_contract
+test_door_pair_connection_mapping
+test_all_connections_have_doors
+test_door_orientation
+test_door_positions
+```
+
+## Wall Mesh
+
+```text
+test_wall_opening
+test_wall_door_no_overlap
+test_wall_mesh_determinism
+test_wall_mesh_collision
+```
+
+## Escaleras
+
+```text
+test_stair_position_walkable
+test_stair_room_reference
+test_stair_direction
+test_floor_connection
+```
+
+## Multi-floor
+
+```text
+test_multifloor_generation
+test_floor_seed_determinism
+test_floor_connectivity
+test_no_isolated_floor
+test_stair_pairing
+```
+
+## Presentation
+
+```text
+test_door_materialization
+test_stair_materialization
+test_wall_door_integration
+test_multifloor_presentation
+test_atomic_multifloor_swap
+```
+
+---
+
+# 31. Tests End-to-End
+
+Para cada preset:
+
+```text
+Cave
+Castle
+Hybrid
+128
+```
+
+probar:
+
+```text
+Generate
+   ↓
+Physical validation
+   ↓
+Semantic validation
+   ↓
+Door validation
+   ↓
+Stair validation
+   ↓
+Multi-floor validation
+   ↓
+Wall generation
+   ↓
+Presentation
+```
+
+Y comprobar:
+
+### 0 mutaciones
+
+```text
+CellGrid_before == CellGrid_after
+```
+
+### Determinismo
+
+```text
+seed X
+    ↓
+result A
+
+seed X
+    ↓
+result B
+
+A == B
+```
+
+### Puertas
+
+```text
+connections == door_pairs
+```
+
+### Escaleras
+
+```text
+cada FloorConnection tiene 2 extremos
+```
+
+### Paredes
+
+```text
+no existe geometría cerrando un vano de puerta
+```
+
+---
+
+# 32. Definition of Done
+
+La fase estará terminada cuando:
+
+### Dungeon de un piso
+
+* [ ] Cada conexión estructural tiene sus `DoorPair`.
+* [ ] Cada `DoorPair` tiene dos `DoorPlacement` válidos.
+* [ ] Las puertas se materializan exactamente donde indica `DoorPair`.
+* [ ] La orientación procede exclusivamente de `DoorPlacement.side`.
+* [ ] El wall mesh respeta los vanos de puerta.
+* [ ] No existen solapamientos puerta/pared.
+* [ ] No se modifican `CellGrid`, `Rooms` ni `DungeonSemanticResult`.
+
+### Multi-floor
+
+* [ ] Existe `StairData`.
+* [ ] Existe `FloorConnection`.
+* [ ] Existe `DungeonFloorData`.
+* [ ] Existe `DungeonMultiFloorResult`.
+* [ ] Se pueden generar N pisos.
+* [ ] Cada piso tiene seed determinista.
+* [ ] Los pisos están conectados mediante escaleras.
+* [ ] No existen pisos aislados.
+* [ ] Las escaleras ocupan celdas transitables.
+* [ ] Las conexiones verticales son verificadas.
+
+### Presentación
+
+* [ ] Las paredes continuas se generan correctamente.
+* [ ] Los vanos de puertas son geométricamente reales.
+* [ ] Las puertas se instancian.
+* [ ] Las escaleras se instancian.
+* [ ] El staging sigue siendo atómico.
+* [ ] Una presentación válida nunca es reemplazada por una inválida.
+
+### Arquitectura
+
+* [ ] Cero Player Controller.
+* [ ] Cero Enemy AI.
+* [ ] Cero Boss AI.
+* [ ] Cero combate.
+* [ ] Cero inventario runtime.
+* [ ] Cero interacción gameplay.
+* [ ] Cero dependencia del módulo de gameplay.
+
+---
+
+# 33. Y recién después: tu antigua Fase 9
+
+Una vez completado esto, **tu Fase 9 de Hardening cobra mucho más sentido**.
+
+El orden que ahora recomiendo es:
+
+```text
+FASES 1–6
+Generación física
+       ↓
+FASE 7
+Semántica / solvencia
+       ↓
+FASE 8
+Materialización 3D
+       ↓
+FASE 9
+★ Compleción estructural
+   Puertas
+   Paredes
+   Escaleras
+   Multi-floor
+       ↓
+FASE 10
+★ Hardening / QA / Production Readiness
+       ↓
+DUNGEON MODULE COMPLETO
+```
+
+Y después, **fuera del Dungeon Generator**:
+
+```text
+Gameplay Module
+Player
+Enemies
+Bosses
+Combat
+Inventory
+Interactions
+```
+
+Esto me parece mucho más sólido para el proyecto que tienes ahora.
+
+La razón principal es que el repositorio ya demuestra que **la generación física y semántica están bastante avanzadas**, y que incluso `DoorResolver` ya existe dentro del pipeline.  El cuello de botella actual no es inventar otro algoritmo de dungeon, sino **cerrar correctamente la representación estructural de lo que ya generas**: puertas → paredes → escaleras → pisos.
+
+Y el nuevo `wall_mesh_generator` encaja muy bien precisamente ahí, pero debe permanecer como **módulo geométrico/presentacional independiente**, no convertirse en parte de la lógica semántica de la dungeon.
+
+Si quieres seguir con este orden, **yo congelaría esta Fase 9 como la siguiente fase oficial y dejaría tu antiguo Hardening como Fase 10**.

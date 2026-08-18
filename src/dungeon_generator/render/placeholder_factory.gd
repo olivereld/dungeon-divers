@@ -16,7 +16,7 @@ func create_placeholder_library(biome: BiomeProfile, cell_size: float) -> MeshLi
 
 	var floor_shape_size := Vector3(cell_size, 0.2, cell_size)
 
-	# 0 = FLOOR: Modelo 3D personalizado si existe, o losa plana con colisión física
+	# 0 = FLOOR: Modelo 3D personalizado si existe, o plano 2D con colisión física
 	var custom_floor_mesh := _extract_mesh_from_scene(biome.floor_scene)
 	if custom_floor_mesh != null:
 		lib.create_item(biome.floor_index)
@@ -24,7 +24,7 @@ func create_placeholder_library(biome: BiomeProfile, cell_size: float) -> MeshLi
 		lib.set_item_name(biome.floor_index, "Floor")
 		_assign_collision_shape(lib, biome.floor_index, floor_shape_size)
 	else:
-		_add_box_item(lib, biome.floor_index, floor_shape_size, biome.floor_color, "Floor")
+		_add_plane_item(lib, biome.floor_index, Vector2(cell_size, cell_size), biome.floor_color, "Floor")
 
 	# 1 = WALL: Modelo 3D o Pared Procedural Estilizada
 	var custom_wall_mesh := _extract_mesh_from_scene(biome.wall_scene)
@@ -73,7 +73,7 @@ func create_placeholder_library(biome: BiomeProfile, cell_size: float) -> MeshLi
 		else:
 			_add_procedural_wall_item(lib, biome.wall_corner_small_index, _WallMeshConfigScript.PieceType.CORNER, cell_size, "WallCornerSmall")
 
-	# 12 = DUNGEON_FLOOR: losa de piedra para base de muros y pasillos
+	# 12 = DUNGEON_FLOOR: plano de piedra para base de pasillos
 	if biome.dungeon_floor_index >= 0:
 		var custom_dungeon_floor_mesh := _extract_mesh_from_scene(biome.dungeon_floor_scene)
 		if custom_dungeon_floor_mesh != null:
@@ -82,7 +82,7 @@ func create_placeholder_library(biome: BiomeProfile, cell_size: float) -> MeshLi
 			lib.set_item_name(biome.dungeon_floor_index, "DungeonFloor")
 			_assign_collision_shape(lib, biome.dungeon_floor_index, floor_shape_size)
 		else:
-			_add_box_item(lib, biome.dungeon_floor_index, floor_shape_size, biome.dungeon_floor_color, "DungeonFloor")
+			_add_plane_item(lib, biome.dungeon_floor_index, Vector2(cell_size, cell_size), biome.dungeon_floor_color, "DungeonFloor")
 
 	# 13 = WALL_TSPLIT: Muro en T
 	if biome.wall_tsplit_index >= 0:
@@ -102,27 +102,31 @@ func create_placeholder_library(biome: BiomeProfile, cell_size: float) -> MeshLi
 			lib.create_item(biome.column_index)
 			lib.set_item_mesh(biome.column_index, custom_column_mesh)
 			lib.set_item_name(biome.column_index, "Column")
-			_assign_collision_shape(lib, biome.column_index, Vector3(cell_size * 0.5, cell_size * 2.0, cell_size * 0.5))
+			_assign_collision_shape(lib, biome.column_index, Vector3(cell_size, cell_size * 2.0, cell_size))
 		else:
-			_add_box_item(lib, biome.column_index, Vector3(cell_size * 0.4, cell_size * 1.2, cell_size * 0.4), biome.column_color, "Column")
+			_add_box_item(lib, biome.column_index, Vector3(cell_size * 0.5, cell_size * 2.0, cell_size * 0.5), biome.wall_color.darkened(0.2), "Column")
 
-	# 4 = DOOR: Modelo 3D o puerta marrón
-	var custom_door_mesh := _extract_mesh_from_scene(biome.door_scene)
-	if custom_door_mesh != null:
-		lib.create_item(biome.door_index)
-		lib.set_item_mesh(biome.door_index, custom_door_mesh)
-		lib.set_item_name(biome.door_index, "Door")
-	else:
-		_add_box_item(lib, biome.door_index, Vector3(cell_size * 0.3, cell_size * 0.9, cell_size), biome.door_color, "Door")
+	# 4 = DOOR: Puerta estándar 3D
+	if biome.door_index >= 0:
+		var custom_door_mesh := _extract_mesh_from_scene(biome.door_scene)
+		if custom_door_mesh != null:
+			lib.create_item(biome.door_index)
+			lib.set_item_mesh(biome.door_index, custom_door_mesh)
+			lib.set_item_name(biome.door_index, "Door")
+			_assign_collision_shape(lib, biome.door_index, Vector3(cell_size * 0.4, cell_size * 1.8, cell_size * 0.9))
+		else:
+			_add_box_item(lib, biome.door_index, Vector3(cell_size * 0.3, cell_size * 1.8, cell_size * 0.8), biome.door_color, "Door")
 
-	# 5 = LOCKED_DOOR: Modelo 3D o puerta roja
-	var custom_locked_door_mesh := _extract_mesh_from_scene(biome.locked_door_scene)
-	if custom_locked_door_mesh != null:
-		lib.create_item(biome.locked_door_index)
-		lib.set_item_mesh(biome.locked_door_index, custom_locked_door_mesh)
-		lib.set_item_name(biome.locked_door_index, "LockedDoor")
-	else:
-		_add_box_item(lib, biome.locked_door_index, Vector3(cell_size * 0.3, cell_size * 0.9, cell_size), biome.locked_door_color, "LockedDoor")
+	# 5 = LOCKED_DOOR: Puerta cerrada con cerradura
+	if biome.locked_door_index >= 0:
+		var custom_locked_door_mesh := _extract_mesh_from_scene(biome.locked_door_scene)
+		if custom_locked_door_mesh != null:
+			lib.create_item(biome.locked_door_index)
+			lib.set_item_mesh(biome.locked_door_index, custom_locked_door_mesh)
+			lib.set_item_name(biome.locked_door_index, "LockedDoor")
+			_assign_collision_shape(lib, biome.locked_door_index, Vector3(cell_size * 0.4, cell_size * 1.8, cell_size * 0.9))
+		else:
+			_add_box_item(lib, biome.locked_door_index, Vector3(cell_size * 0.3, cell_size * 1.8, cell_size * 0.8), biome.locked_door_color, "LockedDoor")
 
 	# 6 = STAIRS_DOWN
 	if biome.stairs_down_index >= 0:
@@ -168,6 +172,10 @@ func _add_procedural_wall_item(
 	item_name: String,
 	cubes_high: int = 2
 ) -> void:
+	if index < 0:
+		return
+
+	var builder := _WallMeshBuilderScript.new()
 	var config := _WallMeshConfigScript.new()
 	config.piece_type = piece_type
 	config.centered_origin = true
@@ -175,18 +183,15 @@ func _add_procedural_wall_item(
 	config.cubes_high = cubes_high
 	config.wall_length_cubes = 1
 
-	var builder := _WallMeshBuilderScript.new()
 	var mesh: ArrayMesh = builder.build_wall_mesh(config)
 
 	var trim_mat = _WallMaterialFactoryScript.create_trim_material(_WallMaterialFactoryScript.MaterialPreset.STYLIZED_SLATE)
 	var panel_mat = _WallMaterialFactoryScript.create_panel_material(_WallMaterialFactoryScript.MaterialPreset.STYLIZED_SLATE)
 	var brick_mat = _WallMaterialFactoryScript.create_brick_material(_WallMaterialFactoryScript.MaterialPreset.STYLIZED_SLATE)
 
-	if mesh.get_surface_count() > 0:
+	if mesh.get_surface_count() >= 3:
 		mesh.surface_set_material(0, trim_mat)
-	if mesh.get_surface_count() > 1:
 		mesh.surface_set_material(1, panel_mat)
-	if mesh.get_surface_count() > 2:
 		mesh.surface_set_material(2, brick_mat)
 
 	lib.create_item(index)
@@ -194,10 +199,30 @@ func _add_procedural_wall_item(
 	lib.set_item_name(index, item_name)
 	_assign_collision_shape(lib, index, Vector3(cell_size, cell_size * float(cubes_high), cell_size))
 
-func _assign_collision_shape(lib: MeshLibrary, index: int, size: Vector3) -> void:
+func _assign_collision_shape(lib: MeshLibrary, index: int, size: Vector3, offset_y: float = 0.0) -> void:
 	var shape := BoxShape3D.new()
 	shape.size = size
-	lib.set_item_shapes(index, [shape, Transform3D.IDENTITY])
+	var xform := Transform3D(Basis(), Vector3(0.0, offset_y, 0.0))
+	lib.set_item_shapes(index, [shape, xform])
+
+func _add_plane_item(lib: MeshLibrary, index: int, size: Vector2, color: Color, item_name: String) -> void:
+	if index < 0:
+		return
+
+	var mesh := PlaneMesh.new()
+	mesh.size = size
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.8
+	mat.metallic = 0.05
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mesh.material = mat
+
+	lib.create_item(index)
+	lib.set_item_mesh(index, mesh)
+	lib.set_item_name(index, item_name)
+	_assign_collision_shape(lib, index, Vector3(size.x, 0.1, size.y), -0.05)
 
 func _add_box_item(lib: MeshLibrary, index: int, size: Vector3, color: Color, item_name: String, emissive: bool = false, emission_color: Color = Color.BLACK) -> void:
 	if index < 0:
