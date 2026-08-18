@@ -49,12 +49,19 @@ func _connect_visualizer_signals() -> void:
 			visualizer.random_seed_requested.connect(_on_random_seed_requested)
 		if not visualizer.floors_changed.is_connected(_on_floors_changed):
 			visualizer.floors_changed.connect(_on_floors_changed)
+		if not visualizer.algorithm_changed.is_connected(_on_algorithm_changed):
+			visualizer.algorithm_changed.connect(_on_algorithm_changed)
 		if not visualizer.floor_view_mode_changed.is_connected(_on_floor_view_mode_changed):
 			visualizer.floor_view_mode_changed.connect(_on_floor_view_mode_changed)
 		if not visualizer.generate_3d_requested.is_connected(build_3d_presentation):
 			visualizer.generate_3d_requested.connect(build_3d_presentation)
 		if not visualizer.toggle_2d_view_requested.is_connected(_on_toggle_2d_view_requested):
 			visualizer.toggle_2d_view_requested.connect(_on_toggle_2d_view_requested)
+
+func _on_algorithm_changed(p_algo: String) -> void:
+	if config != null:
+		config.algorithm = p_algo
+		regenerate(false)
 
 func _on_floors_changed(p_floors: int) -> void:
 	if config != null:
@@ -69,7 +76,7 @@ func _on_floor_view_mode_changed(p_floor_idx: int) -> void:
 
 func _on_toggle_2d_view_requested() -> void:
 	if _current_result != null and visualizer != null:
-		visualizer.show_2d_preview(_current_result)
+		visualizer.show_2d_preview(_current_result, _current_semantic_result)
 
 func _apply_floor_visibility() -> void:
 	if _current_presentation_root == null:
@@ -160,7 +167,7 @@ func regenerate(force_new_seed: bool = false) -> void:
 
 	# Mostrar el Plano 2D interactivo en la UI
 	if visualizer != null:
-		visualizer.show_2d_preview(_current_result)
+		visualizer.show_2d_preview(_current_result, _current_semantic_result)
 
 ## Paso 2: Materialización y visualización del mundo 3D al confirmar
 func build_3d_presentation() -> void:
