@@ -11,6 +11,7 @@ const _DoorResolutionResultScript = preload("res://src/dungeon_generator/core/so
 const _DoorTransitionValidatorScript = preload("res://src/dungeon_generator/core/validation/door_transition_validator.gd")
 const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
 const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
+const _DoorPhysicalValidatorScript = preload("res://src/dungeon_generator/core/validation/door_physical_validator.gd")
 
 ## Resuelve y coloca atómicamente todas las puertas del intento de generación.
 static func resolve_doors(
@@ -146,7 +147,7 @@ static func resolve_doors(
 				if r.id == conn.room_a_id: room_a = r
 				elif r.id == conn.room_b_id: room_b = r
 
-		_apply_door_policy(door_a, door_b, room_a, room_b, path, config, conn_id)
+		_apply_door_policy(grid, door_a, door_b, room_a, room_b, path, config, conn_id)
 
 		var dp = _DoorPairScript.new(conn_id, door_a, door_b)
 		candidate_pairs.append(dp)
@@ -198,6 +199,7 @@ static func resolve_doors(
 	return result
 
 static func _apply_door_policy(
+	grid: CellGrid,
 	door_a: _DoorPlacementScript,
 	door_b: _DoorPlacementScript,
 	room_a: RoomData,
@@ -245,39 +247,62 @@ static func _apply_door_policy(
 				else:
 					door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
 					door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
-		return
-
 	# 2. Pasillo Largo (>= min_corridor_length_for_double_doors)
-	if corr_len >= config.min_corridor_length_for_double_doors and rng.randf() < config.door_double_door_chance:
+	elif corr_len >= config.min_corridor_length_for_double_doors and rng.randf() < config.door_double_door_chance:
 		door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
 		door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
-		return
-
 	# 3. Pasillo Estándar
-	if pri_a >= 4 or pri_b >= 4:
-		if pri_a >= pri_b:
-			door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
-			door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
-		else:
-			door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
-			door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
-	elif rng.randf() < config.door_open_passage_chance:
-		door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
-		door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
 	else:
-		if pri_a > pri_b:
-			door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
-			door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
-		elif pri_b > pri_a:
-			door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
-			door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
-		else:
-			if rng.randf() < 0.5:
+		if pri_a >= 4 or pri_b >= 4:
+			if pri_a >= pri_b:
 				door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
 				door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
 			else:
 				door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
 				door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		elif rng.randf() < config.door_open_passage_chance:
+			door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+			door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		else:
+			if pri_a > pri_b:
+				door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+				door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+			elif pri_b > pri_a:
+				door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+				door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+			else:
+				if rng.randf() < 0.5:
+					door_a.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+					door_b.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+				else:
+					door_b.door_type = _DoorTypeScript.DoorType.CLOSED_DOOR
+					door_a.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+
+	# Validación física de elegibilidad: si no hay jambas sólidas o bloquea un bolsillo <= 1, degradar a OPEN_PASSAGE
+	_validate_physical_door_eligibility(grid, door_a)
+	_validate_physical_door_eligibility(grid, door_b)
+
+static func _validate_physical_door_eligibility(
+	grid: CellGrid,
+	door: _DoorPlacementScript
+) -> void:
+	if door == null or grid == null:
+		return
+
+	if door.door_type == _DoorTypeScript.DoorType.OPEN_PASSAGE:
+		return
+
+	# 1. Validar que la puerta esté flanqueada por jambas sólidas
+	if not _DoorPhysicalValidatorScript.validate_door_jambs(grid, door.position, door.side):
+		door.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		door.reason = "MISSING_JAMBS"
+		return
+
+	# 2. Validar que no bloquee un bolsillo ciego minúsculo (área <= 1)
+	var free_area: int = _DoorPhysicalValidatorScript.get_local_free_area(grid, door.corridor_cell, 2)
+	if free_area <= 1:
+		door.door_type = _DoorTypeScript.DoorType.OPEN_PASSAGE
+		door.reason = "POCKET_BLOCK"
 
 static func _get_room_priority(room: RoomData) -> int:
 	if room == null:
