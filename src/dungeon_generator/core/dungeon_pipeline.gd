@@ -333,22 +333,6 @@ func _compute_aesthetic_metrics(corridors: Array, doors: Array) -> Dictionary:
 		"staircase_corridors": 0
 	}
 
-func _build_room_connections(rooms: Array[RoomData]) -> Array:
-	var conns: Array = []
-	var seen_pairs: Dictionary = {}
-	var conn_id: int = 0
-	for room in rooms:
-		for target_id in room.connected_room_ids:
-			if target_id < 0 or target_id >= rooms.size() or target_id == room.id:
-				continue
-			var pair_key := "%d-%d" % [mini(room.id, target_id), maxi(room.id, target_id)]
-			if not seen_pairs.has(pair_key):
-				seen_pairs[pair_key] = true
-				var c := _RoomConnectionScript.new(conn_id, mini(room.id, target_id), maxi(room.id, target_id), true)
-				conns.append(c)
-				conn_id += 1
-	return conns
-
 func _resolve_seed(config: DungeonConfig, attempt_offset: int) -> int:
 	if config.use_fixed_seed:
 		return config.seed + attempt_offset

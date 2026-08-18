@@ -47,17 +47,6 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 		node_to_room[node_id] = room
 		rooms.append(room)
 
-	# Registrar conexiones entre habitaciones a partir de las aristas del grafo
-	for node_id in node_ids:
-		var room_a: RoomData = node_to_room[node_id]
-		for succ_id in mission_graph.get_successors(node_id):
-			if node_to_room.has(succ_id):
-				var room_b: RoomData = node_to_room[succ_id]
-				if not room_a.connected_room_ids.has(room_b.id):
-					room_a.connected_room_ids.append(room_b.id)
-				if not room_b.connected_room_ids.has(room_a.id):
-					room_b.connected_room_ids.append(room_a.id)
-
 	return rooms
 
 func _calculate_room_size(type: StringName, config: DungeonConfig) -> Vector2i:
