@@ -6,7 +6,7 @@ extends RefCounted
 
 var master_seed: int = 0
 var floors: Dictionary = {} ## floor_number (int) -> DungeonFloorData
-var vertical_connections: Array[FloorConnection] = []
+var vertical_connections: Array = []
 var seed_trace: Dictionary = {}
 var is_valid: bool = false
 var total_generation_time_ms: float = 0.0
@@ -15,7 +15,7 @@ var metadata: Dictionary = {}
 func _init(
 	p_master_seed: int = 0,
 	p_floors: Dictionary = {},
-	p_vertical_connections: Array[FloorConnection] = []
+	p_vertical_connections: Array = []
 ) -> void:
 	master_seed = p_master_seed
 	floors = p_floors
@@ -48,8 +48,8 @@ func add_vertical_connection(conn: FloorConnection) -> void:
 		vertical_connections.append(conn)
 
 ## Retorna todas las conexiones verticales incidentes en un piso dado.
-func get_vertical_connections_for_floor(floor_number: int) -> Array[FloorConnection]:
-	var conns: Array[FloorConnection] = []
+func get_vertical_connections_for_floor(floor_number: int) -> Array:
+	var conns: Array = []
 	for c in vertical_connections:
 		if c != null and (c.from_floor == floor_number or c.to_floor == floor_number):
 			conns.append(c)

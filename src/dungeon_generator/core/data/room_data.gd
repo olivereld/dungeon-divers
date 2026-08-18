@@ -20,6 +20,14 @@ func _init(p_id: int = 0, p_rect: Rect2i = Rect2i(), p_type: StringName = &"expl
 func get_center() -> Vector2i:
 	return rect.position + rect.size / 2
 
+func get_center_cell() -> Vector2i:
+	return get_center()
+
+func get_inner_rect() -> Rect2i:
+	if rect.size.x <= 2 or rect.size.y <= 2:
+		return rect
+	return Rect2i(rect.position.x + 1, rect.position.y + 1, rect.size.x - 2, rect.size.y - 2)
+
 func get_walkable_point(grid: CellGrid) -> Vector2i:
 	var center := get_center()
 	if grid.is_walkable(center):

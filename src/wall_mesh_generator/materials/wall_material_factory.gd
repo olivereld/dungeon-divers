@@ -15,7 +15,7 @@ static func create_trim_material(preset: MaterialPreset = MaterialPreset.STYLIZE
 	var mat := StandardMaterial3D.new()
 	mat.roughness = 0.70
 	mat.metallic = 0.05
-	mat.specular = 0.25
+	mat.metallic_specular = 0.25
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:
@@ -34,7 +34,7 @@ static func create_panel_material(preset: MaterialPreset = MaterialPreset.STYLIZ
 	var mat := StandardMaterial3D.new()
 	mat.roughness = 0.85
 	mat.metallic = 0.0
-	mat.specular = 0.15
+	mat.metallic_specular = 0.15
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:
@@ -53,7 +53,7 @@ static func create_brick_material(preset: MaterialPreset = MaterialPreset.STYLIZ
 	var mat := StandardMaterial3D.new()
 	mat.roughness = 0.60 # Más suave para que los biseles pillowed resalten con la luz
 	mat.metallic = 0.0
-	mat.specular = 0.35
+	mat.metallic_specular = 0.35
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:
@@ -72,7 +72,7 @@ static func create_wood_material(preset: MaterialPreset = MaterialPreset.STYLIZE
 	var mat := StandardMaterial3D.new()
 	mat.roughness = 0.76
 	mat.metallic = 0.0
-	mat.specular = 0.18
+	mat.metallic_specular = 0.18
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:
@@ -91,7 +91,7 @@ static func create_iron_material(preset: MaterialPreset = MaterialPreset.STYLIZE
 	var mat := StandardMaterial3D.new()
 	mat.roughness = 0.42
 	mat.metallic = 0.88
-	mat.specular = 0.55
+	mat.metallic_specular = 0.55
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:

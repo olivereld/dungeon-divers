@@ -11,7 +11,7 @@ const _WallMaterialFactoryScript = preload("res://src/wall_mesh_generator/materi
 
 ## Spawnea todas las escaleras de la lista en el StagingRoot.
 func spawn_stairs(
-	stairs: Array[StairData],
+	stairs: Array,
 	staging_root: Node3D,
 	biome: BiomeProfile,
 	tile_size: float = 2.0,

@@ -9,14 +9,17 @@ extends Node3D
 
 const _SemanticOrchestratorScript = preload("res://src/dungeon_generator/core/semantic/semantic_orchestrator.gd")
 const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
+const _MultiFloorGeneratorScript = preload("res://src/dungeon_generator/core/multi_floor_generator.gd")
 
 var _pipeline: DungeonPipeline = DungeonPipeline.new()
 var _semantic_orchestrator := _SemanticOrchestratorScript.new()
 var _presentation_builder := _DungeonPresentationBuilderScript.new()
+var _multi_floor_generator := _MultiFloorGeneratorScript.new()
 
 const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
 
 var _current_result: DungeonResult = null
+var _current_multi_result: DungeonMultiFloorResult = null
 var _current_semantic_result: DungeonSemanticResult = null
 var _current_presentation_root: Node3D = null
 var _player: CharacterBody3D = null
@@ -24,6 +27,7 @@ var _player: CharacterBody3D = null
 var _camera_pivot := Vector3.ZERO
 var _zoom: float = 40.0
 var _is_top_down: bool = false
+var _current_isolated_floor: int = -1
 
 func _ready() -> void:
 	if config == null:
@@ -39,6 +43,31 @@ func _connect_visualizer_signals() -> void:
 			visualizer.seed_submitted.connect(_on_seed_submitted)
 		if not visualizer.random_seed_requested.is_connected(_on_random_seed_requested):
 			visualizer.random_seed_requested.connect(_on_random_seed_requested)
+		if not visualizer.floors_changed.is_connected(_on_floors_changed):
+			visualizer.floors_changed.connect(_on_floors_changed)
+		if not visualizer.floor_view_mode_changed.is_connected(_on_floor_view_mode_changed):
+			visualizer.floor_view_mode_changed.connect(_on_floor_view_mode_changed)
+
+func _on_floors_changed(p_floors: int) -> void:
+	if config != null:
+		config.total_floors = maxi(1, p_floors)
+		_current_isolated_floor = -1
+		regenerate(false)
+
+func _on_floor_view_mode_changed(p_floor_idx: int) -> void:
+	_current_isolated_floor = p_floor_idx
+	_apply_floor_visibility()
+	_center_camera_on_dungeon()
+
+func _apply_floor_visibility() -> void:
+	if _current_presentation_root == null:
+		return
+	for child in _current_presentation_root.get_children():
+		if child.name.begins_with("Floor_"):
+			if _current_isolated_floor == -1:
+				child.visible = true
+			else:
+				child.visible = (child.name == "Floor_%d" % _current_isolated_floor)
 
 func _on_seed_submitted(p_seed: int) -> void:
 	if config != null:
@@ -68,7 +97,44 @@ func regenerate(force_new_seed: bool = false) -> void:
 		config.seed = 0
 		config.use_fixed_seed = false
 
-	# 1. Generar mazmorra física (Fases 1–6.1.1)
+	var biome: BiomeProfile = config.biome_profile if config.biome_profile != null else BiomeProfile.new()
+
+	# FLUJO MULTI-PISO (Fase 10)
+	if config.total_floors > 1:
+		var multi_res: DungeonMultiFloorResult = _multi_floor_generator.generate_multi_floor(config)
+		if multi_res == null or not multi_res.is_valid:
+			_show_failure_ui("Generación multi-piso fallida.\nPresiona [R] o [Espacio] para reintentar.")
+			return
+
+		var pres_res = _presentation_builder.build_multi_floor_presentation(
+			multi_res, self, biome, config, _current_presentation_root
+		)
+		if not pres_res.success:
+			_show_failure_ui("Fallo en presentación multi-piso 3D:\n" + pres_res.to_debug_string())
+			return
+
+		_hide_failure_ui()
+		_current_multi_result = multi_res
+		_current_presentation_root = pres_res.presentation_root
+
+		# Spawnea / reposiciona personaje en Piso 0
+		var f0 = multi_res.get_floor(0)
+		if f0 != null and not f0.rooms.is_empty():
+			var center_cell = f0.rooms[0].get_center_cell()
+			var p_pos := GridToWorld.get_cell_center_world_3d(center_cell, 0, config.cell_size, config.floor_height, 0.5)
+			if _player == null:
+				_player = _PlayerTestScript.new()
+				_player.name = "Player"
+				add_child(_player)
+			_player.position = p_pos
+
+		if visualizer != null:
+			visualizer.update_floor_view_options(config.total_floors, _current_isolated_floor)
+		_apply_floor_visibility()
+		_center_camera_on_dungeon()
+		return
+
+	# FLUJO MONO-PISO ESTÁNDAR
 	var new_result = _pipeline.generate(config, DungeonPipeline.MAX_ATTEMPTS, force_new_seed)
 	if new_result == null:
 		push_error("[DungeonLevelController] Falló la generación física tras %d intentos para '%s'." % [
@@ -90,7 +156,6 @@ func regenerate(force_new_seed: bool = false) -> void:
 		return
 
 	# 3. Materializar representación 3D atómica (Fase 8)
-	var biome: BiomeProfile = config.biome_profile if config.biome_profile != null else BiomeProfile.new()
 	var pres_res = _presentation_builder.build_presentation(
 		new_semantic, self, biome, config, _current_presentation_root, true
 	)
@@ -157,14 +222,30 @@ func _hide_failure_ui() -> void:
 		_failure_label.visible = false
 
 func _center_camera_on_dungeon() -> void:
-	if camera == null or _current_result == null:
+	if camera == null:
 		return
 
-	var center_x: float = (_current_result.grid.width * config.cell_size) * 0.5
-	var center_z: float = (_current_result.grid.height * config.cell_size) * 0.5
-	_camera_pivot = Vector3(center_x, 0, center_z)
+	var grid_w: int = 32
+	var grid_h: int = 32
+	if _current_result != null and _current_result.grid != null:
+		grid_w = _current_result.grid.width
+		grid_h = _current_result.grid.height
+	elif _current_multi_result != null and _current_multi_result.get_floor(0) != null and _current_multi_result.get_floor(0).grid != null:
+		grid_w = _current_multi_result.get_floor(0).grid.width
+		grid_h = _current_multi_result.get_floor(0).grid.height
 
-	_zoom = maxf(float(_current_result.grid.width), float(_current_result.grid.height)) * config.cell_size * 0.9
+	var center_x: float = (grid_w * config.cell_size) * 0.5
+	var center_z: float = (grid_h * config.cell_size) * 0.5
+	var num_floors: int = config.total_floors if config != null else 1
+	var center_y: float = float(num_floors - 1) * config.floor_height * 0.5
+
+	if _current_isolated_floor >= 0:
+		center_y = float(_current_isolated_floor) * config.floor_height
+		_zoom = maxf(float(grid_w), float(grid_h)) * config.cell_size * 0.9
+	else:
+		_zoom = maxf(float(grid_w), float(grid_h)) * config.cell_size * (1.1 if num_floors > 1 else 0.9)
+
+	_camera_pivot = Vector3(center_x, center_y, center_z)
 	camera.size = _zoom
 	_update_camera_transform()
 
@@ -247,18 +328,25 @@ func _input(event: InputEvent) -> void:
 				if _player != null:
 					_camera_pivot = _player.global_position
 					_update_camera_transform()
-			KEY_1:
-				config = preload("res://resources/configs/cave_dungeon.tres").duplicate()
-				_on_random_seed_requested()
-			KEY_2:
-				config = preload("res://resources/configs/castle_dungeon.tres").duplicate()
-				_on_random_seed_requested()
-			KEY_3:
-				config = preload("res://resources/configs/hybrid_dungeon.tres").duplicate()
-				_on_random_seed_requested()
-			KEY_4:
-				config = preload("res://resources/configs/dungeon_128.tres").duplicate()
-				_on_random_seed_requested()
+			KEY_0:
+				_on_floor_view_mode_changed(-1)
+				if visualizer != null:
+					visualizer.update_floor_view_options(config.total_floors if config != null else 1, -1)
+			KEY_BRACKETLEFT:
+				var next_f: int = _current_isolated_floor - 1
+				if next_f < -1:
+					next_f = (config.total_floors - 1) if config != null else 0
+				_on_floor_view_mode_changed(next_f)
+				if visualizer != null:
+					visualizer.update_floor_view_options(config.total_floors if config != null else 1, next_f)
+			KEY_BRACKETRIGHT:
+				var max_f: int = (config.total_floors - 1) if config != null else 0
+				var next_f: int = _current_isolated_floor + 1
+				if next_f > max_f:
+					next_f = -1
+				_on_floor_view_mode_changed(next_f)
+				if visualizer != null:
+					visualizer.update_floor_view_options(config.total_floors if config != null else 1, next_f)
 
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:

@@ -6,19 +6,19 @@ extends RefCounted
 
 var floor_number: int = 0
 var grid: CellGrid = null
-var rooms: Array[RoomData] = []
+var rooms: Array = []
 var connections: Array = []
-var door_pairs: Array[DoorPair] = []
-var stairs: Array[StairData] = []
+var door_pairs: Array = []
+var stairs: Array = []
 var seed_used: int = 0
 var metadata: Dictionary = {}
 
 func _init(
 	p_floor_number: int = 0,
 	p_grid: CellGrid = null,
-	p_rooms: Array[RoomData] = [],
-	p_door_pairs: Array[DoorPair] = [],
-	p_stairs: Array[StairData] = []
+	p_rooms: Array = [],
+	p_door_pairs: Array = [],
+	p_stairs: Array = []
 ) -> void:
 	floor_number = p_floor_number
 	grid = p_grid
@@ -43,7 +43,7 @@ func has_stairs() -> bool:
 	return not stairs.is_empty()
 
 ## Crea una instancia de DungeonFloorData a partir de un DungeonResult existente.
-static func from_dungeon_result(res: DungeonResult, p_stairs: Array[StairData] = []) -> DungeonFloorData:
+static func from_dungeon_result(res: DungeonResult, p_stairs: Array = []) -> DungeonFloorData:
 	if res == null:
 		return null
 	var floor_data := DungeonFloorData.new(
