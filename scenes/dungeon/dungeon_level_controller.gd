@@ -2,6 +2,9 @@ class_name DungeonLevelController
 extends Node3D
 
 ## Controlador de escena para generación, visualización e interacción con la mazmorra.
+## Implementa flujo por pasos: 
+## 1. Generación y Previsualización en Plano 2D interactivo.
+## 2. Al presionar "Generar en 3D" (o Espacio/Enter), materializa el mundo 3D navegable.
 
 @export var config: DungeonConfig = null
 @export var visualizer: DungeonVisualizer = null
@@ -10,13 +13,12 @@ extends Node3D
 const _SemanticOrchestratorScript = preload("res://src/dungeon_generator/core/semantic/semantic_orchestrator.gd")
 const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
 const _MultiFloorGeneratorScript = preload("res://src/dungeon_generator/core/multi_floor_generator.gd")
+const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
 
 var _pipeline: DungeonPipeline = DungeonPipeline.new()
 var _semantic_orchestrator := _SemanticOrchestratorScript.new()
 var _presentation_builder := _DungeonPresentationBuilderScript.new()
 var _multi_floor_generator := _MultiFloorGeneratorScript.new()
-
-const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
 
 var _current_result: DungeonResult = null
 var _current_multi_result: DungeonMultiFloorResult = null
@@ -49,6 +51,10 @@ func _connect_visualizer_signals() -> void:
 			visualizer.floors_changed.connect(_on_floors_changed)
 		if not visualizer.floor_view_mode_changed.is_connected(_on_floor_view_mode_changed):
 			visualizer.floor_view_mode_changed.connect(_on_floor_view_mode_changed)
+		if not visualizer.generate_3d_requested.is_connected(build_3d_presentation):
+			visualizer.generate_3d_requested.connect(build_3d_presentation)
+		if not visualizer.toggle_2d_view_requested.is_connected(_on_toggle_2d_view_requested):
+			visualizer.toggle_2d_view_requested.connect(_on_toggle_2d_view_requested)
 
 func _on_floors_changed(p_floors: int) -> void:
 	if config != null:
@@ -60,6 +66,10 @@ func _on_floor_view_mode_changed(p_floor_idx: int) -> void:
 	_current_isolated_floor = p_floor_idx
 	_apply_floor_visibility()
 	_center_camera_on_dungeon()
+
+func _on_toggle_2d_view_requested() -> void:
+	if _current_result != null and visualizer != null:
+		visualizer.show_2d_preview(_current_result)
 
 func _apply_floor_visibility() -> void:
 	if _current_presentation_root == null:
@@ -90,6 +100,7 @@ func _setup_camera() -> void:
 	camera.size = _zoom
 	_update_camera_transform()
 
+## Paso 1: Generación lógica y apertura de la vista previa 2D
 func regenerate(force_new_seed: bool = false) -> void:
 	_connect_visualizer_signals()
 	if config == null:
@@ -99,7 +110,11 @@ func regenerate(force_new_seed: bool = false) -> void:
 		config.seed = 0
 		config.use_fixed_seed = false
 
-	var biome: BiomeProfile = config.biome_profile if config.biome_profile != null else BiomeProfile.new()
+	# Ocultar mundo 3D previo si existe mientras se visualiza el plano 2D
+	if _current_presentation_root != null:
+		_current_presentation_root.visible = false
+	if _player != null:
+		_player.visible = false
 
 	# FLUJO MULTI-PISO (Fase 10)
 	if config.total_floors > 1:
@@ -108,32 +123,14 @@ func regenerate(force_new_seed: bool = false) -> void:
 			_show_failure_ui("Generación multi-piso fallida.\nPresiona [R] o [Espacio] para reintentar.")
 			return
 
-		var pres_res = _presentation_builder.build_multi_floor_presentation(
-			multi_res, self, biome, config, _current_presentation_root
-		)
-		if not pres_res.success:
-			_show_failure_ui("Fallo en presentación multi-piso 3D:\n" + pres_res.to_debug_string())
-			return
-
 		_hide_failure_ui()
 		_current_multi_result = multi_res
-		_current_presentation_root = pres_res.presentation_root
-
-		# Spawnea / reposiciona personaje en Piso 0
 		var f0 = multi_res.get_floor(0)
-		if f0 != null and not f0.rooms.is_empty():
-			var center_cell = f0.rooms[0].get_center_cell()
-			var p_pos := GridToWorld.get_cell_center_world_3d(center_cell, 0, config.cell_size, config.floor_height, 0.5)
-			if _player == null:
-				_player = _PlayerTestScript.new()
-				_player.name = "Player"
-				add_child(_player)
-			_player.position = p_pos
+		_current_result = f0
 
 		if visualizer != null:
 			visualizer.update_floor_view_options(config.total_floors, _current_isolated_floor)
-		_apply_floor_visibility()
-		_center_camera_on_dungeon()
+			visualizer.show_2d_preview(f0)
 		return
 
 	# FLUJO MONO-PISO ESTÁNDAR
@@ -157,31 +154,73 @@ func regenerate(force_new_seed: bool = false) -> void:
 		_show_failure_ui("Validación semántica fallida.\nPresiona [R] o [Espacio] para reintentar.")
 		return
 
-	# 3. Materializar representación 3D atómica (Fase 8)
-	var pres_res = _presentation_builder.build_presentation(
-		new_semantic, self, biome, config, _current_presentation_root, true
-	)
-
-	if not pres_res.success:
-		push_error("[DungeonLevelController] Falló la presentación 3D:\n%s" % pres_res.to_debug_string())
-		if not pres_res.previous_presentation_preserved:
-			_show_failure_ui("Fallo en presentación 3D:\n" + pres_res.to_debug_string())
-		return
-
 	_hide_failure_ui()
 	_current_result = new_result
 	_current_semantic_result = new_semantic
-	_current_presentation_root = pres_res.presentation_root
 
-	# Actualizar Overlay 2D
+	# Mostrar el Plano 2D interactivo en la UI
 	if visualizer != null:
-		visualizer.set_dungeon_result(_current_result)
+		visualizer.show_2d_preview(_current_result)
 
-	# Posicionar o spawnear personaje de prueba
-	_spawn_or_reposition_player()
+## Paso 2: Materialización y visualización del mundo 3D al confirmar
+func build_3d_presentation() -> void:
+	if _current_result == null and _current_multi_result == null:
+		return
 
-	# Centrar cámara en la mazmorra
-	_center_camera_on_dungeon()
+	var biome: BiomeProfile = config.biome_profile if config.biome_profile != null else BiomeProfile.new()
+
+	if visualizer != null:
+		visualizer.hide_2d_preview()
+
+	# Si es multi-piso
+	if config.total_floors > 1 and _current_multi_result != null:
+		var pres_res = _presentation_builder.build_multi_floor_presentation(
+			_current_multi_result, self, biome, config, _current_presentation_root
+		)
+		if not pres_res.success:
+			_show_failure_ui("Fallo en presentación multi-piso 3D:\n" + pres_res.to_debug_string())
+			return
+
+		_current_presentation_root = pres_res.presentation_root
+		_current_presentation_root.visible = true
+
+		var f0 = _current_multi_result.get_floor(0)
+		if f0 != null and not f0.rooms.is_empty():
+			var center_cell = f0.rooms[0].get_center_cell()
+			var p_pos := GridToWorld.get_cell_center_world_3d(center_cell, 0, config.cell_size, config.floor_height, 0.5)
+			if _player == null:
+				_player = _PlayerTestScript.new()
+				_player.name = "Player"
+				add_child(_player)
+			_player.position = p_pos
+			_player.visible = true
+
+		_apply_floor_visibility()
+		_center_camera_on_dungeon()
+		return
+
+	# Si es mono-piso
+	if _current_semantic_result != null:
+		var pres_res = _presentation_builder.build_presentation(
+			_current_semantic_result, self, biome, config, _current_presentation_root, true
+		)
+
+		if not pres_res.success:
+			push_error("[DungeonLevelController] Falló la presentación 3D:\n%s" % pres_res.to_debug_string())
+			if not pres_res.previous_presentation_preserved:
+				_show_failure_ui("Fallo en presentación 3D:\n" + pres_res.to_debug_string())
+			return
+
+		_current_presentation_root = pres_res.presentation_root
+		_current_presentation_root.visible = true
+
+		# Posicionar o spawnear personaje de prueba
+		_spawn_or_reposition_player()
+		if _player != null:
+			_player.visible = true
+
+		# Centrar cámara en la mazmorra
+		_center_camera_on_dungeon()
 
 func _spawn_or_reposition_player() -> void:
 	if _player == null:
@@ -224,18 +263,11 @@ func _hide_failure_ui() -> void:
 		_failure_label.visible = false
 
 func _center_camera_on_dungeon() -> void:
-	if camera == null:
+	if camera == null or config == null:
 		return
 
-	var grid_w: int = 32
-	var grid_h: int = 32
-	if _current_result != null and _current_result.grid != null:
-		grid_w = _current_result.grid.width
-		grid_h = _current_result.grid.height
-	elif _current_multi_result != null and _current_multi_result.get_floor(0) != null and _current_multi_result.get_floor(0).grid != null:
-		grid_w = _current_multi_result.get_floor(0).grid.width
-		grid_h = _current_multi_result.get_floor(0).grid.height
-
+	var grid_w: float = float(config.grid_width)
+	var grid_h: float = float(config.grid_height)
 	var center_x: float = (grid_w * config.cell_size) * 0.5
 	var center_z: float = (grid_h * config.cell_size) * 0.5
 	var num_floors: int = config.total_floors if config != null else 1
@@ -277,7 +309,6 @@ func _handle_camera_pan(delta: float) -> void:
 	if camera == null:
 		return
 
-	# No mover cámara si el usuario está escribiendo en un campo de texto
 	var focus_owner = get_viewport().gui_get_focus_owner()
 	if focus_owner is LineEdit or focus_owner is TextEdit:
 		return
@@ -285,12 +316,10 @@ func _handle_camera_pan(delta: float) -> void:
 	var speed: float = _zoom * 1.5 * delta
 	var move_dir := Vector3.ZERO
 
-	# Direcciones relativas al ángulo horizontal (yaw) actual de la cámara
 	var rad_y: float = deg_to_rad(_camera_yaw)
 	var forward := Vector3(-sin(rad_y), 0, -cos(rad_y)).normalized()
 	var right := Vector3(cos(rad_y), 0, -sin(rad_y)).normalized()
 
-	# Cámara se mueve EXCLUSIVAMENTE con WASD
 	if Input.is_key_pressed(KEY_W):
 		move_dir += forward
 	if Input.is_key_pressed(KEY_S):
@@ -305,7 +334,6 @@ func _handle_camera_pan(delta: float) -> void:
 		_update_camera_transform()
 
 func _input(event: InputEvent) -> void:
-	# Manejo de foco en interfaz de usuario
 	var focus_owner = get_viewport().gui_get_focus_owner()
 	if focus_owner is LineEdit or focus_owner is TextEdit:
 		if event is InputEventKey and event.pressed and not event.echo:
@@ -316,7 +344,15 @@ func _input(event: InputEvent) -> void:
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
-			KEY_R, KEY_SPACE:
+			KEY_SPACE, KEY_ENTER:
+				if visualizer != null and visualizer.is_2d_preview_mode:
+					build_3d_presentation()
+				else:
+					_on_random_seed_requested()
+			KEY_TAB, KEY_M:
+				if visualizer != null:
+					visualizer.toggle_2d_preview()
+			KEY_R:
 				_on_random_seed_requested()
 			KEY_T, KEY_V:
 				_is_top_down = not _is_top_down
@@ -358,6 +394,5 @@ func _input(event: InputEvent) -> void:
 				camera.size = _zoom
 
 	if event is InputEventMouseMotion and _is_orbiting:
-		# Orbitar exclusivamente de izquierda a derecha (yaw), sin variación vertical
 		_camera_yaw -= event.relative.x * 0.4
 		_update_camera_transform()
