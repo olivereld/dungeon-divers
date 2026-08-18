@@ -230,7 +230,7 @@ func build_dungeon_wall_mesh(
 
 	return mesh
 
-## Distribuye ladrillos estilizados sobre la cara frontal del panel.
+## Distribuye ladrillos estilizados sobre la cara frontal del panel mediante FastNoiseLite.
 func _distribute_bricks_on_edge(
 	st: SurfaceTool,
 	p0: Vector3,
@@ -243,42 +243,62 @@ func _distribute_bricks_on_edge(
 	panel_h: float,
 	bot_trim_h: float
 ) -> void:
-	if edge_len < 1.0:
+	if edge_len < 0.8:
 		return
 
-	var num_segs: int = maxi(1, int(round(edge_len / config.cube_size)))
-	var seg_len: float = edge_len / float(num_segs)
+	var noise := FastNoiseLite.new()
+	noise.seed = config.seed
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.frequency = config.noise_frequency
 
 	var bw: float = config.brick_width
 	var bh: float = config.brick_height
-	var brick_depth: float = config.brick_protrusion * 2.0
 	var sp: float = 0.022
-
 	var basis := Basis(tangent, Vector3.UP, normal)
 
-	for s in range(num_segs):
-		var seg_center: float = (float(s) * seg_len) + (seg_len * 0.5)
-		if seg_center < bw * 0.6 or seg_center > edge_len - (bw * 0.6):
-			continue
+	var num_x_slots: int = maxi(2, int(edge_len / (bw * 1.2)))
+	var num_y_slots: int = maxi(2, int(panel_h / (bh * 1.6)))
 
-		var seg_pos: Vector3 = p0 + (tangent * seg_center)
-		var is_odd: bool = (s % 2 == 1)
+	var step_x: float = edge_len / float(num_x_slots)
+	var step_y: float = panel_h / float(num_y_slots)
 
-		if not is_odd:
-			var c1_y: float = bot_trim_h + (panel_h * 0.72)
-			_append_brick(st, basis, seg_pos, Vector3(bw * 0.12, c1_y, 0.0), Vector3(bw * 0.85, bh, brick_depth), config, rng)
+	for iy in range(num_y_slots):
+		var slot_y: float = bot_trim_h + (float(iy) * step_y) + (step_y * 0.5)
 
-			var c2_y: float = bot_trim_h + (panel_h * 0.40)
-			_append_brick(st, basis, seg_pos, Vector3(bw * 0.10, c2_y + (bh * 0.5) + (sp * 0.5), 0.0), Vector3(bw * 0.80, bh, brick_depth), config, rng)
-			_append_brick(st, basis, seg_pos, Vector3(-bw * 0.35, c2_y - (bh * 0.5) - (sp * 0.5), 0.0), Vector3(bw * 0.85, bh, brick_depth), config, rng)
-			_append_brick(st, basis, seg_pos, Vector3(bw * 0.42, c2_y - (bh * 0.5) - (sp * 0.5), 0.0), Vector3(bw * 0.90, bh, brick_depth), config, rng)
-		else:
-			var b1_y: float = bot_trim_h + (panel_h * 0.78)
-			_append_brick(st, basis, seg_pos, Vector3(-bw * 0.15, b1_y, 0.0), Vector3(bw * 0.82, bh, brick_depth), config, rng)
+		for ix in range(num_x_slots):
+			var seg_dist: float = (float(ix) * step_x) + (step_x * 0.5)
+			if seg_dist < bw * 0.5 or seg_dist > edge_len - (bw * 0.5):
+				continue
 
-			var b2_y: float = bot_trim_h + (panel_h * 0.25)
-			_append_brick(st, basis, seg_pos, Vector3(0.0, b2_y + (bh * 0.5) + (sp * 0.5), 0.0), Vector3(bw * 0.80, bh, brick_depth), config, rng)
-			_append_brick(st, basis, seg_pos, Vector3(-bw * 0.38, b2_y - (bh * 0.5) - (sp * 0.5), 0.0), Vector3(bw * 0.85, bh, brick_depth), config, rng)
+			var pt_world: Vector3 = p0 + (tangent * seg_dist)
+			var n_val: float = noise.get_noise_3d(pt_world.x * 1.5, slot_y * 2.0, pt_world.z * 1.5)
+			var threshold: float = 0.65 - (config.brick_density * 0.95)
+
+			if n_val > threshold:
+				var size := _get_random_brick_size(bw, bh, config, rng)
+				var jitter_along: float = rng.randf_range(-step_x * 0.2, step_x * 0.2)
+				var jitter_y: float = rng.randf_range(-step_y * 0.15, step_y * 0.15)
+				var brick_pt: Vector3 = pt_world + (tangent * jitter_along)
+				var local_pos := Vector3(0.0, slot_y + jitter_y, 0.0)
+
+				_append_brick(st, basis, brick_pt, local_pos, size, config, rng)
+
+				if rng.randf() < (config.brick_density * 0.5):
+					var size2 := _get_random_brick_size(bw * 0.85, bh, config, rng)
+					var pair_y: float = slot_y + jitter_y - bh - sp
+					if pair_y > bot_trim_h + (bh * 0.6):
+						_append_brick(st, basis, brick_pt, Vector3(rng.randf_range(-bw * 0.3, bw * 0.3), pair_y, 0.0), size2, config, rng)
+
+func _get_random_brick_size(base_w: float, base_h: float, config: WallMeshConfig, rng: RandomNumberGenerator) -> Vector3:
+	var w_var: float = rng.randf_range(-config.brick_size_variance, config.brick_size_variance)
+	var h_var: float = rng.randf_range(-config.brick_size_variance * 0.5, config.brick_size_variance * 0.5)
+	var d_var: float = rng.randf_range(-config.brick_depth_variance, config.brick_depth_variance)
+
+	var w: float = maxf(0.12, base_w * (1.0 + w_var))
+	var h: float = maxf(0.06, base_h * (1.0 + h_var))
+	var depth: float = maxf(0.015, (config.brick_protrusion * 2.0) * (1.0 + d_var))
+
+	return Vector3(w, h, depth)
 
 func _append_brick(
 	st: SurfaceTool,

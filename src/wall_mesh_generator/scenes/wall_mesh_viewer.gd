@@ -20,6 +20,8 @@ const _WallMaterialFactoryScript = preload("res://src/wall_mesh_generator/materi
 @onready var slider_height_cubes: HSlider = %SliderHeightCubes
 @onready var label_height_cubes: Label = %LabelHeightCubes
 @onready var spin_seed: SpinBox = %SpinSeed
+@onready var slider_density: HSlider = %SliderDensity
+@onready var label_density: Label = %LabelDensity
 @onready var option_preset: OptionButton = %OptionPreset
 
 # Controles Secuenciales
@@ -81,6 +83,7 @@ func _setup_ui() -> void:
 	slider_length.value = _config.wall_length_cubes
 	slider_height_cubes.value = _config.cubes_high
 	spin_seed.value = _config.seed
+	slider_density.value = _config.brick_density
 
 	_update_ui_labels()
 
@@ -110,6 +113,11 @@ func _connect_signals() -> void:
 	)
 	%BtnRandomSeed.pressed.connect(func():
 		spin_seed.value = randi() % 999999
+	)
+	slider_density.value_changed.connect(func(v: float):
+		_config.brick_density = v
+		_update_ui_labels()
+		_rebuild_wall(true)
 	)
 	option_preset.item_selected.connect(func(idx: int):
 		_current_preset = idx
@@ -167,6 +175,7 @@ func _update_ui_labels() -> void:
 		_:
 			label_length.text = "Longitud: %d cubos (%.1fm)" % [_config.wall_length_cubes, _config.get_total_length()]
 	label_height_cubes.text = "Altura: %d cubos (%.1fm)" % [_config.cubes_high, _config.get_total_height()]
+	label_density.text = "Densidad de Ladrillos (Noise): %d%%" % int(_config.brick_density * 100.0)
 
 func _rebuild_wall(reset_seq: bool = true) -> void:
 	var mode: WallSequenceController.StepMode = option_seq_mode.selected as WallSequenceController.StepMode
