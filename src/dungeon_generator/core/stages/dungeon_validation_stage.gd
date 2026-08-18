@@ -5,6 +5,7 @@ extends RefCounted
 
 const _FloodFillScript = preload("res://src/dungeon_generator/core/algorithms/flood_fill.gd")
 const _FitnessEvaluatorScript = preload("res://src/dungeon_generator/core/solvers/fitness_evaluator.gd")
+const _DungeonDistanceFieldScript = preload("res://src/dungeon_generator/core/algorithms/dungeon_distance_field.gd")
 
 var _flood_fill := _FloodFillScript.new()
 var _fitness_evaluator := _FitnessEvaluatorScript.new()
@@ -24,6 +25,16 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		])
 		ctx.mark_attempt_failed("FLOOD_FILL_CONNECTIVITY_FAILED")
 		return false
+
+	# Calcular y almacenar el campo de distancias canónico (Single-pass BFS)
+	var start_pos: Vector2i = Vector2i.ZERO
+	var spawn_cells = ctx.grid.find_cells_of_type(CellGrid.CellType.SPAWN)
+	if not spawn_cells.is_empty():
+		start_pos = spawn_cells[0]
+	elif not ctx.rooms.is_empty():
+		start_pos = ctx.rooms[0].get_center()
+
+	ctx.distance_field = _DungeonDistanceFieldScript.compute_distance_field(ctx.grid, start_pos)
 
 	ctx.fitness_score = _fitness_evaluator.evaluate(ctx.grid, ctx.rooms, ctx.config)
 	ctx.metrics["aesthetic_metrics"] = _compute_aesthetic_metrics(ctx.corridor_paths, ctx.doors)
