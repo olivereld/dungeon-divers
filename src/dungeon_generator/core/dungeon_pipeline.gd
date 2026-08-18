@@ -22,6 +22,7 @@ const _StructuralValidatorScript = preload("res://src/dungeon_generator/core/val
 const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/room_connectivity_repair.gd")
 const _CorridorConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/corridor_connectivity_repair.gd")
 const _CorridorPrunerScript = preload("res://src/dungeon_generator/core/algorithms/corridor_pruner.gd")
+const _RoomShapeGeneratorScript = preload("res://src/dungeon_generator/core/algorithms/room_shape_generator.gd")
 
 var _seed_registry: DungeonSeedRegistry = DungeonSeedRegistry.new()
 var _mission_grammar := MissionGrammar.new()
@@ -359,19 +360,30 @@ func _build_rooms(grid: CellGrid, rooms: Array[RoomData], config: DungeonConfig,
 	for room in rooms:
 		match config.algorithm:
 			"CellularAutomata":
-				_cellular_automata.apply(grid, room.rect, rng)
-				grid.set_cell(room.get_center(), CellGrid.CellType.FLOOR)
+				# Solo aplicar autómatas celulares en salas grandes (cuevas cavernosas >= 12x12)
+				if room.rect.size.x >= 12 and room.rect.size.y >= 12:
+					_cellular_automata.apply(grid, room.rect, rng)
+					grid.set_cell(room.get_center(), CellGrid.CellType.FLOOR)
+				else:
+					_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OCTAGONAL_CHAMBER, rng)
 			"BSP":
 				grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
 			"Hybrid":
 				if room.room_type == &"start" or room.room_type == &"goal" or room.room_type == &"boss":
-					grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
-				else:
-					if rng.randf() > 0.4:
-						grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
+					if room.rect.size.x >= 8 and room.rect.size.y >= 8 and rng.randf() < 0.5:
+						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.PILLARED_HALL, rng)
 					else:
-						_cellular_automata.apply(grid, room.rect, rng)
-						grid.set_cell(room.get_center(), CellGrid.CellType.FLOOR)
+						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, rng)
+				else:
+					var roll: float = rng.randf()
+					if roll < 0.40:
+						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, rng)
+					elif roll < 0.65:
+						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OCTAGONAL_CHAMBER, rng)
+					elif roll < 0.85:
+						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.CRUCIFORM_SANCTUARY, rng)
+					else:
+						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.PILLARED_HALL, rng)
 			_:
 				grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
 
