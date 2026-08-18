@@ -105,7 +105,14 @@ static func resolve_doors(
 			var p_end: Vector2i = path.centerline_cells[-1]
 			var is_a_endpoint: bool = (ent_a.outer_cell == p_start or ent_a.outer_cell == p_end)
 			var is_b_endpoint: bool = (ent_b.outer_cell == p_start or ent_b.outer_cell == p_end)
-			if not is_a_endpoint or not is_b_endpoint or ent_a.outer_cell == ent_b.outer_cell:
+			var endpoints_valid: bool = false
+
+			if path.centerline_cells.size() == 1:
+				endpoints_valid = (ent_a.outer_cell == p_start and ent_b.outer_cell == p_start)
+			else:
+				endpoints_valid = is_a_endpoint and is_b_endpoint and (ent_a.outer_cell != ent_b.outer_cell)
+
+			if not endpoints_valid:
 				if is_required:
 					result.add_failure(conn_id, "DOOR_NOT_AT_CORRIDOR_ENDPOINT")
 				else:
