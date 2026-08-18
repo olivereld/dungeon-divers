@@ -65,10 +65,12 @@ static func carve_corridors(
 	# 1. Crear el grafo base AStar2D para fallback y comprobaciones de accesibilidad
 	var astar := _build_base_astar_graph(grid, cfg)
 
-	# 2. Convertir EntrancePairs a CorridorRequests y ordenar por prioridad
+	# 2. Convertir EntrancePairs o CorridorRequests y ordenar por prioridad
 	var requests: Array[CorridorRequest] = []
 	for pair in entrance_pairs:
-		if pair != null and pair.entrance_a != null and pair.entrance_b != null:
+		if pair is CorridorRequest:
+			requests.append(pair)
+		elif pair != null and "entrance_a" in pair and pair.entrance_a != null and pair.entrance_b != null:
 			var conn = conn_map.get(pair.connection_id, null)
 			var is_req: bool = conn.is_required if (conn != null and "is_required" in conn) else true
 			var req := CorridorRequest.from_entrance_pair(pair, is_req)
@@ -402,10 +404,16 @@ static func _find_direction_aware_path(
 			elif ctype == CellGrid.CellType.FLOOR or ctype == CellGrid.CellType.DOOR:
 				step_cost = cost_floor
 
-			# Penalización de sala ajena
+			# Penalización de sala ajena y buffer de proximidad inmediata
 			var owner_id: int = _get_room_id_at(next_pos, rooms)
 			if owner_id != -1 and owner_id != req.room_a_id and owner_id != req.room_b_id:
 				step_cost += other_room_cost
+			elif owner_id == -1:
+				for r in rooms:
+					if r != null and r.id != req.room_a_id and r.id != req.room_b_id:
+						if r.rect.grow(1).has_point(next_pos):
+							step_cost += 1.5
+							break
 
 			# Penalización de giro si cambia de dirección respecto a curr_dir
 			var turn_cost: float = 0.0
