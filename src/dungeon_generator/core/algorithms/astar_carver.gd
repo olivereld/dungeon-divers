@@ -203,18 +203,19 @@ static func _carve_single_request(
 		req.room_b_id
 	)
 
-	# Validar que toda la región a tallar no viole restricciones y no invada salas ajenas (Fase 8)
+	# Validar que toda la región a tallar no viole restricciones y no invada salas (Fase 8)
 	for cell in candidate_carved_cells:
 		if not grid.is_in_bounds(cell):
 			return {"success": false, "reason": "WIDENING_OUT_OF_BOUNDS"}
 		var cell_type := grid.get_cell(cell)
 		if cell_type == CellGrid.CellType.COLUMN or cell_type == CellGrid.CellType.OBSTACLE or cell_type == CellGrid.CellType.VOID:
 			return {"success": false, "reason": "BLOCKED_CELL_IN_REGION"}
-		var c_owner: int = grid.get_room_owner(cell)
-		if c_owner == -1:
-			c_owner = _get_room_id_at(cell, rooms)
-		if c_owner != -1 and c_owner != req.room_a_id and c_owner != req.room_b_id:
-			return {"success": false, "reason": "FORBIDDEN_ROOM_INVADED"}
+		if cell != req.start_boundary and cell != req.goal_boundary:
+			var c_owner: int = grid.get_room_owner(cell)
+			if c_owner == -1:
+				c_owner = _get_room_id_at(cell, rooms)
+			if c_owner != -1:
+				return {"success": false, "reason": "FORBIDDEN_ROOM_INVADED"}
 
 	# --- PASO 4: COMMIT (Commit atómico al CellGrid) ---
 	var reused_count: int = 0
@@ -398,11 +399,11 @@ static func _find_direction_aware_path(
 			elif ctype == CellGrid.CellType.FLOOR or ctype == CellGrid.CellType.DOOR:
 				step_cost = cost_floor
 
-			# Penalización de sala ajena y buffer de proximidad inmediata (Fase 6 & Fase 9: Room C = Prohibido)
+			# Prohibición de invasión de salas (Fase 6 & Fase 9: Cualquier sala es territorio prohibido para centerline)
 			var owner_id: int = grid.get_room_owner(next_pos)
 			if owner_id == -1:
 				owner_id = _get_room_id_at(next_pos, rooms)
-			if owner_id != -1 and owner_id != req.room_a_id and owner_id != req.room_b_id:
+			if owner_id != -1:
 				continue
 			elif owner_id == -1:
 				# 1. Proteger jambas laterales de las puertas del inicio y final de la conexión
@@ -548,9 +549,11 @@ static func _validate_centerline(
 			if manhattan != 1:
 				return "NON_CARDINAL_STEP"
 
-		# Comprobar que no atraviese el interior de una habitación ajena prohibida
-		var owner_id: int = _get_room_id_at(p, rooms)
-		if owner_id != -1 and owner_id != room_a_id and owner_id != room_b_id:
+		# Comprobar que no atraviese el interior de ninguna habitación
+		var owner_id: int = grid.get_room_owner(p)
+		if owner_id == -1:
+			owner_id = _get_room_id_at(p, rooms)
+		if owner_id != -1:
 			return "FORBIDDEN_ROOM"
 
 	return ""
