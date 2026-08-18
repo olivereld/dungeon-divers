@@ -13,6 +13,7 @@ const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall
 const _WallMaterialFactoryScript = preload("res://src/wall_mesh_generator/materials/wall_material_factory.gd")
 const _DungeonDoorEntityScript = preload("res://src/dungeon_generator/presentation/entities/dungeon_door_entity.gd")
 const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
+const _DoorPhysicalValidatorScript = preload("res://src/dungeon_generator/core/validation/door_physical_validator.gd")
 
 ## Spawnea todas las puertas a partir de la lista de DungeonDoorManifest en el StagingRoot.
 func spawn_doors(
@@ -21,7 +22,8 @@ func spawn_doors(
 	biome: BiomeProfile,
 	tile_size: float = 2.0,
 	wall_height: int = 2,
-	seed: int = 1337
+	seed: int = 1337,
+	grid: CellGrid = null
 ) -> Dictionary:
 	var result := {
 		"spawned_doors": [],
@@ -97,6 +99,10 @@ func spawn_doors(
 
 	for manifest in door_manifests:
 		if manifest == null:
+			continue
+
+		# Un arco o puerta solo tiene sentido constructivo si posee paredes a ambos lados paralelos (jambas sólidas)
+		if grid != null and not _DoorPhysicalValidatorScript.validate_door_jambs(grid, manifest.cell, manifest.side):
 			continue
 
 		var portal_root: Node3D = null

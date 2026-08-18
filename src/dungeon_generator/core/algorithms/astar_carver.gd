@@ -409,10 +409,30 @@ static func _find_direction_aware_path(
 			if owner_id != -1 and owner_id != req.room_a_id and owner_id != req.room_b_id:
 				step_cost += other_room_cost
 			elif owner_id == -1:
+				# 1. Proteger jambas laterales de las puertas del inicio y final de la conexión
+				var is_jamb := false
+				if req.start_direction.y != 0:
+					if next_pos == req.start_boundary + Vector2i(-1, 0) or next_pos == req.start_boundary + Vector2i(1, 0):
+						is_jamb = true
+				elif req.start_direction.x != 0:
+					if next_pos == req.start_boundary + Vector2i(0, -1) or next_pos == req.start_boundary + Vector2i(0, 1):
+						is_jamb = true
+
+				if req.goal_direction.y != 0:
+					if next_pos == req.goal_boundary + Vector2i(-1, 0) or next_pos == req.goal_boundary + Vector2i(1, 0):
+						is_jamb = true
+				elif req.goal_direction.x != 0:
+					if next_pos == req.goal_boundary + Vector2i(0, -1) or next_pos == req.goal_boundary + Vector2i(0, 1):
+						is_jamb = true
+
+				if is_jamb:
+					step_cost += 50.0
+
+				# 2. Penalizar el raspado inmediato contra paredes de salas ajenas
 				for r in rooms:
 					if r != null and r.id != req.room_a_id and r.id != req.room_b_id:
 						if r.rect.grow(1).has_point(next_pos):
-							step_cost += 1.5
+							step_cost += 20.0
 							break
 
 			# Penalización de giro si cambia de dirección respecto a curr_dir

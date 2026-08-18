@@ -110,7 +110,8 @@ func build_presentation(
 		var door_res: Dictionary = _door_spawner.spawn_doors(
 			door_manifests, staging_root, biome, tile_size,
 			config.wall_height if config != null else 2,
-			config.seed if config != null else 1337
+			config.seed if config != null else 1337,
+			semantic_result.grid
 		)
 		for d_node in door_res.get("spawned_doors", []):
 			result.spawned_entities.append(d_node)
@@ -225,7 +226,7 @@ func build_multi_floor_presentation(
 		if f_data.door_pairs != null:
 			var door_manifests = _DoorManifestFactoryScript.create_door_manifests(f_data.door_pairs)
 			var door_res: Dictionary = _door_spawner.spawn_doors(
-				door_manifests, floor_container, biome, tile_size, config.wall_height, f_data.seed_used
+				door_manifests, floor_container, biome, tile_size, config.wall_height, f_data.seed_used, f_data.grid
 			)
 			for d in door_res.get("spawned_doors", []):
 				result.spawned_entities.append(d)
