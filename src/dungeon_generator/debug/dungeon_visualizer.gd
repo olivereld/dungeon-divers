@@ -2,8 +2,9 @@ class_name DungeonVisualizer
 extends Control
 
 ## Visualizador y Generador 2D interactivo a pantalla completa con transición a 3D.
-## Provee todos los controles de configuración (semilla, algoritmo, pisos) y dibujo detallado
-## del plano (habitaciones, pasillos, puertas, arcos, spawn del jugador y objetivos).
+## Estructura de diseño:
+## - Panel Izquierdo: Configuración completa, Estadísticas de mazmorra, Leyenda y Botón de Generación 3D.
+## - Panel Derecho: Vista amplia y centrada del Plano 2D sin solapamientos.
 
 signal seed_submitted(seed_val: int)
 signal random_seed_requested()
@@ -34,7 +35,13 @@ var _hud_3d_panel: PanelContainer = null
 var is_2d_preview_mode: bool = true
 
 func _ready() -> void:
+	anchors_preset = Control.PRESET_FULL_RECT
+	anchor_right = 1.0
+	anchor_bottom = 1.0
+	offset_right = 0.0
+	offset_bottom = 0.0
 	mouse_filter = MOUSE_FILTER_IGNORE
+
 	_setup_2d_full_interface()
 	_setup_3d_hud()
 
@@ -42,221 +49,263 @@ func _setup_2d_full_interface() -> void:
 	if _preview_overlay != null:
 		return
 
-	# Fondo oscuro inmersivo
+	# 1. Fondo completo oscuro y elegante
 	_preview_overlay = ColorRect.new()
 	_preview_overlay.name = "Preview2DOverlay"
 	_preview_overlay.anchors_preset = Control.PRESET_FULL_RECT
-	_preview_overlay.color = Color(0.07, 0.09, 0.13, 0.98)
+	_preview_overlay.anchor_right = 1.0
+	_preview_overlay.anchor_bottom = 1.0
+	_preview_overlay.offset_right = 0.0
+	_preview_overlay.offset_bottom = 0.0
+	_preview_overlay.color = Color(0.06, 0.08, 0.12, 1.0)
 	_preview_overlay.mouse_filter = MOUSE_FILTER_STOP
 	add_child(_preview_overlay)
 
-	# --- BARRA SUPERIOR DE OPCIONES DE CREACIÓN 2D ---
-	var top_bar := PanelContainer.new()
-	top_bar.name = "TopConfigBar"
-	top_bar.anchors_preset = Control.PRESET_TOP_WIDE
-	top_bar.offset_left = 20.0
-	top_bar.offset_right = -20.0
-	top_bar.offset_top = 15.0
-	top_bar.offset_bottom = 68.0
+	# 2. Margen principal de pantalla completa
+	var margin_container := MarginContainer.new()
+	margin_container.anchors_preset = Control.PRESET_FULL_RECT
+	margin_container.anchor_right = 1.0
+	margin_container.anchor_bottom = 1.0
+	margin_container.offset_right = 0.0
+	margin_container.offset_bottom = 0.0
+	margin_container.add_theme_constant_override("margin_left", 20)
+	margin_container.add_theme_constant_override("margin_right", 20)
+	margin_container.add_theme_constant_override("margin_top", 20)
+	margin_container.add_theme_constant_override("margin_bottom", 20)
+	_preview_overlay.add_child(margin_container)
 
-	var top_style := StyleBoxFlat.new()
-	top_style.bg_color = Color(0.11, 0.14, 0.20, 0.95)
-	top_style.border_color = Color(0.30, 0.42, 0.60, 0.8)
-	top_style.set_border_width_all(1)
-	top_style.set_corner_radius_all(8)
-	top_style.content_margin_left = 15.0
-	top_style.content_margin_right = 15.0
-	top_style.content_margin_top = 8.0
-	top_style.content_margin_bottom = 8.0
-	top_bar.add_theme_stylebox_override("panel", top_style)
+	# 3. Contenedor horizontal: Sidebar Izquierda + Canvas Derecho
+	var main_hbox := HBoxContainer.new()
+	main_hbox.add_theme_constant_override("separation", 20)
+	main_hbox.size_flags_horizontal = SIZE_EXPAND_FILL
+	main_hbox.size_flags_vertical = SIZE_EXPAND_FILL
+	margin_container.add_child(main_hbox)
 
-	var top_hbox := HBoxContainer.new()
-	top_hbox.add_theme_constant_override("separation", 12)
-	top_bar.add_child(top_hbox)
+	# ==========================================
+	# SIDEBAR IZQUIERDA (Configuración + Estadísticas + Acciones)
+	# ==========================================
+	var sidebar := PanelContainer.new()
+	sidebar.custom_minimum_size = Vector2(370, 0)
+	sidebar.size_flags_vertical = SIZE_EXPAND_FILL
 
+	var sidebar_style := StyleBoxFlat.new()
+	sidebar_style.bg_color = Color(0.10, 0.13, 0.18, 0.98)
+	sidebar_style.border_color = Color(0.25, 0.35, 0.50, 0.8)
+	sidebar_style.set_border_width_all(1)
+	sidebar_style.set_corner_radius_all(10)
+	sidebar_style.content_margin_left = 18.0
+	sidebar_style.content_margin_right = 18.0
+	sidebar_style.content_margin_top = 16.0
+	sidebar_style.content_margin_bottom = 16.0
+	sidebar.add_theme_stylebox_override("panel", sidebar_style)
+	main_hbox.add_child(sidebar)
+
+	var scroll_sidebar := ScrollContainer.new()
+	scroll_sidebar.size_flags_horizontal = SIZE_EXPAND_FILL
+	scroll_sidebar.size_flags_vertical = SIZE_EXPAND_FILL
+	sidebar.add_child(scroll_sidebar)
+
+	var sidebar_vbox := VBoxContainer.new()
+	sidebar_vbox.size_flags_horizontal = SIZE_EXPAND_FILL
+	sidebar_vbox.size_flags_vertical = SIZE_EXPAND_FILL
+	sidebar_vbox.add_theme_constant_override("separation", 14)
+	scroll_sidebar.add_child(sidebar_vbox)
+
+	# Título
+	var header_box := HBoxContainer.new()
 	var title_lbl := Label.new()
-	title_lbl.text = "🏰 PLANO DE MAZMORRA 2D"
+	title_lbl.text = "🏰 DUNGEON GENERATOR"
 	title_lbl.add_theme_font_size_override("font_size", 16)
-	title_lbl.add_theme_color_override("font_color", Color(0.95, 0.80, 0.25, 1.0))
-	top_hbox.add_child(title_lbl)
+	title_lbl.add_theme_color_override("font_color", Color(0.95, 0.82, 0.30, 1.0))
+	header_box.add_child(title_lbl)
+	sidebar_vbox.add_child(header_box)
 
-	top_hbox.add_child(VSeparator.new())
+	var sep1 := HSeparator.new()
+	sidebar_vbox.add_child(sep1)
 
-	# Entrada de Semilla
+	# --- SECCIÓN 1: PARÁMETROS DE GENERACIÓN ---
+	var cfg_title := Label.new()
+	cfg_title.text = "⚙️ PARÁMETROS"
+	cfg_title.add_theme_font_size_override("font_size", 13)
+	cfg_title.add_theme_color_override("font_color", Color(0.70, 0.80, 0.95, 1.0))
+	sidebar_vbox.add_child(cfg_title)
+
+	# Fila Semilla
+	var seed_vbox := VBoxContainer.new()
+	seed_vbox.add_theme_constant_override("separation", 6)
+
 	var seed_lbl := Label.new()
-	seed_lbl.text = "Semilla:"
-	seed_lbl.add_theme_color_override("font_color", Color(0.85, 0.90, 0.98, 1.0))
-	top_hbox.add_child(seed_lbl)
+	seed_lbl.text = "Semilla Actual:"
+	seed_lbl.add_theme_font_size_override("font_size", 12)
+	seed_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	seed_vbox.add_child(seed_lbl)
+
+	var seed_input_hbox := HBoxContainer.new()
+	seed_input_hbox.add_theme_constant_override("separation", 6)
 
 	_seed_line_edit = LineEdit.new()
 	_seed_line_edit.placeholder_text = "Semilla..."
-	_seed_line_edit.custom_minimum_size = Vector2(110, 0)
+	_seed_line_edit.size_flags_horizontal = SIZE_EXPAND_FILL
 	_seed_line_edit.select_all_on_focus = true
 	_seed_line_edit.text_submitted.connect(_on_line_edit_submitted)
-	top_hbox.add_child(_seed_line_edit)
+	seed_input_hbox.add_child(_seed_line_edit)
 
 	_btn_copy = Button.new()
-	_btn_copy.text = "📋 Copiar"
-	_btn_copy.tooltip_text = "Copiar semilla actual"
+	_btn_copy.text = "📋"
+	_btn_copy.tooltip_text = "Copiar semilla"
 	_btn_copy.pressed.connect(_on_copy_pressed)
-	top_hbox.add_child(_btn_copy)
+	seed_input_hbox.add_child(_btn_copy)
 
 	_btn_random = Button.new()
-	_btn_random.text = "🎲 Aleatoria [R]"
+	_btn_random.text = "🎲 Aleatoria"
 	_btn_random.tooltip_text = "Generar semilla aleatoria [R]"
 	_btn_random.pressed.connect(_on_random_pressed)
-	top_hbox.add_child(_btn_random)
+	seed_input_hbox.add_child(_btn_random)
 
-	top_hbox.add_child(VSeparator.new())
+	seed_vbox.add_child(seed_input_hbox)
+	sidebar_vbox.add_child(seed_vbox)
 
-	# Selector de Algoritmo
+	# Fila Algoritmo
+	var algo_vbox := VBoxContainer.new()
+	algo_vbox.add_theme_constant_override("separation", 4)
+
 	var algo_lbl := Label.new()
-	algo_lbl.text = "Algoritmo:"
-	algo_lbl.add_theme_color_override("font_color", Color(0.85, 0.90, 0.98, 1.0))
-	top_hbox.add_child(algo_lbl)
+	algo_lbl.text = "Algoritmo de Generación:"
+	algo_lbl.add_theme_font_size_override("font_size", 12)
+	algo_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	algo_vbox.add_child(algo_lbl)
 
 	_opt_algorithm = OptionButton.new()
-	_opt_algorithm.name = "OptAlgorithm"
 	_opt_algorithm.add_item("Hybrid (Recomendado)", 0)
 	_opt_algorithm.add_item("BSP (Arquitectónico)", 1)
 	_opt_algorithm.add_item("CellularAutomata (Cuevas)", 2)
 	_opt_algorithm.item_selected.connect(_on_algorithm_selected)
-	top_hbox.add_child(_opt_algorithm)
+	algo_vbox.add_child(_opt_algorithm)
+	sidebar_vbox.add_child(algo_vbox)
 
-	# Selector de Pisos
+	# Fila Pisos
+	var floors_hbox := HBoxContainer.new()
+	floors_hbox.add_theme_constant_override("separation", 8)
+
 	var floors_lbl := Label.new()
 	floors_lbl.text = "Pisos:"
-	floors_lbl.add_theme_color_override("font_color", Color(0.85, 0.90, 0.98, 1.0))
-	top_hbox.add_child(floors_lbl)
+	floors_lbl.add_theme_font_size_override("font_size", 12)
+	floors_hbox.add_child(floors_lbl)
 
 	_spin_floors = SpinBox.new()
-	_spin_floors.name = "SpinFloors"
 	_spin_floors.min_value = 1
 	_spin_floors.max_value = 10
 	_spin_floors.value = 1
 	_spin_floors.value_changed.connect(func(v: float):
 		floors_changed.emit(int(v))
 	)
-	top_hbox.add_child(_spin_floors)
+	floors_hbox.add_child(_spin_floors)
 
-	# Selector de Vista de Piso 2D
 	_opt_floor_view = OptionButton.new()
-	_opt_floor_view.name = "OptFloorView"
-	_opt_floor_view.tooltip_text = "Piso a visualizar en 2D"
+	_opt_floor_view.size_flags_horizontal = SIZE_EXPAND_FILL
 	_opt_floor_view.item_selected.connect(func(idx: int):
 		floor_view_mode_changed.emit(_opt_floor_view.get_item_id(idx))
 	)
-	top_hbox.add_child(_opt_floor_view)
+	floors_hbox.add_child(_opt_floor_view)
 	update_floor_view_options(1)
+	sidebar_vbox.add_child(floors_hbox)
 
 	_btn_generate_2d = Button.new()
-	_btn_generate_2d.text = "🔄 Actualizar Plano"
+	_btn_generate_2d.text = "🔄 Aplicar Semilla / Regenerar"
 	_btn_generate_2d.pressed.connect(_on_generate_pressed)
-	top_hbox.add_child(_btn_generate_2d)
+	sidebar_vbox.add_child(_btn_generate_2d)
 
-	_preview_overlay.add_child(top_bar)
+	var sep2 := HSeparator.new()
+	sidebar_vbox.add_child(sep2)
 
-	# --- LIENZO CENTRAL DEL PLANO 2D ---
-	_preview_canvas = Control.new()
-	_preview_canvas.name = "PreviewCanvas"
-	_preview_canvas.anchors_preset = Control.PRESET_CENTER
-	_preview_canvas.custom_minimum_size = Vector2(760, 600)
-	_preview_canvas.draw.connect(_on_preview_canvas_draw)
-	_preview_overlay.add_child(_preview_canvas)
+	# --- SECCIÓN 2: ESTADÍSTICAS DEL PLANO ---
+	var stats_title := Label.new()
+	stats_title.text = "📊 INFORMACIÓN DEL PLANO"
+	stats_title.add_theme_font_size_override("font_size", 13)
+	stats_title.add_theme_color_override("font_color", Color(0.70, 0.80, 0.95, 1.0))
+	sidebar_vbox.add_child(stats_title)
 
-	# --- PANEL LATERAL DE ESTADÍSTICAS Y DETALLES ---
 	var stats_panel := PanelContainer.new()
-	stats_panel.anchors_preset = Control.PRESET_TOP_LEFT
-	stats_panel.offset_left = 25.0
-	stats_panel.offset_top = 85.0
-	stats_panel.offset_right = 260.0
-	stats_panel.offset_bottom = 400.0
-
-	var stats_style := StyleBoxFlat.new()
-	stats_style.bg_color = Color(0.10, 0.12, 0.18, 0.90)
-	stats_style.border_color = Color(0.25, 0.35, 0.50, 0.7)
-	stats_style.set_border_width_all(1)
-	stats_style.set_corner_radius_all(8)
-	stats_style.content_margin_left = 12.0
-	stats_style.content_margin_right = 12.0
-	stats_style.content_margin_top = 10.0
-	stats_style.content_margin_bottom = 10.0
-	stats_panel.add_theme_stylebox_override("panel", stats_style)
+	var stats_box_style := StyleBoxFlat.new()
+	stats_box_style.bg_color = Color(0.07, 0.09, 0.13, 0.8)
+	stats_box_style.border_color = Color(0.20, 0.28, 0.40, 0.6)
+	stats_box_style.set_border_width_all(1)
+	stats_box_style.set_corner_radius_all(6)
+	stats_box_style.content_margin_left = 10.0
+	stats_box_style.content_margin_right = 10.0
+	stats_box_style.content_margin_top = 8.0
+	stats_box_style.content_margin_bottom = 8.0
+	stats_panel.add_theme_stylebox_override("panel", stats_box_style)
 
 	_info_stats_label = RichTextLabel.new()
 	_info_stats_label.bbcode_enabled = true
 	_info_stats_label.fit_content = true
-	_info_stats_label.text = "[color=#8899aa]Generando estadísticas...[/color]"
+	_info_stats_label.text = "[color=#8899aa]Calculando...[/color]"
 	stats_panel.add_child(_info_stats_label)
+	sidebar_vbox.add_child(stats_panel)
 
-	_preview_overlay.add_child(stats_panel)
+	# --- SECCIÓN 3: LEYENDA VISUAL ---
+	var legend_title := Label.new()
+	legend_title.text = "🗺️ LEYENDA"
+	legend_title.add_theme_font_size_override("font_size", 13)
+	legend_title.add_theme_color_override("font_color", Color(0.70, 0.80, 0.95, 1.0))
+	sidebar_vbox.add_child(legend_title)
 
-	# --- LEYENDA VISUAL DE COLORES ---
 	var legend_panel := PanelContainer.new()
-	legend_panel.anchors_preset = Control.PRESET_CENTER_TOP
-	legend_panel.offset_top = 75.0
-	legend_panel.offset_bottom = 110.0
-	legend_panel.offset_left = -380.0
-	legend_panel.offset_right = 380.0
+	var leg_style := StyleBoxFlat.new()
+	leg_style.bg_color = Color(0.07, 0.09, 0.13, 0.8)
+	leg_style.set_corner_radius_all(6)
+	leg_style.content_margin_left = 10.0
+	leg_style.content_margin_right = 10.0
+	leg_style.content_margin_top = 8.0
+	leg_style.content_margin_bottom = 8.0
+	legend_panel.add_theme_stylebox_override("panel", leg_style)
 
-	var legend_style := StyleBoxFlat.new()
-	legend_style.bg_color = Color(0.08, 0.10, 0.15, 0.90)
-	legend_style.set_corner_radius_all(6)
-	legend_style.content_margin_left = 12.0
-	legend_style.content_margin_right = 12.0
-	legend_style.content_margin_top = 6.0
-	legend_style.content_margin_bottom = 6.0
-	legend_panel.add_theme_stylebox_override("panel", legend_style)
+	var leg_lbl := RichTextLabel.new()
+	leg_lbl.bbcode_enabled = true
+	leg_lbl.fit_content = true
+	leg_lbl.text = "[color=#f1d240]■ Habitación[/color]   [color=#38b861]■ Pasillo[/color]\n[color=#ef4444]■ Puerta Roja[/color]   [color=#3b82f6]■ Arco Libre[/color]\n[color=#10b981]● Spawn Jugador[/color]   [color=#ef4444]● Boss[/color]"
+	legend_panel.add_child(leg_lbl)
+	sidebar_vbox.add_child(legend_panel)
 
-	var legend_lbl := Label.new()
-	legend_lbl.text = "🟡 Habitación  |  🟢 Pasillo  |  🔴 Puerta  |  🔵 Arco Libre  |  🧑 Spawn Jugador  |  💀 Boss"
-	legend_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	legend_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	legend_lbl.add_theme_font_size_override("font_size", 13)
-	legend_panel.add_child(legend_lbl)
+	# Espaciador vertical
+	var spacer := Control.new()
+	spacer.size_flags_vertical = SIZE_EXPAND_FILL
+	sidebar_vbox.add_child(spacer)
 
-	_preview_overlay.add_child(legend_panel)
-
-	# --- BARRA INFERIOR CON EL BOTÓN PRINCIPAL PARA GENERAR 3D ---
-	var bottom_bar := PanelContainer.new()
-	bottom_bar.anchors_preset = Control.PRESET_CENTER_BOTTOM
-	bottom_bar.anchor_top = 1.0
-	bottom_bar.anchor_bottom = 1.0
-	bottom_bar.offset_top = -95.0
-	bottom_bar.offset_bottom = -25.0
-	bottom_bar.offset_left = -330.0
-	bottom_bar.offset_right = 330.0
-
-	var bottom_style := StyleBoxFlat.new()
-	bottom_style.bg_color = Color(0.12, 0.16, 0.24, 0.98)
-	bottom_style.border_color = Color(0.35, 0.75, 0.95, 0.9)
-	bottom_style.set_border_width_all(2)
-	bottom_style.set_corner_radius_all(10)
-	bottom_style.content_margin_left = 18.0
-	bottom_style.content_margin_right = 18.0
-	bottom_style.content_margin_top = 10.0
-	bottom_style.content_margin_bottom = 10.0
-	bottom_bar.add_theme_stylebox_override("panel", bottom_style)
-
-	var b_hbox := HBoxContainer.new()
-	b_hbox.add_theme_constant_override("separation", 15)
-	bottom_bar.add_child(b_hbox)
-
+	# --- BOTÓN DE ACCIÓN DESTACADO ---
 	_btn_build_3d = Button.new()
-	_btn_build_3d.text = "🚀 CARGAR Y VISUALIZAR EN 3D [Espacio / Enter]"
-	_btn_build_3d.custom_minimum_size = Vector2(400, 48)
+	_btn_build_3d.text = "🚀 GENERAR MAZMORRA 3D\n[ Espacio / Enter ]"
+	_btn_build_3d.custom_minimum_size = Vector2(0, 56)
 	_btn_build_3d.add_theme_font_size_override("font_size", 15)
 	_btn_build_3d.pressed.connect(_on_build_3d_pressed)
-	b_hbox.add_child(_btn_build_3d)
+	sidebar_vbox.add_child(_btn_build_3d)
 
-	var btn_new_random := Button.new()
-	btn_new_random.text = "🎲 Otra Semilla [R]"
-	btn_new_random.custom_minimum_size = Vector2(190, 48)
-	btn_new_random.add_theme_font_size_override("font_size", 14)
-	btn_new_random.pressed.connect(_on_random_pressed)
-	b_hbox.add_child(btn_new_random)
+	# ==========================================
+	# ÁREA PRINCIPAL DERECHA (Canvas 2D Centrado)
+	# ==========================================
+	var right_panel := PanelContainer.new()
+	right_panel.size_flags_horizontal = SIZE_EXPAND_FILL
+	right_panel.size_flags_vertical = SIZE_EXPAND_FILL
 
-	_preview_overlay.add_child(bottom_bar)
+	var right_style := StyleBoxFlat.new()
+	right_style.bg_color = Color(0.08, 0.10, 0.15, 0.98)
+	right_style.border_color = Color(0.20, 0.30, 0.45, 0.7)
+	right_style.set_border_width_all(1)
+	right_style.set_corner_radius_all(10)
+	right_style.content_margin_left = 15.0
+	right_style.content_margin_right = 15.0
+	right_style.content_margin_top = 15.0
+	right_style.content_margin_bottom = 15.0
+	right_panel.add_theme_stylebox_override("panel", right_style)
+	main_hbox.add_child(right_panel)
+
+	_preview_canvas = Control.new()
+	_preview_canvas.name = "PreviewCanvas"
+	_preview_canvas.size_flags_horizontal = SIZE_EXPAND_FILL
+	_preview_canvas.size_flags_vertical = SIZE_EXPAND_FILL
+	_preview_canvas.draw.connect(_on_preview_canvas_draw)
+	right_panel.add_child(_preview_canvas)
 
 func _setup_3d_hud() -> void:
 	if _hud_3d_panel != null:
@@ -267,21 +316,21 @@ func _setup_3d_hud() -> void:
 	_hud_3d_panel.anchors_preset = Control.PRESET_TOP_RIGHT
 	_hud_3d_panel.anchor_left = 1.0
 	_hud_3d_panel.anchor_right = 1.0
-	_hud_3d_panel.offset_left = -220.0
+	_hud_3d_panel.offset_left = -230.0
 	_hud_3d_panel.offset_right = -20.0
 	_hud_3d_panel.offset_top = 20.0
-	_hud_3d_panel.offset_bottom = 68.0
+	_hud_3d_panel.offset_bottom = 70.0
 	_hud_3d_panel.visible = false
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.12, 0.18, 0.90)
+	style.bg_color = Color(0.10, 0.12, 0.18, 0.92)
 	style.border_color = Color(0.35, 0.45, 0.65, 0.8)
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(6)
-	style.content_margin_left = 10.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 6.0
-	style.content_margin_bottom = 6.0
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
 	_hud_3d_panel.add_theme_stylebox_override("panel", style)
 
 	_btn_back_to_2d = Button.new()
@@ -292,7 +341,7 @@ func _setup_3d_hud() -> void:
 
 	add_child(_hud_3d_panel)
 
-## Dibuja el mapa 2D detallado
+## Dibuja el mapa 2D centrado y escalado dentro del área derecha
 func _on_preview_canvas_draw() -> void:
 	if _last_result == null or _last_result.grid == null or _preview_canvas == null:
 		return
@@ -301,10 +350,15 @@ func _on_preview_canvas_draw() -> void:
 	var gw: int = grid.width
 	var gh: int = grid.height
 	var canvas_size: Vector2 = _preview_canvas.size
-	if canvas_size.x <= 1 or canvas_size.y <= 1:
-		canvas_size = Vector2(760, 600)
+	if canvas_size.x <= 20 or canvas_size.y <= 20:
+		return
 
-	var tile_scale: float = minf((canvas_size.x - 30.0) / float(gw), (canvas_size.y - 30.0) / float(gh))
+	var padding: float = 30.0
+	var tile_scale: float = minf(
+		(canvas_size.x - padding * 2.0) / float(gw),
+		(canvas_size.y - padding * 2.0) / float(gh)
+	)
+
 	var origin := Vector2(
 		(canvas_size.x - (float(gw) * tile_scale)) * 0.5,
 		(canvas_size.y - (float(gh) * tile_scale)) * 0.5
@@ -346,7 +400,7 @@ func _on_preview_canvas_draw() -> void:
 			var c_pos = origin + Vector2(r.rect.position.x, r.rect.position.y) * tile_scale
 			var r_size = Vector2(r.rect.size.x, r.rect.size.y) * tile_scale
 			var r_rect = Rect2(c_pos, r_size)
-			_preview_canvas.draw_rect(r_rect, Color(1, 1, 1, 0.45), false, 1.5)
+			_preview_canvas.draw_rect(r_rect, Color(1, 1, 1, 0.40), false, 1.5)
 
 			var text_pos = c_pos + Vector2(4, 14)
 			_preview_canvas.draw_string(
@@ -455,21 +509,14 @@ func _update_stats_panel() -> void:
 				spawn_pos_str = "(%d, %d)" % [obj.position.x, obj.position.y]
 				break
 
-	var bb := "[b][color=#f1d240]DETALLES DE MAZMORRA[/color][/b]\n"
-	bb += "----------------------------\n"
-	bb += "[b]Semilla:[/b] [color=#60a5fa]%d[/color]\n" % res.seed_used
-	bb += "[b]Piso Actual:[/b] %d\n" % res.floor_number
-	bb += "[b]Habitaciones:[/b] [color=#34d399]%d[/color]\n" % res.rooms.size()
-	bb += "[b]Corredores:[/b] [color=#34d399]%d[/color]\n" % res.corridor_paths.size()
-	bb += "[b]Puertas Rojas:[/b] [color=#ef4444]%d[/color]\n" % closed_doors
-	bb += "[b]Arcos Azules:[/b] [color=#3b82f6]%d[/color]\n" % open_passages
-	bb += "[b]Spawn Jugador:[/b] [color=#10b981]%s[/color]\n" % spawn_pos_str
-	bb += "[b]Tiempo Generación:[/b] %.1f ms\n" % res.generation_time_ms
-	bb += "----------------------------\n"
-	bb += "[color=#94a3b8]Atajos de Teclado:\n"
-	bb += "• [Espacio/Enter]: Pasar a 3D\n"
-	bb += "• [R]: Otra Semilla\n"
-	bb += "• [Tab]: Alternar 2D/3D[/color]"
+	var bb := "• [b]Semilla:[/b] [color=#60a5fa]%d[/color]\n" % res.seed_used
+	bb += "• [b]Piso:[/b] %d\n" % res.floor_number
+	bb += "• [b]Habitaciones:[/b] [color=#34d399]%d[/color]\n" % res.rooms.size()
+	bb += "• [b]Corredores:[/b] [color=#34d399]%d[/color]\n" % res.corridor_paths.size()
+	bb += "• [b]Puertas Rojas:[/b] [color=#ef4444]%d[/color]\n" % closed_doors
+	bb += "• [b]Arcos Azules:[/b] [color=#3b82f6]%d[/color]\n" % open_passages
+	bb += "• [b]Spawn Jugador:[/b] [color=#10b981]%s[/color]\n" % spawn_pos_str
+	bb += "• [b]Tiempo Lógico:[/b] %.1f ms" % res.generation_time_ms
 
 	_info_stats_label.text = bb
 
@@ -477,10 +524,10 @@ func update_floor_view_options(total_floors: int, selected_floor: int = -1) -> v
 	if _opt_floor_view == null:
 		return
 	_opt_floor_view.clear()
-	_opt_floor_view.add_item("🏢 Todos los Pisos", -1)
+	_opt_floor_view.add_item("🏢 Todos", -1)
 
 	for f in range(total_floors):
-		_opt_floor_view.add_item("🏢 Piso %d (%dm)" % [f, f * 6], f)
+		_opt_floor_view.add_item("🏢 Piso %d" % f, f)
 
 	var select_idx: int = 0
 	if selected_floor >= 0 and selected_floor < total_floors:
@@ -520,13 +567,13 @@ func _on_random_pressed() -> void:
 func _on_copy_pressed() -> void:
 	if _last_result != null:
 		DisplayServer.clipboard_set(str(_last_result.seed_used))
-		_show_temporary_feedback("✓ Copiado")
+		_show_temporary_feedback("✓")
 
 func _show_temporary_feedback(msg: String) -> void:
 	if _btn_copy != null:
 		var orig := _btn_copy.text
 		_btn_copy.text = msg
-		get_tree().create_timer(1.2).timeout.connect(func():
+		get_tree().create_timer(1.0).timeout.connect(func():
 			if _btn_copy != null:
 				_btn_copy.text = orig
 		)
