@@ -101,5 +101,24 @@ func _init() -> void:
 	assert(path_maze.routing_strategy == "AStar_TurnAware", "Strategy must be AStar_TurnAware fallback, got %s" % path_maze.routing_strategy)
 	print("  [OK] Task 4 Test 2: Turn-aware A* fallback verified (turns=%d, strategy=%s)" % [path_maze.turn_count, path_maze.routing_strategy])
 
+	# Task 9: Pipeline End-to-End Aesthetic Metrics Verification
+	var pipeline = load("res://src/dungeon_generator/core/dungeon_pipeline.gd").new()
+	var pipe_cfg := DungeonConfig.new()
+	pipe_cfg.seed = 445566
+	pipe_cfg.use_fixed_seed = true
+	var d_res = pipeline.generate(pipe_cfg, 5, true)
+	assert(d_res != null, "Pipeline generation must succeed")
+	assert(d_res.metadata.has("aesthetic_metrics"), "DungeonResult must contain aesthetic_metrics in metadata")
+	var m: Dictionary = d_res.metadata["aesthetic_metrics"]
+	assert(m.has("average_turns_per_corridor"), "Must have average_turns_per_corridor")
+	assert(m.has("percent_zero_turn"), "Must have percent_zero_turn")
+	assert(m.has("percent_one_turn"), "Must have percent_one_turn")
+	assert(m.has("door_count"), "Must have door_count")
+	assert(m.has("staircase_corridors") and m["staircase_corridors"] == 0, "Staircase corridors must be 0")
+	assert(m["average_turns_per_corridor"] <= 2.0, "Average turns per corridor must be <= 2.0 (got %.2f)" % m["average_turns_per_corridor"])
+	print("  [OK] Task 9: Pipeline aesthetic metrics verified (avg_turns=%.2f, zero_turns=%.1f%%, one_turn=%.1f%%, doors=%d)" % [
+		m["average_turns_per_corridor"], m["percent_zero_turn"], m["percent_one_turn"], m["door_count"]
+	])
+
 	print("[PASS] test_corridor_aesthetic_quality completed successfully!")
 	quit(0)

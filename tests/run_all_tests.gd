@@ -34,7 +34,13 @@ const TEST_SUITES: Array[String] = [
 	# 4. Hardening, QA & Golden Fixtures (Fase 11)
 	"res://tests/test_stress_10k_seeds.gd",
 	"res://tests/test_golden_fixtures.gd",
-	"res://tests/test_profiling_and_benchmarks.gd"
+	"res://tests/test_profiling_and_benchmarks.gd",
+
+	# 5. Corredores Ortogonales & Calidad Estética (Fase Refined)
+	"res://tests/test_orthogonal_corridor_planner.gd",
+	"res://tests/test_corridor_aesthetic_quality.gd",
+	"res://tests/test_door_spacing.gd",
+	"res://tests/test_door_endpoint_quality.gd"
 ]
 
 func _init() -> void:

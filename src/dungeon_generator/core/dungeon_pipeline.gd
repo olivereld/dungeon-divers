@@ -252,12 +252,68 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		}
 		result.floor_number = config.floor_number
 		result.generation_time_ms = float(Time.get_ticks_msec() - start_time)
+		result.metadata["aesthetic_metrics"] = _compute_aesthetic_metrics(corridor_res.paths, door_res.doors)
 
 		generation_completed.emit(result)
 		return result
 
 	generation_failed.emit("Failed to generate a valid dungeon within max retries.")
 	return null
+
+func _compute_aesthetic_metrics(corridors: Array, doors: Array) -> Dictionary:
+	var total_turns: int = 0
+	var zero_turns: int = 0
+	var one_turns: int = 0
+	var two_turns: int = 0
+	var multi_turns: int = 0
+	var strategy_counts: Dictionary = {}
+
+	for p in corridors:
+		if p != null:
+			var t: int = p.turn_count if ("turn_count" in p) else 0
+			total_turns += t
+			match t:
+				0:
+					zero_turns += 1
+				1:
+					one_turns += 1
+				2:
+					two_turns += 1
+				_:
+					multi_turns += 1
+
+			var strat: String = str(p.routing_strategy) if ("routing_strategy" in p) else "Unknown"
+			strategy_counts[strat] = strategy_counts.get(strat, 0) + 1
+
+	var c_count: int = corridors.size()
+	var avg_turns: float = float(total_turns) / float(c_count) if c_count > 0 else 0.0
+
+	var min_door_dist: int = 999
+	for i in range(doors.size()):
+		for j in range(i + 1, doors.size()):
+			var da = doors[i]
+			var db = doors[j]
+			if da != null and db != null:
+				var m_dist: int = absi(da.position.x - db.position.x) + absi(da.position.y - db.position.y)
+				if m_dist < min_door_dist:
+					min_door_dist = m_dist
+
+	if min_door_dist == 999:
+		min_door_dist = 0
+
+	return {
+		"corridor_count": c_count,
+		"total_turns": total_turns,
+		"average_turns_per_corridor": avg_turns,
+		"percent_zero_turn": (float(zero_turns) / float(c_count) * 100.0) if c_count > 0 else 0.0,
+		"percent_one_turn": (float(one_turns) / float(c_count) * 100.0) if c_count > 0 else 0.0,
+		"percent_two_turn": (float(two_turns) / float(c_count) * 100.0) if c_count > 0 else 0.0,
+		"percent_multi_turn": (float(multi_turns) / float(c_count) * 100.0) if c_count > 0 else 0.0,
+		"routing_strategies": strategy_counts,
+		"door_count": doors.size(),
+		"min_door_distance": min_door_dist,
+		"staircase_corridors": 0
+	}
 
 func _build_room_connections(rooms: Array[RoomData]) -> Array:
 	var conns: Array = []
