@@ -37,8 +37,9 @@ var depth_map: Dictionary = {}              # int (room_id) -> int (depth)
 var key_placements: Array = []              # Array[KeyPlacement]
 var locked_doors: Array = []                # Array[LockedDoor]
 
-# 4. Campo de Distancia Canónico
+# 4. Campo de Distancia Canónico y Reservas Espaciales
 var distance_field: Dictionary = {}         # Vector2i -> int
+var reserved_mask: DungeonReservedMask = null
 
 # 5. Métricas, Tiempos y Diagnósticos
 var stage_timings_ms: Dictionary = {}       # String -> float

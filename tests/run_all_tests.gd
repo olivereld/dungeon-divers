@@ -17,6 +17,7 @@ const TEST_SUITES: Array[String] = [
 	"res://tests/test_phase9_corridors.gd",
 	"res://tests/test_phase10_rasterization_cellgrid.gd",
 	"res://tests/test_phase11_doors.gd",
+	"res://tests/test_phase12_decorations_reservations.gd",
 	"res://tests/test_cell_grid.gd",
 	"res://tests/test_dungeon_graph.gd",
 	"res://tests/test_mst_solver.gd",
