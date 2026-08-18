@@ -1,12 +1,16 @@
 class_name WallMeshConfig
 extends Resource
 
-## Configuración para el generador procedural de paredes y esquinas estilizadas (estilo Zelda / KayKit).
-## Soporta piezas rectas (Wall) y esquinas en L de 90° (Corner) con cornisas biseladas, juntas en V y centrado GridMap.
+## Configuración para el generador procedural de paredes, esquinas y arcos estilizados (estilo Zelda / KayKit).
+## Soporta:
+## - Paredes rectas modulares (Wall)
+## - Esquinas en L continuas de 90° (Corner)
+## - Arcos de puerta estilizados (Arch / Doorway) con cornisa a 45°, zócalos en pilares y vano curvado
 
 enum PieceType {
 	WALL,   ## Pared recta modular
-	CORNER  ## Esquina en L de 90 grados con chaflán de esquina y cornisas continuas
+	CORNER, ## Esquina en L de 90 grados
+	ARCH    ## Arco de paso / portal con vano curvado y pilares
 }
 
 enum WallStyle {
@@ -30,6 +34,14 @@ enum WallStyle {
 @export_range(1, 20, 1) var wall_length_cubes: int = 2
 ## Grosor del cuerpo central del muro
 @export_range(0.1, 2.0, 0.05) var wall_thickness: float = 0.38
+
+@export_group("Dimensiones de Arco (Arch Settings)")
+## Ancho del vano libre del arco
+@export_range(0.6, 1.8, 0.05) var arch_opening_width: float = 1.08
+## Altura del vano libre del arco (hasta la cúspide)
+@export_range(1.0, 3.5, 0.05) var arch_opening_height: float = 2.50
+## Bisel/chaflán suave a lo largo del borde interior del arco
+@export_range(0.01, 0.10, 0.005) var arch_inner_bevel: float = 0.040
 
 @export_group("Perfil de Molduras (Trims con Chaflán a 45°)")
 ## Altura total de la moldura/cornisa superior
@@ -89,6 +101,9 @@ func duplicate_config() -> WallMeshConfig:
 	c.cubes_high = cubes_high
 	c.wall_length_cubes = wall_length_cubes
 	c.wall_thickness = wall_thickness
+	c.arch_opening_width = arch_opening_width
+	c.arch_opening_height = arch_opening_height
+	c.arch_inner_bevel = arch_inner_bevel
 	c.top_trim_height = top_trim_height
 	c.top_trim_slope_height = top_trim_slope_height
 	c.bottom_trim_height = bottom_trim_height

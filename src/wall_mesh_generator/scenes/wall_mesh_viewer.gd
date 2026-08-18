@@ -62,6 +62,7 @@ func _setup_ui() -> void:
 	option_piece_type.clear()
 	option_piece_type.add_item("🧱 Pared Recta (Wall)", 0)
 	option_piece_type.add_item("🔄 Esquina en L (Corner)", 1)
+	option_piece_type.add_item("🚪 Arco de Entrada (Arch)", 2)
 	option_piece_type.select(0)
 
 	option_preset.clear()
@@ -86,9 +87,9 @@ func _setup_ui() -> void:
 func _connect_signals() -> void:
 	option_piece_type.item_selected.connect(func(idx: int):
 		_config.piece_type = idx as WallMeshConfig.PieceType
-		var is_corner: bool = (_config.piece_type == WallMeshConfig.PieceType.CORNER)
-		slider_length.editable = not is_corner
-		slider_length.modulate = Color(0.5, 0.5, 0.5, 0.5) if is_corner else Color.WHITE
+		var is_fixed_size: bool = (_config.piece_type == WallMeshConfig.PieceType.CORNER or _config.piece_type == WallMeshConfig.PieceType.ARCH)
+		slider_length.editable = not is_fixed_size
+		slider_length.modulate = Color(0.5, 0.5, 0.5, 0.5) if is_fixed_size else Color.WHITE
 		_update_ui_labels()
 		_rebuild_wall(true)
 	)
@@ -158,10 +159,13 @@ func _process(delta: float) -> void:
 				_pause()
 
 func _update_ui_labels() -> void:
-	if _config.piece_type == WallMeshConfig.PieceType.CORNER:
-		label_length.text = "Tipo: Esquina en L (%.1f x %.1f m)" % [_config.cube_size, _config.cube_size]
-	else:
-		label_length.text = "Longitud: %d cubos (%.1fm)" % [_config.wall_length_cubes, _config.get_total_length()]
+	match _config.piece_type:
+		WallMeshConfig.PieceType.ARCH:
+			label_length.text = "Tipo: Arco de Entrada (Vano: %.2fm)" % _config.arch_opening_width
+		WallMeshConfig.PieceType.CORNER:
+			label_length.text = "Tipo: Esquina en L (%.1f x %.1f m)" % [_config.cube_size, _config.cube_size]
+		_:
+			label_length.text = "Longitud: %d cubos (%.1fm)" % [_config.wall_length_cubes, _config.get_total_length()]
 	label_height_cubes.text = "Altura: %d cubos (%.1fm)" % [_config.cubes_high, _config.get_total_height()]
 
 func _rebuild_wall(reset_seq: bool = true) -> void:
@@ -170,10 +174,13 @@ func _rebuild_wall(reset_seq: bool = true) -> void:
 	_sync_slider_range()
 
 	# Centrar la cámara según el tipo de pieza
-	if _config.piece_type == WallMeshConfig.PieceType.CORNER:
-		_camera_target = Vector3(_config.cube_size * 0.5, _config.get_total_height() * 0.5, _config.cube_size * 0.5)
-	else:
-		_camera_target = Vector3(_config.get_total_length() * 0.5, _config.get_total_height() * 0.5, 0.0)
+	match _config.piece_type:
+		WallMeshConfig.PieceType.ARCH:
+			_camera_target = Vector3(0.0, _config.get_total_height() * 0.5, 0.0)
+		WallMeshConfig.PieceType.CORNER:
+			_camera_target = Vector3(_config.cube_size * 0.5, _config.get_total_height() * 0.5, _config.cube_size * 0.5)
+		_:
+			_camera_target = Vector3(_config.get_total_length() * 0.5, _config.get_total_height() * 0.5, 0.0)
 	_update_camera_transform()
 
 	if reset_seq:

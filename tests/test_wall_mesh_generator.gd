@@ -101,7 +101,21 @@ func _init() -> void:
 		corner_aabb.size.x, corner_aabb.size.y, corner_aabb.size.z
 	])
 
-	# 7. Validar Fábrica de Materiales Estilizados
+	# 7. Validar Generación de Arco de Entrada (PieceType.ARCH)
+	var arch_config: WallMeshConfig = config.duplicate_config()
+	arch_config.piece_type = WallMeshConfig.PieceType.ARCH
+	var arch_manifest: Array[Dictionary] = builder.build_brick_manifest(arch_config)
+	assert(not arch_manifest.is_empty(), "Arch manifest must not be empty")
+
+	var arch_mesh: ArrayMesh = builder.build_wall_mesh(arch_config)
+	assert(arch_mesh != null and arch_mesh.get_surface_count() == 3, "Arch mesh must have all 3 surfaces")
+	var arch_aabb: AABB = arch_mesh.get_aabb()
+	assert(arch_aabb.size.y > 3.5, "Arch height must be 2 cubes tall (~4m)")
+	print("  [OK] Arch Doorway piece generated successfully. AABB: %.2f x %.2f x %.2f m" % [
+		arch_aabb.size.x, arch_aabb.size.y, arch_aabb.size.z
+	])
+
+	# 8. Validar Fábrica de Materiales Estilizados
 	var trim_mat = mat_script.create_trim_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)
 	var panel_mat = mat_script.create_panel_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)
 	var brick_mat = mat_script.create_brick_material(WallMaterialFactory.MaterialPreset.STYLIZED_SLATE)
