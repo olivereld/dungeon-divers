@@ -13,6 +13,9 @@ const STAGE_OFFSETS: Dictionary = {
 	&"obstacle": 0xB1C2D3E4,
 	&"variation": 0xF5A6B7C8,
 	&"connectivity": 0x4D3C2B1A,
+	&"semantics": 0x8C7B6A59,
+	&"decoration": 0x2E3F4A5B,
+	&"validation": 0x6D7C8B9A,
 }
 
 static func derive_seed(base_seed: int, attempt: int, stage: StringName) -> int:

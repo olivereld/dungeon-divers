@@ -7,6 +7,7 @@ extends RefCounted
 ## sin incluir lógica algorítmica ni dependencias de presentación 3D.
 
 const _DungeonResultScript = preload("res://src/dungeon_generator/core/data/dungeon_result.gd")
+const _DungeonChecksumCalculatorScript = preload("res://src/dungeon_generator/core/validation/dungeon_checksum_calculator.gd")
 
 # 1. Configuración y Semillas
 var config: DungeonConfig = null
@@ -110,6 +111,7 @@ func to_dungeon_result() -> DungeonResult:
 	res.fitness_score = fitness_score
 	res.seed_used = base_seed
 	res.floor_number = config.floor_number if config != null else 1
+	res.checksum = _DungeonChecksumCalculatorScript.compute_checksum(res)
 	
 	var total_time: float = 0.0
 	for t in stage_timings_ms.values():

@@ -9,6 +9,7 @@ const TEST_SUITES: Array[String] = [
 	"res://tests/test_phase1_structural_invariants.gd",
 	"res://tests/test_phase2_generation_context.gd",
 	"res://tests/test_phase3_pipeline_orchestrator.gd",
+	"res://tests/test_phase4_determinism.gd",
 	"res://tests/test_cell_grid.gd",
 	"res://tests/test_dungeon_graph.gd",
 	"res://tests/test_mst_solver.gd",
