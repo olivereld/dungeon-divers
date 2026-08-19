@@ -16,7 +16,7 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	ctx.record_timing("topology_builder", float(Time.get_ticks_msec() - t0))
 
 	if ctx.connections.is_empty() and ctx.rooms.size() > 1:
-		ctx.mark_attempt_failed("TOPOLOGY_NO_CONNECTIONS")
+		ctx.mark_attempt_failed("TOPOLOGY_NO_CONNECTIONS", "TRANSIENT")
 		return false
 
 	return true

@@ -75,7 +75,8 @@ func run_stress_test(
 	iterations: int = 1000,
 	base_seed: int = 100000,
 	multi_floor: bool = true,
-	log_interval: int = 250
+	log_interval: int = 250,
+	diagnostics_enabled: bool = false  # Por defecto silencioso en stress tests
 ) -> StressTestReport:
 	var report := StressTestReport.new()
 	report.total_runs = iterations
@@ -97,7 +98,7 @@ func run_stress_test(
 		var t0: int = Time.get_ticks_usec()
 
 		if multi_floor:
-			var m_res: DungeonMultiFloorResult = multi_gen.generate_multi_floor(cfg, seed_val)
+			var m_res: DungeonMultiFloorResult = multi_gen.generate_multi_floor(cfg, seed_val, diagnostics_enabled)
 			var elapsed_ms: float = float(Time.get_ticks_usec() - t0) / 1000.0
 			report.times_ms.append(elapsed_ms)
 
@@ -113,7 +114,7 @@ func run_stress_test(
 				report.fail_count += 1
 				report.error_breakdown["GENERATION_FAILED"] = report.error_breakdown.get("GENERATION_FAILED", 0) + 1
 		else:
-			var d_res: DungeonResult = pipeline.generate(cfg)
+			var d_res: DungeonResult = pipeline.generate(cfg, DungeonPipeline.MAX_ATTEMPTS, true, diagnostics_enabled)
 			var elapsed_ms: float = float(Time.get_ticks_usec() - t0) / 1000.0
 			report.times_ms.append(elapsed_ms)
 

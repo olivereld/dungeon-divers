@@ -47,18 +47,20 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 			})
 
 			if not rep_res.success:
-				push_warning("[DungeonRoomStage] Attempt %d: Room %d internal connectivity failed and could not be repaired." % [
-					ctx.attempt, r.id
-				])
-				ctx.mark_attempt_failed("ROOM_%d_DISCONNECTED" % r.id)
+				if ctx.diagnostics_enabled:
+					push_warning("[DungeonRoomStage] Attempt %d: Room %d internal connectivity failed and could not be repaired." % [
+						ctx.attempt, r.id
+					])
+				ctx.mark_attempt_failed("ROOM_%d_DISCONNECTED" % r.id, "TRANSIENT")
 				return false
 
 			var post_val = _StructuralValidatorScript.validate_room_internal_connectivity(ctx.grid, r)
 			if not post_val["is_valid"]:
-				push_warning("[DungeonRoomStage] Attempt %d: Room %d failed post-repair validation." % [
-					ctx.attempt, r.id
-				])
-				ctx.mark_attempt_failed("ROOM_%d_POST_REPAIR_FAILED" % r.id)
+				if ctx.diagnostics_enabled:
+					push_warning("[DungeonRoomStage] Attempt %d: Room %d failed post-repair validation." % [
+						ctx.attempt, r.id
+					])
+				ctx.mark_attempt_failed("ROOM_%d_POST_REPAIR_FAILED" % r.id, "TRANSIENT")
 				return false
 
 	return true

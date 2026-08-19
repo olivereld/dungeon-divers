@@ -18,8 +18,9 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	ctx.record_timing("door_resolver", float(Time.get_ticks_msec() - t0))
 
 	if not door_res.is_valid:
-		push_warning("[DungeonDoorStage] Attempt %d: DoorResolver failed to resolve doors." % ctx.attempt)
-		ctx.mark_attempt_failed("DOOR_RESOLVER_FAILED")
+		if ctx.diagnostics_enabled:
+			push_warning("[DungeonDoorStage] Attempt %d: DoorResolver failed to resolve doors." % ctx.attempt)
+		ctx.mark_attempt_failed("DOOR_RESOLVER_FAILED", "TRANSIENT")
 		return false
 
 	ctx.doors = door_res.doors
