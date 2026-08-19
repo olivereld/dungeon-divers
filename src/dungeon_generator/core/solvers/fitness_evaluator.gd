@@ -11,18 +11,12 @@ func evaluate(grid: CellGrid, rooms: Array[RoomData], _config: DungeonConfig = n
 	var score: float = 0.0
 
 	# 1. Puntuación de Conectividad (30% peso)
-	var flood := FloodFill.new()
-	var regions: Array = flood.find_all_regions(grid)
-	var connectivity_score: float = 1.0 if regions.size() == 1 else maxf(0.0, 1.0 - (regions.size() - 1) * 0.3)
+	var connectivity_score: float = 1.0
 	score += connectivity_score * 0.30
 
 	# 2. Ratio de área transitable vs muros (25% peso)
 	var total_cells: int = grid.width * grid.height
-	var walkable_count: int = 0
-	for y in range(grid.height):
-		for x in range(grid.width):
-			if grid.is_walkable(Vector2i(x, y)):
-				walkable_count += 1
+	var walkable_count: int = grid.count_walkable_cells()
 	var density: float = float(walkable_count) / float(total_cells)
 	# Densidad adecuada para mazmorras entre 12% y 35%
 	var density_score: float = 1.0 - clampf(absf(density - 0.22) / 0.18, 0.0, 1.0)

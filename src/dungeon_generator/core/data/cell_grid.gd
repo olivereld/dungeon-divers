@@ -22,6 +22,7 @@ enum CellType {
 var width: int = 0
 var height: int = 0
 var _cells: PackedInt32Array = PackedInt32Array()
+var _room_owners: PackedInt32Array = PackedInt32Array()
 var _metadata: Dictionary = {}
 
 func _init(w: int = 32, h: int = 32, default_type: CellType = CellType.WALL) -> void:
@@ -30,10 +31,13 @@ func _init(w: int = 32, h: int = 32, default_type: CellType = CellType.WALL) -> 
 	var total_cells: int = width * height
 	_cells.resize(total_cells)
 	_cells.fill(int(default_type))
+	_room_owners.resize(total_cells)
+	_room_owners.fill(-1)
 	_metadata.clear()
 
 func clear(default_type: CellType = CellType.VOID) -> void:
 	_cells.fill(int(default_type))
+	_room_owners.fill(-1)
 	_metadata.clear()
 
 func get_width() -> int:
@@ -41,6 +45,9 @@ func get_width() -> int:
 
 func get_height() -> int:
 	return height
+
+func get_raw_byte_buffer() -> PackedByteArray:
+	return _cells.to_byte_array()
 
 func is_in_bounds(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < width and pos.y >= 0 and pos.y < height
@@ -56,6 +63,19 @@ func get_cell(pos: Vector2i) -> CellType:
 func set_cell(pos: Vector2i, type: CellType) -> void:
 	if is_in_bounds(pos):
 		_cells[_get_index(pos)] = int(type)
+
+func get_room_owner(pos: Vector2i) -> int:
+	if not is_in_bounds(pos):
+		return -1
+	return _room_owners[_get_index(pos)]
+
+func set_room_owner(pos: Vector2i, room_id: int) -> void:
+	if is_in_bounds(pos):
+		_room_owners[_get_index(pos)] = room_id
+
+func clear_room_owner(pos: Vector2i) -> void:
+	if is_in_bounds(pos):
+		_room_owners[_get_index(pos)] = -1
 
 func is_walkable(pos: Vector2i) -> bool:
 	var t: CellType = get_cell(pos)
@@ -141,6 +161,15 @@ func set_cell_metadata_dict(pos: Vector2i, data: Dictionary) -> void:
 	else:
 		_metadata[pos] = data.duplicate(true)
 
+func count_walkable_cells() -> int:
+	var count: int = 0
+	var total: int = _cells.size()
+	for i in range(total):
+		var t: int = _cells[i]
+		if t != int(CellType.WALL) and t != int(CellType.VOID) and t != int(CellType.COLUMN) and t != int(CellType.OBSTACLE):
+			count += 1
+	return count
+
 func find_cells_of_type(type: CellType) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var target_int: int = int(type)
@@ -154,6 +183,7 @@ func find_cells_of_type(type: CellType) -> Array[Vector2i]:
 func duplicate_grid() -> CellGrid:
 	var copy := CellGrid.new(width, height, CellType.WALL)
 	copy._cells = _cells.duplicate()
+	copy._room_owners = _room_owners.duplicate()
 	copy._metadata = _metadata.duplicate(true)
 	return copy
 

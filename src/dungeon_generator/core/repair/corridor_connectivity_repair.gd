@@ -214,18 +214,6 @@ static func _carve_with_journal(
 	_AStarCarverScript._connect_inner_to_room_floor(grid, room_a, inner_a, journal)
 	_AStarCarverScript._connect_inner_to_room_floor(grid, room_b, inner_b, journal)
 
-	if room_a != null:
-		if not room_a.connections.has(req.start_boundary):
-			room_a.connections.append(req.start_boundary)
-		if not room_a.connected_room_ids.has(req.room_b_id):
-			room_a.connected_room_ids.append(req.room_b_id)
-
-	if room_b != null:
-		if not room_b.connections.has(req.goal_boundary):
-			room_b.connections.append(req.goal_boundary)
-		if not room_b.connected_room_ids.has(req.room_a_id):
-			room_b.connected_room_ids.append(req.room_a_id)
-
 	var path = _CorridorPathScript.new(
 		req.connection_id,
 		req.room_a_id,

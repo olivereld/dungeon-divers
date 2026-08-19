@@ -57,6 +57,41 @@ func _connect_visualizer_signals() -> void:
 			visualizer.generate_3d_requested.connect(build_3d_presentation)
 		if not visualizer.toggle_2d_view_requested.is_connected(_on_toggle_2d_view_requested):
 			visualizer.toggle_2d_view_requested.connect(_on_toggle_2d_view_requested)
+		if not visualizer.preset_changed.is_connected(_on_preset_changed):
+			visualizer.preset_changed.connect(_on_preset_changed)
+		if not visualizer.grid_size_changed.is_connected(_on_grid_size_changed):
+			visualizer.grid_size_changed.connect(_on_grid_size_changed)
+		if not visualizer.mission_depth_changed.is_connected(_on_mission_depth_changed):
+			visualizer.mission_depth_changed.connect(_on_mission_depth_changed)
+		if not visualizer.corridor_width_changed.is_connected(_on_corridor_width_changed):
+			visualizer.corridor_width_changed.connect(_on_corridor_width_changed)
+
+func _on_preset_changed(idx: int) -> void:
+	if config != null:
+		match idx:
+			0: config.apply_preset_standard()
+			1: config.apply_preset_compact()
+			2: config.apply_preset_large()
+			3: config.apply_preset_massive()
+		if visualizer != null and visualizer.has_method("sync_controls_from_config"):
+			visualizer.sync_controls_from_config(config)
+		regenerate(false)
+
+func _on_grid_size_changed(w: int, h: int) -> void:
+	if config != null:
+		config.grid_width = w
+		config.grid_height = h
+		regenerate(false)
+
+func _on_mission_depth_changed(depth: int) -> void:
+	if config != null:
+		config.mission_depth = depth
+		regenerate(false)
+
+func _on_corridor_width_changed(w: int) -> void:
+	if config != null:
+		config.corridor_width = w
+		regenerate(false)
 
 func _on_algorithm_changed(p_algo: String) -> void:
 	if config != null:

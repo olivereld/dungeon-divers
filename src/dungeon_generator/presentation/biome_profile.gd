@@ -4,6 +4,10 @@ extends Resource
 ## Perfil visual y mapeo de tiles para el GridMap y entidades de la Fase 8.
 ## 100% libre de lógica de generación.
 
+@export var id: StringName = &"default"
+@export var biome_name: String = "Default"
+@export var name: String = "Default"
+
 @export_group("MeshLibrary Principal")
 @export var mesh_library: MeshLibrary = null
 

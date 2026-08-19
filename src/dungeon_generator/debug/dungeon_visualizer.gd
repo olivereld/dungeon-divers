@@ -14,6 +14,11 @@ signal floor_view_mode_changed(floor_index: int)
 signal generate_3d_requested()
 signal toggle_2d_view_requested()
 
+signal preset_changed(preset_idx: int)
+signal grid_size_changed(w: int, h: int)
+signal mission_depth_changed(depth: int)
+signal corridor_width_changed(width: int)
+
 const _DungeonAsciiExporterScript = preload("res://src/dungeon_generator/debug/dungeon_ascii_exporter.gd")
 const _DoorPhysicalValidatorScript = preload("res://src/dungeon_generator/core/validation/door_physical_validator.gd")
 
@@ -27,6 +32,11 @@ var _seed_line_edit: LineEdit = null
 var _opt_algorithm: OptionButton = null
 var _spin_floors: SpinBox = null
 var _opt_floor_view: OptionButton = null
+var _opt_preset: OptionButton = null
+var _spin_grid_w: SpinBox = null
+var _spin_grid_h: SpinBox = null
+var _spin_depth: SpinBox = null
+var _spin_corridor_w: SpinBox = null
 var _btn_generate_2d: Button = null
 var _btn_random: Button = null
 var _btn_copy: Button = null
@@ -186,6 +196,107 @@ func _setup_2d_full_interface() -> void:
 	_opt_algorithm.item_selected.connect(_on_algorithm_selected)
 	algo_vbox.add_child(_opt_algorithm)
 	sidebar_vbox.add_child(algo_vbox)
+
+	# Fila Tamaño / Presets
+	var preset_vbox := VBoxContainer.new()
+	preset_vbox.add_theme_constant_override("separation", 4)
+
+	var preset_lbl := Label.new()
+	preset_lbl.text = "Escala / Preset:"
+	preset_lbl.add_theme_font_size_override("font_size", 12)
+	preset_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	preset_vbox.add_child(preset_lbl)
+
+	_opt_preset = OptionButton.new()
+	_opt_preset.add_item("Estándar (64x64)", 0)
+	_opt_preset.add_item("Compacto (32x32)", 1)
+	_opt_preset.add_item("Amplio (96x96)", 2)
+	_opt_preset.add_item("Monumental (128x128)", 3)
+	_opt_preset.item_selected.connect(func(idx: int):
+		preset_changed.emit(idx)
+	)
+	preset_vbox.add_child(_opt_preset)
+	sidebar_vbox.add_child(preset_vbox)
+
+	# Fila Ancho x Alto de Rejilla
+	var dims_vbox := VBoxContainer.new()
+	dims_vbox.add_theme_constant_override("separation", 4)
+
+	var dims_lbl := Label.new()
+	dims_lbl.text = "Dimensiones de Rejilla (Ancho x Alto):"
+	dims_lbl.add_theme_font_size_override("font_size", 12)
+	dims_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	dims_vbox.add_child(dims_lbl)
+
+	var dims_hbox := HBoxContainer.new()
+	dims_hbox.add_theme_constant_override("separation", 6)
+
+	_spin_grid_w = SpinBox.new()
+	_spin_grid_w.min_value = 16
+	_spin_grid_w.max_value = 256
+	_spin_grid_w.value = 64
+	_spin_grid_w.size_flags_horizontal = SIZE_EXPAND_FILL
+	_spin_grid_w.value_changed.connect(func(_v: float):
+		grid_size_changed.emit(int(_spin_grid_w.value), int(_spin_grid_h.value))
+	)
+	dims_hbox.add_child(_spin_grid_w)
+
+	var times_lbl := Label.new()
+	times_lbl.text = "x"
+	dims_hbox.add_child(times_lbl)
+
+	_spin_grid_h = SpinBox.new()
+	_spin_grid_h.min_value = 16
+	_spin_grid_h.max_value = 256
+	_spin_grid_h.value = 64
+	_spin_grid_h.size_flags_horizontal = SIZE_EXPAND_FILL
+	_spin_grid_h.value_changed.connect(func(_v: float):
+		grid_size_changed.emit(int(_spin_grid_w.value), int(_spin_grid_h.value))
+	)
+	dims_hbox.add_child(_spin_grid_h)
+	dims_vbox.add_child(dims_hbox)
+	sidebar_vbox.add_child(dims_vbox)
+
+	# Fila Profundidad de Misión & Ancho de Pasillo
+	var depth_corridor_hbox := HBoxContainer.new()
+	depth_corridor_hbox.add_theme_constant_override("separation", 8)
+
+	var depth_vbox := VBoxContainer.new()
+	depth_vbox.size_flags_horizontal = SIZE_EXPAND_FILL
+	depth_vbox.add_theme_constant_override("separation", 4)
+	var depth_lbl := Label.new()
+	depth_lbl.text = "Profundidad Misión:"
+	depth_lbl.add_theme_font_size_override("font_size", 11)
+	depth_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	depth_vbox.add_child(depth_lbl)
+	_spin_depth = SpinBox.new()
+	_spin_depth.min_value = 2
+	_spin_depth.max_value = 20
+	_spin_depth.value = 5
+	_spin_depth.value_changed.connect(func(v: float):
+		mission_depth_changed.emit(int(v))
+	)
+	depth_vbox.add_child(_spin_depth)
+	depth_corridor_hbox.add_child(depth_vbox)
+
+	var corr_vbox := VBoxContainer.new()
+	corr_vbox.size_flags_horizontal = SIZE_EXPAND_FILL
+	corr_vbox.add_theme_constant_override("separation", 4)
+	var corr_lbl := Label.new()
+	corr_lbl.text = "Ancho Pasillo:"
+	corr_lbl.add_theme_font_size_override("font_size", 11)
+	corr_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	corr_vbox.add_child(corr_lbl)
+	_spin_corridor_w = SpinBox.new()
+	_spin_corridor_w.min_value = 1
+	_spin_corridor_w.max_value = 4
+	_spin_corridor_w.value = 2
+	_spin_corridor_w.value_changed.connect(func(v: float):
+		corridor_width_changed.emit(int(v))
+	)
+	corr_vbox.add_child(_spin_corridor_w)
+	depth_corridor_hbox.add_child(corr_vbox)
+	sidebar_vbox.add_child(depth_corridor_hbox)
 
 	# Fila Pisos
 	var floors_hbox := HBoxContainer.new()

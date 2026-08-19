@@ -4,6 +4,8 @@ extends RefCounted
 ## Traduce el grafo de misiones en habitaciones físicas (RoomData) posicionadas sin solapamiento
 ## y distribuidas armónicamente por el espacio disponible de la mazmorra.
 
+const _RoomSpatialSeparatorScript = preload("res://src/dungeon_generator/core/topology/room_spatial_separator.gd")
+
 var _rng: RandomNumberGenerator
 
 func _init() -> void:
@@ -28,7 +30,10 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 
 	var node_to_room: Dictionary = {} # node_id -> RoomData
 
-	for node_id in node_ids:
+	var large_count: int = 0
+
+	for i in range(node_ids.size()):
+		var node_id: int = node_ids[i]
 		var node_data: Dictionary = mission_graph.get_node_data(node_id)
 		var m_node: MissionNode = MissionNode.from_dictionary(node_data)
 
@@ -36,7 +41,13 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 		if room_type == &"":
 			room_type = &"explore"
 
-		var size: Vector2i = _calculate_room_size(room_type, config)
+		var remaining_rooms: int = node_ids.size() - i
+		var needed_large: int = 2 - large_count
+		var is_forced_large: bool = (room_type == &"boss") or (remaining_rooms <= needed_large) or (room_type == &"combat" and large_count < 2)
+		var size: Vector2i = _calculate_room_size(room_type, config, is_forced_large)
+		if size.x >= 11 or size.y >= 11 or (size.x * size.y >= 100):
+			large_count += 1
+
 		var room := RoomData.new(rooms.size(), Rect2i(0, 0, size.x, size.y), room_type)
 		room.mission_node_id = node_id
 		room.is_required = not m_node.is_optional
@@ -47,52 +58,41 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 		node_to_room[node_id] = room
 		rooms.append(room)
 
-	# Registrar conexiones entre habitaciones a partir de las aristas del grafo
-	for node_id in node_ids:
-		var room_a: RoomData = node_to_room[node_id]
-		for succ_id in mission_graph.get_successors(node_id):
-			if node_to_room.has(succ_id):
-				var room_b: RoomData = node_to_room[succ_id]
-				if not room_a.connected_room_ids.has(room_b.id):
-					room_a.connected_room_ids.append(room_b.id)
-				if not room_b.connected_room_ids.has(room_a.id):
-					room_b.connected_room_ids.append(room_a.id)
-
+	# Consolidar separación espacial AABB con padding mínimo de 2 celdas
+	rooms = _RoomSpatialSeparatorScript.separate_rooms(rooms, grid_bounds, _rng, 2)
 	return rooms
 
-func _calculate_room_size(type: StringName, config: DungeonConfig) -> Vector2i:
+func _calculate_room_size(type: StringName, config: DungeonConfig, force_large: bool = false) -> Vector2i:
 	var diff: float = config.difficulty if config != null else 1.0
-	var min_w: int = 6
-	var max_w: int = 10
-	var min_h: int = 6
-	var max_h: int = 10
+
+	if force_large or type == &"boss":
+		var lw: int = _rng.randi_range(11, maxi(11, int(14 * minf(diff, 1.5))))
+		var lh: int = _rng.randi_range(11, maxi(11, int(14 * minf(diff, 1.5))))
+		return Vector2i(lw, lh)
 
 	match type:
-		&"start":
-			min_w = 6; max_w = 8
-			min_h = 6; max_h = 8
-		&"goal":
-			min_w = 6; max_w = 8
-			min_h = 6; max_h = 8
-		&"boss":
-			min_w = int(10 * minf(diff, 1.5)); max_w = int(14 * minf(diff, 1.5))
-			min_h = int(10 * minf(diff, 1.5)); max_h = int(14 * minf(diff, 1.5))
-		&"combat":
-			min_w = 7; max_w = 11
-			min_h = 7; max_h = 11
+		&"start", &"goal":
+			# Small (6x6 .. 7x7)
+			return Vector2i(_rng.randi_range(6, 7), _rng.randi_range(6, 7))
 		&"treasure":
-			min_w = 5; max_w = 7
-			min_h = 5; max_h = 7
+			# Small (5x5 .. 7x7)
+			return Vector2i(_rng.randi_range(5, 7), _rng.randi_range(5, 7))
 		&"puzzle":
-			min_w = 6; max_w = 9
-			min_h = 6; max_h = 9
-		&"explore":
-			min_w = 7; max_w = 11
-			min_h = 7; max_h = 11
-
-	var w: int = _rng.randi_range(min_w, max_w)
-	var h: int = _rng.randi_range(min_h, max_h)
-	return Vector2i(w, h)
+			# Small to Medium (6x6 .. 8x8)
+			return Vector2i(_rng.randi_range(6, 8), _rng.randi_range(6, 8))
+		&"combat", &"explore":
+			var roll: float = _rng.randf()
+			if roll < 0.45:
+				# Small (6..7)
+				return Vector2i(_rng.randi_range(6, 7), _rng.randi_range(6, 7))
+			elif roll < 0.85:
+				# Medium (8..10)
+				return Vector2i(_rng.randi_range(8, 10), _rng.randi_range(8, 10))
+			else:
+				# Large (11..13)
+				return Vector2i(_rng.randi_range(11, 13), _rng.randi_range(11, 13))
+		_:
+			return Vector2i(_rng.randi_range(6, 9), _rng.randi_range(6, 9))
 
 func _place_room(room: RoomData, existing_rooms: Array[RoomData], bounds: Rect2i) -> void:
 	var center := bounds.position + bounds.size / 2

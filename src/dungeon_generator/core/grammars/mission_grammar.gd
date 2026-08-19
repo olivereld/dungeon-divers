@@ -63,15 +63,72 @@ func generate(config: DungeonConfig, random_seed: int = 0) -> DungeonGraph:
 		if applicable_rules.is_empty():
 			break
 
+		# Filtrar reglas que duplican BOSS si ya existe uno (Fase 11)
+		var has_boss: bool = _graph_has_boss(graph)
+		var valid_rules: Array[Dictionary] = []
+		var valid_matches: Array[Array] = []
+		for r_idx in range(applicable_rules.size()):
+			var r: Dictionary = applicable_rules[r_idx]
+			if r.get("name", &"") == &"boss_finisher" and has_boss:
+				continue
+			valid_rules.append(r)
+			valid_matches.append(rule_matches[r_idx])
+
+		if valid_rules.is_empty():
+			break
+
 		# Ruleta ponderada
-		var selected_rule_idx: int = _select_weighted_rule(applicable_rules)
-		var selected_rule: Dictionary = applicable_rules[selected_rule_idx]
-		var candidate_matches: Array = rule_matches[selected_rule_idx]
+		var selected_rule_idx: int = _select_weighted_rule(valid_rules)
+		var selected_rule: Dictionary = valid_rules[selected_rule_idx]
+		var candidate_matches: Array = valid_matches[selected_rule_idx]
 		var selected_match: Dictionary = candidate_matches[_rng.randi() % candidate_matches.size()]
 
 		_apply_rule(graph, selected_rule, selected_match)
 
+	# Garantizar exactamente 1 BOSS si boss_enabled está activo (Fase 11)
+	if config == null or config.boss_enabled:
+		_ensure_single_boss(graph)
+
 	return graph
+
+func _graph_has_boss(graph: DungeonGraph) -> bool:
+	for nid in graph.get_all_node_ids():
+		var nd: Dictionary = graph.get_node_data(nid)
+		if int(nd.get("action", -1)) == MissionNode.ActionType.BOSS or StringName(nd.get("room_type_hint", &"")) == &"boss":
+			return true
+	return false
+
+func _ensure_single_boss(graph: DungeonGraph) -> void:
+	var boss_nodes: Array[int] = []
+	var goal_id: int = -1
+
+	for nid in graph.get_all_node_ids():
+		var nd: Dictionary = graph.get_node_data(nid)
+		if int(nd.get("action", -1)) == MissionNode.ActionType.GOAL:
+			goal_id = nid
+		elif int(nd.get("action", -1)) == MissionNode.ActionType.BOSS or StringName(nd.get("room_type_hint", &"")) == &"boss":
+			boss_nodes.append(nid)
+
+	if boss_nodes.size() == 1:
+		return
+
+	if boss_nodes.is_empty():
+		# Convertir el predecesor de GOAL en BOSS
+		if goal_id != -1:
+			var preds: Array[int] = graph.get_predecessors(goal_id)
+			if not preds.is_empty():
+				var target_pred: int = preds[0]
+				graph.set_node_data(target_pred, "action", MissionNode.ActionType.BOSS)
+				graph.set_node_data(target_pred, "room_type_hint", &"boss")
+				graph.set_node_type(target_pred, StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.BOSS]))
+	else:
+		# Hay más de 1 BOSS: conservar el último (mayor ID / profundidad) y convertir los demás en COMBAT
+		var keep_boss_id: int = boss_nodes[boss_nodes.size() - 1]
+		for b_id in boss_nodes:
+			if b_id != keep_boss_id:
+				graph.set_node_data(b_id, "action", MissionNode.ActionType.COMBAT)
+				graph.set_node_data(b_id, "room_type_hint", &"combat")
+				graph.set_node_type(b_id, StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.COMBAT]))
 
 func _select_weighted_rule(rules: Array[Dictionary]) -> int:
 	var total_weight: float = 0.0

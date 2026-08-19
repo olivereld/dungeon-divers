@@ -62,8 +62,8 @@ static func carve_corridors(
 		if conn != null:
 			conn_map[conn.id] = conn
 
-	# 1. Crear el grafo base AStar2D para fallback y comprobaciones de accesibilidad
-	var astar := _build_base_astar_graph(grid, cfg)
+	# 1. Grafo base AStar2D (construido lazy únicamente si se requiere fallback clásico)
+	var astar: AStar2D = null
 
 	# 2. Convertir EntrancePairs o CorridorRequests y ordenar por prioridad
 	var requests: Array[CorridorRequest] = []
@@ -172,6 +172,8 @@ static func _carve_single_request(
 			routing_strategy = "AStar_TurnAware"
 		else:
 			# Fallback clásico mediante AStar2D si el direccional estricto fallara
+			if astar == null:
+				astar = _build_base_astar_graph(grid, config)
 			var classic_path := _find_classic_astar_path(astar, rooms, req, config, grid_width)
 			if not classic_path.is_empty():
 				centerline = classic_path
@@ -201,13 +203,19 @@ static func _carve_single_request(
 		req.room_b_id
 	)
 
-	# Validar que toda la región a tallar no viole restricciones
+	# Validar que toda la región a tallar no viole restricciones y no invada salas (Fase 8)
 	for cell in candidate_carved_cells:
 		if not grid.is_in_bounds(cell):
 			return {"success": false, "reason": "WIDENING_OUT_OF_BOUNDS"}
 		var cell_type := grid.get_cell(cell)
 		if cell_type == CellGrid.CellType.COLUMN or cell_type == CellGrid.CellType.OBSTACLE or cell_type == CellGrid.CellType.VOID:
 			return {"success": false, "reason": "BLOCKED_CELL_IN_REGION"}
+		if cell != req.start_boundary and cell != req.goal_boundary:
+			var c_owner: int = grid.get_room_owner(cell)
+			if c_owner == -1:
+				c_owner = _get_room_id_at(cell, rooms)
+			if c_owner != -1:
+				return {"success": false, "reason": "FORBIDDEN_ROOM_INVADED"}
 
 	# --- PASO 4: COMMIT (Commit atómico al CellGrid) ---
 	var reused_count: int = 0
@@ -220,10 +228,10 @@ static func _carve_single_request(
 		else:
 			# Tallar como CORRIDOR en el grid
 			grid.set_cell(cell, CellGrid.CellType.CORRIDOR)
-			# Actualizar el peso dinámico en AStar para futuras conexiones
-			var cid: int = _get_cell_id(cell, grid_width)
-			var w_corridor: float = config.corridor_cost_corridor if ("corridor_cost_corridor" in config) else 1.0
-			astar.set_point_weight_scale(cid, w_corridor)
+			if astar != null:
+				var cid: int = _get_cell_id(cell, grid_width)
+				var w_corridor: float = config.corridor_cost_corridor if ("corridor_cost_corridor" in config) else 1.0
+				astar.set_point_weight_scale(cid, w_corridor)
 
 		total_cost += 1.0
 
@@ -235,19 +243,6 @@ static func _carve_single_request(
 	var inner_b: Vector2i = req.goal_boundary - req.goal_direction
 	_connect_inner_to_room_floor(grid, room_a, inner_a)
 	_connect_inner_to_room_floor(grid, room_b, inner_b)
-
-	# Registrar conexiones en los RoomData correspondientes
-	if room_a != null:
-		if not room_a.connections.has(req.start_boundary):
-			room_a.connections.append(req.start_boundary)
-		if not room_a.connected_room_ids.has(req.room_b_id):
-			room_a.connected_room_ids.append(req.room_b_id)
-
-	if room_b != null:
-		if not room_b.connections.has(req.goal_boundary):
-			room_b.connections.append(req.goal_boundary)
-		if not room_b.connected_room_ids.has(req.room_a_id):
-			room_b.connected_room_ids.append(req.room_a_id)
 
 	# Calcular métricas de calidad estética del camino
 	var metrics: Dictionary = compute_path_metrics(centerline)
@@ -404,10 +399,12 @@ static func _find_direction_aware_path(
 			elif ctype == CellGrid.CellType.FLOOR or ctype == CellGrid.CellType.DOOR:
 				step_cost = cost_floor
 
-			# Penalización de sala ajena y buffer de proximidad inmediata
-			var owner_id: int = _get_room_id_at(next_pos, rooms)
-			if owner_id != -1 and owner_id != req.room_a_id and owner_id != req.room_b_id:
-				step_cost += other_room_cost
+			# Prohibición de invasión de salas (Fase 6 & Fase 9: Cualquier sala es territorio prohibido para centerline)
+			var owner_id: int = grid.get_room_owner(next_pos)
+			if owner_id == -1:
+				owner_id = _get_room_id_at(next_pos, rooms)
+			if owner_id != -1:
+				continue
 			elif owner_id == -1:
 				# 1. Proteger jambas laterales de las puertas del inicio y final de la conexión
 				var is_jamb := false
@@ -552,9 +549,11 @@ static func _validate_centerline(
 			if manhattan != 1:
 				return "NON_CARDINAL_STEP"
 
-		# Comprobar que no atraviese el interior de una habitación ajena prohibida
-		var owner_id: int = _get_room_id_at(p, rooms)
-		if owner_id != -1 and owner_id != room_a_id and owner_id != room_b_id:
+		# Comprobar que no atraviese el interior de ninguna habitación
+		var owner_id: int = grid.get_room_owner(p)
+		if owner_id == -1:
+			owner_id = _get_room_id_at(p, rooms)
+		if owner_id != -1:
 			return "FORBIDDEN_ROOM"
 
 	return ""
@@ -694,12 +693,10 @@ static func _apply_room_isolation_weights(
 	rooms: Array[RoomData],
 	room_a_id: int,
 	room_b_id: int,
-	config: DungeonConfig,
+	_config: DungeonConfig,
 	grid_width: int,
 	modified_nodes: Dictionary
 ) -> void:
-	var other_room_cost: float = config.corridor_cost_other_room if ("corridor_cost_other_room" in config) else 1000.0
-
 	for r in rooms:
 		if r == null or r.id == room_a_id or r.id == room_b_id:
 			continue
@@ -709,13 +706,13 @@ static func _apply_room_isolation_weights(
 				var cid: int = _get_cell_id(Vector2i(x, y), grid_width)
 				if astar.has_point(cid):
 					if not modified_nodes.has(cid):
-						modified_nodes[cid] = astar.get_point_weight_scale(cid)
-					astar.set_point_weight_scale(cid, other_room_cost)
+						modified_nodes[cid] = astar.is_point_disabled(cid)
+					astar.set_point_disabled(cid, true)
 
 static func _restore_modified_weights(astar: AStar2D, modified_nodes: Dictionary) -> void:
 	for cid in modified_nodes.keys():
 		if astar.has_point(cid):
-			astar.set_point_weight_scale(cid, modified_nodes[cid])
+			astar.set_point_disabled(cid, modified_nodes[cid])
 	modified_nodes.clear()
 
 static func _get_cell_id(pos: Vector2i, grid_width: int) -> int:

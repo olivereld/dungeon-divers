@@ -7,8 +7,6 @@ var id: int = 0
 var rect: Rect2i = Rect2i()
 var room_type: StringName = &"explore"   # &"start", &"explore", &"combat", &"boss", &"treasure", &"puzzle", &"goal"
 var mission_node_id: int = -1
-var connections: Array[Vector2i] = []   # Posiciones de puertas / pasajes (en el umbral exterior)
-var connected_room_ids: Array[int] = [] # IDs de otras habitaciones conectadas
 var is_required: bool = true
 var depth_in_graph: int = 0
 
@@ -83,8 +81,6 @@ func get_nearest_edge_point(target: Vector2i) -> Vector2i:
 func duplicate_room() -> RoomData:
 	var copy := RoomData.new(id, rect, room_type)
 	copy.mission_node_id = mission_node_id
-	copy.connections = connections.duplicate()
-	copy.connected_room_ids = connected_room_ids.duplicate()
 	copy.is_required = is_required
 	copy.depth_in_graph = depth_in_graph
 	return copy

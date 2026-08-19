@@ -15,13 +15,14 @@ var door_pairs: Array = [] # Array[DoorPair]
 var validation: RefCounted = null
 var fitness_score: float = 0.0
 var seed_used: int = 0
+var checksum: String = ""
 var seed_trace: Dictionary = {}
 var floor_number: int = 1
 var generation_time_ms: float = 0.0
 var metadata: Dictionary = {}
 
 func to_debug_string() -> String:
-	var s := "=== DUNGEON RESULT (Seed: %d, Floor: %d, Fitness: %.4f) ===\n" % [seed_used, floor_number, fitness_score]
+	var s := "=== DUNGEON RESULT (Seed: %d, Floor: %d, Checksum: %s, Fitness: %.4f) ===\n" % [seed_used, floor_number, checksum, fitness_score]
 	s += "Rooms: %d, Connections: %d, EntrancePairs: %d, Corridors: %d, Doors: %d\n" % [
 		rooms.size(), connections.size(), entrance_pairs.size(), corridor_paths.size(), doors.size()
 	]

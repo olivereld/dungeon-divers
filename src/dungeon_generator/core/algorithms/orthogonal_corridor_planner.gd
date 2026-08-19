@@ -73,13 +73,16 @@ static func is_cell_valid_for_corridor(
 	if ctype == CellGrid.CellType.VOID or ctype == CellGrid.CellType.COLUMN or ctype == CellGrid.CellType.OBSTACLE:
 		return false
 
-	# Rechazar penetración en el interior de salas que no sean los extremos a conectar
+	# Rechazar penetración en el interior de CUALQUIER sala
+	var owner: int = grid.get_room_owner(cell)
+	if owner != -1:
+		return false
+
 	for rid in room_map:
-		if rid != room_a_id and rid != room_b_id:
-			var r = room_map[rid]
-			if r != null and "rect" in r:
-				if r.rect.has_point(cell):
-					return false
+		var r = room_map[rid]
+		if r != null and "rect" in r:
+			if r.rect.has_point(cell):
+				return false
 
 	return true
 

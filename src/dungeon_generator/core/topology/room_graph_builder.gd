@@ -45,11 +45,13 @@ static func build_topology(
 	result.mst_edges = mst_res.mst_edges
 	result.is_connected = mst_res.is_connected
 
-	# 3. Ciclos: Seleccionar aristas opcionales (~15%)
+	# 3. Ciclos: Seleccionar aristas opcionales (~15%) respetando grado máximo <= 4
 	var optional: Array = _OptionalConnectionSelectorScript.select_optional_edges(
 		mst_res.non_mst_edges,
 		topology_seed,
-		loop_chance
+		loop_chance,
+		mst_res.mst_edges,
+		4
 	)
 	result.optional_edges = optional
 
@@ -74,6 +76,7 @@ static func build_topology(
 
 	# 5. Métricas de diagnóstico
 	var avg_len: float = total_length / float(maxi(1, final_conns.size()))
+	var cyclomatic: int = final_conns.size() - n + 1 if n > 0 else 0
 	result.metrics = _calc_metrics(
 		n,
 		candidates.size(),
@@ -82,7 +85,8 @@ static func build_topology(
 		optional.size(),
 		final_conns.size(),
 		result.is_connected,
-		avg_len
+		avg_len,
+		cyclomatic
 	)
 
 	return result
@@ -95,7 +99,8 @@ static func _calc_metrics(
 	opt_count: int,
 	final_count: int,
 	connected: bool,
-	avg_len: float
+	avg_len: float,
+	cyclomatic: int = 0
 ) -> Dictionary:
 	return {
 		"room_count": room_count,
@@ -105,5 +110,6 @@ static func _calc_metrics(
 		"optional_edge_count": opt_count,
 		"final_edge_count": final_count,
 		"is_connected": connected,
-		"average_edge_length": avg_len
+		"average_edge_length": avg_len,
+		"cyclomatic_complexity": cyclomatic
 	}

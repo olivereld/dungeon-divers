@@ -114,7 +114,9 @@ func generate_semantics(dungeon_result: DungeonResult, config: DungeonConfig = n
 		semantic_result.depth_map,
 		dungeon_result.grid,
 		config,
-		obj_seed
+		obj_seed,
+		semantic_result.critical_path_rooms,
+		dungeon_result.connections
 	)
 	semantic_result.objectives = objectives
 	semantic_result.seed_trace = seed_trace
