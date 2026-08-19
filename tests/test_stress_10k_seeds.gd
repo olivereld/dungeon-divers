@@ -11,7 +11,7 @@ func _init() -> void:
 	var tester = stress_tester_script.new()
 
 	# Ejecutar batería de 500 semillas (multi-floor 2 niveles con validación formal completa)
-	var report = tester.run_stress_test(500, 200000, true, 100)
+	var report = tester.run_stress_test(10000, 200000, true, 100)
 
 	print(report.to_summary_string())
 
