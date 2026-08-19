@@ -9,6 +9,7 @@ const _RoomShapeGeneratorScript = preload("res://src/dungeon_generator/core/algo
 const _StructuralValidatorScript = preload("res://src/dungeon_generator/core/validation/structural_validator.gd")
 const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/room_connectivity_repair.gd")
 const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
+const _SemanticMappingValidatorScript = preload("res://src/dungeon_generator/core/validation/semantic_mapping_validator.gd")
 
 var _space_grammar := _SpaceGrammarScript.new()
 var _cellular_automata := _CellularAutomataScript.new()
@@ -22,6 +23,10 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 
 	ctx.rooms = _space_grammar.generate(ctx.mission_graph, ctx.config, layout_seed)
 	ctx.record_timing("space_grammar", float(Time.get_ticks_msec() - t0))
+
+	# VALIDACIÓN CRÍTICA: Contrato semántico MissionGraph → RoomData
+	if not _SemanticMappingValidatorScript.validate_mission_to_room_semantics(ctx.mission_graph, ctx.rooms, ctx):
+		return false
 
 	t0 = Time.get_ticks_msec()
 	ctx.grid = CellGrid.new(ctx.config.grid_width, ctx.config.grid_height, CellGrid.CellType.WALL)
