@@ -60,6 +60,19 @@ static func validate_mission_to_room_semantics(mission_graph: DungeonGraph, room
 		ctx.record_timing("semantic_validation", float(Time.get_ticks_msec() - t0))
 		return false
 	
+	# Validación bidireccional: verificar que el mission_node_id del boss room corresponde al nodo boss del grafo
+	assert(
+		boss_room.mission_node_id == mission_boss_node_id,
+		"Boss room mission_node_id %d does not match mission graph boss node %d" % [boss_room.mission_node_id, mission_boss_node_id]
+	)
+	
+	# Validar que el nodo del grafo tenga acción BOSS
+	var boss_node_data := mission_graph.get_node_data(mission_boss_node_id)
+	assert(
+		boss_node_data.get("action") == MissionNode.ActionType.BOSS,
+		"Mission node %d for boss room is not of BOSS action type" % mission_boss_node_id
+	)
+	
 	# Validación adicional: no debe haber más de un tipo especial por categoría
 	var start_count: int = 0
 	var goal_count: int = 0
