@@ -45,7 +45,12 @@ static func validate_mission_to_room_semantics(mission_graph: DungeonGraph, room
 		return false
 	
 	# Validar mapeo: el nodo boss del grafo debe corresponder a la sala boss
-	var boss_room: RoomData = rooms[room_boss_id] if room_boss_id < rooms.size() else null
+	var boss_room: RoomData = null
+	for room in rooms:
+		if room.room_type == &"boss":
+			boss_room = room
+			break
+
 	if boss_room == null or boss_room.mission_node_id != mission_boss_node_id:
 		if ctx.diagnostics_enabled:
 			push_warning("[SemanticMappingValidator] Attempt %d: Mission boss node %d does not map to room boss %d." % [

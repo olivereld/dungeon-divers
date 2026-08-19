@@ -12,6 +12,13 @@ var is_valid: bool = false
 var total_generation_time_ms: float = 0.0
 var metadata: Dictionary = {}
 
+# Diagnósticos y causa real de fallos
+var failure_type: String = ""
+var failure_reason: String = ""
+var failure_stage: String = ""
+var failure_seed: int = 0
+
+
 func _init(
 	p_master_seed: int = 0,
 	p_floors: Dictionary = {},

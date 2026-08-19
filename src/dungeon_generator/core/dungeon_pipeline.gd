@@ -59,6 +59,12 @@ var _door_stage := _DungeonDoorStageScript.new()
 var _marker_stage := _DungeonMarkerStageScript.new()
 var _validation_stage := _DungeonValidationStageScript.new()
 
+# Diagnósticos y trazabilidad de fallos
+var last_failure_type: String = ""
+var last_failure_reason: String = ""
+var last_failure_stage: String = ""
+var last_failure_seed: int = 0
+
 
 func get_seed_registry() -> DungeonSeedRegistry:
 	return _seed_registry
@@ -89,8 +95,10 @@ func generate(
 
 	var base_seed: int = _resolve_seed(config, 0)
 
-	var last_failure_type: String = ""
-	var last_failure_reason: String = ""
+	last_failure_type = ""
+	last_failure_reason = ""
+	last_failure_stage = ""
+	last_failure_seed = base_seed
 
 	for attempt in range(max_retries):
 		var ctx := _DungeonGenerationContextScript.new(
@@ -111,13 +119,12 @@ func generate(
 		# 1. Mission
 		# -------------------------------------------------------------
 		if not _mission_stage.execute(ctx):
-			if not _handle_stage_failure(ctx):
-				last_failure_type = ctx.failure_type
-				last_failure_reason = ctx.failure_reason
-				break
-
 			last_failure_type = ctx.failure_type
 			last_failure_reason = ctx.failure_reason
+			last_failure_stage = "mission"
+			last_failure_seed = ctx.attempt_seed
+			if ctx.failure_type == "STRUCTURAL" or not _handle_stage_failure(ctx):
+				break
 			continue
 
 		_emit_stage_signals(
@@ -129,13 +136,12 @@ func generate(
 		# 2. Rooms
 		# -------------------------------------------------------------
 		if not _room_stage.execute(ctx):
-			if not _handle_stage_failure(ctx):
-				last_failure_type = ctx.failure_type
-				last_failure_reason = ctx.failure_reason
-				break
-
 			last_failure_type = ctx.failure_type
 			last_failure_reason = ctx.failure_reason
+			last_failure_stage = "room"
+			last_failure_seed = ctx.attempt_seed
+			if ctx.failure_type == "STRUCTURAL" or not _handle_stage_failure(ctx):
+				break
 			continue
 
 		_emit_stage_signals(
@@ -147,13 +153,12 @@ func generate(
 		# 3. Topology
 		# -------------------------------------------------------------
 		if not _topology_stage.execute(ctx):
-			if not _handle_stage_failure(ctx):
-				last_failure_type = ctx.failure_type
-				last_failure_reason = ctx.failure_reason
-				break
-
 			last_failure_type = ctx.failure_type
 			last_failure_reason = ctx.failure_reason
+			last_failure_stage = "topology"
+			last_failure_seed = ctx.attempt_seed
+			if ctx.failure_type == "STRUCTURAL" or not _handle_stage_failure(ctx):
+				break
 			continue
 
 		_emit_stage_signals(
@@ -165,13 +170,12 @@ func generate(
 		# 4. Entrance
 		# -------------------------------------------------------------
 		if not _entrance_stage.execute(ctx):
-			if not _handle_stage_failure(ctx):
-				last_failure_type = ctx.failure_type
-				last_failure_reason = ctx.failure_reason
-				break
-
 			last_failure_type = ctx.failure_type
 			last_failure_reason = ctx.failure_reason
+			last_failure_stage = "entrance"
+			last_failure_seed = ctx.attempt_seed
+			if ctx.failure_type == "STRUCTURAL" or not _handle_stage_failure(ctx):
+				break
 			continue
 
 		_emit_stage_signals(
@@ -183,13 +187,12 @@ func generate(
 		# 5. Corridors
 		# -------------------------------------------------------------
 		if not _corridor_stage.execute(ctx):
-			if not _handle_stage_failure(ctx):
-				last_failure_type = ctx.failure_type
-				last_failure_reason = ctx.failure_reason
-				break
-
 			last_failure_type = ctx.failure_type
 			last_failure_reason = ctx.failure_reason
+			last_failure_stage = "corridor"
+			last_failure_seed = ctx.attempt_seed
+			if ctx.failure_type == "STRUCTURAL" or not _handle_stage_failure(ctx):
+				break
 			continue
 
 		_emit_stage_signals(
@@ -201,13 +204,12 @@ func generate(
 		# 6. Doors
 		# -------------------------------------------------------------
 		if not _door_stage.execute(ctx):
-			if not _handle_stage_failure(ctx):
-				last_failure_type = ctx.failure_type
-				last_failure_reason = ctx.failure_reason
-				break
-
 			last_failure_type = ctx.failure_type
 			last_failure_reason = ctx.failure_reason
+			last_failure_stage = "door"
+			last_failure_seed = ctx.attempt_seed
+			if ctx.failure_type == "STRUCTURAL" or not _handle_stage_failure(ctx):
+				break
 			continue
 
 		_emit_stage_signals(
@@ -219,26 +221,24 @@ func generate(
 		# 7. Markers
 		# -------------------------------------------------------------
 		if not _marker_stage.execute(ctx):
-			if not _handle_stage_failure(ctx):
-				last_failure_type = ctx.failure_type
-				last_failure_reason = ctx.failure_reason
-				break
-
 			last_failure_type = ctx.failure_type
 			last_failure_reason = ctx.failure_reason
+			last_failure_stage = "marker"
+			last_failure_seed = ctx.attempt_seed
+			if ctx.failure_type == "STRUCTURAL" or not _handle_stage_failure(ctx):
+				break
 			continue
 
 		# -------------------------------------------------------------
 		# 8. Validation
 		# -------------------------------------------------------------
 		if not _validation_stage.execute(ctx):
-			if not _handle_stage_failure(ctx):
-				last_failure_type = ctx.failure_type
-				last_failure_reason = ctx.failure_reason
-				break
-
 			last_failure_type = ctx.failure_type
 			last_failure_reason = ctx.failure_reason
+			last_failure_stage = "validation"
+			last_failure_seed = ctx.attempt_seed
+			if ctx.failure_type == "STRUCTURAL" or not _handle_stage_failure(ctx):
+				break
 			continue
 
 		_emit_stage_signals(
@@ -258,9 +258,8 @@ func generate(
 	# -------------------------------------------------------------
 	# FAILURE
 	# -------------------------------------------------------------
-	var error_message := (
-		"Failed to generate a valid dungeon. "
-		"Seed=%d Type=%s Reason=%s"
+	var error_message: String = (
+		"Failed to generate a valid dungeon. Seed=%d Type=%s Reason=%s"
 		% [
 			base_seed,
 			last_failure_type,
@@ -286,8 +285,7 @@ func _handle_stage_failure(
 	if ctx.failure_type == "STRUCTURAL":
 		if ctx.diagnostics_enabled:
 			push_warning(
-				"[DungeonPipeline] "
-				"STRUCTURAL FAILURE: %s"
+				"[DungeonPipeline] STRUCTURAL FAILURE: %s"
 				% ctx.failure_reason
 			)
 

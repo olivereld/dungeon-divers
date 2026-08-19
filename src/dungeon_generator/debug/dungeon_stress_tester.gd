@@ -112,7 +112,13 @@ func run_stress_test(
 					report.error_breakdown[err_key] = report.error_breakdown.get(err_key, 0) + 1
 			else:
 				report.fail_count += 1
-				report.error_breakdown["GENERATION_FAILED"] = report.error_breakdown.get("GENERATION_FAILED", 0) + 1
+				var err_key: String = "GENERATION_FAILED"
+				if m_res != null:
+					if not m_res.failure_reason.is_empty():
+						err_key = m_res.failure_reason
+					elif not m_res.failure_type.is_empty():
+						err_key = m_res.failure_type
+				report.error_breakdown[err_key] = report.error_breakdown.get(err_key, 0) + 1
 		else:
 			var d_res: DungeonResult = pipeline.generate(cfg, DungeonPipeline.MAX_ATTEMPTS, true, diagnostics_enabled)
 			var elapsed_ms: float = float(Time.get_ticks_usec() - t0) / 1000.0
@@ -122,7 +128,12 @@ func run_stress_test(
 				report.success_count += 1
 			else:
 				report.fail_count += 1
-				report.error_breakdown["PIPELINE_FAILED"] = report.error_breakdown.get("PIPELINE_FAILED", 0) + 1
+				var err_key: String = "PIPELINE_FAILED"
+				if not pipeline.last_failure_reason.is_empty():
+					err_key = pipeline.last_failure_reason
+				elif not pipeline.last_failure_type.is_empty():
+					err_key = pipeline.last_failure_type
+				report.error_breakdown[err_key] = report.error_breakdown.get(err_key, 0) + 1
 
 		if log_interval > 0 and (i + 1) % log_interval == 0:
 			print("  [Stress Test] Progreso: %d/%d semillas evaluadas..." % [i + 1, iterations])

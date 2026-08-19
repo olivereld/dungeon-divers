@@ -10,8 +10,8 @@ func _init() -> void:
 	var stress_tester_script = preload("res://src/dungeon_generator/debug/dungeon_stress_tester.gd")
 	var tester = stress_tester_script.new()
 
-	# Ejecutar batería de 500 semillas (multi-floor 2 niveles con validación formal completa)
-	var report = tester.run_stress_test(10000, 200000, true, 100)
+	# Ejecutar batería de 10.000 semillas (multi-floor 2 niveles con validación formal completa)
+	var report = tester.run_stress_test(10000, 200000, true, 500, false)
 
 	print(report.to_summary_string())
 

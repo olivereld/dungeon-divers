@@ -51,8 +51,13 @@ func generate_multi_floor(
 
 		var d_res: DungeonResult = _pipeline.generate(floor_cfg, DungeonPipeline.MAX_ATTEMPTS, false, diagnostics_enabled)
 		if d_res == null:
-			push_error("[MultiFloorGenerator] Falló la generación del piso %d con semilla %d" % [f, floor_cfg.seed])
+			if diagnostics_enabled:
+				push_error("[MultiFloorGenerator] Falló la generación del piso %d con semilla %d" % [f, floor_cfg.seed])
 			multi_result.is_valid = false
+			multi_result.failure_type = _pipeline.last_failure_type
+			multi_result.failure_reason = _pipeline.last_failure_reason
+			multi_result.failure_stage = _pipeline.last_failure_stage
+			multi_result.failure_seed = floor_cfg.seed
 			return multi_result
 
 		var floor_data: DungeonFloorData = _DungeonFloorDataScript.from_dungeon_result(d_res)
@@ -68,7 +73,14 @@ func generate_multi_floor(
 		if vconn != null:
 			multi_result.add_vertical_connection(vconn)
 		else:
-			push_warning("[MultiFloorGenerator] No se pudo establecer conexión de escaleras entre piso %d y %d" % [f, f + 1])
+			if diagnostics_enabled:
+				push_warning("[MultiFloorGenerator] No se pudo establecer conexión de escaleras entre piso %d y %d" % [f, f + 1])
+			multi_result.is_valid = false
+			multi_result.failure_type = "STRUCTURAL"
+			multi_result.failure_reason = "STAIR_CONNECTION_FAILED"
+			multi_result.failure_stage = "stairs"
+			multi_result.failure_seed = stairs_seed
+			return multi_result
 
 	multi_result.is_valid = (multi_result.get_floor_count() == num_floors)
 	multi_result.total_generation_time_ms = float(Time.get_ticks_msec() - start_time)
