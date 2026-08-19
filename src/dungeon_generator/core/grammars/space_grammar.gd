@@ -51,7 +51,7 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 
 		var room := RoomData.new(rooms.size(), Rect2i(0, 0, size.x, size.y), room_type)
 		room.mission_node_id = node_id
-		room.is_required = not m_node.is_required
+		room.is_required = not bool(m_node.is_optional)
 		
 		# Blindar el mapping: verificar identidad entre MissionNode y RoomData
 		assert(room.mission_node_id == node_id, "MissionNode ID %d does not match RoomData mission_node_id %d" % [node_id, room.mission_node_id])
