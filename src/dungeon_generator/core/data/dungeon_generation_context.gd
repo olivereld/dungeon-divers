@@ -49,6 +49,8 @@ var metrics: Dictionary = {}
 var diagnostics: Dictionary = {}
 var is_attempt_failed: bool = false
 var failure_reason: String = ""
+var failure_type: String = "TRANSIENT"      # "TRANSIENT" o "STRUCTURAL"
+var diagnostics_enabled: bool = true        # Controla si se emiten push_warning
 
 func _init(p_config: DungeonConfig = null, p_base_seed: int = 0, p_attempt: int = 0) -> void:
 	config = p_config
@@ -93,9 +95,10 @@ func record_repair(stage: String, seed_used: int, success: bool, details: Dictio
 	repair_seed_chain.append(entry)
 
 ## Marca el intento actual como fallido para activar reintento limpio.
-func mark_attempt_failed(reason: String) -> void:
+func mark_attempt_failed(reason: String, failure_type: String = "TRANSIENT") -> void:
 	is_attempt_failed = true
 	failure_reason = reason
+	self.failure_type = failure_type
 
 ## Empaqueta el estado actual en un DungeonResult inmutable de transferencia.
 func to_dungeon_result() -> DungeonResult:

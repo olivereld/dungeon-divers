@@ -24,7 +24,7 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	ctx.record_timing("winnability_check", float(Time.get_ticks_msec() - t0))
 
 	if not val.is_winnable:
-		ctx.mark_attempt_failed("MISSION_NOT_WINNABLE")
+		ctx.mark_attempt_failed("MISSION_NOT_WINNABLE", "STRUCTURAL")
 		return false
 
 	return true

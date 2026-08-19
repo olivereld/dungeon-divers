@@ -54,6 +54,10 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 	for attempt in range(max_retries):
 		var ctx := _DungeonGenerationContextScript.new(config, base_seed, attempt)
 		ctx.attempt_seed = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"attempt")
+		
+		# Si es un fallo estructural, no reintentar
+		if attempt > 0 and ctx.failure_type == "STRUCTURAL":
+			break
 
 		# 1. Etapa de Misión y Resolubilidad
 		if not _mission_stage.execute(ctx):

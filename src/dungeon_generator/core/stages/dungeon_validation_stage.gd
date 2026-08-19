@@ -24,11 +24,21 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	ctx.record_timing("quality_gate_validation", float(Time.get_ticks_msec() - t0))
 
 	if not qg_res.hard_valid:
-		push_warning("[DungeonValidationStage] Attempt %d: Quality Gate Hard Failure: %s" % [
+		var error_msg: String = "[DungeonValidationStage] Attempt %d: Quality Gate Hard Failure: %s" % [
 			ctx.attempt,
 			str(qg_res.hard_failures)
-		])
-		ctx.mark_attempt_failed("QUALITY_GATE_HARD_FAILURE: " + str(qg_res.hard_failures))
+		]
+		
+		# Clasificar el fallo como STRUCTURAL si es un problema semántico
+		var failure_reason_str: String = str(qg_res.hard_failures)
+		var f_type: String = "TRANSIENT"
+		if failure_reason_str.contains("BOSS") or failure_reason_str.contains("SEMANTIC") or failure_reason_str.contains("ROOM_TYPE"):
+			f_type = "STRUCTURAL"
+		
+		if ctx.diagnostics_enabled:
+			push_warning(error_msg)
+		
+		ctx.mark_attempt_failed("QUALITY_GATE_HARD_FAILURE: " + failure_reason_str, f_type)
 		return false
 
 	ctx.fitness_score = qg_res.fitness_score

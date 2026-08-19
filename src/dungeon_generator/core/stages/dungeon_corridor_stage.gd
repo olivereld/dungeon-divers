@@ -36,8 +36,9 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		})
 
 		if not c_rep_res.success:
-			push_warning("[DungeonCorridorStage] Attempt %d: AStarCarver failed and repair failed." % ctx.attempt)
-			ctx.mark_attempt_failed("CORRIDOR_CARVING_FAILED")
+			if ctx.diagnostics_enabled:
+				push_warning("[DungeonCorridorStage] Attempt %d: AStarCarver failed and repair failed." % ctx.attempt)
+			ctx.mark_attempt_failed("CORRIDOR_CARVING_FAILED", "TRANSIENT")
 			return false
 		corridor_res = c_rep_res.corridor_res
 

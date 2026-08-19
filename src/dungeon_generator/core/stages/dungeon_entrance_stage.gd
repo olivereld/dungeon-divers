@@ -12,8 +12,9 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	ctx.record_timing("entrance_solver", float(Time.get_ticks_msec() - t0))
 
 	if not entrance_res.is_valid:
-		push_warning("[DungeonEntranceStage] Attempt %d: EntranceSolver failed to resolve mandatory connections." % ctx.attempt)
-		ctx.mark_attempt_failed("ENTRANCE_SOLVER_FAILED")
+		if ctx.diagnostics_enabled:
+			push_warning("[DungeonEntranceStage] Attempt %d: EntranceSolver failed to resolve mandatory connections." % ctx.attempt)
+		ctx.mark_attempt_failed("ENTRANCE_SOLVER_FAILED", "TRANSIENT")
 		return false
 
 	return true
