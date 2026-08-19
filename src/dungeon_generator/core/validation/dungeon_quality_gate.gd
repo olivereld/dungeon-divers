@@ -56,7 +56,12 @@ static func evaluate(ctx: DungeonGenerationContext) -> QualityGateResult:
 
 	# 1.4 Boss Reachability & Depth
 	if ctx.boss_room_id != -1 and not ctx.distance_field.is_empty():
-		var boss_room = ctx.get_room_by_id(ctx.boss_room_id)
+		var boss_room: RoomData = null
+
+		for room in ctx.rooms:
+			if room != null and room.id == ctx.boss_room_id:
+				boss_room = room
+				break
 		if boss_room != null:
 			var boss_center = boss_room.get_center()
 			if not ctx.distance_field.has(boss_center):

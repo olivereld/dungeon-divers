@@ -53,7 +53,9 @@ func _init() -> void:
 		assert(boss_room.room_type == &"boss", "Seed %d: Boss room must have room_type 'boss'" % seed_val)
 
 		# 4. Validar resolución de objetivos semánticos (Spawn / Objectives)
-		var sem_res: DungeonSemanticResult = semantic_orchestrator.generate_semantic_layer(d_res, config, seed_val)
+
+		var sem_res: DungeonSemanticResult = semantic_orchestrator.generate_semantics(d_res, config)
+
 		assert(sem_res != null, "Seed %d: Semantic layer generation failed" % seed_val)
 		assert(sem_res.boss_room_id == boss_room.id, "Seed %d: SemanticResult boss_room_id (%d) must match boss_room.id (%d)" % [
 			seed_val, sem_res.boss_room_id, boss_room.id
