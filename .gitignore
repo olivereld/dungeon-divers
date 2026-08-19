@@ -36,6 +36,9 @@ Thumbs.db
 coverage/
 htmlcov/
 .coverage
+.godot/
+a-plan/
+.agents/
 
 # Distribution / packaging
 dist/
