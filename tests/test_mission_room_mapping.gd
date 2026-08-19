@@ -3,11 +3,11 @@ extends SceneTree
 ## Test de Commit 4: identidad MissionNode BOSS -> RoomData BOSS.
 ## No depende de tests/base_test.gd ni de una infraestructura externa.
 
-const DungeonConfig = preload("res://src/dungeon_generator/core/data/dungeon_config.gd")
+const DungeonConfig = preload("res://src/dungeon_generator/config/dungeon_config.gd")
 const DungeonGraph = preload("res://src/dungeon_generator/core/data/dungeon_graph.gd")
 const MissionGrammar = preload("res://src/dungeon_generator/core/grammars/mission_grammar.gd")
 const SpaceGrammar = preload("res://src/dungeon_generator/core/grammars/space_grammar.gd")
-const MissionNode = preload("res://src/dungeon_generator/core/grammars/mission_node.gd")
+const MissionNode = preload("res://src/dungeon_generator/core/data/mission_node.gd")
 const RoomData = preload("res://src/dungeon_generator/core/data/room_data.gd")
 
 func _init() -> void:
