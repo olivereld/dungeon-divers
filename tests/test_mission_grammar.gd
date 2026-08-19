@@ -30,7 +30,13 @@ func _init() -> void:
 		var graph1: DungeonGraph = grammar.generate(config, seed_val)
 
 		# 1. Validar exactamente 1 BOSS
-		var bosses: Array[int] = graph1.find_nodes_by_type(MissionNode.ActionType.BOSS)
+		var bosses: Array[int] = []
+
+		for nid in graph1.get_all_node_ids():
+			var data: Dictionary = graph1.get_node_data(nid)
+
+			if int(data.get("action", -1)) == MissionNode.ActionType.BOSS:
+				bosses.append(nid)
 		assert(bosses.size() == 1, "Seed %d: Expected exactly 1 BOSS, got %d" % [seed_val, bosses.size()])
 
 		var boss_id: int = bosses[0]
@@ -45,7 +51,13 @@ func _init() -> void:
 
 		# 3. Validar determinismo absoluto (misma seed -> mismo boss_node_id y mismos nodos)
 		var graph2: DungeonGraph = grammar.generate(config, seed_val)
-		var bosses2: Array[int] = graph2.find_nodes_by_type(MissionNode.ActionType.BOSS)
+		var bosses2: Array[int] = []
+
+		for nid in graph2.get_all_node_ids():
+			var data: Dictionary = graph2.get_node_data(nid)
+			if int(data.get("action", -1)) == MissionNode.ActionType.BOSS:
+				bosses2.append(nid)
+
 		assert(bosses2.size() == 1, "Seed %d: Repeat run must have 1 boss" % seed_val)
 		assert(bosses2[0] == boss_id, "Seed %d: Boss ID must be deterministic (%d vs %d)" % [seed_val, boss_id, bosses2[0]])
 		assert(graph1.get_all_node_ids() == graph2.get_all_node_ids(), "Seed %d: Node IDs must match identically" % seed_val)

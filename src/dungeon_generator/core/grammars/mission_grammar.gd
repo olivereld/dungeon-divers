@@ -158,12 +158,8 @@ func _ensure_single_boss(graph: DungeonGraph) -> void:
 	var boss_node_id: int = _select_boss_candidate(graph, goal_id, depths)
 
 	if boss_node_id == -1:
-		# Si ningún predecesor tenía profundidad registrada, usar el primer predecesor
-		var preds: Array[int] = graph.get_predecessors(goal_id)
-		if not preds.is_empty():
-			boss_node_id = preds[0]
-		else:
-			return
+		push_warning("[MissionGrammar] Unable to select valid boss candidate")
+		return	
 
 	# Obtener todos los nodos que actualmente están marcados como BOSS
 	var all_node_ids: Array[int] = graph.get_all_node_ids()
