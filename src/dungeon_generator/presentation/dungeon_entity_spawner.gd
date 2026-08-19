@@ -154,6 +154,7 @@ func spawn_entities(
 		if obj_node != null:
 			obj_node.position = obj_pos_3d
 			obj_node.set_meta("objective_id", obj.objective_id)
+			obj_node.set_meta("room_id", obj.room_id)
 			obj_node.set_meta("type", obj.type)
 			obj_node.set_meta("is_mandatory", obj.is_mandatory)
 			objectives_root.add_child(obj_node)

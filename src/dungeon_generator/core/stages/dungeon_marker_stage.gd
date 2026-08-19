@@ -27,7 +27,16 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 			if not mask.is_reserved(cell):
 				mask.reserve(cell, "CORRIDOR_CLEARANCE")
 
-	# 3. Colocar y reservar marcadores de habitación
+	# 3. Identificar nodo BOSS de la misión para asignación por identidad estricta
+	var boss_node_id: int = -1
+	if ctx.mission_graph != null:
+		for nid in ctx.mission_graph.get_all_node_ids():
+			var nd: Dictionary = ctx.mission_graph.get_node_data(nid)
+			if int(nd.get("action", -1)) == MissionNode.ActionType.BOSS:
+				boss_node_id = nid
+				break
+
+	# 4. Colocar y reservar marcadores de habitación
 	for room in ctx.rooms:
 		var center := room.get_center()
 		if not ctx.grid.is_in_bounds(center):
@@ -45,12 +54,23 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 				if not mask.is_reserved(target_pos):
 					break
 
+		var is_boss_room: bool = (boss_node_id != -1 and room.mission_node_id == boss_node_id) or (boss_node_id == -1 and room.room_type == &"boss")
+
 		if room.room_type == &"start":
 			ctx.grid.set_cell(target_pos, CellGrid.CellType.SPAWN)
+			ctx.start_room_id = room.id
 			mask.reserve(target_pos, "SPAWN")
-		elif room.room_type == &"goal" or room.room_type == &"boss":
+		elif is_boss_room:
 			ctx.grid.set_cell(target_pos, CellGrid.CellType.OBJECTIVE)
-			mask.reserve(target_pos, "OBJECTIVE")
+			ctx.grid.set_metadata(target_pos, "objective_type", "boss")
+			ctx.grid.set_metadata(target_pos, "mission_node_id", room.mission_node_id)
+			ctx.boss_room_id = room.id
+			mask.reserve(target_pos, "BOSS")
+		elif room.room_type == &"goal":
+			ctx.grid.set_cell(target_pos, CellGrid.CellType.OBJECTIVE)
+			ctx.grid.set_metadata(target_pos, "objective_type", "goal")
+			ctx.grid.set_metadata(target_pos, "mission_node_id", room.mission_node_id)
+			mask.reserve(target_pos, "GOAL")
 		elif room.room_type == &"treasure":
 			mask.reserve(target_pos, "CHEST")
 			if room.mission_node_id != -1 and ctx.mission_graph != null and ctx.mission_graph.has_node(room.mission_node_id):

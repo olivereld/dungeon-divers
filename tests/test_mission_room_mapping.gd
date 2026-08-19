@@ -20,7 +20,6 @@ func _init() -> void:
 		var seed_val: int = 1000 + i
 		var config := DungeonConfig.new()
 		config.seed = seed_val
-		config.room_count = 42
 		config.mission_depth = 5
 		config.boss_enabled = true
 
