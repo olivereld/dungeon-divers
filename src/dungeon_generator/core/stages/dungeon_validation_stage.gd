@@ -14,8 +14,12 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	var spawn_cells = ctx.grid.find_cells_of_type(CellGrid.CellType.SPAWN)
 	if not spawn_cells.is_empty():
 		start_pos = spawn_cells[0]
-	elif not ctx.rooms.is_empty():
-		start_pos = ctx.rooms[0].get_center()
+	else:
+		# SPAWN_MISSING es un fallo STRUCTURAL - no usar fallback rooms[0]
+		ctx.mark_attempt_failed("SPAWN_MISSING", "STRUCTURAL")
+		if ctx.diagnostics_enabled:
+			push_warning("[DungeonValidationStage] Attempt %d: SPAWN_MISSING - No entrance/spawn cells found" % ctx.attempt)
+		return false
 
 	ctx.distance_field = _DungeonDistanceFieldScript.compute_distance_field(ctx.grid, start_pos)
 

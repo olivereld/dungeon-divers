@@ -19,7 +19,11 @@ func _init(pipeline: DungeonPipeline = null, stair_planner: StairPlanner = null)
 	_stair_planner = stair_planner if stair_planner != null else _StairPlannerScript.new()
 
 ## Genera una mazmorra completa multinivel de forma determinista y reproducible.
-func generate_multi_floor(config: DungeonConfig, master_seed: int = 0) -> DungeonMultiFloorResult:
+func generate_multi_floor(
+	config: DungeonConfig,
+	master_seed: int = 0,
+	diagnostics_enabled: bool = true
+) -> DungeonMultiFloorResult:
 	var start_time: int = Time.get_ticks_msec()
 
 	if config == null:
@@ -45,7 +49,7 @@ func generate_multi_floor(config: DungeonConfig, master_seed: int = 0) -> Dungeo
 		floor_cfg.seed = _SeedDerivationScript.derive_floor_seed(eff_master_seed, f)
 		floor_cfg.use_fixed_seed = true
 
-		var d_res: DungeonResult = _pipeline.generate(floor_cfg)
+		var d_res: DungeonResult = _pipeline.generate(floor_cfg, DungeonPipeline.MAX_ATTEMPTS, false, diagnostics_enabled)
 		if d_res == null:
 			push_error("[MultiFloorGenerator] Falló la generación del piso %d con semilla %d" % [f, floor_cfg.seed])
 			multi_result.is_valid = false

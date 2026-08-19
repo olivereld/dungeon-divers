@@ -40,7 +40,12 @@ func get_seed_registry() -> DungeonSeedRegistry:
 const MAX_ATTEMPTS: int = 5
 
 ## Ejecuta la orquestación completa del pipeline de generación de mazmorras.
-func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, force_new_seed: bool = false) -> DungeonResult:
+func generate(
+	config: DungeonConfig = null,
+	max_retries: int = MAX_ATTEMPTS,
+	force_new_seed: bool = false,
+	diagnostics_enabled: bool = true
+) -> DungeonResult:
 	if config == null:
 		config = DungeonConfig.new()
 
@@ -50,42 +55,59 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 	generation_started.emit()
 
 	var base_seed: int = _resolve_seed(config, 0)
+	var last_failure_type: String = "TRANSIENT"
+	var last_failure_reason: String = ""
 
 	for attempt in range(max_retries):
 		var ctx := _DungeonGenerationContextScript.new(config, base_seed, attempt)
 		ctx.attempt_seed = _DungeonSeedFactoryScript.derive_seed(base_seed, attempt, &"attempt")
-		
-		# Si es un fallo estructural, no reintentar
-		if attempt > 0 and ctx.failure_type == "STRUCTURAL":
+		ctx.diagnostics_enabled = diagnostics_enabled
+
+		# Si es un fallo estructural del intento anterior, no reintentar
+		if attempt > 0 and last_failure_type == "STRUCTURAL":
+			if ctx.diagnostics_enabled:
+				push_warning("[DungeonPipeline] Abortando tras fallo STRUCTURAL: %s" % last_failure_reason)
 			break
 
 		# 1. Etapa de Misión y Resolubilidad
 		if not _mission_stage.execute(ctx):
+			last_failure_type = ctx.failure_type
+			last_failure_reason = ctx.failure_reason
 			continue
 		_emit_stage_signals(ctx, ["mission_grammar", "winnability_check"])
 
 		# 2. Etapa de Habitaciones y Conectividad Interna
 		if not _room_stage.execute(ctx):
+			last_failure_type = ctx.failure_type
+			last_failure_reason = ctx.failure_reason
 			continue
 		_emit_stage_signals(ctx, ["space_grammar", "room_construction"])
 
 		# 3. Etapa de Topología (Delaunay + MST + Loops)
 		if not _topology_stage.execute(ctx):
+			last_failure_type = ctx.failure_type
+			last_failure_reason = ctx.failure_reason
 			continue
 		_emit_stage_signals(ctx, ["topology_builder"])
 
 		# 4. Etapa de Entradas Perimetrales (EntranceSolver)
 		if not _entrance_stage.execute(ctx):
+			last_failure_type = ctx.failure_type
+			last_failure_reason = ctx.failure_reason
 			continue
 		_emit_stage_signals(ctx, ["entrance_solver"])
 
 		# 5. Etapa de Tallado de Pasillos, Limpieza y Reparación
 		if not _corridor_stage.execute(ctx):
+			last_failure_type = ctx.failure_type
+			last_failure_reason = ctx.failure_reason
 			continue
 		_emit_stage_signals(ctx, ["corridor_carving"])
 
 		# 6. Etapa de Puertas y Umbrales
 		if not _door_stage.execute(ctx):
+			last_failure_type = ctx.failure_type
+			last_failure_reason = ctx.failure_reason
 			continue
 		_emit_stage_signals(ctx, ["door_resolver"])
 
@@ -94,6 +116,8 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 
 		# 8. Etapa de Validación de Conectividad y Fitness
 		if not _validation_stage.execute(ctx):
+			last_failure_type = ctx.failure_type
+			last_failure_reason = ctx.failure_reason
 			continue
 		_emit_stage_signals(ctx, ["flood_fill_connectivity"])
 
@@ -102,7 +126,7 @@ func generate(config: DungeonConfig = null, max_retries: int = MAX_ATTEMPTS, for
 		generation_completed.emit(result)
 		return result
 
-	generation_failed.emit("Failed to generate a valid dungeon within max retries.")
+	generation_failed.emit("Failed to generate a valid dungeon within max retries. Last failure: %s (%s)" % [last_failure_reason, last_failure_type])
 	return null
 
 func _emit_stage_signals(ctx: DungeonGenerationContext, stage_keys: Array[String]) -> void:
