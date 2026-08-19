@@ -121,44 +121,80 @@ func spawn_entities(
 			spawned_entities.append(lock_node)
 
 	# 5. Spawning de Objetivos (ObjectiveData)
-	for obj in sorted_objectives:
-		var obj_pos_3d := _GridToWorldScript.get_cell_center_world(obj.position, tile_size, 0.2)
-		var obj_node: Node3D = null
+	# 5. Spawning de Objetivos (ObjectiveData)
+var room_map: Dictionary = {}
 
-		match obj.type:
-			ObjectiveData.ObjectiveType.SPAWN:
-				if biome != null and biome.spawn_scene != null:
-					obj_node = biome.spawn_scene.instantiate() as Node3D
-				else:
-					obj_node = Marker3D.new()
-					obj_node.name = "SpawnPoint"
+for room in semantic_result.rooms:
+	if room != null:
+		room_map[room.id] = room
 
-			ObjectiveData.ObjectiveType.BOSS:
-				if biome != null and biome.boss_scene != null:
-					obj_node = biome.boss_scene.instantiate() as Node3D
-				else:
-					obj_node = Marker3D.new()
-					obj_node.name = "BossPoint"
+for obj in sorted_objectives:
+	var obj_node: Node3D = null
 
-			ObjectiveData.ObjectiveType.TREASURE:
-				if biome != null and biome.treasure_scene != null:
-					obj_node = biome.treasure_scene.instantiate() as Node3D
-				else:
-					obj_node = Marker3D.new()
-					obj_node.name = "TreasurePoint_%d" % obj.objective_id
+	var objective_room: RoomData = room_map.get(obj.room_id, null)
 
-			_:
+	if objective_room == null:
+		diagnostics.append({
+			"code": "INVALID_OBJECTIVE_ROOM",
+			"severity": "ERROR",
+			"stage": "entity_spawner",
+			"entity_id": obj.objective_id,
+			"message": "Objective %d references invalid room_id=%d."
+				% [obj.objective_id, obj.room_id]
+		})
+		continue
+
+	# ObjectiveData.position sigue siendo la autoridad de posición.
+	# obj.room_id garantiza la identidad de la sala.
+	var obj_pos_3d := _GridToWorldScript.get_cell_center_world(
+		obj.position,
+		tile_size,
+		0.2
+	)
+
+	match obj.type:
+		ObjectiveData.ObjectiveType.SPAWN:
+			if biome != null and biome.spawn_scene != null:
+				obj_node = biome.spawn_scene.instantiate() as Node3D
+			else:
 				obj_node = Marker3D.new()
-				obj_node.name = "Objective_%d" % obj.objective_id
+				obj_node.name = "SpawnPoint"
 
-		if obj_node != null:
-			obj_node.position = obj_pos_3d
-			obj_node.set_meta("objective_id", obj.objective_id)
-			obj_node.set_meta("room_id", obj.room_id)
-			obj_node.set_meta("type", obj.type)
-			obj_node.set_meta("is_mandatory", obj.is_mandatory)
-			objectives_root.add_child(obj_node)
-			spawned_entities.append(obj_node)
+		ObjectiveData.ObjectiveType.BOSS:
+			if biome != null and biome.boss_scene != null:
+				obj_node = biome.boss_scene.instantiate() as Node3D
+			else:
+				obj_node = Marker3D.new()
+				obj_node.name = "BossPoint"
+
+		ObjectiveData.ObjectiveType.TREASURE:
+			if biome != null and biome.treasure_scene != null:
+				obj_node = biome.treasure_scene.instantiate() as Node3D
+			else:
+				obj_node = Marker3D.new()
+				obj_node.name = "TreasurePoint_%d" % obj.objective_id
+
+		_:
+			obj_node = Marker3D.new()
+			obj_node.name = "Objective_%d" % obj.objective_id
+
+	if obj_node != null:
+		obj_node.position = obj_pos_3d
+		obj_node.set_meta("objective_id", obj.objective_id)
+		obj_node.set_meta("room_id", obj.room_id)
+		obj_node.set_meta("type", obj.type)
+		obj_node.set_meta("is_mandatory", obj.is_mandatory)
+
+		# Diagnóstico adicional para garantizar identidad Boss -> Room.
+		if obj.type == ObjectiveData.ObjectiveType.BOSS:
+			obj_node.set_meta("boss_room_id", objective_room.id)
+			obj_node.name = "Boss_%d_Room_%d" % [
+				obj.objective_id,
+				objective_room.id
+			]
+
+		objectives_root.add_child(obj_node)
+		spawned_entities.append(obj_node)
 
 	return {
 		"spawned_entities": spawned_entities,
