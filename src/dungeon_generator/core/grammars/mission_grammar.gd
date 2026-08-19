@@ -88,47 +88,129 @@ func generate(config: DungeonConfig, random_seed: int = 0) -> DungeonGraph:
 	# Garantizar exactamente 1 BOSS si boss_enabled está activo (Fase 11)
 	if config == null or config.boss_enabled:
 		_ensure_single_boss(graph)
+		_validate_mission_graph_invariants(graph)
 
 	return graph
+
+func _find_start_id(graph: DungeonGraph) -> int:
+	var matches: Array[int] = []
+	for nid in graph.get_all_node_ids():
+		var nd: Dictionary = graph.get_node_data(nid)
+		if int(nd.get("action", -1)) == MissionNode.ActionType.START or graph.get_node_type(nid) == StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.START]) or StringName(nd.get("room_type_hint", &"")) == &"start":
+			matches.append(nid)
+	return matches[0] if matches.size() == 1 else -1
+
+func _find_goal_id(graph: DungeonGraph) -> int:
+	var matches: Array[int] = []
+	for nid in graph.get_all_node_ids():
+		var nd: Dictionary = graph.get_node_data(nid)
+		if int(nd.get("action", -1)) == MissionNode.ActionType.GOAL or int(nd.get("action", -1)) == MissionNode.ActionType.PASSAGE_DOWN or graph.get_node_type(nid) == StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.GOAL]) or StringName(nd.get("room_type_hint", &"")) == &"goal":
+			matches.append(nid)
+	return matches[0] if matches.size() == 1 else -1
+
+func _compute_depths_from_start(graph: DungeonGraph, start_id: int) -> Dictionary:
+	var depths: Dictionary = {}
+	if start_id == -1 or not graph.has_node(start_id):
+		return depths
+	depths[start_id] = 0
+	var queue: Array[int] = [start_id]
+	while not queue.is_empty():
+		var curr: int = queue.pop_front()
+		var d: int = depths[curr]
+		for succ in graph.get_successors(curr):
+			if not depths.has(succ):
+				depths[succ] = d + 1
+				queue.append(succ)
+	return depths
+
+func _select_boss_candidate(graph: DungeonGraph, goal_id: int, depths: Dictionary) -> int:
+	if goal_id == -1:
+		return -1
+	var preds: Array[int] = graph.get_predecessors(goal_id)
+	var best_candidate: int = -1
+	var max_depth: int = -1
+
+	for cand in preds:
+		if depths.has(cand):
+			var d: int = depths[cand]
+			if d > max_depth:
+				max_depth = d
+				best_candidate = cand
+			elif d == max_depth:
+				if best_candidate == -1 or cand < best_candidate:
+					best_candidate = cand
+	return best_candidate
 
 func _graph_has_boss(graph: DungeonGraph) -> bool:
 	for nid in graph.get_all_node_ids():
 		var nd: Dictionary = graph.get_node_data(nid)
-		if int(nd.get("action", -1)) == MissionNode.ActionType.BOSS or StringName(nd.get("room_type_hint", &"")) == &"boss":
+		if int(nd.get("action", -1)) == MissionNode.ActionType.BOSS or StringName(nd.get("room_type_hint", &"")) == &"boss" or graph.get_node_type(nid) == StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.BOSS]):
 			return true
 	return false
 
 func _ensure_single_boss(graph: DungeonGraph) -> void:
-	var boss_nodes: Array[int] = []
-	var goal_id: int = -1
-
-	for nid in graph.get_all_node_ids():
-		var nd: Dictionary = graph.get_node_data(nid)
-		if int(nd.get("action", -1)) == MissionNode.ActionType.GOAL:
-			goal_id = nid
-		elif int(nd.get("action", -1)) == MissionNode.ActionType.BOSS or StringName(nd.get("room_type_hint", &"")) == &"boss":
-			boss_nodes.append(nid)
-
-	if boss_nodes.size() == 1:
+	var start_id: int = _find_start_id(graph)
+	var goal_id: int = _find_goal_id(graph)
+	if goal_id == -1:
 		return
 
-	if boss_nodes.is_empty():
-		# Convertir el predecesor de GOAL en BOSS
-		if goal_id != -1:
-			var preds: Array[int] = graph.get_predecessors(goal_id)
-			if not preds.is_empty():
-				var target_pred: int = preds[0]
-				graph.set_node_data(target_pred, "action", MissionNode.ActionType.BOSS)
-				graph.set_node_data(target_pred, "room_type_hint", &"boss")
-				graph.set_node_type(target_pred, StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.BOSS]))
-	else:
-		# Hay más de 1 BOSS: conservar el último (mayor ID / profundidad) y convertir los demás en COMBAT
-		var keep_boss_id: int = boss_nodes[boss_nodes.size() - 1]
-		for b_id in boss_nodes:
-			if b_id != keep_boss_id:
-				graph.set_node_data(b_id, "action", MissionNode.ActionType.COMBAT)
-				graph.set_node_data(b_id, "room_type_hint", &"combat")
-				graph.set_node_type(b_id, StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.COMBAT]))
+	var depths: Dictionary = _compute_depths_from_start(graph, start_id)
+	var boss_node_id: int = _select_boss_candidate(graph, goal_id, depths)
+
+	if boss_node_id == -1:
+		# Si ningún predecesor tenía profundidad registrada, usar el primer predecesor
+		var preds: Array[int] = graph.get_predecessors(goal_id)
+		if not preds.is_empty():
+			boss_node_id = preds[0]
+		else:
+			return
+
+	# Obtener todos los nodos que actualmente están marcados como BOSS
+	var all_node_ids: Array[int] = graph.get_all_node_ids()
+	for nid in all_node_ids:
+		var nd: Dictionary = graph.get_node_data(nid)
+		var is_boss: bool = (int(nd.get("action", -1)) == MissionNode.ActionType.BOSS or StringName(nd.get("room_type_hint", &"")) == &"boss" or graph.get_node_type(nid) == StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.BOSS]))
+		if is_boss and nid != boss_node_id:
+			# Convertir los demás BOSS a COMBAT
+			graph.set_node_data(nid, "action", MissionNode.ActionType.COMBAT)
+			graph.set_node_data(nid, "room_type_hint", &"combat")
+			graph.set_node_type(nid, StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.COMBAT]))
+
+	# Asignar exactamente el boss seleccionado
+	graph.set_node_data(boss_node_id, "action", MissionNode.ActionType.BOSS)
+	graph.set_node_data(boss_node_id, "room_type_hint", &"boss")
+	graph.set_node_type(boss_node_id, StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.BOSS]))
+
+func _validate_mission_graph_invariants(graph: DungeonGraph) -> bool:
+	var start_id: int = _find_start_id(graph)
+	var goal_id: int = _find_goal_id(graph)
+	if start_id == -1 or goal_id == -1:
+		push_warning("[MissionGrammar] Invariant failed: START or GOAL count != 1")
+		return false
+
+	var boss_count: int = 0
+	var boss_id: int = -1
+	for nid in graph.get_all_node_ids():
+		var nd: Dictionary = graph.get_node_data(nid)
+		if int(nd.get("action", -1)) == MissionNode.ActionType.BOSS or StringName(nd.get("room_type_hint", &"")) == &"boss":
+			boss_count += 1
+			boss_id = nid
+
+	if boss_count != 1:
+		push_warning("[MissionGrammar] Invariant failed: Expected exactly 1 BOSS, got %d" % boss_count)
+		return false
+
+	if not graph.has_edge(boss_id, goal_id):
+		push_warning("[MissionGrammar] Invariant failed: Edge BOSS (%d) -> GOAL (%d) must exist directly" % [boss_id, goal_id])
+		return false
+
+	var depths: Dictionary = _compute_depths_from_start(graph, start_id)
+	var expected_boss_id: int = _select_boss_candidate(graph, goal_id, depths)
+	if boss_id != expected_boss_id:
+		push_warning("[MissionGrammar] Invariant failed: BOSS (%d) does not match max depth candidate (%d)" % [boss_id, expected_boss_id])
+		return false
+
+	return true
 
 func _select_weighted_rule(rules: Array[Dictionary]) -> int:
 	var total_weight: float = 0.0
