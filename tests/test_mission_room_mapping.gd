@@ -1,4 +1,4 @@
-extends "res://tests/base_test.gd"
+extends RefCounted
 
 ## Test que verifica la identidad entre MissionNode BOSS y RoomData BOSS.
 ## Garantiza que el BOSS del MissionGraph se convierta en exactamente una RoomData Boss con el mismo mission_node_id.
