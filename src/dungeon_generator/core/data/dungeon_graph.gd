@@ -80,32 +80,36 @@ func set_node_data(id: int, key: String, value: Variant) -> void:
 		_nodes[id]["data"][key] = value
 
 func get_successors(id: int) -> Array[int]:
-	if _adjacency.has(id):
-		var res: Array[int] = []
-		for target in _adjacency[id]:
-			res.append(int(target))
-		return res
-	return []
+	var result: Array[int] = []
+	if not _adjacency.has(id):
+		return result
+	for successor in _adjacency[id]:
+		result.append(int(successor))
+	result.sort()
+	return result
 
 func get_predecessors(id: int) -> Array[int]:
-	if _reverse.has(id):
-		var res: Array[int] = []
-		for src in _reverse[id]:
-			res.append(int(src))
-		return res
-	return []
+	var result: Array[int] = []
+	if not _reverse.has(id):
+		return result
+	for predecessor in _reverse[id]:
+		result.append(int(predecessor))
+	result.sort()
+	return result
 
 func get_all_node_ids() -> Array[int]:
 	var result: Array[int] = []
 	for id in _nodes.keys():
 		result.append(int(id))
+	result.sort()
 	return result
 
-func find_nodes_by_type(type: StringName) -> Array[int]:
+func find_nodes_by_type(type: Variant) -> Array[int]:
 	var result: Array[int] = []
-	for id in _nodes.keys():
-		if _nodes[id]["type"] == type:
-			result.append(int(id))
+	for id in get_all_node_ids():
+		var data: Dictionary = _nodes[id]
+		if data.get("type", null) == type or (typeof(type) == TYPE_INT and int(data.get("type", -1)) == type):
+			result.append(id)
 	return result
 
 func get_node_count() -> int:
@@ -235,12 +239,13 @@ func calculate_depths(from_id: int) -> Dictionary:
 	return depths
 
 func get_topological_order() -> Array[int]:
+	var node_ids: Array[int] = get_all_node_ids()
 	var in_degree: Dictionary = {}
-	for id in _nodes.keys():
-		in_degree[int(id)] = get_predecessors(int(id)).size()
+	for id in node_ids:
+		in_degree[id] = get_predecessors(id).size()
 
 	var queue: Array[int] = []
-	for id in in_degree.keys():
+	for id in node_ids:
 		if in_degree[id] == 0:
 			queue.append(id)
 
@@ -252,6 +257,9 @@ func get_topological_order() -> Array[int]:
 			in_degree[succ] -= 1
 			if in_degree[succ] == 0:
 				queue.append(succ)
+
+	if order.size() != node_ids.size():
+		return []
 
 	return order
 

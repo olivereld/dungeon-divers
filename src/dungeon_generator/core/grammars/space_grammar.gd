@@ -25,8 +25,9 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 	var grid_bounds := Rect2i(3, 3, grid_w - 6, grid_h - 6)
 
 	var node_ids: Array[int] = mission_graph.get_topological_order()
-	if node_ids.is_empty():
-		node_ids = mission_graph.get_all_node_ids()
+	if node_ids.is_empty() and not mission_graph.get_all_node_ids().is_empty():
+		push_warning("[SpaceGrammar] MISSION_GRAPH_CYCLE: Mission graph is not a valid DAG.")
+		return []
 
 	var node_to_room: Dictionary = {} # node_id -> RoomData
 

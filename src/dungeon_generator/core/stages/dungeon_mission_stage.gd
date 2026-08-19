@@ -18,6 +18,14 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	ctx.mission_graph = _mission_grammar.generate(ctx.config, mission_seed)
 	ctx.record_timing("mission_grammar", float(Time.get_ticks_msec() - t0))
 
+	# Validar que el grafo de misiones sea un DAG estricto (sin ciclos)
+	var topo_order: Array[int] = ctx.mission_graph.get_topological_order()
+	if topo_order.size() != ctx.mission_graph.get_node_count() and ctx.mission_graph.get_node_count() > 0:
+		if ctx.diagnostics_enabled:
+			push_warning("[DungeonMissionStage] Attempt %d: MISSION_GRAPH_CYCLE - Mission graph contains cycles." % ctx.attempt)
+		ctx.mark_attempt_failed("MISSION_GRAPH_CYCLE", "TRANSIENT")
+		return false
+
 	t0 = Time.get_ticks_msec()
 	var val: _WinnabilitySolverScript.ValidationResult = _winnability_solver.validate(ctx.mission_graph)
 	ctx.validation_result = val
