@@ -7,7 +7,10 @@ extends RefCounted
 const _MultiFloorOrchestratorScript = preload("res://src/dungeon_generator/core/multilevel/multi_floor_orchestrator.gd")
 const _DungeonMultiFloorResultScript = preload("res://src/dungeon_generator/core/data/dungeon_multi_floor_result.gd")
 
-var _orchestrator: MultiFloorOrchestrator
+# No tipar esta referencia con `MultiFloorOrchestrator`: el script concreto se
+# resuelve mediante preload para evitar dependencia del class_name global durante
+# la carga de la cadena de scripts de GDScript.
+var _orchestrator: RefCounted
 
 func _init(pipeline: DungeonPipeline = null, _unused_stair_planner = null) -> void:
 	_orchestrator = _MultiFloorOrchestratorScript.new(pipeline)
@@ -17,5 +20,5 @@ func generate_multi_floor(
 	config: DungeonConfig,
 	master_seed: int = 0,
 	diagnostics_enabled: bool = true
-) -> DungeonMultiFloorResult:
+):
 	return _orchestrator.generate_multi_floor(config, master_seed, diagnostics_enabled)
