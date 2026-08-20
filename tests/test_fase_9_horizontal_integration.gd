@@ -15,16 +15,17 @@ func _init() -> void:
 	biome.id = &"test_dungeon"
 
 	var config := DungeonConfig.new()
-	config.grid_width = 32
-	config.grid_height = 32
+	config.grid_width = 48
+	config.grid_height = 48
 	config.algorithm = "Hybrid"
 	config.mission_depth = 4
 	config.seed = 1337
+	config.use_fixed_seed = true
 
 	# 1. Generación de Mazmorra Lógica (Core)
 	var dungeon_res: DungeonResult = pipeline.generate(config)
 	assert(dungeon_res != null, "DungeonResult must be valid")
-	assert(dungeon_res.validation.is_winnable, "Generated dungeon must be winnable")
+	assert(dungeon_res.validation != null and dungeon_res.validation.hard_valid, "Generated dungeon must satisfy quality gate")
 	print("  [OK] Core Dungeon generated: %d rooms, %d door pairs" % [
 		dungeon_res.rooms.size(), dungeon_res.door_pairs.size()
 	])

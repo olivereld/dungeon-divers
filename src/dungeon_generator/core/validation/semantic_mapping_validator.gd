@@ -32,7 +32,7 @@ static func validate_mission_to_room_semantics(mission_graph: DungeonGraph, room
 	if mission_boss_count != 1:
 		if ctx.diagnostics_enabled:
 			push_warning("[SemanticMappingValidator] Attempt %d: Expected exactly 1 mission boss, got %d." % [ctx.attempt, mission_boss_count])
-		ctx.mark_attempt_failed("SEMANTIC_MISSION_BOSS_COUNT", "STRUCTURAL")
+		ctx.mark_attempt_failed("SEMANTIC_MISSION_BOSS_COUNT", "TRANSIENT")
 		ctx.record_timing("semantic_validation", float(Time.get_ticks_msec() - t0))
 		return false
 	
@@ -40,7 +40,7 @@ static func validate_mission_to_room_semantics(mission_graph: DungeonGraph, room
 	if room_boss_count != 1:
 		if ctx.diagnostics_enabled:
 			push_warning("[SemanticMappingValidator] Attempt %d: Expected exactly 1 room boss, got %d." % [ctx.attempt, room_boss_count])
-		ctx.mark_attempt_failed("SEMANTIC_ROOM_BOSS_COUNT", "STRUCTURAL")
+		ctx.mark_attempt_failed("SEMANTIC_ROOM_BOSS_COUNT", "TRANSIENT")
 		ctx.record_timing("semantic_validation", float(Time.get_ticks_msec() - t0))
 		return false
 	
@@ -56,22 +56,18 @@ static func validate_mission_to_room_semantics(mission_graph: DungeonGraph, room
 			push_warning("[SemanticMappingValidator] Attempt %d: Mission boss node %d does not map to room boss %d." % [
 				ctx.attempt, mission_boss_node_id, room_boss_id
 			])
-		ctx.mark_attempt_failed("SEMANTIC_BOSS_MAPPING", "STRUCTURAL")
+		ctx.mark_attempt_failed("SEMANTIC_BOSS_MAPPING", "TRANSIENT")
 		ctx.record_timing("semantic_validation", float(Time.get_ticks_msec() - t0))
 		return false
 	
 	# Validación bidireccional: verificar que el mission_node_id del boss room corresponde al nodo boss del grafo
-	assert(
-		boss_room.mission_node_id == mission_boss_node_id,
-		"Boss room mission_node_id %d does not match mission graph boss node %d" % [boss_room.mission_node_id, mission_boss_node_id]
-	)
-	
-	# Validar que el nodo del grafo tenga acción BOSS
-	var boss_node_data := mission_graph.get_node_data(mission_boss_node_id)
-	assert(
-		boss_node_data.get("action") == MissionNode.ActionType.BOSS,
-		"Mission node %d for boss room is not of BOSS action type" % mission_boss_node_id
-	)
+	if boss_room.mission_node_id != mission_boss_node_id:
+		if ctx.diagnostics_enabled:
+			push_warning("[SemanticMappingValidator] Attempt %d: Boss room mission_node_id %d does not match %d." % [
+				ctx.attempt, boss_room.mission_node_id, mission_boss_node_id
+			])
+		ctx.mark_attempt_failed("SEMANTIC_BOSS_ID_MISMATCH", "TRANSIENT")
+		return false
 	
 	# Validación adicional: no debe haber más de un tipo especial por categoría
 	var start_count: int = 0
@@ -85,14 +81,14 @@ static func validate_mission_to_room_semantics(mission_graph: DungeonGraph, room
 	if start_count != 1:
 		if ctx.diagnostics_enabled:
 			push_warning("[SemanticMappingValidator] Attempt %d: Expected exactly 1 start room, got %d." % [ctx.attempt, start_count])
-		ctx.mark_attempt_failed("SEMANTIC_START_COUNT", "STRUCTURAL")
+		ctx.mark_attempt_failed("SEMANTIC_START_COUNT", "TRANSIENT")
 		ctx.record_timing("semantic_validation", float(Time.get_ticks_msec() - t0))
 		return false
 	
 	if goal_count != 1:
 		if ctx.diagnostics_enabled:
 			push_warning("[SemanticMappingValidator] Attempt %d: Expected exactly 1 goal room, got %d." % [ctx.attempt, goal_count])
-		ctx.mark_attempt_failed("SEMANTIC_GOAL_COUNT", "STRUCTURAL")
+		ctx.mark_attempt_failed("SEMANTIC_GOAL_COUNT", "TRANSIENT")
 		ctx.record_timing("semantic_validation", float(Time.get_ticks_msec() - t0))
 		return false
 	

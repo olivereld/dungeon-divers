@@ -2,13 +2,17 @@ class_name DungeonPresentationBuilder
 extends RefCounted
 
 ## Coordinador central de Materialización 3D (Fase 8, 9 y 10).
-## Flujo Atómico: Staging Desacoplado -> Mapeo Grid -> Muros Continuos -> Puertas -> Escaleras -> Atomic Swap.
+## Flujo Atómico: Staging Desacoplado -> Mapeo Grid -> Muros Continuos (Geometry Generator M6) -> Puertas -> Escaleras -> Atomic Swap.
 ## Inmunidad total a reemplazos silenciosos y 0 mutaciones en CellGrid.
 
 const _GridMapMapperScript = preload("res://src/dungeon_generator/presentation/gridmap_mapper.gd")
 const _DungeonEntitySpawnerScript = preload("res://src/dungeon_generator/presentation/dungeon_entity_spawner.gd")
 const _DungeonPresentationResultScript = preload("res://src/dungeon_generator/presentation/presentation_result.gd")
 const _PlaceholderFactoryScript = preload("res://src/dungeon_generator/render/placeholder_factory.gd")
+const _DungeonGeometryGeneratorScript = preload("res://src/geometry_generator/facade/dungeon_geometry_generator.gd")
+const _WallGeometryConfigScript = preload("res://src/geometry_generator/config/wall_geometry_config.gd")
+const _CollisionConfigScript = preload("res://src/geometry_generator/config/collision_config.gd")
+const _DecorationConfigScript = preload("res://src/geometry_generator/config/decoration_config.gd")
 const _ContinuousWallMeshBuilderScript = preload("res://src/wall_mesh_generator/core/continuous_wall_mesh_builder.gd")
 const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall_mesh_config.gd")
 const _DoorManifestFactoryScript = preload("res://src/dungeon_generator/core/data/door_manifest_factory.gd")
@@ -23,6 +27,7 @@ var _entity_spawner := _DungeonEntitySpawnerScript.new()
 var _door_spawner := _DungeonDoorSpawnerScript.new()
 var _stair_spawner := _DungeonStairSpawnerScript.new()
 var _placeholder_factory := _PlaceholderFactoryScript.new()
+var _geometry_generator := _DungeonGeometryGeneratorScript.new()
 
 ## Construye la presentación 3D de un piso semántico individual.
 func build_presentation(
@@ -82,26 +87,42 @@ func build_presentation(
 	for diag in map_res.get("diagnostics", []):
 		result.diagnostics.append(diag)
 
-	# 4.1 Generar Malla Continua Unificada de Paredes (sin cortes ni solapamientos)
+	# 4.1 Generar Malla Continua de Paredes a través de DungeonGeometryGenerator (Fase M6)
 	if biome.wall_scene == null:
-		var wall_builder := _ContinuousWallMeshBuilderScript.new()
-		var wall_config := _WallMeshConfigScript.new()
+		var wall_config := _WallGeometryConfigScript.new()
 		wall_config.cube_size = tile_size
 		wall_config.cubes_high = maxi(1, config.wall_height if config != null else 2)
 		wall_config.seed = config.seed if config != null else 1337
+
+		var col_config := _CollisionConfigScript.new()
+		col_config.mode = _CollisionConfigScript.CollisionMode.COMPOUND_BOX
+
+		var dec_config := _DecorationConfigScript.new()
+		dec_config.enabled = true
+		dec_config.seed = config.seed if config != null else 1337
 
 		var opening_manifest = null
 		if semantic_result != null and semantic_result.door_pairs != null:
 			opening_manifest = _DoorManifestFactoryScript.create_wall_opening_manifest(semantic_result.door_pairs)
 
-		var wall_mesh: ArrayMesh = wall_builder.build_dungeon_wall_mesh(
-			semantic_result.grid, wall_config, 0, opening_manifest
+		var geom_res = _geometry_generator.generate_wall_clusters(
+			semantic_result.grid, opening_manifest, wall_config, col_config, dec_config, 0
 		)
-		if wall_mesh.get_surface_count() > 0:
+
+		if not geom_res.generated_meshes.is_empty():
 			var wall_inst := MeshInstance3D.new()
 			wall_inst.name = "ContinuousWalls"
-			wall_inst.mesh = wall_mesh
-			wall_inst.create_trimesh_collision()
+			wall_inst.mesh = geom_res.get_unified_mesh()
+
+			var static_body := StaticBody3D.new()
+			static_body.name = "WallStaticBody"
+			for g_mesh in geom_res.generated_meshes:
+				for i in range(g_mesh.collision_shapes.size()):
+					var col_shape := CollisionShape3D.new()
+					col_shape.shape = g_mesh.collision_shapes[i]
+					col_shape.transform = g_mesh.collision_transforms[i]
+					static_body.add_child(col_shape)
+			wall_inst.add_child(static_body)
 			staging_root.add_child(wall_inst)
 
 	# 5. Spawning de Puertas y Portales en Staging (Fase 9)
@@ -201,25 +222,41 @@ func build_multi_floor_presentation(
 						floor_grid_map.set_cell_item(Vector3i(x, 0, y), biome.floor_index if biome != null else 0, 0)
 						result.total_tiles_rendered += 1
 
-		# 2. ContinuousWallMesh
-		var wall_builder := _ContinuousWallMeshBuilderScript.new()
-		var wall_config := _WallMeshConfigScript.new()
+		# 2. ContinuousWalls a través de DungeonGeometryGenerator
+		var wall_config := _WallGeometryConfigScript.new()
 		wall_config.cube_size = tile_size
 		wall_config.cubes_high = maxi(1, config.wall_height)
 		wall_config.seed = f_data.seed_used
+
+		var col_config := _CollisionConfigScript.new()
+		col_config.mode = _CollisionConfigScript.CollisionMode.COMPOUND_BOX
+
+		var dec_config := _DecorationConfigScript.new()
+		dec_config.enabled = true
+		dec_config.seed = f_data.seed_used
 
 		var opening_manifest = null
 		if f_data.door_pairs != null:
 			opening_manifest = _DoorManifestFactoryScript.create_wall_opening_manifest(f_data.door_pairs)
 
-		var wall_mesh: ArrayMesh = wall_builder.build_dungeon_wall_mesh(
-			f_data.grid, wall_config, 0, opening_manifest
+		var geom_res = _geometry_generator.generate_wall_clusters(
+			f_data.grid, opening_manifest, wall_config, col_config, dec_config, 0
 		)
-		if wall_mesh.get_surface_count() > 0:
+
+		if not geom_res.generated_meshes.is_empty():
 			var wall_inst := MeshInstance3D.new()
 			wall_inst.name = "ContinuousWalls"
-			wall_inst.mesh = wall_mesh
-			wall_inst.create_trimesh_collision()
+			wall_inst.mesh = geom_res.get_unified_mesh()
+
+			var static_body := StaticBody3D.new()
+			static_body.name = "WallStaticBody"
+			for g_mesh in geom_res.generated_meshes:
+				for i in range(g_mesh.collision_shapes.size()):
+					var col_shape := CollisionShape3D.new()
+					col_shape.shape = g_mesh.collision_shapes[i]
+					col_shape.transform = g_mesh.collision_transforms[i]
+					static_body.add_child(col_shape)
+			wall_inst.add_child(static_body)
 			floor_container.add_child(wall_inst)
 
 		# 3. Puertas
@@ -357,26 +394,42 @@ func build_from_dungeon_result(
 	)
 	result.total_tiles_rendered = int(map_res.get("total_tiles", 0))
 
-	# 4. Generar Malla Continua Unificada de Paredes
+	# 4. Generar Malla Continua de Paredes a través de DungeonGeometryGenerator
 	if biome.wall_scene == null:
-		var wall_builder := _ContinuousWallMeshBuilderScript.new()
-		var wall_config := _WallMeshConfigScript.new()
+		var wall_config := _WallGeometryConfigScript.new()
 		wall_config.cube_size = tile_size
 		wall_config.cubes_high = maxi(1, config.wall_height if config != null else 2)
 		wall_config.seed = config.seed if config != null else 1337
+
+		var col_config := _CollisionConfigScript.new()
+		col_config.mode = _CollisionConfigScript.CollisionMode.COMPOUND_BOX
+
+		var dec_config := _DecorationConfigScript.new()
+		dec_config.enabled = true
+		dec_config.seed = config.seed if config != null else 1337
 
 		var opening_manifest = null
 		if dungeon_result.door_pairs != null and not dungeon_result.door_pairs.is_empty():
 			opening_manifest = _DoorManifestFactoryScript.create_wall_opening_manifest(dungeon_result.door_pairs)
 
-		var wall_mesh: ArrayMesh = wall_builder.build_dungeon_wall_mesh(
-			dungeon_result.grid, wall_config, 0, opening_manifest
+		var geom_res = _geometry_generator.generate_wall_clusters(
+			dungeon_result.grid, opening_manifest, wall_config, col_config, dec_config, 0
 		)
-		if wall_mesh.get_surface_count() > 0:
+
+		if not geom_res.generated_meshes.is_empty():
 			var wall_inst := MeshInstance3D.new()
 			wall_inst.name = "ContinuousWalls"
-			wall_inst.mesh = wall_mesh
-			wall_inst.create_trimesh_collision()
+			wall_inst.mesh = geom_res.get_unified_mesh()
+
+			var static_body := StaticBody3D.new()
+			static_body.name = "WallStaticBody"
+			for g_mesh in geom_res.generated_meshes:
+				for i in range(g_mesh.collision_shapes.size()):
+					var col_shape := CollisionShape3D.new()
+					col_shape.shape = g_mesh.collision_shapes[i]
+					col_shape.transform = g_mesh.collision_transforms[i]
+					static_body.add_child(col_shape)
+			wall_inst.add_child(static_body)
 			staging_root.add_child(wall_inst)
 
 	# 5. Spawning de Puertas
