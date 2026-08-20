@@ -10,6 +10,8 @@ const _DungeonEntitySpawnerScript = preload("res://src/dungeon_generator/present
 const _DungeonPresentationResultScript = preload("res://src/dungeon_generator/presentation/presentation_result.gd")
 const _PlaceholderFactoryScript = preload("res://src/dungeon_generator/render/placeholder_factory.gd")
 const _DungeonGeometryGeneratorScript = preload("res://src/geometry_generator/facade/dungeon_geometry_generator.gd")
+const _DungeonFloorTileGeneratorScript = preload("res://src/floor_tile_generator/facade/dungeon_floor_tile_generator.gd")
+const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
 const _WallGeometryConfigScript = preload("res://src/geometry_generator/config/wall_geometry_config.gd")
 const _CollisionConfigScript = preload("res://src/geometry_generator/config/collision_config.gd")
 const _DecorationConfigScript = preload("res://src/geometry_generator/config/decoration_config.gd")
@@ -28,6 +30,7 @@ var _door_spawner := _DungeonDoorSpawnerScript.new()
 var _stair_spawner := _DungeonStairSpawnerScript.new()
 var _placeholder_factory := _PlaceholderFactoryScript.new()
 var _geometry_generator := _DungeonGeometryGeneratorScript.new()
+var _floor_tile_generator := _DungeonFloorTileGeneratorScript.new()
 
 ## Construye la presentación 3D de un piso semántico individual.
 func build_presentation(
@@ -86,6 +89,26 @@ func build_presentation(
 	result.total_tiles_rendered = int(map_res.get("total_tiles", 0))
 	for diag in map_res.get("diagnostics", []):
 		result.diagnostics.append(diag)
+
+	# 4.0 Generar Geometría Procedural de Suelo (Floor Tile Clusters)
+	if biome.dungeon_floor_scene == null and biome.floor_scene == null and semantic_result.grid != null:
+		var floor_cfg := _FloorTileConfigScript.new()
+		floor_cfg.tile_size = tile_size
+		floor_cfg.seed = config.seed if config != null else 1337
+		floor_cfg.collision_mode = _FloorTileConfigScript.CollisionMode.COMPOUND_BOX
+
+		var floor_res = _floor_tile_generator.generate_floor_clusters(
+			semantic_result.grid, floor_cfg, config.seed if config != null else 1337
+		)
+		if not floor_res.generated_clusters.is_empty():
+			var floor_tiles_root := Node3D.new()
+			floor_tiles_root.name = "FloorTiles"
+			for cluster in floor_res.generated_clusters:
+				var c_inst: MeshInstance3D = cluster.to_mesh_instance("FloorCluster")
+				var c_body: StaticBody3D = cluster.create_collision_body("FloorStaticBody")
+				c_inst.add_child(c_body)
+				floor_tiles_root.add_child(c_inst)
+			staging_root.add_child(floor_tiles_root)
 
 	# 4.1 Generar Malla Continua de Paredes a través de DungeonGeometryGenerator (Fase M6)
 	if biome.wall_scene == null:
@@ -221,6 +244,26 @@ func build_multi_floor_presentation(
 					if grid.is_walkable(Vector2i(x, y)):
 						floor_grid_map.set_cell_item(Vector3i(x, 0, y), biome.floor_index if biome != null else 0, 0)
 						result.total_tiles_rendered += 1
+
+		# 1.1 Floor Tile Clusters
+		if biome.dungeon_floor_scene == null and biome.floor_scene == null and f_data.grid != null:
+			var floor_cfg := _FloorTileConfigScript.new()
+			floor_cfg.tile_size = tile_size
+			floor_cfg.seed = f_data.seed_used
+			floor_cfg.collision_mode = _FloorTileConfigScript.CollisionMode.COMPOUND_BOX
+
+			var floor_res = _floor_tile_generator.generate_floor_clusters(
+				f_data.grid, floor_cfg, f_data.seed_used
+			)
+			if not floor_res.generated_clusters.is_empty():
+				var floor_tiles_root := Node3D.new()
+				floor_tiles_root.name = "FloorTiles"
+				for cluster in floor_res.generated_clusters:
+					var c_inst: MeshInstance3D = cluster.to_mesh_instance("FloorCluster")
+					var c_body: StaticBody3D = cluster.create_collision_body("FloorStaticBody")
+					c_inst.add_child(c_body)
+					floor_tiles_root.add_child(c_inst)
+				floor_container.add_child(floor_tiles_root)
 
 		# 2. ContinuousWalls a través de DungeonGeometryGenerator
 		var wall_config := _WallGeometryConfigScript.new()
@@ -393,6 +436,26 @@ func build_from_dungeon_result(
 		dungeon_result.grid, biome, floor_grid_map, wall_grid_map, config
 	)
 	result.total_tiles_rendered = int(map_res.get("total_tiles", 0))
+
+	# 3.1 Floor Tile Clusters
+	if biome.dungeon_floor_scene == null and biome.floor_scene == null and dungeon_result.grid != null:
+		var floor_cfg := _FloorTileConfigScript.new()
+		floor_cfg.tile_size = tile_size
+		floor_cfg.seed = config.seed if config != null else 1337
+		floor_cfg.collision_mode = _FloorTileConfigScript.CollisionMode.COMPOUND_BOX
+
+		var floor_res = _floor_tile_generator.generate_floor_clusters(
+			dungeon_result.grid, floor_cfg, config.seed if config != null else 1337
+		)
+		if not floor_res.generated_clusters.is_empty():
+			var floor_tiles_root := Node3D.new()
+			floor_tiles_root.name = "FloorTiles"
+			for cluster in floor_res.generated_clusters:
+				var c_inst: MeshInstance3D = cluster.to_mesh_instance("FloorCluster")
+				var c_body: StaticBody3D = cluster.create_collision_body("FloorStaticBody")
+				c_inst.add_child(c_body)
+				floor_tiles_root.add_child(c_inst)
+			staging_root.add_child(floor_tiles_root)
 
 	# 4. Generar Malla Continua de Paredes a través de DungeonGeometryGenerator
 	if biome.wall_scene == null:
