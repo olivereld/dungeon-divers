@@ -5,8 +5,8 @@ extends Resource
 
 enum CollisionMode {
 	NONE,               ## No generar colisionadores
-	BOX,                ## Cajas simples por segmento
-	COMPOUND_BOX,       ## Conjunto optimizado de cajas alineadas al perímetro
+	PER_SEGMENT_BOX,    ## Caja física orientada individual por cada arista
+	COMPOUND_BOX,       ## Conjunto optimizado de cajas fusionando tramos colineales continuos
 	CONCAVE_TRIMESH     ## Malla cóncava exacta (TrimeshCollision)
 }
 

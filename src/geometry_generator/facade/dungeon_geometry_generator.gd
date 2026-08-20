@@ -1,7 +1,7 @@
 class_name DungeonGeometryGenerator
 extends RefCounted
 
-## Fachada central unificada de alto nivel para la generación procedural de geometría 3D (Fase M5).
+## Fachada central unificada de alto nivel para la generación procedural de geometría 3D (Fase M5 & Hardening).
 ## Orquesta BoundaryExtractor -> ComponentExtractor -> WallGeometryBuilder -> WallCollisionBuilder -> BrickDecorator -> MaterialResolver.
 
 const _BoundaryExtractorScript = preload("res://src/geometry_generator/extraction/boundary_extractor.gd")
@@ -38,6 +38,7 @@ func generate_wall_clusters(
 		result.add_diagnostic("NULL_GRID", "FATAL", "Grid provided is null")
 		return result
 
+	# Normalización estricta de parámetros
 	if wall_config == null:
 		wall_config = _WallGeometryConfigScript.new()
 	if col_config == null:
@@ -84,11 +85,20 @@ func generate_and_attach_wall_nodes(
 	material_preset: int = 0
 ) -> Array[MeshInstance3D]:
 	var created_nodes: Array[MeshInstance3D] = []
+
+	# Normalización única y homogénea antes de cualquier procesamiento
+	if wall_config == null:
+		wall_config = _WallGeometryConfigScript.new()
+	if col_config == null:
+		col_config = _CollisionConfigScript.new()
+	if dec_config == null:
+		dec_config = _DecorationConfigScript.new()
+
 	var res := generate_wall_clusters(grid, opening_manifest, wall_config, col_config, dec_config, material_preset)
 
 	for g_mesh in res.generated_meshes:
 		var inst: MeshInstance3D = g_mesh.to_mesh_instance("WallCluster")
-		if col_config != null and col_config.mode != _CollisionConfigScript.CollisionMode.NONE:
+		if col_config.mode != _CollisionConfigScript.CollisionMode.NONE:
 			var static_body := g_mesh.create_collision_body()
 			inst.add_child(static_body)
 

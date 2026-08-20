@@ -1,9 +1,9 @@
 class_name WallGeometryBuilder
 extends RefCounted
 
-## Extrusor de geometría poligonal continua para muros de mazmorra (Fase M2).
-## Recibe un WallComponent con bucles cerrados y genera un GeneratedMesh con mallas limpias (ArrayMesh)
-## y uniones en inglete (miter joints) limitadas, sin acoplamiento a colisiones ni materiales.
+## Extrusor de geometría poligonal continua para muros de mazmorra (Fase M2 & Hardening).
+## Recibe un WallComponent con bucles cerrados y genera un GeneratedMesh con mallas limpias (ArrayMesh),
+## uniones en inglete (miter joints) matemáticamente robustas y libres de NaNs, normales nulas o caras degeneradas.
 
 const _GeneratedMeshScript = preload("res://src/geometry_generator/data/generated_mesh.gd")
 const _WallComponentScript = preload("res://src/geometry_generator/data/wall_component.gd")
@@ -44,12 +44,23 @@ func build_component_mesh(
 	var aabb := AABB()
 
 	# Procesar cada bucle cerrado del componente
-	for loop_points in component.loops:
+	for loop_raw in component.loops:
+		# 1. Limpiar y desduplicar puntos consecutivos
+		var loop_points: Array[Vector2i] = []
+		for pt_raw in loop_raw:
+			var pt_vec: Vector2i = pt_raw as Vector2i
+			if loop_points.is_empty() or loop_points[loop_points.size() - 1] != pt_vec:
+				loop_points.append(pt_vec)
+
+		# Si el último punto es igual al primero, remover duplicado
+		if loop_points.size() > 1 and loop_points[0] == loop_points[loop_points.size() - 1]:
+			loop_points.pop_back()
+
 		var n: int = loop_points.size()
 		if n < 3:
 			continue
 
-		# Convertir puntos 2D de cuadrícula a posiciones 3D en el mundo
+		# Convertir puntos 2D de cuadrícula a posiciones 3D
 		var pts_3d: Array[Vector3] = []
 		for pt in loop_points:
 			var p3 := Vector3(float(pt.x) * tile_size, 0.0, float(pt.y) * tile_size)
@@ -61,21 +72,24 @@ func build_component_mesh(
 				aabb = aabb.expand(p3)
 				aabb = aabb.expand(p3 + Vector3(0.0, total_h, 0.0))
 
-		# 1. Calcular vectores miter en cada vértice del bucle
+		# 2. Calcular vectores miter en cada vértice del bucle con protección geométrica
 		var miter_dirs: Array[Vector3] = []
 		for i in range(n):
 			var prev_pt: Vector3 = pts_3d[(i - 1 + n) % n]
 			var curr_pt: Vector3 = pts_3d[i]
 			var next_pt: Vector3 = pts_3d[(i + 1) % n]
 
-			var t_in: Vector3 = (curr_pt - prev_pt).normalized()
-			var t_out: Vector3 = (next_pt - curr_pt).normalized()
+			var diff_in: Vector3 = curr_pt - prev_pt
+			var diff_out: Vector3 = next_pt - curr_pt
 
-			# Normal perpendicular hacia el sólido del muro
+			var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
+			var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
+
+			# Normal perpendicular hacia el sólido del muro (a la derecha de la dirección de avance)
 			var n_wall_in := Vector3(t_in.z, 0.0, -t_in.x)
 			var n_wall_out := Vector3(t_out.z, 0.0, -t_out.x)
 
-			var miter: Vector3 = (n_wall_in + n_wall_out)
+			var miter: Vector3 = n_wall_in + n_wall_out
 			if miter.length_squared() < 0.0001:
 				miter = n_wall_in
 			else:
@@ -85,12 +99,12 @@ func build_component_mesh(
 				if dot > 0.001:
 					m_scale = 1.0 / dot
 				# Clampear factor miter según configuración
-				m_scale = minf(m_scale, config.max_miter_scale)
+				m_scale = clampf(m_scale, 0.5, config.max_miter_scale)
 				miter = m_dir * m_scale
 
 			miter_dirs.append(miter)
 
-		# 2. Extruir cada arista del bucle como una cinta continua con ingletes
+		# 3. Extruir cada arista del bucle como una cinta continua con ingletes
 		for i in range(n):
 			var next_i: int = (i + 1) % n
 			var p0: Vector3 = pts_3d[i]
@@ -226,8 +240,9 @@ func build_component_mesh(
 	return g_mesh
 
 static func _add_quad(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3) -> void:
+	# Triángulo 1: (p0, p1, p2)
 	var cross1: Vector3 = (p1 - p0).cross(p2 - p0)
-	if cross1.length_squared() >= 0.00001:
+	if cross1.length_squared() >= 0.000001:
 		var normal1: Vector3 = cross1.normalized()
 		st.set_normal(normal1)
 		st.set_uv(Vector2(0.0, 0.0))
@@ -241,8 +256,9 @@ static func _add_quad(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3
 		st.set_uv(Vector2(1.0, 1.0))
 		st.add_vertex(p2)
 
+	# Triángulo 2: (p0, p2, p3)
 	var cross2: Vector3 = (p2 - p0).cross(p3 - p0)
-	if cross2.length_squared() >= 0.00001:
+	if cross2.length_squared() >= 0.000001:
 		var normal2: Vector3 = cross2.normalized()
 		st.set_normal(normal2)
 		st.set_uv(Vector2(0.0, 0.0))
