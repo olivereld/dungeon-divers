@@ -9,7 +9,9 @@ extends Node3D
 @export var config: DungeonConfig = null
 @export var visualizer: DungeonVisualizer = null
 @export var camera: Camera3D = null
+@export var camera_rig: Node3D = null
 
+const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometric_camera_rig.gd")
 const _SemanticOrchestratorScript = preload("res://src/dungeon_generator/core/semantic/semantic_orchestrator.gd")
 const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
 const _MultiFloorGeneratorScript = preload("res://src/dungeon_generator/core/multi_floor_generator.gd")
@@ -250,6 +252,14 @@ func _on_random_seed_requested() -> void:
 	_on_seed_submitted(random_seed)
 
 func _setup_camera() -> void:
+	if camera_rig != null:
+		camera = camera_rig.get_camera()
+		if not camera_rig.occlusion_started.is_connected(_on_camera_occlusion_started):
+			camera_rig.occlusion_started.connect(_on_camera_occlusion_started)
+		if not camera_rig.occlusion_ended.is_connected(_on_camera_occlusion_ended):
+			camera_rig.occlusion_ended.connect(_on_camera_occlusion_ended)
+		return
+
 	if camera == null:
 		return
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -358,6 +368,10 @@ func build_3d_presentation() -> void:
 			_player.position = p_pos
 			_player.visible = true
 
+		if camera_rig != null and _player != null:
+			camera_rig.set_target(_player)
+			camera_rig.teleport_to_target()
+
 		_apply_floor_visibility()
 		_center_camera_on_dungeon()
 		_apply_live_lighting_updates()
@@ -408,6 +422,10 @@ func _spawn_or_reposition_player() -> void:
 	var player_pos: Vector3 = GridToWorld.get_cell_center_world(spawn_grid_pos, cell_size, 0.5)
 	_player.position = player_pos
 	_player.velocity = Vector3.ZERO
+
+	if camera_rig != null:
+		camera_rig.set_target(_player)
+		camera_rig.teleport_to_target()
 
 var _failure_label: Label = null
 
@@ -549,17 +567,41 @@ func _input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			_is_orbiting = event.pressed
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_zoom = maxf(10.0, _zoom - 4.0)
-			if camera != null:
-				camera.size = _zoom
+			if camera_rig != null:
+				camera_rig.zoom_in()
+			else:
+				_zoom = maxf(10.0, _zoom - 4.0)
+				if camera != null:
+					camera.size = _zoom
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_zoom = minf(200.0, _zoom + 4.0)
-			if camera != null:
-				camera.size = _zoom
+			if camera_rig != null:
+				camera_rig.zoom_out()
+			else:
+				_zoom = minf(200.0, _zoom + 4.0)
+				if camera != null:
+					camera.size = _zoom
 
 	if event is InputEventMouseMotion and _is_orbiting:
 		_camera_yaw -= event.relative.x * 0.4
 		_update_camera_transform()
+
+# ==============================================================================
+# MANEJADORES DE OCLUSIÓN DE CÁMARA
+# ==============================================================================
+
+func _on_camera_occlusion_started(occluders: Array[Node3D]) -> void:
+	for occ in occluders:
+		if occ != null and is_instance_valid(occ):
+			var mesh_node = occ.get_parent() if occ is CollisionObject3D else occ
+			if mesh_node is MeshInstance3D:
+				mesh_node.set_meta("occluded", true)
+
+func _on_camera_occlusion_ended(occluders: Array[Node3D]) -> void:
+	for occ in occluders:
+		if occ != null and is_instance_valid(occ):
+			var mesh_node = occ.get_parent() if occ is CollisionObject3D else occ
+			if mesh_node != null and mesh_node.has_meta("occluded"):
+				mesh_node.remove_meta("occluded")
 
 # ==============================================================================
 # MANEJADORES DE ILUMINACIÓN PROCEDURAL Y ENTORNO
