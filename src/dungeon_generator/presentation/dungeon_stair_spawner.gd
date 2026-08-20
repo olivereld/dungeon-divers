@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Spawner y materializador físico de escaleras en Presentation (Fase 10 - Verticalidad).
 ## Instancia escenas personalizadas (biome.stairs_up_scene / stairs_down_scene) o genera
-## tramos de escaleras de piedra procedurales con colisión física y materiales estilizados.
+## tramos de escaleras de piedra procedurales con colisión física, trigger de interacción (Area3D) y metadatos de transición.
 
 const _StairDataScript = preload("res://src/dungeon_generator/core/data/stair_data.gd")
 const _GridToWorldScript = preload("res://src/dungeon_generator/presentation/grid_to_world.gd")
@@ -30,13 +30,16 @@ func spawn_stairs(
 	stairs_container.name = "Stairs"
 	staging_root.add_child(stairs_container)
 
+	# Altura estándar del prop visual de escalera dentro de la instancia del piso (1.8m)
+	var visual_stair_rise: float = 1.8
+
 	# Preparar mallas procedurales de escalera ascendente y descendente
 	var stair_up_mesh: ArrayMesh = null
 	var stair_down_mesh: ArrayMesh = null
 
 	if biome == null or (biome.stairs_up_scene == null and biome.stairs_down_scene == null):
-		stair_up_mesh = _build_procedural_stair_mesh(tile_size, 1.8, false)
-		stair_down_mesh = _build_procedural_stair_mesh(tile_size, 1.8, true)
+		stair_up_mesh = _build_procedural_stair_mesh(tile_size, visual_stair_rise, false)
+		stair_down_mesh = _build_procedural_stair_mesh(tile_size, visual_stair_rise, true)
 
 	for st in stairs:
 		if st == null:
@@ -63,6 +66,26 @@ func spawn_stairs(
 			)
 			stair_node.position = pos_3d
 			stair_node.rotation = Vector3(0.0, st.orientation, 0.0)
+
+			# 1. Inyectar metadatos para el FloorTransitionSystem / Interacción
+			stair_node.set_meta("stair_id", st.stair_id)
+			stair_node.set_meta("floor_number", st.floor_number)
+			stair_node.set_meta("target_floor", st.target_floor)
+			stair_node.set_meta("connection_id", st.connection_id)
+			stair_node.set_meta("is_downward", st.is_downward)
+			stair_node.set_meta("cell", st.cell)
+			stair_node.set_meta("orientation", st.orientation)
+
+			# 2. Agregar trigger de interacción (Area3D) para detección de proximidad del jugador
+			var interact_area := Area3D.new()
+			interact_area.name = "InteractionArea"
+			var col_shape := CollisionShape3D.new()
+			var box := BoxShape3D.new()
+			box.size = Vector3(tile_size * 0.9, visual_stair_rise + 0.4, tile_size * 0.9)
+			col_shape.shape = box
+			col_shape.position = Vector3(0.0, (visual_stair_rise + 0.4) * 0.5, 0.0)
+			interact_area.add_child(col_shape)
+			stair_node.add_child(interact_area)
 
 			stairs_container.add_child(stair_node)
 			result["spawned_stairs"].append(stair_node)

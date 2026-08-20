@@ -1,7 +1,7 @@
 class_name WallMaterialFactory
 extends RefCounted
 
-## Fábrica de materiales PBR (StandardMaterial3D) para paredes estilizadas.
+## Fábrica de materiales PBR (StandardMaterial3D) para paredes y suelos estilizados.
 ## Desactiva el culling (CULL_DISABLED) para garantizar visibilidad 100% sólida desde cualquier ángulo y cámara.
 
 enum MaterialPreset {
@@ -106,6 +106,45 @@ static func create_iron_material(preset: MaterialPreset = MaterialPreset.STYLIZE
 
 	return mat
 
+static func create_floor_slab_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.roughness = 0.65
+	mat.metallic = 0.02
+	mat.metallic_specular = 0.30
+	mat.vertex_color_use_as_albedo = true # Habilita las variaciones de tono por losa
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	match preset:
+		MaterialPreset.STYLIZED_SLATE:
+			mat.albedo_color = Color(0.92, 0.94, 0.96) # Modula el vertex color con base pizarra
+		MaterialPreset.DUNGEON_WARM_STONE:
+			mat.albedo_color = Color(1.05, 0.98, 0.90) # Modula hacia tono cálido
+		MaterialPreset.DARK_CRYPT:
+			mat.albedo_color = Color(0.60, 0.62, 0.66) # Modula hacia tono oscuro
+		MaterialPreset.SANDSTONE_RUINS:
+			mat.albedo_color = Color(1.10, 1.00, 0.82) # Modula hacia arenisca
+
+	return mat
+
+static func create_floor_mortar_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.roughness = 0.95
+	mat.metallic = 0.0
+	mat.metallic_specular = 0.05
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	match preset:
+		MaterialPreset.STYLIZED_SLATE:
+			mat.albedo_color = Color(0.16, 0.16, 0.18) # Mortero oscuro entre losas
+		MaterialPreset.DUNGEON_WARM_STONE:
+			mat.albedo_color = Color(0.22, 0.19, 0.16)
+		MaterialPreset.DARK_CRYPT:
+			mat.albedo_color = Color(0.09, 0.10, 0.11)
+		MaterialPreset.SANDSTONE_RUINS:
+			mat.albedo_color = Color(0.28, 0.24, 0.18)
+
+	return mat
+
 static func apply_materials_to_mesh_instance(
 	mesh_instance: MeshInstance3D,
 	preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE
@@ -118,6 +157,8 @@ static func apply_materials_to_mesh_instance(
 	var brick_mat := create_brick_material(preset)
 	var wood_mat := create_wood_material(preset)
 	var iron_mat := create_iron_material(preset)
+	var floor_slab_mat := create_floor_slab_material(preset)
+	var floor_mortar_mat := create_floor_mortar_material(preset)
 
 	var mesh: Mesh = mesh_instance.mesh
 	for s in range(mesh.get_surface_count()):
@@ -133,6 +174,10 @@ static func apply_materials_to_mesh_instance(
 				mesh_instance.set_surface_override_material(s, wood_mat)
 			"DoorIron":
 				mesh_instance.set_surface_override_material(s, iron_mat)
+			"FloorSlabs":
+				mesh_instance.set_surface_override_material(s, floor_slab_mat)
+			"FloorMortar":
+				mesh_instance.set_surface_override_material(s, floor_mortar_mat)
 			_:
 				if s == 0:
 					mesh_instance.set_surface_override_material(0, trim_mat)

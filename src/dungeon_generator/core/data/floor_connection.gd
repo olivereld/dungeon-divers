@@ -59,7 +59,8 @@ func create_stair_pair(from_orientation: float = 0.0, to_orientation: float = 0.
 		from_cell,
 		from_orientation,
 		connection_id,
-		is_downward()
+		is_downward(),
+		to_floor
 	)
 	var to_stair := StairData.new(
 		to_stair_id,
@@ -67,7 +68,8 @@ func create_stair_pair(from_orientation: float = 0.0, to_orientation: float = 0.
 		to_cell,
 		to_orientation,
 		connection_id,
-		not is_downward()
+		not is_downward(),
+		from_floor
 	)
 	return [from_stair, to_stair]
 

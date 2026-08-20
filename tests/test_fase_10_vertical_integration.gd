@@ -74,16 +74,26 @@ func _init() -> void:
 		var walls = floor_node.get_node_or_null("ContinuousWalls")
 		assert(walls != null, "Floor %d must have ContinuousWalls" % f_num)
 
-	# 5. Verificar Escaleras Materializadas
+	# 5. Verificar Escaleras Materializadas, Metadatos de Transición e InteractionArea
 	var f0_node: Node3D = pres_root.get_node_or_null("Floor_0")
 	var f1_node: Node3D = pres_root.get_node_or_null("Floor_1")
 	var f2_node: Node3D = pres_root.get_node_or_null("Floor_2")
 
-	assert(f0_node.get_node_or_null("Stairs") != null, "Floor 0 must contain Stairs container")
-	assert(f1_node.get_node_or_null("Stairs") != null, "Floor 1 must contain Stairs container")
-	assert(f2_node.get_node_or_null("Stairs") != null, "Floor 2 must contain Stairs container")
+	var f0_stairs = f0_node.get_node_or_null("Stairs")
+	var f1_stairs = f1_node.get_node_or_null("Stairs")
+	var f2_stairs = f2_node.get_node_or_null("Stairs")
 
-	print("  [OK] Multi-floor presentation 3D successfully rendered 3 elevated floors with continuous walls and stairs")
+	assert(f0_stairs != null and f0_stairs.get_child_count() > 0, "Floor 0 must contain Stairs")
+	assert(f1_stairs != null and f1_stairs.get_child_count() > 0, "Floor 1 must contain Stairs")
+	assert(f2_stairs != null and f2_stairs.get_child_count() > 0, "Floor 2 must contain Stairs")
+
+	var first_stair = f0_stairs.get_child(0)
+	assert(first_stair.has_meta("connection_id"), "Stair must have connection_id metadata")
+	assert(first_stair.has_meta("target_floor"), "Stair must have target_floor metadata")
+	assert(first_stair.get_meta("target_floor") == 1, "Floor 0 stair must target Floor 1")
+	assert(first_stair.get_node_or_null("InteractionArea") != null, "Stair must have InteractionArea child trigger")
+
+	print("  [OK] Multi-floor presentation 3D successfully rendered 3 elevated floors with stairs, transition metadata and InteractionAreas")
 
 	root_node.free()
 	print("\n================================================================")

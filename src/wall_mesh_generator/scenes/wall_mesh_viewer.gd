@@ -1,7 +1,7 @@
 extends Node3D
 
-## Controlador de la escena de pruebas interactiva para el generador de paredes y esquinas estilizadas.
-## Permite seleccionar el tipo de pieza (Pared Recta / Esquina en L), ajustar dimensiones y ver la construcción secuencial.
+## Controlador de la escena de pruebas interactiva para el generador de paredes, esquinas, puertas y suelos estilizados.
+## Permite seleccionar el tipo de pieza (Pared / Esquina / Arco / Puerta / Baldosa de Suelo / Malla 3x3), ajustar dimensiones y ver la construcción.
 
 const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall_mesh_config.gd")
 const _WallMeshBuilderScript = preload("res://src/wall_mesh_generator/core/wall_mesh_builder.gd")
@@ -67,6 +67,8 @@ func _setup_ui() -> void:
 	option_piece_type.add_item("🚪 Arco de Entrada (Arch)", 2)
 	option_piece_type.add_item("🚪 Hoja de Puerta (Door Leaf)", 3)
 	option_piece_type.add_item("🏛️🚪 Portal Completo (Arco + Puerta)", 4)
+	option_piece_type.add_item("🏛️ Baldosa de Suelo (Floor Tile 1x1)", 5)
+	option_piece_type.add_item("🏰 Malla de Suelo 3x3 (Floor Grid 3x3)", 6)
 	option_piece_type.select(0)
 
 	option_preset.clear()
@@ -96,10 +98,14 @@ func _connect_signals() -> void:
 			_config.piece_type == WallMeshConfig.PieceType.CORNER or
 			_config.piece_type == WallMeshConfig.PieceType.ARCH or
 			_config.piece_type == WallMeshConfig.PieceType.DOOR or
-			_config.piece_type == WallMeshConfig.PieceType.ARCH_WITH_DOOR
+			_config.piece_type == WallMeshConfig.PieceType.ARCH_WITH_DOOR or
+			_config.piece_type == WallMeshConfig.PieceType.FLOOR_TILE or
+			_config.piece_type == WallMeshConfig.PieceType.FLOOR_GRID_3X3
 		)
 		slider_length.editable = not is_fixed_size
 		slider_length.modulate = Color(0.5, 0.5, 0.5, 0.5) if is_fixed_size else Color.WHITE
+		slider_height_cubes.editable = not (_config.piece_type == WallMeshConfig.PieceType.FLOOR_TILE or _config.piece_type == WallMeshConfig.PieceType.FLOOR_GRID_3X3)
+		slider_height_cubes.modulate = Color(0.5, 0.5, 0.5, 0.5) if (_config.piece_type == WallMeshConfig.PieceType.FLOOR_TILE or _config.piece_type == WallMeshConfig.PieceType.FLOOR_GRID_3X3) else Color.WHITE
 		_update_ui_labels()
 		_rebuild_wall(true)
 	)
@@ -175,18 +181,28 @@ func _process(delta: float) -> void:
 
 func _update_ui_labels() -> void:
 	match _config.piece_type:
+		WallMeshConfig.PieceType.FLOOR_TILE:
+			label_length.text = "Tipo: Baldosa de Suelo 1x1 (%.1f x %.1f m)" % [_config.cube_size, _config.cube_size]
+			label_height_cubes.text = "Espesor / Altura: 0.08m (Losas de Piedra con Bisel)"
+		WallMeshConfig.PieceType.FLOOR_GRID_3X3:
+			label_length.text = "Tipo: Cuadrícula Suelo 3x3 (%.1f x %.1f m)" % [_config.cube_size * 3.0, _config.cube_size * 3.0]
+			label_height_cubes.text = "Tileado Continuo: 9 celdas entrelazadas"
 		WallMeshConfig.PieceType.ARCH_WITH_DOOR:
 			label_length.text = "Tipo: Portal Completo (Arco de Piedra + Puerta)"
+			label_height_cubes.text = "Altura: %d cubos (%.1fm)" % [_config.cubes_high, _config.get_total_height()]
 		WallMeshConfig.PieceType.DOOR:
 			label_length.text = "Tipo: Hoja de Puerta (%.2f x %.2f m)" % [_config.door_width, _config.door_height]
+			label_height_cubes.text = "Altura: %d cubos (%.1fm)" % [_config.cubes_high, _config.get_total_height()]
 		WallMeshConfig.PieceType.ARCH:
 			label_length.text = "Tipo: Arco de Entrada (Vano: %.2fm)" % _config.arch_opening_width
+			label_height_cubes.text = "Altura: %d cubos (%.1fm)" % [_config.cubes_high, _config.get_total_height()]
 		WallMeshConfig.PieceType.CORNER:
 			label_length.text = "Tipo: Esquina en L (%.1f x %.1f m)" % [_config.cube_size, _config.cube_size]
+			label_height_cubes.text = "Altura: %d cubos (%.1fm)" % [_config.cubes_high, _config.get_total_height()]
 		_:
 			label_length.text = "Longitud: %d cubos (%.1fm)" % [_config.wall_length_cubes, _config.get_total_length()]
-	label_height_cubes.text = "Altura: %d cubos (%.1fm)" % [_config.cubes_high, _config.get_total_height()]
-	label_density.text = "Densidad de Ladrillos (Noise): %d%%" % int(_config.brick_density * 100.0)
+			label_height_cubes.text = "Altura: %d cubos (%.1fm)" % [_config.cubes_high, _config.get_total_height()]
+	label_density.text = "Densidad de Ladrillos / Variación: %d%%" % int(_config.brick_density * 100.0)
 
 func _rebuild_wall(reset_seq: bool = true) -> void:
 	var mode: WallSequenceController.StepMode = option_seq_mode.selected as WallSequenceController.StepMode
@@ -195,14 +211,26 @@ func _rebuild_wall(reset_seq: bool = true) -> void:
 
 	# Centrar la cámara según el tipo de pieza
 	match _config.piece_type:
+		WallMeshConfig.PieceType.FLOOR_TILE:
+			_camera_target = Vector3(_config.cube_size * 0.5, 0.0, _config.cube_size * 0.5)
+			_camera_distance = 4.5
+			camera_pivot.rotation = Vector3(-0.8, 0.0, 0.0)
+		WallMeshConfig.PieceType.FLOOR_GRID_3X3:
+			_camera_target = Vector3(_config.cube_size * 1.5, 0.0, _config.cube_size * 1.5)
+			_camera_distance = 10.0
+			camera_pivot.rotation = Vector3(-0.9, 0.0, 0.0)
 		WallMeshConfig.PieceType.ARCH_WITH_DOOR, WallMeshConfig.PieceType.ARCH:
 			_camera_target = Vector3(0.0, _config.get_total_height() * 0.5, 0.0)
+			_camera_distance = 7.5
 		WallMeshConfig.PieceType.DOOR:
 			_camera_target = Vector3(0.0, _config.door_height * 0.5, 0.0)
+			_camera_distance = 6.5
 		WallMeshConfig.PieceType.CORNER:
 			_camera_target = Vector3(_config.cube_size * 0.5, _config.get_total_height() * 0.5, _config.cube_size * 0.5)
+			_camera_distance = 7.5
 		_:
 			_camera_target = Vector3(_config.get_total_length() * 0.5, _config.get_total_height() * 0.5, 0.0)
+			_camera_distance = 7.5
 	_update_camera_transform()
 
 	if reset_seq:
@@ -283,7 +311,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_is_dragging_orbit = mb.pressed
 			_last_mouse_pos = mb.position
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_camera_distance = maxf(2.0, _camera_distance - 0.6)
+			_camera_distance = maxf(1.5, _camera_distance - 0.6)
 			_update_camera_transform()
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_camera_distance = minf(30.0, _camera_distance + 0.6)

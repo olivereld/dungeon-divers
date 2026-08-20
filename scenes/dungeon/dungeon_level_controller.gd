@@ -4,7 +4,7 @@ extends Node3D
 ## Controlador de escena para generación, visualización e interacción con la mazmorra.
 ## Implementa flujo por pasos: 
 ## 1. Generación y Previsualización en Plano 2D interactivo (con segmentación multinivel).
-## 2. Al presionar "Generar en 3D" (o Espacio/Enter), materializa el mundo 3D navegable.
+## 2. Al presionar "Generar en 3D" (o Espacio/Enter), materializa el mundo 3D navegable con toolbar de visualización.
 
 @export var config: DungeonConfig = null
 @export var visualizer: DungeonVisualizer = null
@@ -32,6 +32,7 @@ var _camera_yaw: float = 45.0
 var _is_orbiting: bool = false
 var _is_top_down: bool = false
 var _current_isolated_floor: int = -1
+var _are_walls_visible: bool = true
 
 func _ready() -> void:
 	if config == null:
@@ -65,6 +66,34 @@ func _connect_visualizer_signals() -> void:
 			visualizer.mission_depth_changed.connect(_on_mission_depth_changed)
 		if not visualizer.corridor_width_changed.is_connected(_on_corridor_width_changed):
 			visualizer.corridor_width_changed.connect(_on_corridor_width_changed)
+		if not visualizer.walls_visibility_toggled.is_connected(_on_walls_visibility_toggled):
+			visualizer.walls_visibility_toggled.connect(_on_walls_visibility_toggled)
+		if not visualizer.camera_view_toggled.is_connected(_on_camera_view_toggled):
+			visualizer.camera_view_toggled.connect(_on_camera_view_toggled)
+
+func _on_walls_visibility_toggled(p_visible: bool) -> void:
+	_are_walls_visible = p_visible
+	_apply_walls_visibility()
+
+func _on_camera_view_toggled() -> void:
+	_is_top_down = not _is_top_down
+	_update_camera_transform()
+
+func _apply_walls_visibility() -> void:
+	if _current_presentation_root == null:
+		return
+
+	# Mono-piso:
+	var single_walls = _current_presentation_root.get_node_or_null("ContinuousWalls")
+	if single_walls != null:
+		single_walls.visible = _are_walls_visible
+
+	# Multi-piso:
+	for child in _current_presentation_root.get_children():
+		if child.name.begins_with("Floor_"):
+			var floor_walls = child.get_node_or_null("ContinuousWalls")
+			if floor_walls != null:
+				floor_walls.visible = _are_walls_visible
 
 func _on_preset_changed(idx: int) -> void:
 	if config != null:
@@ -106,8 +135,10 @@ func _on_floors_changed(p_floors: int) -> void:
 
 func _on_floor_view_mode_changed(p_floor_idx: int) -> void:
 	_current_isolated_floor = p_floor_idx
-	if visualizer != null and _current_multi_result != null:
-		visualizer.show_multi_floor_preview(_current_multi_result, _current_isolated_floor)
+	if visualizer != null:
+		visualizer.update_floor_view_options(config.total_floors if config != null else 1, _current_isolated_floor)
+		if visualizer.is_2d_preview_mode and _current_multi_result != null:
+			visualizer.show_multi_floor_preview(_current_multi_result, _current_isolated_floor)
 	_apply_floor_visibility()
 	_center_camera_on_dungeon()
 
@@ -127,6 +158,7 @@ func _apply_floor_visibility() -> void:
 				child.visible = true
 			else:
 				child.visible = (child.name == "Floor_%d" % _current_isolated_floor)
+	_apply_walls_visibility()
 
 func _on_seed_submitted(p_seed: int) -> void:
 	if config != null:
@@ -268,7 +300,7 @@ func build_3d_presentation() -> void:
 		if _player != null:
 			_player.visible = true
 
-		# Centrar cámara en la mazmorra
+		_apply_walls_visibility()
 		_center_camera_on_dungeon()
 
 func _spawn_or_reposition_player() -> void:
@@ -404,8 +436,7 @@ func _input(event: InputEvent) -> void:
 			KEY_R:
 				_on_random_seed_requested()
 			KEY_T, KEY_V:
-				_is_top_down = not _is_top_down
-				_update_camera_transform()
+				_on_camera_view_toggled()
 			KEY_F:
 				if _player != null:
 					_camera_pivot = _player.global_position

@@ -2,10 +2,11 @@ class_name StairData
 extends Resource
 
 ## Contrato de punto de anclaje de escalera en un piso específico (Fase 10 - Verticalidad).
-## Representa el endpoint físico de una conexión vertical en un CellGrid determinado.
+## Representa el endpoint físico y de interacción de una conexión vertical en un CellGrid determinado.
 
 @export var stair_id: String = ""
 @export var floor_number: int = 0
+@export var target_floor: int = -1 ## Piso destino al interactuar con la escalera
 @export var cell: Vector2i = Vector2i.ZERO
 @export var orientation: float = 0.0 ## Rotación en radianes (0, PI/2, PI, -PI/2)
 @export var connection_id: String = "" ## Vínculo topológico con su FloorConnection
@@ -17,7 +18,8 @@ func _init(
 	p_cell: Vector2i = Vector2i.ZERO,
 	p_orientation: float = 0.0,
 	p_connection_id: String = "",
-	p_is_downward: bool = false
+	p_is_downward: bool = false,
+	p_target_floor: int = -1
 ) -> void:
 	stair_id = p_stair_id
 	floor_number = p_floor_number
@@ -25,12 +27,13 @@ func _init(
 	orientation = p_orientation
 	connection_id = p_connection_id
 	is_downward = p_is_downward
+	target_floor = p_target_floor
 
 ## Valida las invariantes fundamentales del StairData.
 func is_valid() -> bool:
 	return not stair_id.is_empty() and not connection_id.is_empty() and floor_number >= 0
 
 func _to_string() -> String:
-	return "StairData(id='%s', floor=%d, cell=%s, dir=%s, conn='%s')" % [
-		stair_id, floor_number, str(cell), "DOWN" if is_downward else "UP", connection_id
+	return "StairData(id='%s', floor=%d -> %d, cell=%s, dir=%s, conn='%s')" % [
+		stair_id, floor_number, target_floor, str(cell), "DOWN" if is_downward else "UP", connection_id
 	]

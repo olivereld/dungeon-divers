@@ -37,9 +37,17 @@ func _init() -> void:
 	var multi_res = multi_gen.generate_multi_floor(config)
 	assert(multi_res != null and multi_res.is_valid, "Multi-floor generation must succeed")
 
-	visualizer.show_multi_floor_preview(multi_res, -1)
-	assert(visualizer.is_2d_preview_mode == true, "Multi-floor 2D preview must be active")
-	print("  [OK] Multi-floor 2D grid preview activated")
+	# 4. Probar que cambiar el selector de piso en 3D NO activa el modo 2D
+	visualizer.hide_2d_preview()
+	assert(visualizer.is_2d_preview_mode == false)
+	controller._on_floor_view_mode_changed(1)
+	assert(visualizer.is_2d_preview_mode == false, "Changing floor in 3D must stay in 3D mode")
+	print("  [OK] Floor isolation in 3D preserves 3D navigation mode")
+
+	# 5. Probar toggle de paredes
+	visualizer.walls_visibility_toggled.emit(false)
+	assert(controller._are_walls_visible == false, "Walls visibility signal must toggle controller state")
+	print("  [OK] Walls visibility toggle verified")
 
 	print("[PASS] test_dungeon_2d_3d_flow completed successfully!")
 	quit(0)

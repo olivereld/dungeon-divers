@@ -7,13 +7,16 @@ extends RefCounted
 
 const _BrickGeometryBuilderScript = preload("res://src/wall_mesh_generator/core/brick_geometry_builder.gd")
 const _DoorGeometryBuilderScript = preload("res://src/wall_mesh_generator/core/door_geometry_builder.gd")
+const _FloorTileGeometryBuilderScript = preload("res://src/wall_mesh_generator/core/floor_tile_geometry_builder.gd")
 
-## Genera el manifiesto ordenado de partes según el tipo de pieza (Wall, Corner, Arch o Door).
+## Genera el manifiesto ordenado de partes según el tipo de pieza (Wall, Corner, Arch, Door o Floor).
 func build_brick_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 	if config == null:
 		config = WallMeshConfig.new()
 
 	match config.piece_type:
+		WallMeshConfig.PieceType.FLOOR_TILE, WallMeshConfig.PieceType.FLOOR_GRID_3X3:
+			return _build_floor_manifest(config)
 		WallMeshConfig.PieceType.ARCH_WITH_DOOR:
 			return _build_arch_with_door_manifest(config)
 		WallMeshConfig.PieceType.DOOR:
@@ -24,6 +27,16 @@ func build_brick_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 			return _build_corner_manifest(config)
 		_:
 			return _build_wall_manifest(config)
+
+func _build_floor_manifest(config: WallMeshConfig) -> Array[Dictionary]:
+	var manifest: Array[Dictionary] = []
+	manifest.append({
+		"index": 0,
+		"category": &"floor_slabs",
+		"course": 0,
+		"type": &"stone_slabs"
+	})
+	return manifest
 
 func _build_arch_with_door_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 	var manifest: Array[Dictionary] = _build_arch_manifest(config)
@@ -440,6 +453,14 @@ func build_mesh_from_subset(
 	var active_count: int = clampi(count, 0, manifest.size())
 	if active_count <= 0:
 		return ArrayMesh.new()
+
+	if config.piece_type == WallMeshConfig.PieceType.FLOOR_TILE:
+		var floor_builder = _FloorTileGeometryBuilderScript.new()
+		return floor_builder.build_floor_tile_mesh(config.cube_size, config.seed)
+
+	if config.piece_type == WallMeshConfig.PieceType.FLOOR_GRID_3X3:
+		var floor_builder = _FloorTileGeometryBuilderScript.new()
+		return floor_builder.build_floor_grid_mesh(3, 3, config.cube_size, config.seed)
 
 	if config.piece_type == WallMeshConfig.PieceType.DOOR:
 		var st_wood := SurfaceTool.new()

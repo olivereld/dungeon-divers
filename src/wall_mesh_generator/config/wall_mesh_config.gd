@@ -9,11 +9,13 @@ extends Resource
 ## - Distribución dinámica procedimental basada en ruido (Noise-Driven Brick Clusters)
 
 enum PieceType {
-	WALL,           ## Pared recta modular
-	CORNER,         ## Esquina en L de 90 grados
-	ARCH,           ## Arco de paso / portal con vano libre
-	DOOR,           ## Hoja de puerta de madera estilizada con aldaba
-	ARCH_WITH_DOOR  ## Portal completo: Arco de piedra + Hoja de puerta integrada
+	WALL,            ## Pared recta modular
+	CORNER,          ## Esquina en L de 90 grados
+	ARCH,            ## Arco de paso / portal con vano libre
+	DOOR,            ## Hoja de puerta de madera estilizada con aldaba
+	ARCH_WITH_DOOR,  ## Portal completo: Arco de piedra + Hoja de puerta integrada
+	FLOOR_TILE,      ## Baldosa individual de suelo estilizada con losas biseladas
+	FLOOR_GRID_3X3   ## Cuadrícula de suelo 3x3 para probar el tileado continuo
 }
 
 enum WallStyle {

@@ -4,7 +4,8 @@ extends Control
 ## Visualizador y Generador 2D interactivo a pantalla completa con soporte multinivel (Fase 10 / M8) y transición a 3D.
 ## Estructura de diseño:
 ## - Panel Izquierdo: Configuración completa, Estadísticas globales/piso, Leyenda y Botón de Generación 3D.
-## - Panel Derecho: Segmentación en rejilla multinivel ("PISO 1", "PISO 2", "PISO 3", "PISO 4") o vista de piso aislado con etiquetas limpias y nítidas.
+## - Panel Derecho: Segmentación en rejilla multinivel ("PISO 1", "PISO 2", "PISO 3", "PISO 4") o vista de piso aislado.
+## - Toolbar 3D Flotante: Controles limpios de visualización 3D (Selector de pisos aislados, Ocultar/Mostrar paredes, Modo cámara y Regreso al plano).
 
 signal seed_submitted(seed_val: int)
 signal random_seed_requested()
@@ -13,6 +14,8 @@ signal algorithm_changed(algo_name: String)
 signal floor_view_mode_changed(floor_index: int)
 signal generate_3d_requested()
 signal toggle_2d_view_requested()
+signal walls_visibility_toggled(visible: bool)
+signal camera_view_toggled()
 
 signal preset_changed(preset_idx: int)
 signal grid_size_changed(w: int, h: int)
@@ -47,7 +50,13 @@ var _btn_copy_ascii: Button = null
 var _btn_build_3d: Button = null
 var _btn_back_to_2d: Button = null
 var _info_stats_label: RichTextLabel = null
+
+# Controles de la Toolbar 3D
 var _hud_3d_panel: PanelContainer = null
+var _opt_3d_floor_view: OptionButton = null
+var _btn_3d_toggle_walls: Button = null
+var _btn_3d_toggle_cam: Button = null
+var _walls_visible: bool = true
 
 var is_2d_preview_mode: bool = true
 
@@ -324,6 +333,8 @@ func _setup_2d_full_interface() -> void:
 	_opt_floor_view.item_selected.connect(func(idx: int):
 		var floor_id = _opt_floor_view.get_item_id(idx)
 		_selected_floor_view = floor_id
+		if _opt_3d_floor_view != null:
+			_opt_3d_floor_view.select(idx)
 		floor_view_mode_changed.emit(floor_id)
 		if _preview_canvas != null:
 			_preview_canvas.queue_redraw()
@@ -443,6 +454,7 @@ func _setup_2d_full_interface() -> void:
 	_preview_canvas.draw.connect(_on_preview_canvas_draw)
 	right_panel.add_child(_preview_canvas)
 
+## Configura la barra flotante superior de herramientas de visualización 3D
 func _setup_3d_hud() -> void:
 	if _hud_3d_panel != null:
 		return
@@ -452,28 +464,66 @@ func _setup_3d_hud() -> void:
 	_hud_3d_panel.anchors_preset = Control.PRESET_TOP_RIGHT
 	_hud_3d_panel.anchor_left = 1.0
 	_hud_3d_panel.anchor_right = 1.0
-	_hud_3d_panel.offset_left = -230.0
-	_hud_3d_panel.offset_right = -20.0
-	_hud_3d_panel.offset_top = 20.0
-	_hud_3d_panel.offset_bottom = 70.0
+	_hud_3d_panel.offset_left = -540.0
+	_hud_3d_panel.offset_right = -18.0
+	_hud_3d_panel.offset_top = 16.0
+	_hud_3d_panel.offset_bottom = 66.0
 	_hud_3d_panel.visible = false
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.12, 0.18, 0.92)
-	style.border_color = Color(0.35, 0.45, 0.65, 0.8)
+	style.bg_color = Color(0.10, 0.13, 0.18, 0.94)
+	style.border_color = Color(0.30, 0.42, 0.60, 0.8)
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
+	style.set_corner_radius_all(8)
 	style.content_margin_left = 12.0
 	style.content_margin_right = 12.0
-	style.content_margin_top = 8.0
-	style.content_margin_bottom = 8.0
+	style.content_margin_top = 6.0
+	style.content_margin_bottom = 6.0
 	_hud_3d_panel.add_theme_stylebox_override("panel", style)
 
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 10)
+	hbox.size_flags_horizontal = SIZE_EXPAND_FILL
+	_hud_3d_panel.add_child(hbox)
+
+	# 1. Selector de Pisos en 3D
+	_opt_3d_floor_view = OptionButton.new()
+	_opt_3d_floor_view.tooltip_text = "Filtrar visualización a un piso específico o ver la torre completa"
+	_opt_3d_floor_view.item_selected.connect(func(idx: int):
+		var floor_id = _opt_3d_floor_view.get_item_id(idx)
+		_selected_floor_view = floor_id
+		if _opt_floor_view != null:
+			_opt_floor_view.select(idx)
+		floor_view_mode_changed.emit(floor_id)
+	)
+	hbox.add_child(_opt_3d_floor_view)
+
+	# 2. Toggle de Visibilidad de Paredes
+	_btn_3d_toggle_walls = Button.new()
+	_btn_3d_toggle_walls.text = "🧱 Paredes: ON"
+	_btn_3d_toggle_walls.tooltip_text = "Ocultar o mostrar las paredes de la mazmorra 3D"
+	_btn_3d_toggle_walls.pressed.connect(func():
+		_walls_visible = not _walls_visible
+		_btn_3d_toggle_walls.text = "🧱 Paredes: ON" if _walls_visible else "🧱 Paredes: OFF"
+		walls_visibility_toggled.emit(_walls_visible)
+	)
+	hbox.add_child(_btn_3d_toggle_walls)
+
+	# 3. Toggle de Modo de Cámara
+	_btn_3d_toggle_cam = Button.new()
+	_btn_3d_toggle_cam.text = "🎥 Cámara [T]"
+	_btn_3d_toggle_cam.tooltip_text = "Alternar entre cámara Isométrica y Cenital Top-Down"
+	_btn_3d_toggle_cam.pressed.connect(func():
+		camera_view_toggled.emit()
+	)
+	hbox.add_child(_btn_3d_toggle_cam)
+
+	# 4. Botón Volver al Plano 2D
 	_btn_back_to_2d = Button.new()
-	_btn_back_to_2d.text = "🗺️ Volver al Plano 2D [Tab]"
-	_btn_back_to_2d.tooltip_text = "Regresar al generador de planos 2D"
+	_btn_back_to_2d.text = "🗺️ Plano 2D [Tab]"
+	_btn_back_to_2d.tooltip_text = "Regresar al visor y generador de planos 2D"
 	_btn_back_to_2d.pressed.connect(_on_back_to_2d_pressed)
-	_hud_3d_panel.add_child(_btn_back_to_2d)
+	hbox.add_child(_btn_back_to_2d)
 
 	add_child(_hud_3d_panel)
 
@@ -848,18 +898,25 @@ func _update_stats_panel() -> void:
 	_info_stats_label.text = bb_mono
 
 func update_floor_view_options(total_floors: int, selected_floor: int = -1) -> void:
-	if _opt_floor_view == null:
-		return
-	_opt_floor_view.clear()
-	_opt_floor_view.add_item("🏢 Todos", -1)
+	if _opt_floor_view != null:
+		_opt_floor_view.clear()
+		_opt_floor_view.add_item("🏢 Todos", -1)
+		for f in range(total_floors):
+			_opt_floor_view.add_item("🏢 Piso %d" % (f + 1), f)
+		var select_idx: int = 0
+		if selected_floor >= 0 and selected_floor < total_floors:
+			select_idx = selected_floor + 1
+		_opt_floor_view.select(select_idx)
 
-	for f in range(total_floors):
-		_opt_floor_view.add_item("🏢 Piso %d" % (f + 1), f)
-
-	var select_idx: int = 0
-	if selected_floor >= 0 and selected_floor < total_floors:
-		select_idx = selected_floor + 1
-	_opt_floor_view.select(select_idx)
+	if _opt_3d_floor_view != null:
+		_opt_3d_floor_view.clear()
+		_opt_3d_floor_view.add_item("🏢 Todos los Pisos", -1)
+		for f in range(total_floors):
+			_opt_3d_floor_view.add_item("🏢 Piso %d" % (f + 1), f)
+		var select_3d_idx: int = 0
+		if selected_floor >= 0 and selected_floor < total_floors:
+			select_3d_idx = selected_floor + 1
+		_opt_3d_floor_view.select(select_3d_idx)
 
 func _on_algorithm_selected(idx: int) -> void:
 	var algo_names = ["Hybrid", "BSP", "CellularAutomata"]
