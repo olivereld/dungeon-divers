@@ -37,10 +37,10 @@ func build_cluster_mesh(
 		var m_p2 := Vector3(cell_x + tile_size, 0.0, cell_z + tile_size)
 		var m_p3 := Vector3(cell_x, 0.0, cell_z + tile_size)
 
-		_add_quad_with_normal(st_mortar, m_p0, m_p1, m_p2, m_p3, Vector3.UP, Color(0.20, 0.18, 0.16))
+		_add_quad_with_normal(st_mortar, m_p0, m_p1, m_p2, m_p3, Vector3.UP, Color(0.12, 0.12, 0.14))
 
-	# 2. Generar las losas 3D a partir de los TileDescriptors
-	var base_slab_color: Color = Color(0.52, 0.54, 0.56)
+	# 2. Generar las losas 3D a partir de los TileDescriptors (Tono oscuro por defecto)
+	var base_slab_color: Color = Color(0.25, 0.26, 0.29)
 
 	for desc in cluster.descriptors:
 		var h: float = desc.height

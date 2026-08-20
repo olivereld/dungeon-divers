@@ -39,7 +39,8 @@ func _ready() -> void:
 	if is_open:
 		open(true)
 
-## Configura la entidad proceduralmente si se construye sin escena empaquetada.
+const _WallMaterialFactoryScript = preload("res://src/wall_mesh_generator/materials/wall_material_factory.gd")
+
 func setup_procedural_door(
 	mesh: ArrayMesh,
 	width: float = 1.04,
@@ -57,6 +58,7 @@ func setup_procedural_door(
 		door_mesh = MeshInstance3D.new()
 		door_mesh.name = "DoorMesh"
 		door_mesh.mesh = mesh
+		_WallMaterialFactoryScript.apply_materials_to_mesh_instance(door_mesh)
 		# Desplazar la malla para que pivote alrededor del borde izquierdo
 		door_mesh.position = Vector3(width * 0.5, 0.0, 0.0)
 		hinge_pivot.add_child(door_mesh)

@@ -38,8 +38,7 @@ func spawn_doors(
 	staging_root.add_child(doors_container)
 
 	# Preparar mallas procedurales de arco y puerta si no hay escena personalizada
-	var arch_mesh_blue: ArrayMesh = null
-	var arch_mesh_red: ArrayMesh = null
+	var arch_mesh: ArrayMesh = null
 	var door_leaf_mesh: ArrayMesh = null
 	var door_w: float = 1.06
 	var door_h: float = 2.49
@@ -48,7 +47,7 @@ func spawn_doors(
 	if biome == null or biome.door_scene == null:
 		var builder := _WallMeshBuilderScript.new()
 
-		# 1. Malla del Arco de Piedra
+		# 1. Malla del Arco de Piedra con materiales PBR por defecto
 		var arch_cfg := _WallMeshConfigScript.new()
 		arch_cfg.piece_type = _WallMeshConfigScript.PieceType.ARCH
 		arch_cfg.centered_origin = true
@@ -56,27 +55,9 @@ func spawn_doors(
 		arch_cfg.cubes_high = maxi(1, wall_height)
 		arch_cfg.seed = seed
 
-		# 1A. Arco Azul (Para OPEN_PASSAGE / Arcos Abiertos)
-		var arch_mat_blue := StandardMaterial3D.new()
-		arch_mat_blue.albedo_color = Color(0.2, 0.45, 0.9, 1.0) # Azul
-		arch_mat_blue.roughness = 0.5
-		arch_mat_blue.cull_mode = BaseMaterial3D.CULL_DISABLED
+		arch_mesh = builder.build_wall_mesh(arch_cfg)
 
-		arch_mesh_blue = builder.build_wall_mesh(arch_cfg)
-		for s in range(arch_mesh_blue.get_surface_count()):
-			arch_mesh_blue.surface_set_material(s, arch_mat_blue)
-
-		# 1B. Arco Rojo (Para Portales con Puerta Física)
-		var arch_mat_red := StandardMaterial3D.new()
-		arch_mat_red.albedo_color = Color(0.9, 0.2, 0.2, 1.0) # Rojo
-		arch_mat_red.roughness = 0.5
-		arch_mat_red.cull_mode = BaseMaterial3D.CULL_DISABLED
-
-		arch_mesh_red = builder.build_wall_mesh(arch_cfg)
-		for s in range(arch_mesh_red.get_surface_count()):
-			arch_mesh_red.surface_set_material(s, arch_mat_red)
-
-		# 2. Malla de la Hoja de Madera y Aldaba - Rojo para test visual
+		# 2. Malla de la Hoja de Madera y Aldaba con materiales PBR por defecto
 		door_w = arch_cfg.arch_opening_width - 0.02
 		door_h = arch_cfg.arch_opening_height - 0.01
 
@@ -88,14 +69,34 @@ func spawn_doors(
 		door_cfg.seed = seed
 		door_th = door_cfg.door_thickness
 
-		var door_mat := StandardMaterial3D.new()
-		door_mat.albedo_color = Color(0.9, 0.2, 0.2, 1.0) # Rojo
-		door_mat.roughness = 0.4
-		door_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-
 		door_leaf_mesh = builder.build_wall_mesh(door_cfg)
+
+		# Aplicar materiales PBR robustos con CULL_DISABLED a cada superficie
+		var trim_mat := _WallMaterialFactoryScript.create_trim_material()
+		var panel_mat := _WallMaterialFactoryScript.create_panel_material()
+		var brick_mat := _WallMaterialFactoryScript.create_brick_material()
+		var wood_mat := _WallMaterialFactoryScript.create_wood_material()
+		var iron_mat := _WallMaterialFactoryScript.create_iron_material()
+
+		for s in range(arch_mesh.get_surface_count()):
+			var s_name := arch_mesh.surface_get_name(s)
+			match s_name:
+				"Trims": arch_mesh.surface_set_material(s, trim_mat)
+				"WallPanel": arch_mesh.surface_set_material(s, panel_mat)
+				"Bricks": arch_mesh.surface_set_material(s, brick_mat)
+				_:
+					if s == 0: arch_mesh.surface_set_material(0, trim_mat)
+					elif s == 1: arch_mesh.surface_set_material(1, panel_mat)
+					elif s == 2: arch_mesh.surface_set_material(2, brick_mat)
+
 		for s in range(door_leaf_mesh.get_surface_count()):
-			door_leaf_mesh.surface_set_material(s, door_mat)
+			var s_name := door_leaf_mesh.surface_get_name(s)
+			match s_name:
+				"DoorWood": door_leaf_mesh.surface_set_material(s, wood_mat)
+				"DoorIron": door_leaf_mesh.surface_set_material(s, iron_mat)
+				_:
+					if s == 0: door_leaf_mesh.surface_set_material(0, wood_mat)
+					elif s == 1: door_leaf_mesh.surface_set_material(1, iron_mat)
 
 	for manifest in door_manifests:
 		if manifest == null:
@@ -111,16 +112,16 @@ func spawn_doors(
 			portal_root = biome.door_scene.instantiate() as Node3D
 		else:
 			var is_open: bool = (manifest.door_type == _DoorTypeScript.DoorType.OPEN_PASSAGE)
-			var arch_mesh_to_use: ArrayMesh = arch_mesh_blue if is_open else arch_mesh_red
 
-			if arch_mesh_to_use != null:
+			if arch_mesh != null:
 				portal_root = Node3D.new()
 				portal_root.name = "DoorPortal_%s" % manifest.door_id
 
-				# Arco de piedra exterior con colisión (Rojo con puerta, Azul si es abierto)
+				# Arco de piedra exterior con colisión
 				var arch_inst := MeshInstance3D.new()
 				arch_inst.name = "StoneArch"
-				arch_inst.mesh = arch_mesh_to_use
+				arch_inst.mesh = arch_mesh
+				_WallMaterialFactoryScript.apply_materials_to_mesh_instance(arch_inst)
 				arch_inst.create_trimesh_collision()
 				portal_root.add_child(arch_inst)
 

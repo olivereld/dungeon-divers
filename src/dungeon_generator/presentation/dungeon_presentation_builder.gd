@@ -94,15 +94,15 @@ func build_presentation(
 
 	# 4.0 Generar y materializar Geometría Procedural de Suelo (Fases M1-M8)
 	if biome.dungeon_floor_scene == null and biome.floor_scene == null and semantic_result.grid != null:
-		var floor_cfg := _FloorTileConfigScript.new()
+		var floor_cfg: _FloorTileConfigScript = config.floor_tile_config if (config != null and "floor_tile_config" in config and config.floor_tile_config != null) else _FloorTileConfigScript.new()
 		floor_cfg.tile_size = tile_size
 		floor_cfg.seed = config.seed if config != null else 1337
-		floor_cfg.collision_mode = _FloorTileConfigScript.CollisionMode.COMPOUND_BOX
 
 		var floor_res = _floor_generator.generate_floor_surface(
 			semantic_result.grid, floor_cfg, config.seed if config != null else 1337
 		)
 		_floor_spawner.spawn_floor(floor_res, staging_root, biome)
+		floor_grid_map.visible = false
 
 	# 4.1 Generar Malla Continua de Paredes a través de DungeonGeometryGenerator (Fase M6)
 	if biome.wall_scene == null:
@@ -141,6 +141,7 @@ func build_presentation(
 					static_body.add_child(col_shape)
 			wall_inst.add_child(static_body)
 			staging_root.add_child(wall_inst)
+			wall_grid_map.visible = false
 
 	# 5. Spawning de Puertas y Portales en Staging (Fase 9)
 	if semantic_result != null and semantic_result.door_pairs != null:
@@ -241,15 +242,15 @@ func build_multi_floor_presentation(
 
 		# 1.1 Floor Surface & Tile Spawner (Fases M1-M8)
 		if biome.dungeon_floor_scene == null and biome.floor_scene == null and f_data.grid != null:
-			var floor_cfg := _FloorTileConfigScript.new()
+			var floor_cfg: _FloorTileConfigScript = config.floor_tile_config if (config != null and "floor_tile_config" in config and config.floor_tile_config != null) else _FloorTileConfigScript.new()
 			floor_cfg.tile_size = tile_size
 			floor_cfg.seed = f_data.seed_used
-			floor_cfg.collision_mode = _FloorTileConfigScript.CollisionMode.COMPOUND_BOX
 
 			var floor_res = _floor_generator.generate_floor_surface(
 				f_data.grid, floor_cfg, f_data.seed_used
 			)
 			_floor_spawner.spawn_floor(floor_res, floor_container, biome)
+			floor_grid_map.visible = false
 
 		# 2. ContinuousWalls a través de DungeonGeometryGenerator
 		var wall_config := _WallGeometryConfigScript.new()
@@ -425,15 +426,15 @@ func build_from_dungeon_result(
 
 	# 3.1 Floor Surface & Tile Spawner (Fases M1-M8)
 	if biome.dungeon_floor_scene == null and biome.floor_scene == null and dungeon_result.grid != null:
-		var floor_cfg := _FloorTileConfigScript.new()
+		var floor_cfg: _FloorTileConfigScript = config.floor_tile_config if (config != null and "floor_tile_config" in config and config.floor_tile_config != null) else _FloorTileConfigScript.new()
 		floor_cfg.tile_size = tile_size
 		floor_cfg.seed = config.seed if config != null else 1337
-		floor_cfg.collision_mode = _FloorTileConfigScript.CollisionMode.COMPOUND_BOX
 
 		var floor_res = _floor_generator.generate_floor_surface(
 			dungeon_result.grid, floor_cfg, config.seed if config != null else 1337
 		)
 		_floor_spawner.spawn_floor(floor_res, staging_root, biome)
+		floor_grid_map.visible = false
 
 	# 4. Generar Malla Continua de Paredes a través de DungeonGeometryGenerator
 	if biome.wall_scene == null:

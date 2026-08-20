@@ -14,6 +14,7 @@ const _SemanticOrchestratorScript = preload("res://src/dungeon_generator/core/se
 const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
 const _MultiFloorGeneratorScript = preload("res://src/dungeon_generator/core/multi_floor_generator.gd")
 const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
+const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
 
 var _pipeline: DungeonPipeline = DungeonPipeline.new()
 var _semantic_orchestrator := _SemanticOrchestratorScript.new()
@@ -71,6 +72,20 @@ func _connect_visualizer_signals() -> void:
 		if not visualizer.camera_view_toggled.is_connected(_on_camera_view_toggled):
 			visualizer.camera_view_toggled.connect(_on_camera_view_toggled)
 
+		# Señales de Suelos Procedurales
+		if not visualizer.floor_pattern_changed.is_connected(_on_floor_pattern_changed):
+			visualizer.floor_pattern_changed.connect(_on_floor_pattern_changed)
+		if not visualizer.floor_preset_changed.is_connected(_on_floor_preset_changed):
+			visualizer.floor_preset_changed.connect(_on_floor_preset_changed)
+		if not visualizer.floor_tile_size_changed.is_connected(_on_floor_tile_size_changed):
+			visualizer.floor_tile_size_changed.connect(_on_floor_tile_size_changed)
+		if not visualizer.floor_margin_changed.is_connected(_on_floor_margin_changed):
+			visualizer.floor_margin_changed.connect(_on_floor_margin_changed)
+		if not visualizer.floor_collision_mode_changed.is_connected(_on_floor_collision_mode_changed):
+			visualizer.floor_collision_mode_changed.connect(_on_floor_collision_mode_changed)
+		if not visualizer.floor_noise_toggled.is_connected(_on_floor_noise_toggled):
+			visualizer.floor_noise_toggled.connect(_on_floor_noise_toggled)
+
 func _on_walls_visibility_toggled(p_visible: bool) -> void:
 	_are_walls_visible = p_visible
 	_apply_walls_visibility()
@@ -121,6 +136,40 @@ func _on_corridor_width_changed(w: int) -> void:
 	if config != null:
 		config.corridor_width = w
 		regenerate(false)
+
+func _ensure_floor_config() -> void:
+	if config != null and config.floor_tile_config == null:
+		config.floor_tile_config = _FloorTileConfigScript.new()
+
+func _on_floor_pattern_changed(idx: int) -> void:
+	_ensure_floor_config()
+	if config != null and config.floor_tile_config != null:
+		(config.floor_tile_config as _FloorTileConfigScript).pattern = idx as _FloorTileConfigScript.PatternType
+
+func _on_floor_preset_changed(idx: int) -> void:
+	_ensure_floor_config()
+	if config != null and config.floor_tile_config != null:
+		(config.floor_tile_config as _FloorTileConfigScript).material_preset = idx
+
+func _on_floor_tile_size_changed(val: float) -> void:
+	_ensure_floor_config()
+	if config != null and config.floor_tile_config != null:
+		(config.floor_tile_config as _FloorTileConfigScript).tile_size = val
+
+func _on_floor_margin_changed(val: float) -> void:
+	_ensure_floor_config()
+	if config != null and config.floor_tile_config != null:
+		(config.floor_tile_config as _FloorTileConfigScript).margin = val
+
+func _on_floor_collision_mode_changed(idx: int) -> void:
+	_ensure_floor_config()
+	if config != null and config.floor_tile_config != null:
+		(config.floor_tile_config as _FloorTileConfigScript).collision_mode = idx as _FloorTileConfigScript.CollisionMode
+
+func _on_floor_noise_toggled(enabled: bool) -> void:
+	_ensure_floor_config()
+	if config != null and config.floor_tile_config != null:
+		(config.floor_tile_config as _FloorTileConfigScript).use_noise_modulation = enabled
 
 func _on_algorithm_changed(p_algo: String) -> void:
 	if config != null:

@@ -22,16 +22,31 @@ signal grid_size_changed(w: int, h: int)
 signal mission_depth_changed(depth: int)
 signal corridor_width_changed(width: int)
 
+# Señales de Suelos Procedurales
+signal floor_pattern_changed(pattern_idx: int)
+signal floor_preset_changed(preset_idx: int)
+signal floor_tile_size_changed(tile_size: float)
+signal floor_margin_changed(margin: float)
+signal floor_collision_mode_changed(mode_idx: int)
+signal floor_noise_toggled(enabled: bool)
+
 const _DungeonAsciiExporterScript = preload("res://src/dungeon_generator/debug/dungeon_ascii_exporter.gd")
 const _DoorPhysicalValidatorScript = preload("res://src/dungeon_generator/core/validation/door_physical_validator.gd")
 const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
+const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
 
 var _last_result: RefCounted = null # DungeonResult o DungeonFloorData
 var _last_semantic: DungeonSemanticResult = null
 var _last_multi_result: DungeonMultiFloorResult = null
 var _selected_floor_view: int = -1 # -1 = Todos los pisos en rejilla segmentada, >= 0 = Piso específico
 
-# Controles de Configuración en el Plano 2D
+# Controles de Pestañas
+var _tab_btn_params: Button = null
+var _tab_btn_floors: Button = null
+var _tab_params_container: VBoxContainer = null
+var _tab_floors_container: VBoxContainer = null
+
+# Controles de Configuración en el Plano 2D (Parámetros)
 var _preview_overlay: ColorRect = null
 var _preview_canvas: Control = null
 var _seed_line_edit: LineEdit = null
@@ -50,6 +65,16 @@ var _btn_copy_ascii: Button = null
 var _btn_build_3d: Button = null
 var _btn_back_to_2d: Button = null
 var _info_stats_label: RichTextLabel = null
+
+# Controles de Configuración de Suelos 3D
+var _opt_floor_pattern: OptionButton = null
+var _opt_floor_preset: OptionButton = null
+var _slider_floor_size: HSlider = null
+var _lbl_floor_size: Label = null
+var _slider_floor_margin: HSlider = null
+var _lbl_floor_margin: Label = null
+var _opt_floor_collision: OptionButton = null
+var _check_floor_noise: CheckBox = null
 
 # Controles de la Toolbar 3D
 var _hud_3d_panel: PanelContainer = null
@@ -149,12 +174,30 @@ func _setup_2d_full_interface() -> void:
 	var sep1 := HSeparator.new()
 	sidebar_vbox.add_child(sep1)
 
-	# --- SECCIÓN 1: PARÁMETROS DE GENERACIÓN ---
-	var cfg_title := Label.new()
-	cfg_title.text = "⚙️ PARÁMETROS"
-	cfg_title.add_theme_font_size_override("font_size", 13)
-	cfg_title.add_theme_color_override("font_color", Color(0.70, 0.80, 0.95, 1.0))
-	sidebar_vbox.add_child(cfg_title)
+	# --- BARRA DE PESTAÑAS (PARÁMETROS / SUELOS) ---
+	var tab_bar_hbox := HBoxContainer.new()
+	tab_bar_hbox.add_theme_constant_override("separation", 6)
+
+	_tab_btn_params = Button.new()
+	_tab_btn_params.text = "⚙️ Parámetros"
+	_tab_btn_params.size_flags_horizontal = SIZE_EXPAND_FILL
+	_tab_btn_params.pressed.connect(func(): _switch_tab(0))
+	tab_bar_hbox.add_child(_tab_btn_params)
+
+	_tab_btn_floors = Button.new()
+	_tab_btn_floors.text = "🏛️ Suelos"
+	_tab_btn_floors.size_flags_horizontal = SIZE_EXPAND_FILL
+	_tab_btn_floors.pressed.connect(func(): _switch_tab(1))
+	tab_bar_hbox.add_child(_tab_btn_floors)
+
+	sidebar_vbox.add_child(tab_bar_hbox)
+
+	# =========================================================================
+	# PESTAÑA 0: PARÁMETROS GENERALES
+	# =========================================================================
+	_tab_params_container = VBoxContainer.new()
+	_tab_params_container.add_theme_constant_override("separation", 10)
+	sidebar_vbox.add_child(_tab_params_container)
 
 	# Fila Semilla
 	var seed_vbox := VBoxContainer.new()
@@ -189,7 +232,7 @@ func _setup_2d_full_interface() -> void:
 	seed_input_hbox.add_child(_btn_random)
 
 	seed_vbox.add_child(seed_input_hbox)
-	sidebar_vbox.add_child(seed_vbox)
+	_tab_params_container.add_child(seed_vbox)
 
 	# Fila Algoritmo
 	var algo_vbox := VBoxContainer.new()
@@ -207,7 +250,7 @@ func _setup_2d_full_interface() -> void:
 	_opt_algorithm.add_item("CellularAutomata (Cuevas)", 2)
 	_opt_algorithm.item_selected.connect(_on_algorithm_selected)
 	algo_vbox.add_child(_opt_algorithm)
-	sidebar_vbox.add_child(algo_vbox)
+	_tab_params_container.add_child(algo_vbox)
 
 	# Fila Tamaño / Presets
 	var preset_vbox := VBoxContainer.new()
@@ -228,7 +271,7 @@ func _setup_2d_full_interface() -> void:
 		preset_changed.emit(idx)
 	)
 	preset_vbox.add_child(_opt_preset)
-	sidebar_vbox.add_child(preset_vbox)
+	_tab_params_container.add_child(preset_vbox)
 
 	# Fila Ancho x Alto de Rejilla
 	var dims_vbox := VBoxContainer.new()
@@ -267,7 +310,7 @@ func _setup_2d_full_interface() -> void:
 	)
 	dims_hbox.add_child(_spin_grid_h)
 	dims_vbox.add_child(dims_hbox)
-	sidebar_vbox.add_child(dims_vbox)
+	_tab_params_container.add_child(dims_vbox)
 
 	# Fila Profundidad de Misión & Ancho de Pasillo
 	var depth_corridor_hbox := HBoxContainer.new()
@@ -308,7 +351,7 @@ func _setup_2d_full_interface() -> void:
 	)
 	corr_vbox.add_child(_spin_corridor_w)
 	depth_corridor_hbox.add_child(corr_vbox)
-	sidebar_vbox.add_child(depth_corridor_hbox)
+	_tab_params_container.add_child(depth_corridor_hbox)
 
 	# Fila Pisos Multinivel
 	var floors_hbox := HBoxContainer.new()
@@ -342,7 +385,7 @@ func _setup_2d_full_interface() -> void:
 	)
 	floors_hbox.add_child(_opt_floor_view)
 	update_floor_view_options(1)
-	sidebar_vbox.add_child(floors_hbox)
+	_tab_params_container.add_child(floors_hbox)
 
 	var actions_hbox := HBoxContainer.new()
 	actions_hbox.add_theme_constant_override("separation", 8)
@@ -360,7 +403,133 @@ func _setup_2d_full_interface() -> void:
 	_btn_copy_ascii.pressed.connect(_on_copy_ascii_pressed)
 	actions_hbox.add_child(_btn_copy_ascii)
 
-	sidebar_vbox.add_child(actions_hbox)
+	_tab_params_container.add_child(actions_hbox)
+
+	# =========================================================================
+	# PESTAÑA 1: CONFIGURACIÓN DE SUELOS PROCEDURALES
+	# =========================================================================
+	_tab_floors_container = VBoxContainer.new()
+	_tab_floors_container.add_theme_constant_override("separation", 10)
+	_tab_floors_container.visible = false
+	sidebar_vbox.add_child(_tab_floors_container)
+
+	# Fila Patrón de Suelo
+	var pattern_vbox := VBoxContainer.new()
+	pattern_vbox.add_theme_constant_override("separation", 4)
+	var pattern_lbl := Label.new()
+	pattern_lbl.text = "Patrón de Suelo:"
+	pattern_lbl.add_theme_font_size_override("font_size", 12)
+	pattern_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	pattern_vbox.add_child(pattern_lbl)
+
+	_opt_floor_pattern = OptionButton.new()
+	_opt_floor_pattern.add_item("Stylized Stone (Zelda/Diablo)", _FloorTileConfigScript.PatternType.STYLIZED_STONE)
+	_opt_floor_pattern.add_item("Cobblestone (Adoquines)", _FloorTileConfigScript.PatternType.COBBLESTONE)
+	_opt_floor_pattern.add_item("Brick (Ladrillos)", _FloorTileConfigScript.PatternType.BRICK)
+	_opt_floor_pattern.add_item("Smooth Slabs (Losas Amplias)", _FloorTileConfigScript.PatternType.SMOOTH_SLABS)
+	_opt_floor_pattern.add_item("Ruined Tiles (Suelo Agrietado)", _FloorTileConfigScript.PatternType.RUINED_TILES)
+	_opt_floor_pattern.select(0)
+	_opt_floor_pattern.item_selected.connect(func(idx: int):
+		floor_pattern_changed.emit(_opt_floor_pattern.get_item_id(idx))
+	)
+	pattern_vbox.add_child(_opt_floor_pattern)
+	_tab_floors_container.add_child(pattern_vbox)
+
+	# Fila Tema / Color de Material PBR
+	var preset_floor_vbox := VBoxContainer.new()
+	preset_floor_vbox.add_theme_constant_override("separation", 4)
+	var preset_floor_lbl := Label.new()
+	preset_floor_lbl.text = "Tema / Color de Suelo PBR:"
+	preset_floor_lbl.add_theme_font_size_override("font_size", 12)
+	preset_floor_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	preset_floor_vbox.add_child(preset_floor_lbl)
+
+	_opt_floor_preset = OptionButton.new()
+	_opt_floor_preset.add_item("Pizarra Estilizada (Slate)", 0)
+	_opt_floor_preset.add_item("Piedra Cálida (Warm Stone)", 1)
+	_opt_floor_preset.add_item("Cripta Oscura (Dark Crypt)", 2)
+	_opt_floor_preset.add_item("Ruinas Arenisca (Sandstone)", 3)
+	_opt_floor_preset.select(0)
+	_opt_floor_preset.item_selected.connect(func(idx: int):
+		floor_preset_changed.emit(_opt_floor_preset.get_item_id(idx))
+	)
+	preset_floor_vbox.add_child(_opt_floor_preset)
+	_tab_floors_container.add_child(preset_floor_vbox)
+
+	# Fila Tamaño de Baldosa
+	var size_floor_vbox := VBoxContainer.new()
+	size_floor_vbox.add_theme_constant_override("separation", 4)
+	_lbl_floor_size = Label.new()
+	_lbl_floor_size.text = "Tamaño Baldosa: 2.0m"
+	_lbl_floor_size.add_theme_font_size_override("font_size", 12)
+	_lbl_floor_size.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	size_floor_vbox.add_child(_lbl_floor_size)
+
+	_slider_floor_size = HSlider.new()
+	_slider_floor_size.min_value = 1.0
+	_slider_floor_size.max_value = 4.0
+	_slider_floor_size.step = 0.5
+	_slider_floor_size.value = 2.0
+	_slider_floor_size.value_changed.connect(func(v: float):
+		_lbl_floor_size.text = "Tamaño Baldosa: %.1fm" % v
+		floor_tile_size_changed.emit(v)
+	)
+	size_floor_vbox.add_child(_slider_floor_size)
+	_tab_floors_container.add_child(size_floor_vbox)
+
+	# Fila Mortero / Juntas
+	var margin_vbox := VBoxContainer.new()
+	margin_vbox.add_theme_constant_override("separation", 4)
+	_lbl_floor_margin = Label.new()
+	_lbl_floor_margin.text = "Mortero / Junta: 0.035m"
+	_lbl_floor_margin.add_theme_font_size_override("font_size", 12)
+	_lbl_floor_margin.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	margin_vbox.add_child(_lbl_floor_margin)
+
+	_slider_floor_margin = HSlider.new()
+	_slider_floor_margin.min_value = 0.01
+	_slider_floor_margin.max_value = 0.08
+	_slider_floor_margin.step = 0.005
+	_slider_floor_margin.value = 0.035
+	_slider_floor_margin.value_changed.connect(func(v: float):
+		_lbl_floor_margin.text = "Mortero / Junta: %.3fm" % v
+		floor_margin_changed.emit(v)
+	)
+	margin_vbox.add_child(_slider_floor_margin)
+	_tab_floors_container.add_child(margin_vbox)
+
+	# Fila Modo de Colisión
+	var col_vbox := VBoxContainer.new()
+	col_vbox.add_theme_constant_override("separation", 4)
+	var col_lbl := Label.new()
+	col_lbl.text = "Modo de Colisión Física:"
+	col_lbl.add_theme_font_size_override("font_size", 12)
+	col_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	col_vbox.add_child(col_lbl)
+
+	_opt_floor_collision = OptionButton.new()
+	_opt_floor_collision.add_item("Compound Box (Optimizado)", _FloorTileConfigScript.CollisionMode.COMPOUND_BOX)
+	_opt_floor_collision.add_item("Single Box (Caja Única)", _FloorTileConfigScript.CollisionMode.BOX)
+	_opt_floor_collision.add_item("Concave Trimesh (Exacto)", _FloorTileConfigScript.CollisionMode.CONCAVE_TRIMESH)
+	_opt_floor_collision.add_item("Sin Colisión (None)", _FloorTileConfigScript.CollisionMode.NONE)
+	_opt_floor_collision.select(0)
+	_opt_floor_collision.item_selected.connect(func(idx: int):
+		floor_collision_mode_changed.emit(_opt_floor_collision.get_item_id(idx))
+	)
+	col_vbox.add_child(_opt_floor_collision)
+	_tab_floors_container.add_child(col_vbox)
+
+	# Checkbox Variación Macro / Perlin Noise
+	_check_floor_noise = CheckBox.new()
+	_check_floor_noise.text = "Modulación Espacial y Ruido Macro"
+	_check_floor_noise.button_pressed = true
+	_check_floor_noise.toggled.connect(func(toggled: bool):
+		floor_noise_toggled.emit(toggled)
+	)
+	_tab_floors_container.add_child(_check_floor_noise)
+
+	# Inicializar pestañas activas
+	_switch_tab(0)
 
 	var sep2 := HSeparator.new()
 	sidebar_vbox.add_child(sep2)
@@ -818,6 +987,37 @@ func hide_2d_preview() -> void:
 		_preview_overlay.visible = false
 	if _hud_3d_panel != null:
 		_hud_3d_panel.visible = true
+
+func _switch_tab(tab_idx: int) -> void:
+	if _tab_params_container != null:
+		_tab_params_container.visible = (tab_idx == 0)
+	if _tab_floors_container != null:
+		_tab_floors_container.visible = (tab_idx == 1)
+
+	# Estilos visuales de los botones de pestañas
+	if _tab_btn_params != null and _tab_btn_floors != null:
+		var active_style := StyleBoxFlat.new()
+		active_style.bg_color = Color(0.20, 0.32, 0.50, 0.95)
+		active_style.border_color = Color(0.40, 0.60, 0.90, 1.0)
+		active_style.set_border_width_all(1)
+		active_style.set_corner_radius_all(6)
+
+		var inactive_style := StyleBoxFlat.new()
+		inactive_style.bg_color = Color(0.12, 0.15, 0.20, 0.8)
+		inactive_style.border_color = Color(0.25, 0.30, 0.40, 0.4)
+		inactive_style.set_border_width_all(1)
+		inactive_style.set_corner_radius_all(6)
+
+		if tab_idx == 0:
+			_tab_btn_params.add_theme_stylebox_override("normal", active_style)
+			_tab_btn_params.add_theme_color_override("font_color", Color.WHITE)
+			_tab_btn_floors.add_theme_stylebox_override("normal", inactive_style)
+			_tab_btn_floors.add_theme_color_override("font_color", Color(0.65, 0.70, 0.80))
+		else:
+			_tab_btn_params.add_theme_stylebox_override("normal", inactive_style)
+			_tab_btn_params.add_theme_color_override("font_color", Color(0.65, 0.70, 0.80))
+			_tab_btn_floors.add_theme_stylebox_override("normal", active_style)
+			_tab_btn_floors.add_theme_color_override("font_color", Color.WHITE)
 
 func toggle_2d_preview() -> void:
 	if is_2d_preview_mode:
