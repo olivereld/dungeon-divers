@@ -1,4 +1,3 @@
-class_name VerticalProgressionSolver
 extends RefCounted
 
 ## Resuelve y distribuye la progresión semántica vertical y roles a través de los pisos (Fase 10 / M8).

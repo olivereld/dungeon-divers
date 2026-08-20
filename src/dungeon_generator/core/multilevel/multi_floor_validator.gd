@@ -1,4 +1,3 @@
-class_name MultiFloorValidator
 extends RefCounted
 
 ## Validador formal de topología, integridad de escaleras y navegabilidad vertical multinivel (Fase 10 / M8).

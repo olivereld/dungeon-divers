@@ -1,4 +1,3 @@
-class_name MultiFloorOrchestrator
 extends RefCounted
 
 ## Orquestador desacoplado de generación y composición multinivel (Fase 10 / M8).
@@ -13,11 +12,11 @@ const _SeedDerivationScript = preload("res://src/dungeon_generator/core/seed_der
 const _DungeonFloorDataScript = preload("res://src/dungeon_generator/core/data/dungeon_floor_data.gd")
 const _DungeonMultiFloorResultScript = preload("res://src/dungeon_generator/core/data/dungeon_multi_floor_result.gd")
 
-var _pipeline: DungeonPipeline
-var _semantic_orchestrator := _SemanticOrchestratorScript.new()
-var _progression_solver := _VerticalProgressionSolverScript.new()
-var _connection_planner := _FloorConnectionPlannerScript.new()
-var _validator := _MultiFloorValidatorScript.new()
+var _pipeline: RefCounted
+var _semantic_orchestrator: RefCounted = _SemanticOrchestratorScript.new()
+var _progression_solver: RefCounted = _VerticalProgressionSolverScript.new()
+var _connection_planner: RefCounted = _FloorConnectionPlannerScript.new()
+var _validator: RefCounted = _MultiFloorValidatorScript.new()
 
 func _init(pipeline: DungeonPipeline = null) -> void:
 	_pipeline = pipeline if pipeline != null else _DungeonPipelineScript.new()

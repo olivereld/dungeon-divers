@@ -1,4 +1,3 @@
-class_name FloorConnectionPlanner
 extends RefCounted
 
 ## Planificador inteligente y no destructivo de anclajes de escaleras y enlaces verticales (Fase 10 / M8).
