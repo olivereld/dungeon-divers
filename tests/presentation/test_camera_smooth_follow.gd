@@ -24,8 +24,15 @@ func _run_test() -> void:
 
 	var target := Node3D.new()
 	target.name = "Target"
-	target.global_position = Vector3.ZERO
 	root.add_child(target)
+	target.position = Vector3.ZERO
+
+	# Esperar a que el frame procese y el árbol y World3D estén completamente listos
+	await process_frame
+
+	assert(rig.is_inside_tree(), "FAIL: Camera rig must be inside SceneTree")
+	assert(target.is_inside_tree(), "FAIL: Target must be inside SceneTree")
+	assert(rig.get_world_3d() != null, "FAIL: Camera rig must have a World3D")
 
 	rig.set_target(target)
 

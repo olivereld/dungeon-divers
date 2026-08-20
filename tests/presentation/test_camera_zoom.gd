@@ -22,6 +22,8 @@ func _run_test() -> void:
 	rig.zoom_smoothing = 15.0
 	root.add_child(rig)
 
+	await process_frame
+
 	var cam := rig.get_camera()
 	assert(cam.projection == Camera3D.PROJECTION_ORTHOGONAL, "FAIL: Camera must be ORTHOGONAL")
 

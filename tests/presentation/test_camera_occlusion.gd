@@ -37,16 +37,22 @@ func _run_test() -> void:
 
 	var detector = CameraOcclusionDetectorScript.new()
 	root.add_child(detector)
-	assert(detector != null, "FAIL: CameraOcclusionDetector should instantiate")
-	assert(not detector.is_target_occluded(), "FAIL: Initial occlusion state should be false")
-
-	detector.occlusion_started.connect(_on_detector_occlusion_started)
-	detector.occlusion_ended.connect(_on_detector_occlusion_ended)
 
 	# Mock de obstáculo
 	var mock_wall := StaticBody3D.new()
 	mock_wall.name = "WallObstacle"
 	root.add_child(mock_wall)
+
+	var rig = IsometricCameraRigScript.new()
+	root.add_child(rig)
+
+	await process_frame
+
+	assert(detector != null, "FAIL: CameraOcclusionDetector should instantiate")
+	assert(not detector.is_target_occluded(), "FAIL: Initial occlusion state should be false")
+
+	detector.occlusion_started.connect(_on_detector_occlusion_started)
+	detector.occlusion_ended.connect(_on_detector_occlusion_ended)
 
 	# 1. Simular detección de obstáculo (false -> true)
 	detector._update_occlusion_state([mock_wall])
@@ -66,8 +72,6 @@ func _run_test() -> void:
 	assert(_ended_fired, "FAIL: occlusion_ended should be emitted when obstacle is cleared")
 
 	# 4. Probar integración con el Rig
-	var rig = IsometricCameraRigScript.new()
-	root.add_child(rig)
 	assert(rig.get_occlusion_detector() != null, "FAIL: IsometricCameraRig should have CameraOcclusionDetector")
 	assert(not rig.is_target_occluded(), "FAIL: Rig should report is_target_occluded = false initially")
 

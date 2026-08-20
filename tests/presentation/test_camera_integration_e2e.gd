@@ -21,6 +21,12 @@ func _run_test() -> void:
 	root.add_child(rig)
 	root.add_child(player)
 
+	# Esperar a que el frame procese y el árbol y World3D estén completamente listos
+	await process_frame
+
+	assert(rig.is_inside_tree(), "FAIL: Camera rig must be inside SceneTree")
+	assert(player.is_inside_tree(), "FAIL: Player must be inside SceneTree")
+
 	player.position = Vector3(14.0, 0.0, 14.0)
 	rig.set_target(player)
 	rig.teleport_to_target()
