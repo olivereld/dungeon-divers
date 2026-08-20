@@ -17,8 +17,8 @@ func _init() -> void:
 	biome.id = &"test_multifloor"
 
 	var config := DungeonConfig.new()
-	config.grid_width = 32
-	config.grid_height = 32
+	config.grid_width = 48
+	config.grid_height = 48
 	config.total_floors = 3
 	config.floor_height = 6.0
 	config.mission_depth = 4
