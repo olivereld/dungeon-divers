@@ -29,6 +29,9 @@ extends Resource
 @export var spawn_scene: PackedScene = null
 @export var boss_scene: PackedScene = null
 
+@export_group("Perfil de Iluminación")
+@export var lighting_profile: Resource = null
+
 @export_group("Mapeo de Tiles (Índices en MeshLibrary)")
 @export var floor_index: int = 0
 @export var wall_index: int = 1

@@ -1,0 +1,334 @@
+[gd_scene load_steps=5 format=3 uid="uid://c5678lightingtest"]
+
+[ext_resource type="Script" path="res://scenes/lighting_lab/test_lighting_room.gd" id="1_test"]
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 1
+background_color = Color(0.012, 0.02, 0.035, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.16, 0.24, 0.35, 1)
+ambient_light_energy = 0.52
+tonemap_mode = 3
+tonemap_exposure = 1.05
+glow_enabled = true
+glow_normalized = true
+glow_intensity = 0.75
+glow_strength = 1.0
+glow_bloom = 0.2
+glow_blend_mode = 0
+fog_enabled = true
+fog_light_color = Color(0.08, 0.14, 0.22, 1)
+fog_density = 0.008
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.07, 0.09, 0.13, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 0.3, 0.45, 0.6)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_size = 8
+shadow_color = Color(0, 0, 0, 0.4)
+
+[node name="TestLightingRoom" type="Node3D"]
+script = ExtResource("1_test")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 20, 0)
+light_color = Color(0.4, 0.55, 0.75, 1)
+light_energy = 0.18
+shadow_enabled = false
+
+[node name="CameraPivot" type="Node3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 6, 0, 6)
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 30)
+projection = 1
+size = 20.0
+
+[node name="DungeonHolder" type="Node3D" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="PanelContainer" type="PanelContainer" parent="UI"]
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 360.0
+offset_bottom = -16.0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/PanelContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/PanelContainer/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "🔥 Laboratorio de Iluminación 3D"
+horizontal_alignment = 1
+
+[node name="SubTitle" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.75, 0.9, 0.8)
+theme_override_font_sizes/font_size = 11
+text = "(Clic derecho para rotar cámara | Rueda para zoom)"
+horizontal_alignment = 1
+
+[node name="HSeparator1" type="HSeparator" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="TorchHeader" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "🔥 Antorcha (OmniLight3D)"
+
+[node name="HBoxTorchColor" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxTorchColor"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "Color de Llama:"
+
+[node name="PickerTorchColor" type="ColorPickerButton" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxTorchColor"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(50, 24)
+layout_mode = 2
+color = Color(1, 0.62, 0.22, 1)
+
+[node name="HBoxTorchEnergy" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxTorchEnergy"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "Intensidad / Energía:"
+
+[node name="LabelTorchEnergy" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxTorchEnergy"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "3.20"
+
+[node name="SliderTorchEnergy" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.5
+max_value = 8.0
+step = 0.1
+value = 3.2
+
+[node name="HBoxTorchRange" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxTorchRange"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "Radio de Alcance:"
+
+[node name="LabelTorchRange" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxTorchRange"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "7.5 m"
+
+[node name="SliderTorchRange" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 2.0
+max_value = 20.0
+step = 0.5
+value = 7.5
+
+[node name="HBoxTorchAtt" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxTorchAtt"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "Atenuación / Caída:"
+
+[node name="LabelTorchAttenuation" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxTorchAtt"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "1.50"
+
+[node name="SliderTorchAttenuation" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.2
+max_value = 4.0
+step = 0.1
+value = 1.5
+
+[node name="HBoxOptions" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="CheckFlicker" type="CheckBox" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxOptions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+button_pressed = true
+text = "Parpadeo (Flicker)"
+
+[node name="CheckShadows" type="CheckBox" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxOptions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "Sombras Reales"
+
+[node name="HBoxFlickerAmp" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxFlickerAmp"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "Variación Parpadeo:"
+
+[node name="LabelFlickerAmp" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxFlickerAmp"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "0.12"
+
+[node name="SliderFlickerAmp" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.02
+max_value = 0.4
+step = 0.02
+value = 0.12
+
+[node name="HSeparator2" type="HSeparator" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="EnvHeader" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "🌌 Luz Ambiente y Entorno"
+
+[node name="HBoxAmbientColor" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxAmbientColor"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "Color Ambiente:"
+
+[node name="PickerAmbientColor" type="ColorPickerButton" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxAmbientColor"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(50, 24)
+layout_mode = 2
+color = Color(0.16, 0.24, 0.35, 1)
+
+[node name="HBoxAmbientEnergy" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxAmbientEnergy"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "Energía Ambiente:"
+
+[node name="LabelAmbientEnergy" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxAmbientEnergy"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "0.52"
+
+[node name="SliderAmbientEnergy" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.0
+max_value = 1.5
+step = 0.02
+value = 0.52
+
+[node name="HBoxRim" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxRim"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "Luz Cenital / Muros:"
+
+[node name="PickerRimColor" type="ColorPickerButton" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxRim"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(50, 24)
+layout_mode = 2
+color = Color(0.4, 0.55, 0.75, 1)
+
+[node name="LabelRimEnergy" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxRim"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "0.18"
+
+[node name="SliderRimEnergy" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.0
+max_value = 1.0
+step = 0.02
+value = 0.18
+
+[node name="HBoxFog" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxFog"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "Densidad Niebla:"
+
+[node name="LabelFogDensity" type="Label" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxFog"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "0.008"
+
+[node name="SliderFogDensity" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.0
+max_value = 0.05
+step = 0.002
+value = 0.008
+
+[node name="Spacer" type="Control" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+
+[node name="BtnRegenerate" type="Button" parent="UI/PanelContainer/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "🎲 Regenerar Habitación"

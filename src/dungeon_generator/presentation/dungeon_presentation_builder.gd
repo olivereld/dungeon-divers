@@ -24,6 +24,10 @@ const _DungeonStairSpawnerScript = preload("res://src/dungeon_generator/presenta
 const _GridToWorldScript = preload("res://src/dungeon_generator/presentation/grid_to_world.gd")
 const _DungeonFloorDataScript = preload("res://src/dungeon_generator/core/data/dungeon_floor_data.gd")
 const _CellGridScript = preload("res://src/dungeon_generator/core/data/cell_grid.gd")
+const _DungeonLightingGeneratorScript = preload("res://src/dungeon_lighting/facade/dungeon_lighting_generator.gd")
+const _DungeonLightSpawnerScript = preload("res://src/dungeon_lighting/presentation/dungeon_light_spawner.gd")
+const _DungeonLightingConfigScript = preload("res://src/dungeon_lighting/config/dungeon_lighting_config.gd")
+const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
 
 var _gridmap_mapper := _GridMapMapperScript.new()
 var _entity_spawner := _DungeonEntitySpawnerScript.new()
@@ -33,6 +37,8 @@ var _placeholder_factory := _PlaceholderFactoryScript.new()
 var _geometry_generator := _DungeonGeometryGeneratorScript.new()
 var _floor_generator := _DungeonFloorGeneratorScript.new()
 var _floor_spawner := _DungeonFloorSpawnerScript.new()
+var _lighting_generator: _DungeonLightingGeneratorScript = _DungeonLightingGeneratorScript.new()
+var _light_spawner: _DungeonLightSpawnerScript = _DungeonLightSpawnerScript.new()
 
 ## Construye la presentación 3D de un piso semántico individual.
 func build_presentation(
@@ -154,6 +160,15 @@ func build_presentation(
 		)
 		for d_node in door_res.get("spawned_doors", []):
 			result.spawned_entities.append(d_node)
+
+	# 5.5 Generación de Iluminación Procedural 3D
+	var light_cfg: _DungeonLightingConfigScript = config.lighting_config if (config != null and "lighting_config" in config and config.lighting_config != null) else _DungeonLightingConfigScript.new()
+	var light_prof: _LightingProfileScript = biome.lighting_profile if (biome != null and "lighting_profile" in biome and biome.lighting_profile != null) else _LightingProfileScript.new()
+
+	var light_res = _lighting_generator.generate_lighting(
+		semantic_result, light_cfg, config.seed if config != null else 1337
+	)
+	_light_spawner.spawn_lighting(light_res, staging_root, light_prof, tile_size)
 
 	# 6. Spawning de Entidades (Marcadores, Llaves, Cerraduras) en Staging
 	var spawn_res: Dictionary = _entity_spawner.spawn_entities(
@@ -305,6 +320,22 @@ func build_multi_floor_presentation(
 			)
 			for st_node in stair_res.get("spawned_stairs", []):
 				result.spawned_entities.append(st_node)
+
+		# 5. Iluminación Procedural del piso
+		var light_cfg: _DungeonLightingConfigScript = config.lighting_config if (config != null and "lighting_config" in config and config.lighting_config != null) else _DungeonLightingConfigScript.new()
+		var light_prof: _LightingProfileScript = biome.lighting_profile if (biome != null and "lighting_profile" in biome and biome.lighting_profile != null) else _LightingProfileScript.new()
+
+		var f_semantic := DungeonSemanticResult.new()
+		f_semantic.grid = f_data.grid
+		f_semantic.rooms = f_data.rooms
+		f_semantic.connections = f_data.connections
+		f_semantic.corridor_paths = f_data.corridor_paths
+		f_semantic.door_pairs = f_data.door_pairs
+
+		var light_res = _lighting_generator.generate_lighting(
+			f_semantic, light_cfg, f_data.seed_used
+		)
+		_light_spawner.spawn_lighting(light_res, floor_container, light_prof, tile_size)
 
 	# Atomic Swap
 	if active_presentation != null:

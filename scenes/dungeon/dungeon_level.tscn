@@ -13,10 +13,21 @@ sky_material = SubResource("PhysicalSkyMaterial_ur5pq")
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
-background_color = Color(0.01, 0.01, 0.02, 1)
-ambient_light_source = 0
-ambient_light_energy = 0.0
-tonemap_mode = 2
+background_color = Color(0.012, 0.02, 0.035, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.16, 0.24, 0.35, 1)
+ambient_light_energy = 0.52
+tonemap_mode = 3
+tonemap_exposure = 1.05
+glow_enabled = true
+glow_normalized = true
+glow_intensity = 0.75
+glow_strength = 1.0
+glow_bloom = 0.2
+glow_blend_mode = 0
+fog_enabled = true
+fog_light_color = Color(0.08, 0.14, 0.22, 1)
+fog_density = 0.008
 
 [node name="DungeonLevel" type="Node3D" unique_id=43678652 node_paths=PackedStringArray("visualizer", "camera")]
 script = ExtResource("1_controller")
@@ -29,12 +40,10 @@ environment = SubResource("Environment_1")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=547259906]
 transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 40, 0)
-visible = false
-light_color = Color(1, 0.98, 0.95, 1)
-light_energy = 0.0
-shadow_enabled = true
-shadow_bias = 0.05
-directional_shadow_max_distance = 250.0
+visible = true
+light_color = Color(0.4, 0.55, 0.75, 1)
+light_energy = 0.18
+shadow_enabled = false
 
 [node name="FillLight3D" type="DirectionalLight3D" parent="." unique_id=987654321]
 transform = Transform3D(-0.707107, 0.5, -0.5, 0, 0.707107, 0.707107, 0.707107, 0.5, -0.5, 0, 40, 0)

@@ -85,6 +85,9 @@ extends Resource
 @export_group("Generación de Suelos Procedurales")
 @export var floor_tile_config: Resource = null
 
+@export_group("Iluminación Procedural")
+@export var lighting_config: Resource = null
+
 func get_effective_seed() -> int:
 	if use_fixed_seed or seed != 0:
 		return seed
