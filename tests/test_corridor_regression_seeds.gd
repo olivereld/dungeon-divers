@@ -137,12 +137,17 @@ func _count_third_room_touches(result: DungeonResult) -> int:
 	
 	return touches
 
+func _find_room(rooms: Array[RoomData], room_id: int) -> RoomData:
+	for r in rooms:
+		if r != null and r.id == room_id:
+			return r
+	return null
+
 ## Obtiene la start_room real del DungeonResult
 func _get_start_room(result: DungeonResult) -> RoomData:
-	if result.start_room_id != -1:
-		for r in result.rooms:
-			if r != null and r.id == result.start_room_id:
-				return r
+	for r in result.rooms:
+		if r != null and r.room_type == &"start":
+			return r
 	if not result.rooms.is_empty():
 		return result.rooms[0]
 	return null

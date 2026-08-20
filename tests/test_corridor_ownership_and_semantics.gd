@@ -212,10 +212,10 @@ func _find_room(rooms: Array[RoomData], room_id: int) -> RoomData:
 
 ## Obtiene la start_room real del DungeonResult (no simplemente rooms[0])
 func _get_start_room(result: DungeonResult) -> RoomData:
-	# El start_room_id está disponible en el resultado
-	if result.start_room_id != -1:
-		return _find_room(result.rooms, result.start_room_id)
-	# Fallback: si no hay start_room_id, usar la primera sala
+	for r in result.rooms:
+		if r != null and r.room_type == &"start":
+			return r
+	# Fallback: si no hay start_room explícito, usar la primera sala
 	if not result.rooms.is_empty():
 		return result.rooms[0]
 	return null
@@ -225,7 +225,7 @@ func _get_start_room(result: DungeonResult) -> RoomData:
 func _get_corridor_cells_for_connection(result: DungeonResult, conn_id: int) -> Array[Vector2i]:
 	var corridor_cells: Array[Vector2i] = []
 	var grid := result.grid
-	var conn := _find_connection(result.connections, conn_id)
+	var conn = _find_connection(result.connections, conn_id)
 	if conn == null:
 		return corridor_cells
 	
@@ -283,12 +283,12 @@ func _get_corridor_cells_for_connection(result: DungeonResult, conn_id: int) -> 
 ## Encuentra una puerta asociada a una sala específica
 func _find_doorway_for_room(doors: Array, room_id: int) -> Vector2i:
 	for d in doors:
-		if d != null and (d.room_a_id == room_id or d.room_b_id == room_id):
+		if d != null and d.room_id == room_id:
 			return d.position
 	return Vector2i.ZERO
 
 ## Encuentra una conexión por su ID
-func _find_connection(connections: Array, conn_id: int):
+func _find_connection(connections: Array, conn_id: int) -> Variant:
 	for conn in connections:
 		if conn != null and conn.id == conn_id:
 			return conn
