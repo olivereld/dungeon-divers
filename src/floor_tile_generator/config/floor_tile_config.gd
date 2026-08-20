@@ -4,9 +4,18 @@ extends Resource
 ## Configuración modular y determinista para la generación de baldosas procedurales de suelo (Presentation Layer).
 
 enum CollisionMode {
-	NONE,          ## Sin colisión física
-	COMPOUND_BOX,  ## Cajas simples por sub-rectángulo continuo de región
-	SIMPLE_BOX     ## Caja única por cluster AABB
+	NONE,            ## Sin colisión física
+	BOX,             ## Caja única por cluster AABB
+	COMPOUND_BOX,    ## Cajas simples optimizadas por sub-rectángulo continuo
+	CONCAVE_TRIMESH  ## Colisión trimesh exacta basada en los triángulos de la malla
+}
+
+enum PatternType {
+	STYLIZED_STONE,  ## Losas entrelazadas estilizadas tipo Zelda / Diablo
+	COBBLESTONE,     ## Adoquines de piedra pequeños con jitter
+	BRICK,           ## Ladrillos rectangulares entrelazados
+	SMOOTH_SLABS,    ## 4 losas amplias con bisel suave
+	RUINED_TILES     ## Suelo con losas rotas, huecos y micro-desplazamientos
 }
 
 @export var tile_size: float = 2.0
@@ -16,6 +25,7 @@ enum CollisionMode {
 @export var bevel_min: float = 0.022       ## Bisel mínimo
 @export var bevel_max: float = 0.032       ## Bisel máximo
 @export var tone_variation: float = 0.04   ## Rango de variación tonal por losa
+@export var pattern: PatternType = PatternType.STYLIZED_STONE
 @export var collision_mode: CollisionMode = CollisionMode.COMPOUND_BOX
 @export var collision_depth: float = 0.5   ## Profundidad hacia abajo de la colisión física
 @export var material_preset: int = 0       ## Preset en WallMaterialFactory
@@ -30,6 +40,7 @@ func duplicate_config() -> Resource:
 	cfg.bevel_min = bevel_min
 	cfg.bevel_max = bevel_max
 	cfg.tone_variation = tone_variation
+	cfg.pattern = pattern
 	cfg.collision_mode = collision_mode
 	cfg.collision_depth = collision_depth
 	cfg.material_preset = material_preset

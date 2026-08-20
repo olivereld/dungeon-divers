@@ -1,0 +1,180 @@
+[gd_scene load_steps=7 format=3 uid="uid://floortileviewer01"]
+
+[ext_resource type="Script" path="res://src/floor_tile_generator/scenes/floor_tile_viewer.gd" id="1_viewer"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+sky_top_color = Color(0.35, 0.45, 0.6, 1)
+sky_horizon_color = Color(0.65, 0.7, 0.78, 1)
+ground_bottom_color = Color(0.12, 0.13, 0.15, 1)
+ground_horizon_color = Color(0.65, 0.7, 0.78, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_color = Color(0.45, 0.45, 0.5, 1)
+reflected_light_source = 2
+tonemap_mode = 2
+ssao_enabled = true
+glow_enabled = true
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_1"]
+size = Vector2(50, 50)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.10, 0.11, 0.13, 1)
+roughness = 0.95
+
+[node name="FloorTileViewer" type="Node3D"]
+script = ExtResource("1_viewer")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="LightPivot" type="Node3D" parent="."]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="LightPivot"]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 10, 0)
+light_energy = 1.2
+shadow_enabled = true
+directional_shadow_max_distance = 50.0
+
+[node name="OmniLight3D" type="OmniLight3D" parent="LightPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 4, 3)
+light_color = Color(1, 0.9, 0.75, 1)
+light_energy = 1.5
+omni_range = 15.0
+
+[node name="DarkGround" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, 0)
+mesh = SubResource("PlaneMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_floor")
+
+[node name="FloorContainer" type="Node3D" parent="."]
+
+[node name="CameraPivot" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 8)
+current = true
+fov = 55.0
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="PanelContainer" type="PanelContainer" parent="UI"]
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 360.0
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/PanelContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="UI/PanelContainer/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "🏛️ Procedural Floor Viewer"
+horizontal_alignment = 1
+
+[node name="HSeparator1" type="HSeparator" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="LblPattern" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+text = "Patrón de Suelo:"
+
+[node name="OptionPattern" type="OptionButton" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LblLayout" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+text = "Disposición / Sala:"
+
+[node name="OptionLayout" type="OptionButton" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LblPreset" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+text = "Preset de Material PBR:"
+
+[node name="OptionPreset" type="OptionButton" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HSeparator2" type="HSeparator" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="LabelTileSize" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Tamaño Baldosa: 2.0m"
+
+[node name="SliderTileSize" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 4.0
+step = 0.5
+value = 2.0
+
+[node name="LabelMargin" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Mortero / Junta: 0.035m"
+
+[node name="SliderMargin" type="HSlider" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.01
+max_value = 0.08
+step = 0.005
+value = 0.035
+
+[node name="HBoxSeed" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="LblSeed" type="Label" parent="UI/PanelContainer/MarginContainer/VBox/HBoxSeed"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Semilla RNG:"
+
+[node name="SpinSeed" type="SpinBox" parent="UI/PanelContainer/MarginContainer/VBox/HBoxSeed"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 999999.0
+value = 1337.0
+
+[node name="CheckRotate" type="CheckBox" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Auto-rotación de cámara"
+
+[node name="HSeparator3" type="HSeparator" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="LabelStats" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Stats: 9 baldosas | 162 losas | 1 cluster"
+autowrap_mode = 2
+
+[node name="Help" type="Label" parent="UI/PanelContainer/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "🖱️ Clic Derecho / Central + Arrastrar: Orbitar cámara
+🖱️ Rueda ratón: Zoom In / Out"
+autowrap_mode = 2
