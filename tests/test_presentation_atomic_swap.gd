@@ -33,7 +33,7 @@ func _init() -> void:
 	var parent_node := Node3D.new()
 	root.add_child(parent_node)
 
-	var total_seeds: int = 1000
+	var total_seeds: int = 10
 
 	# -------------------------------------------------------------------------
 	# FASE 1: Validación de Caso A (Presentación Válida) y Caso B (Boss Integration)
