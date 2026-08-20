@@ -1,0 +1,257 @@
+class_name WallGeometryBuilder
+extends RefCounted
+
+## Extrusor de geometría poligonal continua para muros de mazmorra (Fase M2).
+## Recibe un WallComponent con bucles cerrados y genera un GeneratedMesh con mallas limpias (ArrayMesh)
+## y uniones en inglete (miter joints) limitadas, sin acoplamiento a colisiones ni materiales.
+
+const _GeneratedMeshScript = preload("res://src/geometry_generator/data/generated_mesh.gd")
+const _WallComponentScript = preload("res://src/geometry_generator/data/wall_component.gd")
+const _WallGeometryConfigScript = preload("res://src/geometry_generator/config/wall_geometry_config.gd")
+
+func build_component_mesh(
+	component: WallComponent,
+	config: WallGeometryConfig = null
+) -> GeneratedMesh:
+	var g_mesh := _GeneratedMeshScript.new()
+	if component == null or component.is_empty():
+		return g_mesh
+
+	if config == null:
+		config = _WallGeometryConfigScript.new()
+
+	g_mesh.component_id = component.id
+
+	var st_trims := SurfaceTool.new()
+	var st_panel := SurfaceTool.new()
+
+	st_trims.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st_panel.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	var total_h: float = config.get_total_height()
+	var panel_h: float = config.get_wall_panel_height()
+	var bot_trim_h: float = config.bottom_trim_height
+	var top_trim_h: float = config.top_trim_height
+	var bot_slope_h: float = config.bottom_trim_slope_height
+	var top_slope_h: float = config.top_trim_slope_height
+
+	var w_thin: float = config.wall_thickness
+	var d: float = config.trim_overhang
+	var w_thick: float = w_thin + (d * 2.0)
+	var tile_size: float = config.cube_size
+
+	var bounds_init: bool = false
+	var aabb := AABB()
+
+	# Procesar cada bucle cerrado del componente
+	for loop_points in component.loops:
+		var n: int = loop_points.size()
+		if n < 3:
+			continue
+
+		# Convertir puntos 2D de cuadrícula a posiciones 3D en el mundo
+		var pts_3d: Array[Vector3] = []
+		for pt in loop_points:
+			var p3 := Vector3(float(pt.x) * tile_size, 0.0, float(pt.y) * tile_size)
+			pts_3d.append(p3)
+			if not bounds_init:
+				aabb = AABB(p3, Vector3(0.01, total_h, 0.01))
+				bounds_init = true
+			else:
+				aabb = aabb.expand(p3)
+				aabb = aabb.expand(p3 + Vector3(0.0, total_h, 0.0))
+
+		# 1. Calcular vectores miter en cada vértice del bucle
+		var miter_dirs: Array[Vector3] = []
+		for i in range(n):
+			var prev_pt: Vector3 = pts_3d[(i - 1 + n) % n]
+			var curr_pt: Vector3 = pts_3d[i]
+			var next_pt: Vector3 = pts_3d[(i + 1) % n]
+
+			var t_in: Vector3 = (curr_pt - prev_pt).normalized()
+			var t_out: Vector3 = (next_pt - curr_pt).normalized()
+
+			# Normal perpendicular hacia el sólido del muro
+			var n_wall_in := Vector3(t_in.z, 0.0, -t_in.x)
+			var n_wall_out := Vector3(t_out.z, 0.0, -t_out.x)
+
+			var miter: Vector3 = (n_wall_in + n_wall_out)
+			if miter.length_squared() < 0.0001:
+				miter = n_wall_in
+			else:
+				var m_dir: Vector3 = miter.normalized()
+				var dot: float = n_wall_in.dot(m_dir)
+				var m_scale: float = 1.0
+				if dot > 0.001:
+					m_scale = 1.0 / dot
+				# Clampear factor miter según configuración
+				m_scale = minf(m_scale, config.max_miter_scale)
+				miter = m_dir * m_scale
+
+			miter_dirs.append(miter)
+
+		# 2. Extruir cada arista del bucle como una cinta continua con ingletes
+		for i in range(n):
+			var next_i: int = (i + 1) % n
+			var p0: Vector3 = pts_3d[i]
+			var p1: Vector3 = pts_3d[next_i]
+
+			var m0: Vector3 = miter_dirs[i]
+			var m1: Vector3 = miter_dirs[next_i]
+
+			var p0_inner_thick: Vector3 = p0
+			var p1_inner_thick: Vector3 = p1
+
+			var p0_inner_thin: Vector3 = p0 + (m0 * (d * 0.5))
+			var p1_inner_thin: Vector3 = p1 + (m1 * (d * 0.5))
+
+			var p0_outer_thick: Vector3 = p0 + (m0 * w_thick)
+			var p1_outer_thick: Vector3 = p1 + (m1 * w_thick)
+
+			var p0_outer_thin: Vector3 = p0 + (m0 * (w_thick - d * 0.5))
+			var p1_outer_thin: Vector3 = p1 + (m1 * (w_thick - d * 0.5))
+
+			# --- ZÓCALO INFERIOR (TRIMS) ---
+			var y_bot_base: float = 0.0
+			var y_mid_base: float = bot_trim_h - bot_slope_h
+			var y_top_base: float = bot_trim_h
+
+			# Cara frontal vertical inferior
+			_add_quad(st_trims,
+				Vector3(p0_inner_thick.x, y_bot_base, p0_inner_thick.z),
+				Vector3(p1_inner_thick.x, y_bot_base, p1_inner_thick.z),
+				Vector3(p1_inner_thick.x, y_mid_base, p1_inner_thick.z),
+				Vector3(p0_inner_thick.x, y_mid_base, p0_inner_thick.z)
+			)
+			# Pendiente frontal a 45° superior
+			_add_quad(st_trims,
+				Vector3(p0_inner_thick.x, y_mid_base, p0_inner_thick.z),
+				Vector3(p1_inner_thick.x, y_mid_base, p1_inner_thick.z),
+				Vector3(p1_inner_thin.x, y_top_base, p1_inner_thin.z),
+				Vector3(p0_inner_thin.x, y_top_base, p0_inner_thin.z)
+			)
+			# Cara trasera exterior zócalo
+			_add_quad(st_trims,
+				Vector3(p1_outer_thick.x, y_bot_base, p1_outer_thick.z),
+				Vector3(p0_outer_thick.x, y_bot_base, p0_outer_thick.z),
+				Vector3(p0_outer_thick.x, y_mid_base, p0_outer_thick.z),
+				Vector3(p1_outer_thick.x, y_mid_base, p1_outer_thick.z)
+			)
+			# Pendiente trasera exterior a 45°
+			_add_quad(st_trims,
+				Vector3(p1_outer_thick.x, y_mid_base, p1_outer_thick.z),
+				Vector3(p0_outer_thick.x, y_mid_base, p0_outer_thick.z),
+				Vector3(p0_outer_thin.x, y_top_base, p0_outer_thin.z),
+				Vector3(p1_outer_thin.x, y_top_base, p1_outer_thin.z)
+			)
+
+			# --- PANEL CENTRAL DE PARED (WALLPANEL) ---
+			var y_bot_panel: float = bot_trim_h
+			var y_top_panel: float = total_h - top_trim_h
+
+			# Cara frontal del panel
+			_add_quad(st_panel,
+				Vector3(p0_inner_thin.x, y_bot_panel, p0_inner_thin.z),
+				Vector3(p1_inner_thin.x, y_bot_panel, p1_inner_thin.z),
+				Vector3(p1_inner_thin.x, y_top_panel, p1_inner_thin.z),
+				Vector3(p0_inner_thin.x, y_top_panel, p0_inner_thin.z)
+			)
+			# Cara trasera del panel
+			_add_quad(st_panel,
+				Vector3(p1_outer_thin.x, y_bot_panel, p1_outer_thin.z),
+				Vector3(p0_outer_thin.x, y_bot_panel, p0_outer_thin.z),
+				Vector3(p0_outer_thin.x, y_top_panel, p0_outer_thin.z),
+				Vector3(p1_outer_thin.x, y_top_panel, p1_outer_thin.z)
+			)
+
+			# --- CORNISA SUPERIOR (TRIMS) ---
+			var y_bot_cornice: float = total_h - top_trim_h
+			var y_mid_cornice: float = total_h - top_trim_h + top_slope_h
+			var y_top_cornice: float = total_h
+
+			# Pendiente frontal inferior a 45°
+			_add_quad(st_trims,
+				Vector3(p0_inner_thin.x, y_bot_cornice, p0_inner_thin.z),
+				Vector3(p1_inner_thin.x, y_bot_cornice, p1_inner_thin.z),
+				Vector3(p1_inner_thick.x, y_mid_cornice, p1_inner_thick.z),
+				Vector3(p0_inner_thick.x, y_mid_cornice, p0_inner_thick.z)
+			)
+			# Cara frontal vertical superior
+			_add_quad(st_trims,
+				Vector3(p0_inner_thick.x, y_mid_cornice, p0_inner_thick.z),
+				Vector3(p1_inner_thick.x, y_mid_cornice, p1_inner_thick.z),
+				Vector3(p1_inner_thick.x, y_top_cornice, p1_inner_thick.z),
+				Vector3(p0_inner_thick.x, y_top_cornice, p0_inner_thick.z)
+			)
+			# Tapa superior plana
+			_add_quad(st_trims,
+				Vector3(p0_inner_thick.x, y_top_cornice, p0_inner_thick.z),
+				Vector3(p1_inner_thick.x, y_top_cornice, p1_inner_thick.z),
+				Vector3(p1_outer_thick.x, y_top_cornice, p1_outer_thick.z),
+				Vector3(p0_outer_thick.x, y_top_cornice, p0_outer_thick.z)
+			)
+			# Cara trasera vertical superior
+			_add_quad(st_trims,
+				Vector3(p1_outer_thick.x, y_mid_cornice, p1_outer_thick.z),
+				Vector3(p0_outer_thick.x, y_mid_cornice, p0_outer_thick.z),
+				Vector3(p0_outer_thick.x, y_top_cornice, p0_outer_thick.z),
+				Vector3(p1_outer_thick.x, y_top_cornice, p1_outer_thick.z)
+			)
+			# Pendiente trasera inferior a 45°
+			_add_quad(st_trims,
+				Vector3(p1_outer_thin.x, y_bot_cornice, p1_outer_thin.z),
+				Vector3(p0_outer_thin.x, y_bot_cornice, p0_outer_thin.z),
+				Vector3(p0_outer_thick.x, y_mid_cornice, p0_outer_thick.z),
+				Vector3(p1_outer_thick.x, y_mid_cornice, p1_outer_thick.z)
+			)
+
+	var mesh := ArrayMesh.new()
+
+	# Superficie 0: Trims (Cornisas y Zócalos)
+	st_trims.index()
+	st_trims.generate_tangents()
+	mesh = st_trims.commit(mesh)
+	if mesh.get_surface_count() > 0:
+		mesh.surface_set_name(0, "Trims")
+
+	# Superficie 1: WallPanel (Cuerpo de piedra liso)
+	st_panel.index()
+	st_panel.generate_tangents()
+	mesh = st_panel.commit(mesh)
+	if mesh.get_surface_count() > 1:
+		mesh.surface_set_name(1, "WallPanel")
+
+	g_mesh.mesh = mesh
+	g_mesh.bounds = aabb
+	return g_mesh
+
+static func _add_quad(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3) -> void:
+	var cross1: Vector3 = (p1 - p0).cross(p2 - p0)
+	if cross1.length_squared() >= 0.00001:
+		var normal1: Vector3 = cross1.normalized()
+		st.set_normal(normal1)
+		st.set_uv(Vector2(0.0, 0.0))
+		st.add_vertex(p0)
+
+		st.set_normal(normal1)
+		st.set_uv(Vector2(1.0, 0.0))
+		st.add_vertex(p1)
+
+		st.set_normal(normal1)
+		st.set_uv(Vector2(1.0, 1.0))
+		st.add_vertex(p2)
+
+	var cross2: Vector3 = (p2 - p0).cross(p3 - p0)
+	if cross2.length_squared() >= 0.00001:
+		var normal2: Vector3 = cross2.normalized()
+		st.set_normal(normal2)
+		st.set_uv(Vector2(0.0, 0.0))
+		st.add_vertex(p0)
+
+		st.set_normal(normal2)
+		st.set_uv(Vector2(1.0, 1.0))
+		st.add_vertex(p2)
+
+		st.set_normal(normal2)
+		st.set_uv(Vector2(0.0, 1.0))
+		st.add_vertex(p3)
