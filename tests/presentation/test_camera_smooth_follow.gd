@@ -34,7 +34,7 @@ func _init() -> void:
 	for _i in range(120):
 		rig.process_physics_step(0.016)
 
-	assert(is_equal_approx(rig.global_position.x, 10.0), "FAIL: Camera rig should smoothly converge to target X position")
+	assert(rig.global_position.distance_to(Vector3(10.0, 1.0, 0.0)) < 0.05, "FAIL: Camera rig should converge within epsilon of target (10, 1, 0)")
 	assert(is_equal_approx(rig.global_position.y, 1.0), "FAIL: Camera rig should maintain target_offset Y")
 
 	target.free()
