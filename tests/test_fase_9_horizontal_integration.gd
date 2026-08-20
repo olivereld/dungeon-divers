@@ -1,7 +1,13 @@
 extends SceneTree
 
 ## Suite de integración End-to-End para la Fase 9: Compleción Estructural Horizontal.
-## Valida el pipeline completo: Pipeline -> Semantic -> Presentation (Wall Mesh + Carved Openings + Doors).
+## Valida el pipeline completo real: Pipeline -> SemanticOrchestrator -> PresentationBuilder.
+
+const DungeonPipeline = preload("res://src/dungeon_generator/core/dungeon_pipeline.gd")
+const DungeonConfig = preload("res://src/dungeon_generator/config/dungeon_config.gd")
+const SemanticOrchestrator = preload("res://src/dungeon_generator/core/semantic/semantic_orchestrator.gd")
+const DungeonPresentationBuilder = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
+const BiomeProfile = preload("res://src/dungeon_generator/presentation/biome_profile.gd")
 
 func _init() -> void:
 	print("================================================================")
@@ -9,7 +15,9 @@ func _init() -> void:
 	print("================================================================")
 
 	var pipeline := DungeonPipeline.new()
+	var semantic_orchestrator := SemanticOrchestrator.new()
 	var presentation_builder := DungeonPresentationBuilder.new()
+
 	var biome := BiomeProfile.new()
 	biome.name = "TestDungeon"
 	biome.id = &"test_dungeon"
@@ -30,13 +38,15 @@ func _init() -> void:
 		dungeon_res.rooms.size(), dungeon_res.door_pairs.size()
 	])
 
-	# 2. Envoltura Semántica
-	var semantic_res := DungeonSemanticResult.new()
-	semantic_res.grid = dungeon_res.grid
-	semantic_res.rooms = dungeon_res.rooms
-	semantic_res.connections = dungeon_res.connections
-	semantic_res.door_pairs = dungeon_res.door_pairs
-	semantic_res.is_valid = true
+	# 2. Generación de la Capa Semántica Real mediante SemanticOrchestrator
+	var semantic_res: DungeonSemanticResult = semantic_orchestrator.generate_semantics(dungeon_res, config)
+	assert(semantic_res != null, "SemanticOrchestrator must return a DungeonSemanticResult")
+	assert(semantic_res.gameplay_valid, "SemanticResult must pass gameplay validation")
+	assert(semantic_res.is_committed, "SemanticResult must be committed before presentation")
+	assert(semantic_res.grid == dungeon_res.grid, "SemanticResult must reference the generated CellGrid")
+	assert(semantic_res.rooms.size() == dungeon_res.rooms.size(), "SemanticResult must preserve RoomData set")
+	assert(semantic_res.door_pairs.size() == dungeon_res.door_pairs.size(), "SemanticResult must preserve DoorPair set")
+	print("  [OK] Semantic layer generated and committed")
 
 	# Guardar copia de celdas para validar inmutabilidad del CellGrid
 	var original_cells: Dictionary = {}
@@ -64,7 +74,7 @@ func _init() -> void:
 	assert(continuous_walls != null, "ContinuousWalls must be instantiated in presentation root")
 	assert(continuous_walls.mesh != null and continuous_walls.mesh.get_surface_count() == 3,
 		"ContinuousWalls must contain 3 surfaces (Trim, Panel, Bricks)")
-	assert(continuous_walls.get_child_count() > 0, "ContinuousWalls must have trimesh collision body")
+	assert(continuous_walls.get_child_count() > 0, "ContinuousWalls must have collision body")
 	print("  [OK] ContinuousWalls generated with 3 PBR surfaces and static collision")
 
 	# 4.2 Validar contenedor y entidades de Puertas
