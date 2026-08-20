@@ -30,5 +30,16 @@ func _init() -> void:
 	assert(visualizer.is_2d_preview_mode == false, "Visualizer must switch to 3D mode")
 	print("  [OK] 3D mode transition verified")
 
+	# 3. Probar modo Multi-Floor 2D
+	var MultiFloorGenScript = preload("res://src/dungeon_generator/core/multi_floor_generator.gd")
+	var multi_gen = MultiFloorGenScript.new()
+	config.total_floors = 3
+	var multi_res = multi_gen.generate_multi_floor(config)
+	assert(multi_res != null and multi_res.is_valid, "Multi-floor generation must succeed")
+
+	visualizer.show_multi_floor_preview(multi_res, -1)
+	assert(visualizer.is_2d_preview_mode == true, "Multi-floor 2D preview must be active")
+	print("  [OK] Multi-floor 2D grid preview activated")
+
 	print("[PASS] test_dungeon_2d_3d_flow completed successfully!")
 	quit(0)

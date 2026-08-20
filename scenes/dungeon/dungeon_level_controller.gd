@@ -3,7 +3,7 @@ extends Node3D
 
 ## Controlador de escena para generación, visualización e interacción con la mazmorra.
 ## Implementa flujo por pasos: 
-## 1. Generación y Previsualización en Plano 2D interactivo.
+## 1. Generación y Previsualización en Plano 2D interactivo (con segmentación multinivel).
 ## 2. Al presionar "Generar en 3D" (o Espacio/Enter), materializa el mundo 3D navegable.
 
 @export var config: DungeonConfig = null
@@ -106,12 +106,17 @@ func _on_floors_changed(p_floors: int) -> void:
 
 func _on_floor_view_mode_changed(p_floor_idx: int) -> void:
 	_current_isolated_floor = p_floor_idx
+	if visualizer != null and _current_multi_result != null:
+		visualizer.show_multi_floor_preview(_current_multi_result, _current_isolated_floor)
 	_apply_floor_visibility()
 	_center_camera_on_dungeon()
 
 func _on_toggle_2d_view_requested() -> void:
-	if _current_result != null and visualizer != null:
-		visualizer.show_2d_preview(_current_result, _current_semantic_result)
+	if visualizer != null:
+		if _current_multi_result != null:
+			visualizer.show_multi_floor_preview(_current_multi_result, _current_isolated_floor)
+		elif _current_result != null:
+			visualizer.show_2d_preview(_current_result, _current_semantic_result)
 
 func _apply_floor_visibility() -> void:
 	if _current_presentation_root == null:
@@ -158,7 +163,7 @@ func regenerate(force_new_seed: bool = false) -> void:
 	if _player != null:
 		_player.visible = false
 
-	# FLUJO MULTI-PISO (Fase 10)
+	# FLUJO MULTI-PISO (Fase 10 / M8)
 	if config.total_floors > 1:
 		var multi_res: DungeonMultiFloorResult = _multi_floor_generator.generate_multi_floor(config)
 		if multi_res == null or not multi_res.is_valid:
@@ -167,12 +172,12 @@ func regenerate(force_new_seed: bool = false) -> void:
 
 		_hide_failure_ui()
 		_current_multi_result = multi_res
-		var f0 = multi_res.get_floor(0)
-		_current_result = f0
+		_current_result = null
+		_current_semantic_result = null
 
 		if visualizer != null:
 			visualizer.update_floor_view_options(config.total_floors, _current_isolated_floor)
-			visualizer.show_2d_preview(f0)
+			visualizer.show_multi_floor_preview(multi_res, _current_isolated_floor)
 		return
 
 	# FLUJO MONO-PISO ESTÁNDAR
@@ -199,9 +204,11 @@ func regenerate(force_new_seed: bool = false) -> void:
 	_hide_failure_ui()
 	_current_result = new_result
 	_current_semantic_result = new_semantic
+	_current_multi_result = null
 
 	# Mostrar el Plano 2D interactivo en la UI
 	if visualizer != null:
+		visualizer.update_floor_view_options(1, 0)
 		visualizer.show_2d_preview(_current_result, _current_semantic_result)
 
 ## Paso 2: Materialización y visualización del mundo 3D al confirmar
@@ -228,7 +235,7 @@ func build_3d_presentation() -> void:
 
 		var f0 = _current_multi_result.get_floor(0)
 		if f0 != null and not f0.rooms.is_empty():
-			var center_cell = f0.rooms[0].get_center_cell()
+			var center_cell = f0.rooms[0].get_center()
 			var p_pos := GridToWorld.get_cell_center_world_3d(center_cell, 0, config.cell_size, config.floor_height, 0.5)
 			if _player == null:
 				_player = _PlayerTestScript.new()
