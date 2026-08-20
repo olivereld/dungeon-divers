@@ -35,7 +35,7 @@ func plan_stairs_between_floors(
 	if cell_b == Vector2i(-1, -1):
 		return null
 
-	var is_downward: bool = floor_b.floor_number > floor_a.floor_number
+	var is_downward: bool = floor_b.floor_number < floor_a.floor_number
 	var conn_id: String = "vconn_f%d_f%d" % [floor_a.floor_number, floor_b.floor_number]
 	var stair_a_id: String = "stair_f%d_%s" % [floor_a.floor_number, "down" if is_downward else "up"]
 	var stair_b_id: String = "stair_f%d_%s" % [floor_b.floor_number, "up" if is_downward else "down"]
@@ -78,7 +78,7 @@ func find_best_stair_cell(
 	if floor_data == null or floor_data.grid == null:
 		return Vector2i(-1, -1)
 
-	var rooms: Array[RoomData] = floor_data.rooms
+	var rooms: Array = floor_data.rooms
 	if rooms.is_empty():
 		return _find_fallback_walkable_cell(floor_data.grid)
 
@@ -117,7 +117,7 @@ func find_best_stair_cell(
 
 	# Fallback a escanear celdas interiores generales de cualquier sala
 	for r in rooms:
-		var in_r := r.get_inner_rect()
+		var in_r: Rect2i = r.get_inner_rect()
 		for cy in range(in_r.position.y, in_r.end.y):
 			for cx in range(in_r.position.x, in_r.end.x):
 				var c := Vector2i(cx, cy)
@@ -127,7 +127,7 @@ func find_best_stair_cell(
 	return _find_fallback_walkable_cell(floor_data.grid)
 
 func _select_target_room(floor_data: DungeonFloorData, prefer_exit: bool) -> RoomData:
-	var rooms: Array[RoomData] = floor_data.rooms
+	var rooms: Array = floor_data.rooms
 	if rooms.size() <= 1:
 		return rooms[0] if not rooms.is_empty() else null
 
@@ -157,10 +157,14 @@ func _score_stair_cell(cell: Vector2i, room: RoomData, floor_data: DungeonFloorD
 	if floor_data.door_pairs != null:
 		for dp in floor_data.door_pairs:
 			if dp != null:
-				var d1: int = (cell - dp.position_a).length_squared()
-				var d2: int = (cell - dp.position_b).length_squared()
-				if mini(d1, d2) <= 2:
-					base_score -= 80.0
+				if dp.door_a != null:
+					var d1: int = (cell - dp.door_a.position).length_squared()
+					if d1 <= 2:
+						base_score -= 80.0
+				if dp.door_b != null:
+					var d2: int = (cell - dp.door_b.position).length_squared()
+					if d2 <= 2:
+						base_score -= 80.0
 
 	# 3. Penalización si está en Spawn de jugador
 	if floor_data.grid != null:

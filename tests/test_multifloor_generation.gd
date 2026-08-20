@@ -10,8 +10,8 @@ func _init() -> void:
 	var cell_grid_script = preload("res://src/dungeon_generator/core/data/cell_grid.gd")
 
 	var config := DungeonConfig.new()
-	config.grid_width = 32
-	config.grid_height = 32
+	config.grid_width = 48
+	config.grid_height = 48
 	config.total_floors = 3
 	config.mission_depth = 4
 	config.seed = 133742

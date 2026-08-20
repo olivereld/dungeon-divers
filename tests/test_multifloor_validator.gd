@@ -13,8 +13,8 @@ func _init() -> void:
 
 	# 1. Validar Mazmorra Multinivel Correcta
 	var config := DungeonConfig.new()
-	config.grid_width = 32
-	config.grid_height = 32
+	config.grid_width = 48
+	config.grid_height = 48
 	config.total_floors = 3
 	config.seed = 133742
 	config.use_fixed_seed = true

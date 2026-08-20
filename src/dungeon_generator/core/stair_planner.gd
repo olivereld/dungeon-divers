@@ -6,7 +6,7 @@ extends RefCounted
 
 const _FloorConnectionPlannerScript = preload("res://src/dungeon_generator/core/multilevel/floor_connection_planner.gd")
 
-var _planner: FloorConnectionPlanner
+var _planner: RefCounted
 
 func _init() -> void:
 	_planner = _FloorConnectionPlannerScript.new()
