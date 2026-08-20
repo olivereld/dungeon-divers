@@ -5,22 +5,28 @@ extends RefCounted
 ## Representa la unidad fundamental para generación de mallas independientes (clusters).
 
 var id: int = 0
-var loops: Array[Array] = []         # Array de Array[Vector2i] (polígonos cerrados simplificados)
-var open_chains: Array[Array] = []   # Array de Array[Vector2i] (tramos lineales no cerrados)
+var loops: Array = []         # Array de Array[Vector2i] (bucles poligonales ordenados)
+var open_chains: Array = []   # Array de Array[Vector2i] (tramos lineales no cerrados)
 var bounds: Rect2i = Rect2i()
 
 func _init(p_id: int = 0) -> void:
 	id = p_id
 
-func add_loop(loop: Array[Vector2i]) -> void:
+func add_loop(loop: Array) -> void:
 	if loop.size() >= 3:
-		loops.append(loop)
-		_update_bounds_with_points(loop)
+		var typed_loop: Array[Vector2i] = []
+		for pt in loop:
+			typed_loop.append(pt as Vector2i)
+		loops.append(typed_loop)
+		_update_bounds_with_points(typed_loop)
 
-func add_chain(chain: Array[Vector2i]) -> void:
+func add_chain(chain: Array) -> void:
 	if chain.size() >= 2:
-		open_chains.append(chain)
-		_update_bounds_with_points(chain)
+		var typed_chain: Array[Vector2i] = []
+		for pt in chain:
+			typed_chain.append(pt as Vector2i)
+		open_chains.append(typed_chain)
+		_update_bounds_with_points(typed_chain)
 
 func get_total_vertex_count() -> int:
 	var total: int = 0

@@ -75,9 +75,7 @@ src/geometry_generator/
 
 - [x] **Step 1: Escribir la prueba unitaria de validación de contratos**
 - [x] **Step 2: Implementar las clases de datos y configuraciones**
-- [ ] **Step 3: Notificar al usuario para ejecutar la prueba de contratos**
-Comando a indicar al usuario:
-`godot --headless -s res://tests/test_geometry_contracts.gd`
+- [x] **Step 3: Notificar al usuario para ejecutar la prueba de contratos**
 
 ---
 
@@ -94,9 +92,7 @@ Comando a indicar al usuario:
 
 - [x] **Step 1: Escribir la prueba de extracción de fronteras y componentes conexas**
 - [x] **Step 2: Implementar BoundaryExtractor y ComponentExtractor**
-- [ ] **Step 3: Notificar al usuario para ejecutar la prueba de extracción**
-Comando a indicar al usuario:
-`godot --headless -s res://tests/test_wall_boundary_extraction.gd`
+- [x] **Step 3: Notificar al usuario para ejecutar la prueba de extracción**
 
 ---
 
@@ -112,9 +108,7 @@ Comando a indicar al usuario:
 
 - [x] **Step 1: Escribir la prueba de extrusión geométrica pura**
 - [x] **Step 2: Implementar WallGeometryBuilder**
-- [ ] **Step 3: Notificar al usuario para ejecutar la prueba de geometría**
-Comando a indicar al usuario:
-`godot --headless -s res://tests/test_wall_geometry_builder.gd`
+- [x] **Step 3: Notificar al usuario para ejecutar la prueba de geometría**
 
 ---
 
@@ -129,54 +123,8 @@ Comando a indicar al usuario:
 - Consumes: `WallComponent`, `WallGeometryConfig`, `CollisionConfig`
 - Produces: `Array[Shape3D]`, `Array[Transform3D]` dentro de `GeneratedMesh`
 
-- [ ] **Step 1: Escribir la prueba de generación de colisiones**
-
-Crear `tests/test_wall_collision_builder.gd`:
-- Valida que para segmentos rectos se generan `BoxShape3D` optimizados.
-- Valida que para polígonos complejos o política `COMPOUND_BOX` se generan colisionadores que cubren el perímetro sin gaps.
-- Valida que los `bounds` de colisión coinciden estrechamente con los `bounds` de la malla.
-
-```gdscript
-extends SceneTree
-
-const WallComponent = preload("res://src/geometry_generator/data/wall_component.gd")
-const WallGeometryConfig = preload("res://src/geometry_generator/config/wall_geometry_config.gd")
-const CollisionConfig = preload("res://src/geometry_generator/config/collision_config.gd")
-const WallCollisionBuilder = preload("res://src/geometry_generator/collision/wall_collision_builder.gd")
-const GeneratedMesh = preload("res://src/geometry_generator/data/generated_mesh.gd")
-
-func _init() -> void:
-	print("--- Running test_wall_collision_builder ---")
-	var comp := WallComponent.new(0)
-	comp.loops.append([
-		Vector2i(2, 2),
-		Vector2i(6, 2),
-		Vector2i(6, 6),
-		Vector2i(2, 6)
-	])
-
-	var config := WallGeometryConfig.new()
-	var col_cfg := CollisionConfig.new()
-	col_cfg.mode = CollisionConfig.CollisionMode.COMPOUND_BOX
-
-	var col_builder := WallCollisionBuilder.new()
-	var g_mesh := GeneratedMesh.new()
-	col_builder.build_collision_for_component(comp, config, col_cfg, g_mesh)
-
-	assert(g_mesh.collision_shapes.size() == 4, "Debe generar 4 BoxShapes para las 4 paredes")
-	for shape in g_mesh.collision_shapes:
-		assert(shape is BoxShape3D)
-
-	print("[PASS] test_wall_collision_builder passed!")
-	quit(0)
-```
-
-- [ ] **Step 2: Implementar WallCollisionBuilder y CollisionConfig**
-
-Implementar:
-1. `CollisionConfig` con enum `CollisionMode { BOX, COMPOUND_BOX, CONCAVE_TRIMESH }`.
-2. `WallCollisionBuilder`: Calcula centros y dimensiones de cada tramo de pared entre vértices consecutivos y genera `BoxShape3D` orientados con `Transform3D` alineado.
-
+- [x] **Step 1: Escribir la prueba de generación de colisiones**
+- [x] **Step 2: Implementar WallCollisionBuilder y CollisionConfig**
 - [ ] **Step 3: Notificar al usuario para ejecutar la prueba de colisiones**
 Comando a indicar al usuario:
 `godot --headless -s res://tests/test_wall_collision_builder.gd`
@@ -195,16 +143,8 @@ Comando a indicar al usuario:
 - Consumes: `GeneratedMesh`, `WallComponent`, `DecorationConfig`
 - Produces: Malla decorada opcional (superficie de ladrillos añadida) y materiales resueltos (`MaterialResolver`).
 
-- [ ] **Step 1: Escribir la prueba de decoración superficial**
-
-Crear `tests/test_surface_decoration.gd`:
-- Valida que `BrickDecorator` añade la superficie de ladrillos sin alterar la geometría base del panel ni la colisión.
-- Valida que `MaterialResolver` asigna materiales según el preset sin acoplarse al algoritmo generador.
-
-- [ ] **Step 2: Implementar BrickDecorator y MaterialResolver**
-
-Mover la lógica de dispersión de ladrillos con `FastNoiseLite` de `ContinuousWallMeshBuilder` a `BrickDecorator`, y la asignación de materiales Shader/Standard a `MaterialResolver`.
-
+- [x] **Step 1: Escribir la prueba de decoración superficial**
+- [x] **Step 2: Implementar BrickDecorator y MaterialResolver**
 - [ ] **Step 3: Notificar al usuario para ejecutar la prueba de decoración**
 Comando a indicar al usuario:
 `godot --headless -s res://tests/test_surface_decoration.gd`
@@ -223,19 +163,8 @@ Comando a indicar al usuario:
 - Consumes: `CellGrid`, `WallOpeningManifest`, `WallGeometryConfig`, `DecorationConfig`, `CollisionConfig`
 - Produces: `GeometryResult` (Array de `GeneratedMesh` por cluster / nodos 3D completos listos para staging)
 
-- [ ] **Step 1: Escribir la prueba de integración de extremo a extremo**
-
-Crear `tests/test_geometry_generator_integration.gd`:
-- Genera dungeon completa con `DungeonPipeline`.
-- Invoca `DungeonGeometryGenerator.generate_wall_clusters(grid, opening_manifest, ...)`.
-- Comprueba que se reciben clusters independientes con `mesh`, `collision` y `bounds`.
-- Comprueba que `ContinuousWallMeshBuilder` mantiene retrocompatibilidad exacta retornando el `ArrayMesh` unificado para `DungeonPresentationBuilder`.
-
-- [ ] **Step 2: Implementar DungeonGeometryGenerator y actualizar ContinuousWallMeshBuilder como Adapter**
-
-1. `dungeon_geometry_generator.gd`: Coordina `BoundaryExtractor` -> `ComponentExtractor` -> `WallGeometryBuilder` -> `WallCollisionBuilder` -> `BrickDecorator` -> `MaterialResolver`.
-2. `continuous_wall_mesh_builder.gd`: Delega internamente a `DungeonGeometryGenerator`, unificando las mallas para no romper llamadas existentes de `DungeonPresentationBuilder` y `PlaceholderFactory`.
-
+- [x] **Step 1: Escribir la prueba de integración de extremo a extremo**
+- [x] **Step 2: Implementar DungeonGeometryGenerator y actualizar ContinuousWallMeshBuilder como Adapter**
 - [ ] **Step 3: Notificar al usuario para ejecutar las suites de integración y regresión**
 Comandos a indicar al usuario:
 1. `godot --headless -s res://tests/test_geometry_generator_integration.gd`

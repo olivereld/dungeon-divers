@@ -12,7 +12,7 @@ func extract_components(graph: WallBoundaryGraph) -> Array[WallComponent]:
 	if graph == null or graph.get_edge_count() == 0:
 		return components
 
-	# 1. Identificar componentes conexas (grafo no dirigido subyacente de aristas)
+	# 1. Identificar componentes conexas
 	var visited_edges: Dictionary = {} # Vector4i -> bool
 	var all_edges: Array[Dictionary] = graph.get_all_edges()
 
@@ -22,8 +22,9 @@ func extract_components(graph: WallBoundaryGraph) -> Array[WallComponent]:
 		var u: Vector2i = e["start"]
 		var v: Vector2i = e["end"]
 		if not outgoing_map.has(u):
-			outgoing_map[u] = []
-		outgoing_map[u].append(v)
+			var arr: Array[Vector2i] = []
+			outgoing_map[u] = arr
+		(outgoing_map[u] as Array[Vector2i]).append(v)
 
 	var component_counter: int = 0
 
@@ -47,10 +48,11 @@ func extract_components(graph: WallBoundaryGraph) -> Array[WallComponent]:
 			loop_points.append(curr_pt)
 
 			# Buscar aristas no visitadas salientes desde curr_pt
-			var next_candidates: Array[Vector2i] = outgoing_map.get(curr_pt, [])
+			var next_candidates: Array = outgoing_map.get(curr_pt, [])
 			var chosen_next: Vector2i = Vector2i(-999999, -999999)
 
-			for cand in next_candidates:
+			for cand_item in next_candidates:
+				var cand: Vector2i = cand_item as Vector2i
 				var cand_k := Vector4i(curr_pt.x, curr_pt.y, cand.x, cand.y)
 				if not visited_edges.has(cand_k):
 					chosen_next = cand
@@ -62,7 +64,7 @@ func extract_components(graph: WallBoundaryGraph) -> Array[WallComponent]:
 				break
 
 			if chosen_next == start_pt:
-				# Se cerró el ciclo
+				# Se cerró el ciclo completamente
 				closed = true
 				break
 

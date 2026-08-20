@@ -80,7 +80,7 @@ func _init() -> void:
 
 	var opening_manifest := WallOpeningManifest.new()
 	# Añadir apertura en el borde norte de (3,2)
-	opening_manifest.register_opening(Vector2i(3, 2), RoomEntrance.NORTH, 1.0, 2.0, 1)
+	opening_manifest.add_opening(Vector2i(3, 2), RoomEntrance.NORTH, "door_1")
 
 	var graph4 = extractor.extract_graph(grid4, opening_manifest)
 	# Normalmente 12 aristas - 1 arista omitida por apertura = 11 aristas
