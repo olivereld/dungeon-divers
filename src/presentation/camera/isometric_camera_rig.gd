@@ -170,15 +170,9 @@ func get_occlusion_detector() -> _CameraOcclusionDetectorScript:
 	return _occlusion_detector
 
 func set_target(p_target: Node3D) -> void:
-	print("DEBUG: set_target called")
-	print("DEBUG: previous target: ", _target)
-	print("DEBUG: new target: ", p_target)
-
 	if _target != p_target:
 		_target = p_target
-		print("DEBUG: emitting target_changed")
 		target_changed.emit(_target)
-		print("DEBUG: target_changed emitted")
 
 func clear_target() -> void:
 	set_target(null)

@@ -3,11 +3,15 @@ extends SceneTree
 const IsometricCameraRigScript = preload("res://src/presentation/camera/isometric_camera_rig.gd")
 
 func _init() -> void:
+	call_deferred("_run_test")
+
+func _run_test() -> void:
 	print("==================================================================")
 	print("--- Running test_camera_smooth_follow ---")
 	print("==================================================================")
 
 	var root := Node3D.new()
+	root.name = "CameraTestWorld"
 	get_root().add_child(root)
 
 	var rig = IsometricCameraRigScript.new()
@@ -19,11 +23,13 @@ func _init() -> void:
 	root.add_child(rig)
 
 	var target := Node3D.new()
-	target.global_position = Vector3(0.0, 0.0, 0.0)
+	target.name = "Target"
+	target.global_position = Vector3.ZERO
 	root.add_child(target)
+
 	rig.set_target(target)
 
-	# 1. Teleport inicial dentro del árbol
+	# 1. Teleport inicial dentro del árbol ya inicializado
 	rig.teleport_to_target()
 	assert(rig.global_position.is_equal_approx(Vector3(0.0, 1.0, 0.0)), "FAIL: teleport_to_target should immediately align to target + offset")
 

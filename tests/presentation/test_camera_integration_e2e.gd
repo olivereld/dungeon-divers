@@ -4,11 +4,15 @@ const IsometricCameraRigScript = preload("res://src/presentation/camera/isometri
 const PlayerTestScript = preload("res://src/character_test/player_test.gd")
 
 func _init() -> void:
+	call_deferred("_run_test")
+
+func _run_test() -> void:
 	print("==================================================================")
 	print("--- Running test_camera_integration_e2e ---")
 	print("==================================================================")
 
 	var root := Node3D.new()
+	root.name = "CameraTestWorld"
 	get_root().add_child(root)
 
 	var rig = IsometricCameraRigScript.new()
