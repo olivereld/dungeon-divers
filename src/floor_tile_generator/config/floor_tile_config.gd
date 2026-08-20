@@ -24,12 +24,17 @@ enum PatternType {
 @export var height_max: float = 0.075      ## Altura máxima de losa
 @export var bevel_min: float = 0.022       ## Bisel mínimo
 @export var bevel_max: float = 0.032       ## Bisel máximo
-@export var tone_variation: float = 0.04   ## Rango de variación tonal por losa
+@export var tone_variation: float = 0.05   ## Rango de variación tonal por losa
 @export var pattern: PatternType = PatternType.STYLIZED_STONE
 @export var collision_mode: CollisionMode = CollisionMode.COMPOUND_BOX
 @export var collision_depth: float = 0.5   ## Profundidad hacia abajo de la colisión física
 @export var material_preset: int = 0       ## Preset en WallMaterialFactory
 @export var seed: int = 1337
+
+# Parámetros de Variación Estocástica y Ruido Espacial (Fases V1-V2)
+@export var use_noise_modulation: bool = true
+@export var noise_frequency: float = 0.05
+@export var jitter_strength: float = 0.012
 
 func duplicate_config() -> Resource:
 	var cfg = (get_script() as GDScript).new()
@@ -45,4 +50,7 @@ func duplicate_config() -> Resource:
 	cfg.collision_depth = collision_depth
 	cfg.material_preset = material_preset
 	cfg.seed = seed
+	cfg.use_noise_modulation = use_noise_modulation
+	cfg.noise_frequency = noise_frequency
+	cfg.jitter_strength = jitter_strength
 	return cfg

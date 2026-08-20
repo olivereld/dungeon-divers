@@ -1,12 +1,13 @@
 class_name DungeonFloorGenerator
 extends RefCounted
 
-## Fachada central de datos puros para la generación de superficies y baldosas de suelo (Fases M1, M2 y M7).
-## Orquesta: FloorRegionExtractor -> FloorTilePattern -> FloorSurfaceMeshBuilder -> FloorCollisionBuilder.
+## Fachada central de datos puros para la generación de superficies y baldosas de suelo (Fases M1, M2, M7, V1, V2).
+## Orquesta: FloorRegionExtractor -> FloorNoiseField -> FloorTilePattern -> FloorSurfaceMeshBuilder -> FloorCollisionBuilder.
 ## 0 creación de nodos 3D (responsabilidad delegada a DungeonFloorSpawner).
 
 const _FloorRegionExtractorScript = preload("res://src/floor_tile_generator/extraction/floor_region_extractor.gd")
 const _FloorTilePatternScript = preload("res://src/floor_tile_generator/patterns/floor_tile_pattern.gd")
+const _FloorNoiseFieldScript = preload("res://src/floor_tile_generator/patterns/floor_noise_field.gd")
 const _FloorSurfaceMeshBuilderScript = preload("res://src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd")
 const _FloorCollisionBuilderScript = preload("res://src/floor_tile_generator/collision/floor_collision_builder.gd")
 const _FloorSurfaceClusterScript = preload("res://src/floor_tile_generator/data/floor_surface_cluster.gd")
@@ -39,7 +40,10 @@ func generate_floor_surface(
 	if regions.is_empty():
 		return result
 
-	# M2 & M3: Generación de clusters y descriptores de patrón
+	# V2: Inicializar campo continuo de ruido espacial para toda la mazmorra
+	var noise_field = _FloorNoiseFieldScript.new(seed_val, config.noise_frequency)
+
+	# M2, M3, V1: Generación de clusters y descriptores con layouts estocásticos
 	var cluster_id: int = 0
 	for region in regions:
 		var cluster = _FloorSurfaceClusterScript.new(cluster_id)
@@ -48,7 +52,7 @@ func generate_floor_surface(
 		for cell in region:
 			var cell_pos: Vector2i = cell if cell is Vector2i else Vector2i(cell.x, cell.y)
 			var descs: Array = _pattern_gen.generate_descriptors_for_cell(
-				cell_pos, config, seed_val + cluster_id
+				cell_pos, config, seed_val, noise_field
 			)
 			cluster.descriptors.append_array(descs)
 

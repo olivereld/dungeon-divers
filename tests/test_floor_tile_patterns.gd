@@ -17,14 +17,14 @@ func _init() -> void:
 	var cfg := FloorTileConfig.new()
 	cfg.tile_size = 2.0
 
-	# 1. Probar STYLIZED_STONE (19 sub-losas con cobertura 100% de esquinas)
+	# 1. Probar STYLIZED_STONE (Layouts estocásticos de catálogo con cobertura 100%)
 	cfg.pattern = FloorTileConfig.PatternType.STYLIZED_STONE
 	var stone_descs = pattern_gen.generate_descriptors_for_cell(Vector2i(0, 0), cfg, 1337)
-	assert(stone_descs.size() == 19, "STYLIZED_STONE should generate 19 stone slab descriptors")
+	assert(stone_descs.size() >= 8, "STYLIZED_STONE should generate at least 8 stone slab descriptors")
 	var d0 = stone_descs[0]
 	assert(d0.world_offset == Vector2.ZERO, "World offset must match cell coordinate")
 	assert(d0.height >= cfg.height_min and d0.height <= cfg.height_max, "Height within bounds")
-	print("  [OK] STYLIZED_STONE pattern verified: %d descriptors." % stone_descs.size())
+	print("  [OK] STYLIZED_STONE stochastic pattern verified: %d descriptors." % stone_descs.size())
 
 	# 2. Probar COBBLESTONE (4x4 = 16 adoquines)
 	cfg.pattern = FloorTileConfig.PatternType.COBBLESTONE
@@ -55,7 +55,7 @@ func _init() -> void:
 	# 6. Validar DTOs FloorSurfaceCluster y FloorSurfaceResult
 	var cluster = FloorSurfaceCluster.new(5)
 	cluster.descriptors = stone_descs
-	assert(cluster.cluster_id == 5 and cluster.descriptors.size() == 19, "Cluster DTO verified")
+	assert(cluster.cluster_id == 5 and cluster.descriptors.size() == stone_descs.size(), "Cluster DTO verified")
 
 	var res = FloorSurfaceResult.new()
 	res.clusters.append(cluster)
