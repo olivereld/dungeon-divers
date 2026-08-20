@@ -13,9 +13,9 @@ enum MaterialPreset {
 
 static func create_trim_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	mat.roughness = 0.70
+	mat.roughness = 0.58
 	mat.metallic = 0.05
-	mat.metallic_specular = 0.25
+	mat.metallic_specular = 0.35
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:
@@ -32,9 +32,9 @@ static func create_trim_material(preset: MaterialPreset = MaterialPreset.STYLIZE
 
 static func create_panel_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	mat.roughness = 0.85
+	mat.roughness = 0.62
 	mat.metallic = 0.0
-	mat.metallic_specular = 0.15
+	mat.metallic_specular = 0.35
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:
@@ -51,14 +51,14 @@ static func create_panel_material(preset: MaterialPreset = MaterialPreset.STYLIZ
 
 static func create_brick_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	mat.roughness = 0.60 # Más suave para que los biseles pillowed resalten con la luz
+	mat.roughness = 0.48 # Acabado semi-liso para que los biseles pillowed resalten con la luz cálida
 	mat.metallic = 0.0
-	mat.metallic_specular = 0.35
+	mat.metallic_specular = 0.45
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	match preset:
 		MaterialPreset.STYLIZED_SLATE:
-			mat.albedo_color = Color(0.54, 0.57, 0.61) # Ladrillos en relieve tono pizarra claro
+			mat.albedo_color = Color(0.56, 0.59, 0.64) # Ladrillos en relieve tono pizarra claro
 		MaterialPreset.DUNGEON_WARM_STONE:
 			mat.albedo_color = Color(0.66, 0.58, 0.50)
 		MaterialPreset.DARK_CRYPT:

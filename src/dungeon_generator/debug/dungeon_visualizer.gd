@@ -30,10 +30,25 @@ signal floor_margin_changed(margin: float)
 signal floor_collision_mode_changed(mode_idx: int)
 signal floor_noise_toggled(enabled: bool)
 
+# Señales de Iluminación 3D y Entorno
+signal lighting_torch_color_changed(color: Color)
+signal lighting_torch_energy_changed(energy: float)
+signal lighting_torch_range_changed(range_m: float)
+signal lighting_torch_attenuation_changed(attenuation: float)
+signal lighting_torch_flicker_toggled(enabled: bool)
+signal lighting_torch_flicker_amp_changed(amp: float)
+signal lighting_torch_shadows_toggled(enabled: bool)
+signal lighting_ambient_color_changed(color: Color)
+signal lighting_ambient_energy_changed(energy: float)
+signal lighting_rim_color_changed(color: Color)
+signal lighting_rim_energy_changed(energy: float)
+signal lighting_fog_density_changed(density: float)
+
 const _DungeonAsciiExporterScript = preload("res://src/dungeon_generator/debug/dungeon_ascii_exporter.gd")
 const _DoorPhysicalValidatorScript = preload("res://src/dungeon_generator/core/validation/door_physical_validator.gd")
 const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
 const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
+const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
 
 var _last_result: RefCounted = null # DungeonResult o DungeonFloorData
 var _last_semantic: DungeonSemanticResult = null
@@ -43,8 +58,32 @@ var _selected_floor_view: int = -1 # -1 = Todos los pisos en rejilla segmentada,
 # Controles de Pestañas
 var _tab_btn_params: Button = null
 var _tab_btn_floors: Button = null
+var _tab_btn_lighting: Button = null
 var _tab_params_container: VBoxContainer = null
 var _tab_floors_container: VBoxContainer = null
+var _tab_lighting_container: VBoxContainer = null
+
+# Controles de Iluminación 3D
+var _picker_torch_color: ColorPickerButton = null
+var _slider_torch_energy: HSlider = null
+var _lbl_torch_energy: Label = null
+var _slider_torch_range: HSlider = null
+var _lbl_torch_range: Label = null
+var _slider_torch_attenuation: HSlider = null
+var _lbl_torch_attenuation: Label = null
+var _check_torch_flicker: CheckBox = null
+var _check_torch_shadows: CheckBox = null
+var _slider_torch_flicker_amp: HSlider = null
+var _lbl_torch_flicker_amp: Label = null
+
+var _picker_ambient_color: ColorPickerButton = null
+var _slider_ambient_energy: HSlider = null
+var _lbl_ambient_energy: Label = null
+var _picker_rim_color: ColorPickerButton = null
+var _slider_rim_energy: HSlider = null
+var _lbl_rim_energy: Label = null
+var _slider_fog_density: HSlider = null
+var _lbl_fog_density: Label = null
 
 # Controles de Configuración en el Plano 2D (Parámetros)
 var _preview_overlay: ColorRect = null
@@ -189,6 +228,12 @@ func _setup_2d_full_interface() -> void:
 	_tab_btn_floors.size_flags_horizontal = SIZE_EXPAND_FILL
 	_tab_btn_floors.pressed.connect(func(): _switch_tab(1))
 	tab_bar_hbox.add_child(_tab_btn_floors)
+
+	_tab_btn_lighting = Button.new()
+	_tab_btn_lighting.text = "💡 Luz"
+	_tab_btn_lighting.size_flags_horizontal = SIZE_EXPAND_FILL
+	_tab_btn_lighting.pressed.connect(func(): _switch_tab(2))
+	tab_bar_hbox.add_child(_tab_btn_lighting)
 
 	sidebar_vbox.add_child(tab_bar_hbox)
 
@@ -527,6 +572,305 @@ func _setup_2d_full_interface() -> void:
 		floor_noise_toggled.emit(toggled)
 	)
 	_tab_floors_container.add_child(_check_floor_noise)
+
+	# =========================================================================
+	# PESTAÑA 2: CONFIGURACIÓN DE ILUMINACIÓN PROCEDURAL Y ENTORNO
+	# =========================================================================
+	_tab_lighting_container = VBoxContainer.new()
+	_tab_lighting_container.add_theme_constant_override("separation", 10)
+	_tab_lighting_container.visible = false
+	sidebar_vbox.add_child(_tab_lighting_container)
+
+	# --- SECCIÓN 1: ANTORCHA (OMNILIGHT3D) ---
+	var torch_header := Label.new()
+	torch_header.text = "🔥 Antorcha (OmniLight3D)"
+	torch_header.add_theme_font_size_override("font_size", 13)
+	torch_header.add_theme_color_override("font_color", Color(1.0, 0.78, 0.40, 1.0))
+	_tab_lighting_container.add_child(torch_header)
+
+	# Color de Llama
+	var torch_color_hbox := HBoxContainer.new()
+	var torch_color_lbl := Label.new()
+	torch_color_lbl.text = "Color de Llama:"
+	torch_color_lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	torch_color_lbl.add_theme_font_size_override("font_size", 12)
+	torch_color_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	torch_color_hbox.add_child(torch_color_lbl)
+
+	_picker_torch_color = ColorPickerButton.new()
+	_picker_torch_color.custom_minimum_size = Vector2(50, 24)
+	_picker_torch_color.color = Color(1.0, 0.62, 0.22, 1.0)
+	_picker_torch_color.color_changed.connect(func(c: Color):
+		lighting_torch_color_changed.emit(c)
+	)
+	torch_color_hbox.add_child(_picker_torch_color)
+	_tab_lighting_container.add_child(torch_color_hbox)
+
+	# Intensidad / Energía
+	var energy_vbox := VBoxContainer.new()
+	energy_vbox.add_theme_constant_override("separation", 2)
+	var energy_header_hbox := HBoxContainer.new()
+	var energy_lbl := Label.new()
+	energy_lbl.text = "Intensidad / Energía:"
+	energy_lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	energy_lbl.add_theme_font_size_override("font_size", 12)
+	energy_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	energy_header_hbox.add_child(energy_lbl)
+
+	_lbl_torch_energy = Label.new()
+	_lbl_torch_energy.text = "2.80"
+	_lbl_torch_energy.add_theme_font_size_override("font_size", 12)
+	_lbl_torch_energy.add_theme_color_override("font_color", Color(0.95, 0.85, 0.50, 1.0))
+	energy_header_hbox.add_child(_lbl_torch_energy)
+	energy_vbox.add_child(energy_header_hbox)
+
+	_slider_torch_energy = HSlider.new()
+	_slider_torch_energy.min_value = 0.1
+	_slider_torch_energy.max_value = 10.0
+	_slider_torch_energy.step = 0.1
+	_slider_torch_energy.value = 2.8
+	_slider_torch_energy.value_changed.connect(func(val: float):
+		_lbl_torch_energy.text = "%.2f" % val
+		lighting_torch_energy_changed.emit(val)
+	)
+	energy_vbox.add_child(_slider_torch_energy)
+	_tab_lighting_container.add_child(energy_vbox)
+
+	# Radio de Alcance
+	var range_vbox := VBoxContainer.new()
+	range_vbox.add_theme_constant_override("separation", 2)
+	var range_header_hbox := HBoxContainer.new()
+	var range_lbl := Label.new()
+	range_lbl.text = "Radio de Alcance:"
+	range_lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	range_lbl.add_theme_font_size_override("font_size", 12)
+	range_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	range_header_hbox.add_child(range_lbl)
+
+	_lbl_torch_range = Label.new()
+	_lbl_torch_range.text = "8.5 m"
+	_lbl_torch_range.add_theme_font_size_override("font_size", 12)
+	_lbl_torch_range.add_theme_color_override("font_color", Color(0.95, 0.85, 0.50, 1.0))
+	range_header_hbox.add_child(_lbl_torch_range)
+	range_vbox.add_child(range_header_hbox)
+
+	_slider_torch_range = HSlider.new()
+	_slider_torch_range.min_value = 1.0
+	_slider_torch_range.max_value = 30.0
+	_slider_torch_range.step = 0.5
+	_slider_torch_range.value = 8.5
+	_slider_torch_range.value_changed.connect(func(val: float):
+		_lbl_torch_range.text = "%.1f m" % val
+		lighting_torch_range_changed.emit(val)
+	)
+	range_vbox.add_child(_slider_torch_range)
+	_tab_lighting_container.add_child(range_vbox)
+
+	# Atenuación / Caída
+	var att_vbox := VBoxContainer.new()
+	att_vbox.add_theme_constant_override("separation", 2)
+	var att_header_hbox := HBoxContainer.new()
+	var att_lbl := Label.new()
+	att_lbl.text = "Atenuación / Caída:"
+	att_lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	att_lbl.add_theme_font_size_override("font_size", 12)
+	att_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	att_header_hbox.add_child(att_lbl)
+
+	_lbl_torch_attenuation = Label.new()
+	_lbl_torch_attenuation.text = "1.00"
+	_lbl_torch_attenuation.add_theme_font_size_override("font_size", 12)
+	_lbl_torch_attenuation.add_theme_color_override("font_color", Color(0.95, 0.85, 0.50, 1.0))
+	att_header_hbox.add_child(_lbl_torch_attenuation)
+	att_vbox.add_child(att_header_hbox)
+
+	_slider_torch_attenuation = HSlider.new()
+	_slider_torch_attenuation.min_value = 0.1
+	_slider_torch_attenuation.max_value = 4.0
+	_slider_torch_attenuation.step = 0.05
+	_slider_torch_attenuation.value = 1.00
+	_slider_torch_attenuation.value_changed.connect(func(val: float):
+		_lbl_torch_attenuation.text = "%.2f" % val
+		lighting_torch_attenuation_changed.emit(val)
+	)
+	att_vbox.add_child(_slider_torch_attenuation)
+	_tab_lighting_container.add_child(att_vbox)
+
+	# Checkboxes Parpadeo / Sombras
+	var check_hbox := HBoxContainer.new()
+	_check_torch_flicker = CheckBox.new()
+	_check_torch_flicker.text = "Parpadeo (Flicker)"
+	_check_torch_flicker.button_pressed = true
+	_check_torch_flicker.size_flags_horizontal = SIZE_EXPAND_FILL
+	_check_torch_flicker.toggled.connect(func(pressed: bool):
+		lighting_torch_flicker_toggled.emit(pressed)
+	)
+	check_hbox.add_child(_check_torch_flicker)
+
+	_check_torch_shadows = CheckBox.new()
+	_check_torch_shadows.text = "Sombras Reales"
+	_check_torch_shadows.button_pressed = false
+	_check_torch_shadows.toggled.connect(func(pressed: bool):
+		lighting_torch_shadows_toggled.emit(pressed)
+	)
+	check_hbox.add_child(_check_torch_shadows)
+	_tab_lighting_container.add_child(check_hbox)
+
+	# Variación Parpadeo
+	var flick_vbox := VBoxContainer.new()
+	flick_vbox.add_theme_constant_override("separation", 2)
+	var flick_header_hbox := HBoxContainer.new()
+	var flick_lbl := Label.new()
+	flick_lbl.text = "Variación Parpadeo:"
+	flick_lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	flick_lbl.add_theme_font_size_override("font_size", 12)
+	flick_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	flick_header_hbox.add_child(flick_lbl)
+
+	_lbl_torch_flicker_amp = Label.new()
+	_lbl_torch_flicker_amp.text = "0.15"
+	_lbl_torch_flicker_amp.add_theme_font_size_override("font_size", 12)
+	_lbl_torch_flicker_amp.add_theme_color_override("font_color", Color(0.95, 0.85, 0.50, 1.0))
+	flick_header_hbox.add_child(_lbl_torch_flicker_amp)
+	flick_vbox.add_child(flick_header_hbox)
+
+	_slider_torch_flicker_amp = HSlider.new()
+	_slider_torch_flicker_amp.min_value = 0.01
+	_slider_torch_flicker_amp.max_value = 0.50
+	_slider_torch_flicker_amp.step = 0.01
+	_slider_torch_flicker_amp.value = 0.15
+	_slider_torch_flicker_amp.value_changed.connect(func(val: float):
+		_lbl_torch_flicker_amp.text = "%.2f" % val
+		lighting_torch_flicker_amp_changed.emit(val)
+	)
+	flick_vbox.add_child(_slider_torch_flicker_amp)
+	_tab_lighting_container.add_child(flick_vbox)
+
+	var sep_light := HSeparator.new()
+	_tab_lighting_container.add_child(sep_light)
+
+	# --- SECCIÓN 2: LUZ AMBIENTE Y ENTORNO ---
+	var env_header := Label.new()
+	env_header.text = "🌌 Luz Ambiente y Entorno"
+	env_header.add_theme_font_size_override("font_size", 13)
+	env_header.add_theme_color_override("font_color", Color(0.60, 0.80, 1.0, 1.0))
+	_tab_lighting_container.add_child(env_header)
+
+	# Color Ambiente
+	var amb_color_hbox := HBoxContainer.new()
+	var amb_color_lbl := Label.new()
+	amb_color_lbl.text = "Color Ambiente:"
+	amb_color_lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	amb_color_lbl.add_theme_font_size_override("font_size", 12)
+	amb_color_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	amb_color_hbox.add_child(amb_color_lbl)
+
+	_picker_ambient_color = ColorPickerButton.new()
+	_picker_ambient_color.custom_minimum_size = Vector2(50, 24)
+	_picker_ambient_color.color = Color(0.16, 0.24, 0.35, 1.0)
+	_picker_ambient_color.color_changed.connect(func(c: Color):
+		lighting_ambient_color_changed.emit(c)
+	)
+	amb_color_hbox.add_child(_picker_ambient_color)
+	_tab_lighting_container.add_child(amb_color_hbox)
+
+	# Energía Ambiente
+	var amb_e_vbox := VBoxContainer.new()
+	amb_e_vbox.add_theme_constant_override("separation", 2)
+	var amb_e_header_hbox := HBoxContainer.new()
+	var amb_e_lbl := Label.new()
+	amb_e_lbl.text = "Energía Ambiente:"
+	amb_e_lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	amb_e_lbl.add_theme_font_size_override("font_size", 12)
+	amb_e_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	amb_e_header_hbox.add_child(amb_e_lbl)
+
+	_lbl_ambient_energy = Label.new()
+	_lbl_ambient_energy.text = "0.52"
+	_lbl_ambient_energy.add_theme_font_size_override("font_size", 12)
+	_lbl_ambient_energy.add_theme_color_override("font_color", Color(0.60, 0.85, 1.0, 1.0))
+	amb_e_header_hbox.add_child(_lbl_ambient_energy)
+	amb_e_vbox.add_child(amb_e_header_hbox)
+
+	_slider_ambient_energy = HSlider.new()
+	_slider_ambient_energy.min_value = 0.0
+	_slider_ambient_energy.max_value = 2.0
+	_slider_ambient_energy.step = 0.02
+	_slider_ambient_energy.value = 0.52
+	_slider_ambient_energy.value_changed.connect(func(val: float):
+		_lbl_ambient_energy.text = "%.2f" % val
+		lighting_ambient_energy_changed.emit(val)
+	)
+	amb_e_vbox.add_child(_slider_ambient_energy)
+	_tab_lighting_container.add_child(amb_e_vbox)
+
+	# Luz Cenital / Muros
+	var rim_vbox := VBoxContainer.new()
+	rim_vbox.add_theme_constant_override("separation", 2)
+	var rim_header_hbox := HBoxContainer.new()
+	var rim_lbl := Label.new()
+	rim_lbl.text = "Luz Cenital / Muros:"
+	rim_lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	rim_lbl.add_theme_font_size_override("font_size", 12)
+	rim_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	rim_header_hbox.add_child(rim_lbl)
+
+	_picker_rim_color = ColorPickerButton.new()
+	_picker_rim_color.custom_minimum_size = Vector2(40, 20)
+	_picker_rim_color.color = Color(0.40, 0.55, 0.75, 1.0)
+	_picker_rim_color.color_changed.connect(func(c: Color):
+		lighting_rim_color_changed.emit(c)
+	)
+	rim_header_hbox.add_child(_picker_rim_color)
+
+	_lbl_rim_energy = Label.new()
+	_lbl_rim_energy.text = "0.18"
+	_lbl_rim_energy.add_theme_font_size_override("font_size", 12)
+	_lbl_rim_energy.add_theme_color_override("font_color", Color(0.60, 0.85, 1.0, 1.0))
+	rim_header_hbox.add_child(_lbl_rim_energy)
+	rim_vbox.add_child(rim_header_hbox)
+
+	_slider_rim_energy = HSlider.new()
+	_slider_rim_energy.min_value = 0.0
+	_slider_rim_energy.max_value = 1.0
+	_slider_rim_energy.step = 0.02
+	_slider_rim_energy.value = 0.18
+	_slider_rim_energy.value_changed.connect(func(val: float):
+		_lbl_rim_energy.text = "%.2f" % val
+		lighting_rim_energy_changed.emit(val)
+	)
+	rim_vbox.add_child(_slider_rim_energy)
+	_tab_lighting_container.add_child(rim_vbox)
+
+	# Densidad Niebla
+	var fog_vbox := VBoxContainer.new()
+	fog_vbox.add_theme_constant_override("separation", 2)
+	var fog_header_hbox := HBoxContainer.new()
+	var fog_lbl := Label.new()
+	fog_lbl.text = "Densidad Niebla:"
+	fog_lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	fog_lbl.add_theme_font_size_override("font_size", 12)
+	fog_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	fog_header_hbox.add_child(fog_lbl)
+
+	_lbl_fog_density = Label.new()
+	_lbl_fog_density.text = "0.0080"
+	_lbl_fog_density.add_theme_font_size_override("font_size", 12)
+	_lbl_fog_density.add_theme_color_override("font_color", Color(0.60, 0.85, 1.0, 1.0))
+	fog_header_hbox.add_child(_lbl_fog_density)
+	fog_vbox.add_child(fog_header_hbox)
+
+	_slider_fog_density = HSlider.new()
+	_slider_fog_density.min_value = 0.0000
+	_slider_fog_density.max_value = 0.0500
+	_slider_fog_density.step = 0.0010
+	_slider_fog_density.value = 0.0080
+	_slider_fog_density.value_changed.connect(func(val: float):
+		_lbl_fog_density.text = "%.4f" % val
+		lighting_fog_density_changed.emit(val)
+	)
+	fog_vbox.add_child(_slider_fog_density)
+	_tab_lighting_container.add_child(fog_vbox)
 
 	# Inicializar pestañas activas
 	_switch_tab(0)
@@ -993,31 +1337,51 @@ func _switch_tab(tab_idx: int) -> void:
 		_tab_params_container.visible = (tab_idx == 0)
 	if _tab_floors_container != null:
 		_tab_floors_container.visible = (tab_idx == 1)
+	if _tab_lighting_container != null:
+		_tab_lighting_container.visible = (tab_idx == 2)
 
 	# Estilos visuales de los botones de pestañas
-	if _tab_btn_params != null and _tab_btn_floors != null:
-		var active_style := StyleBoxFlat.new()
-		active_style.bg_color = Color(0.20, 0.32, 0.50, 0.95)
-		active_style.border_color = Color(0.40, 0.60, 0.90, 1.0)
-		active_style.set_border_width_all(1)
-		active_style.set_corner_radius_all(6)
+	var btns = [_tab_btn_params, _tab_btn_floors, _tab_btn_lighting]
+	var active_style := StyleBoxFlat.new()
+	active_style.bg_color = Color(0.20, 0.32, 0.50, 0.95)
+	active_style.border_color = Color(0.40, 0.60, 0.90, 1.0)
+	active_style.set_border_width_all(1)
+	active_style.set_corner_radius_all(6)
 
-		var inactive_style := StyleBoxFlat.new()
-		inactive_style.bg_color = Color(0.12, 0.15, 0.20, 0.8)
-		inactive_style.border_color = Color(0.25, 0.30, 0.40, 0.4)
-		inactive_style.set_border_width_all(1)
-		inactive_style.set_corner_radius_all(6)
+	var inactive_style := StyleBoxFlat.new()
+	inactive_style.bg_color = Color(0.12, 0.15, 0.20, 0.8)
+	inactive_style.border_color = Color(0.25, 0.30, 0.40, 0.4)
+	inactive_style.set_border_width_all(1)
+	inactive_style.set_corner_radius_all(6)
 
-		if tab_idx == 0:
-			_tab_btn_params.add_theme_stylebox_override("normal", active_style)
-			_tab_btn_params.add_theme_color_override("font_color", Color.WHITE)
-			_tab_btn_floors.add_theme_stylebox_override("normal", inactive_style)
-			_tab_btn_floors.add_theme_color_override("font_color", Color(0.65, 0.70, 0.80))
+	for i in range(btns.size()):
+		var b: Button = btns[i]
+		if b == null:
+			continue
+		if i == tab_idx:
+			b.add_theme_stylebox_override("normal", active_style)
+			b.add_theme_color_override("font_color", Color.WHITE)
 		else:
-			_tab_btn_params.add_theme_stylebox_override("normal", inactive_style)
-			_tab_btn_params.add_theme_color_override("font_color", Color(0.65, 0.70, 0.80))
-			_tab_btn_floors.add_theme_stylebox_override("normal", active_style)
-			_tab_btn_floors.add_theme_color_override("font_color", Color.WHITE)
+			b.add_theme_stylebox_override("normal", inactive_style)
+			b.add_theme_color_override("font_color", Color(0.65, 0.70, 0.80))
+
+func get_current_lighting_profile() -> LightingProfile:
+	var prof := _LightingProfileScript.new()
+	if _picker_torch_color != null:
+		prof.light_color = _picker_torch_color.color
+	if _slider_torch_energy != null:
+		prof.energy = _slider_torch_energy.value
+	if _slider_torch_range != null:
+		prof.omni_range = _slider_torch_range.value
+	if _slider_torch_attenuation != null:
+		prof.attenuation = _slider_torch_attenuation.value
+	if _check_torch_flicker != null:
+		prof.flicker_enabled = _check_torch_flicker.button_pressed
+	if _slider_torch_flicker_amp != null:
+		prof.flicker_amplitude = _slider_torch_flicker_amp.value
+	if _check_torch_shadows != null:
+		prof.shadow_enabled = _check_torch_shadows.button_pressed
+	return prof
 
 func toggle_2d_preview() -> void:
 	if is_2d_preview_mode:

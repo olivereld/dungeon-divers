@@ -136,6 +136,7 @@ func build_presentation(
 			var wall_inst := MeshInstance3D.new()
 			wall_inst.name = "ContinuousWalls"
 			wall_inst.mesh = geom_res.get_unified_mesh()
+			wall_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 			var static_body := StaticBody3D.new()
 			static_body.name = "WallStaticBody"
@@ -327,10 +328,10 @@ func build_multi_floor_presentation(
 
 		var f_semantic := DungeonSemanticResult.new()
 		f_semantic.grid = f_data.grid
-		f_semantic.rooms = f_data.rooms
-		f_semantic.connections = f_data.connections
-		f_semantic.corridor_paths = f_data.corridor_paths
-		f_semantic.door_pairs = f_data.door_pairs
+		f_semantic.rooms = f_data.rooms if ("rooms" in f_data and f_data.rooms != null) else []
+		f_semantic.connections = f_data.connections if ("connections" in f_data and f_data.connections != null) else []
+		f_semantic.corridor_paths = f_data.corridor_paths if ("corridor_paths" in f_data and f_data.corridor_paths != null) else []
+		f_semantic.door_pairs = f_data.door_pairs if ("door_pairs" in f_data and f_data.door_pairs != null) else []
 
 		var light_res = _lighting_generator.generate_lighting(
 			f_semantic, light_cfg, f_data.seed_used

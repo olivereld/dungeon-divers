@@ -51,6 +51,7 @@ func get_unified_mesh() -> ArrayMesh:
 
 	for surf_idx in slot_surfaces.keys():
 		var tool: SurfaceTool = slot_surfaces[surf_idx]
+		tool.generate_normals()
 		tool.index()
 		tool.generate_tangents()
 		unified = tool.commit(unified)

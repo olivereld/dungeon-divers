@@ -100,6 +100,7 @@ func decorate_component(
 								_append_brick(st_bricks, basis, brick_pt, Vector3(rng.randf_range(-bw * 0.3, bw * 0.3), pair_y, 0.0), size2, dec_config, rng)
 
 	if has_bricks:
+		st_bricks.generate_normals()
 		st_bricks.index()
 		st_bricks.generate_tangents()
 		g_mesh.mesh = st_bricks.commit(g_mesh.mesh)

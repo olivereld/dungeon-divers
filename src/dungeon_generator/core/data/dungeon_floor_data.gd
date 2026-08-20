@@ -8,6 +8,7 @@ var floor_number: int = 0
 var grid: CellGrid = null
 var rooms: Array = []
 var connections: Array = []
+var corridor_paths: Array = []
 var door_pairs: Array = []
 var stairs: Array = []
 var seed_used: int = 0
@@ -54,6 +55,7 @@ static func from_dungeon_result(res: DungeonResult, p_stairs: Array = []) -> Dun
 		p_stairs
 	)
 	floor_data.connections = res.connections
+	floor_data.corridor_paths = res.corridor_paths if "corridor_paths" in res else []
 	floor_data.seed_used = res.seed_used
 	floor_data.metadata = res.metadata.duplicate(true)
 	return floor_data

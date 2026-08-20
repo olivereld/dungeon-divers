@@ -28,6 +28,7 @@ func spawn_floor(
 
 	for cluster in floor_result.clusters:
 		var c_inst: MeshInstance3D = cluster.to_mesh_instance("FloorCluster")
+		c_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 		# Agregar StaticBody3D si el cluster tiene colisiones configuradas
 		if not cluster.collision_shapes.is_empty():

@@ -222,6 +222,7 @@ func build_component_mesh(
 	var mesh := ArrayMesh.new()
 
 	# Superficie 0: Trims (Cornisas y Zócalos)
+	st_trims.generate_normals()
 	st_trims.index()
 	st_trims.generate_tangents()
 	mesh = st_trims.commit(mesh)
@@ -229,6 +230,7 @@ func build_component_mesh(
 		mesh.surface_set_name(0, "Trims")
 
 	# Superficie 1: WallPanel (Cuerpo de piedra liso)
+	st_panel.generate_normals()
 	st_panel.index()
 	st_panel.generate_tangents()
 	mesh = st_panel.commit(mesh)

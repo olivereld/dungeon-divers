@@ -15,11 +15,13 @@ const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/p
 const _MultiFloorGeneratorScript = preload("res://src/dungeon_generator/core/multi_floor_generator.gd")
 const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
 const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
+const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
 
 var _pipeline: DungeonPipeline = DungeonPipeline.new()
 var _semantic_orchestrator := _SemanticOrchestratorScript.new()
 var _presentation_builder := _DungeonPresentationBuilderScript.new()
 var _multi_floor_generator := _MultiFloorGeneratorScript.new()
+var _lighting_profile: LightingProfile = null
 
 var _current_result: DungeonResult = null
 var _current_multi_result: DungeonMultiFloorResult = null
@@ -85,6 +87,32 @@ func _connect_visualizer_signals() -> void:
 			visualizer.floor_collision_mode_changed.connect(_on_floor_collision_mode_changed)
 		if not visualizer.floor_noise_toggled.is_connected(_on_floor_noise_toggled):
 			visualizer.floor_noise_toggled.connect(_on_floor_noise_toggled)
+
+		# Señales de Iluminación 3D y Entorno
+		if not visualizer.lighting_torch_color_changed.is_connected(_on_lighting_torch_color_changed):
+			visualizer.lighting_torch_color_changed.connect(_on_lighting_torch_color_changed)
+		if not visualizer.lighting_torch_energy_changed.is_connected(_on_lighting_torch_energy_changed):
+			visualizer.lighting_torch_energy_changed.connect(_on_lighting_torch_energy_changed)
+		if not visualizer.lighting_torch_range_changed.is_connected(_on_lighting_torch_range_changed):
+			visualizer.lighting_torch_range_changed.connect(_on_lighting_torch_range_changed)
+		if not visualizer.lighting_torch_attenuation_changed.is_connected(_on_lighting_torch_attenuation_changed):
+			visualizer.lighting_torch_attenuation_changed.connect(_on_lighting_torch_attenuation_changed)
+		if not visualizer.lighting_torch_flicker_toggled.is_connected(_on_lighting_torch_flicker_toggled):
+			visualizer.lighting_torch_flicker_toggled.connect(_on_lighting_torch_flicker_toggled)
+		if not visualizer.lighting_torch_flicker_amp_changed.is_connected(_on_lighting_torch_flicker_amp_changed):
+			visualizer.lighting_torch_flicker_amp_changed.connect(_on_lighting_torch_flicker_amp_changed)
+		if not visualizer.lighting_torch_shadows_toggled.is_connected(_on_lighting_torch_shadows_toggled):
+			visualizer.lighting_torch_shadows_toggled.connect(_on_lighting_torch_shadows_toggled)
+		if not visualizer.lighting_ambient_color_changed.is_connected(_on_lighting_ambient_color_changed):
+			visualizer.lighting_ambient_color_changed.connect(_on_lighting_ambient_color_changed)
+		if not visualizer.lighting_ambient_energy_changed.is_connected(_on_lighting_ambient_energy_changed):
+			visualizer.lighting_ambient_energy_changed.connect(_on_lighting_ambient_energy_changed)
+		if not visualizer.lighting_rim_color_changed.is_connected(_on_lighting_rim_color_changed):
+			visualizer.lighting_rim_color_changed.connect(_on_lighting_rim_color_changed)
+		if not visualizer.lighting_rim_energy_changed.is_connected(_on_lighting_rim_energy_changed):
+			visualizer.lighting_rim_energy_changed.connect(_on_lighting_rim_energy_changed)
+		if not visualizer.lighting_fog_density_changed.is_connected(_on_lighting_fog_density_changed):
+			visualizer.lighting_fog_density_changed.connect(_on_lighting_fog_density_changed)
 
 func _on_walls_visibility_toggled(p_visible: bool) -> void:
 	_are_walls_visible = p_visible
@@ -297,7 +325,12 @@ func build_3d_presentation() -> void:
 	if _current_result == null and _current_multi_result == null:
 		return
 
+	var prof := _get_or_create_lighting_profile()
 	var biome: BiomeProfile = config.biome_profile if config.biome_profile != null else BiomeProfile.new()
+	biome.lighting_profile = prof
+
+	if config != null and config.lighting_config == null:
+		config.lighting_config = preload("res://src/dungeon_lighting/config/dungeon_lighting_config.gd").new()
 
 	if visualizer != null:
 		visualizer.hide_2d_preview()
@@ -327,6 +360,7 @@ func build_3d_presentation() -> void:
 
 		_apply_floor_visibility()
 		_center_camera_on_dungeon()
+		_apply_live_lighting_updates()
 		return
 
 	# Si es mono-piso
@@ -351,6 +385,7 @@ func build_3d_presentation() -> void:
 
 		_apply_walls_visibility()
 		_center_camera_on_dungeon()
+		_apply_live_lighting_updates()
 
 func _spawn_or_reposition_player() -> void:
 	if _player == null:
@@ -525,3 +560,93 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and _is_orbiting:
 		_camera_yaw -= event.relative.x * 0.4
 		_update_camera_transform()
+
+# ==============================================================================
+# MANEJADORES DE ILUMINACIÓN PROCEDURAL Y ENTORNO
+# ==============================================================================
+
+func _get_or_create_lighting_profile() -> LightingProfile:
+	if visualizer != null and visualizer.has_method("get_current_lighting_profile"):
+		_lighting_profile = visualizer.get_current_lighting_profile()
+		if config != null and config.biome_profile != null:
+			config.biome_profile.lighting_profile = _lighting_profile
+		return _lighting_profile
+
+	if _lighting_profile != null:
+		return _lighting_profile
+	if config != null and config.biome_profile != null and config.biome_profile.lighting_profile != null:
+		_lighting_profile = config.biome_profile.lighting_profile
+		return _lighting_profile
+	_lighting_profile = _LightingProfileScript.new()
+	if config != null and config.biome_profile != null:
+		config.biome_profile.lighting_profile = _lighting_profile
+	return _lighting_profile
+
+func _apply_live_lighting_updates() -> void:
+	var prof := _get_or_create_lighting_profile()
+	if _current_presentation_root != null:
+		var omnis = _current_presentation_root.find_children("*", "OmniLight3D", true, false)
+		for omni in omnis:
+			omni.light_color = prof.light_color
+			omni.light_energy = prof.energy
+			omni.omni_range = prof.omni_range
+			omni.omni_attenuation = prof.attenuation
+			omni.shadow_enabled = prof.shadow_enabled
+
+		var controllers = _current_presentation_root.find_children("*", "TorchLightController", true, false)
+		for ctrl in controllers:
+			ctrl.base_energy = prof.energy
+			ctrl.flicker_amplitude = prof.flicker_amplitude if prof.flicker_enabled else 0.0
+
+func _on_lighting_torch_color_changed(c: Color) -> void:
+	_get_or_create_lighting_profile().light_color = c
+	_apply_live_lighting_updates()
+
+func _on_lighting_torch_energy_changed(val: float) -> void:
+	_get_or_create_lighting_profile().energy = val
+	_apply_live_lighting_updates()
+
+func _on_lighting_torch_range_changed(val: float) -> void:
+	_get_or_create_lighting_profile().omni_range = val
+	_apply_live_lighting_updates()
+
+func _on_lighting_torch_attenuation_changed(val: float) -> void:
+	_get_or_create_lighting_profile().attenuation = val
+	_apply_live_lighting_updates()
+
+func _on_lighting_torch_flicker_toggled(pressed: bool) -> void:
+	_get_or_create_lighting_profile().flicker_enabled = pressed
+	_apply_live_lighting_updates()
+
+func _on_lighting_torch_flicker_amp_changed(val: float) -> void:
+	_get_or_create_lighting_profile().flicker_amplitude = val
+	_apply_live_lighting_updates()
+
+func _on_lighting_torch_shadows_toggled(pressed: bool) -> void:
+	_get_or_create_lighting_profile().shadow_enabled = pressed
+	_apply_live_lighting_updates()
+
+func _on_lighting_ambient_color_changed(c: Color) -> void:
+	var we = get_node_or_null("WorldEnvironment")
+	if we != null and we.environment != null:
+		we.environment.ambient_light_color = c
+
+func _on_lighting_ambient_energy_changed(val: float) -> void:
+	var we = get_node_or_null("WorldEnvironment")
+	if we != null and we.environment != null:
+		we.environment.ambient_light_energy = val
+
+func _on_lighting_rim_color_changed(c: Color) -> void:
+	var dl = get_node_or_null("DirectionalLight3D")
+	if dl != null:
+		dl.light_color = c
+
+func _on_lighting_rim_energy_changed(val: float) -> void:
+	var dl = get_node_or_null("DirectionalLight3D")
+	if dl != null:
+		dl.light_energy = val
+
+func _on_lighting_fog_density_changed(val: float) -> void:
+	var we = get_node_or_null("WorldEnvironment")
+	if we != null and we.environment != null:
+		we.environment.fog_density = val
