@@ -9,6 +9,8 @@ func _init() -> void:
 	print("==================================================================")
 
 	var root := Node3D.new()
+	get_root().add_child(root)
+
 	var rig = IsometricCameraRigScript.new()
 	var player = PlayerTestScript.new()
 
@@ -30,8 +32,6 @@ func _init() -> void:
 	rig.zoom_out()
 	assert(is_equal_approx(rig.target_zoom, initial_zoom), "FAIL: zoom_out should restore orthogonal size")
 
-	player.free()
-	rig.free()
 	root.free()
 
 	print("[PASS] test_camera_integration_e2e completed successfully.")

@@ -7,12 +7,16 @@ func _init() -> void:
 	print("--- Running test_camera_zoom ---")
 	print("==================================================================")
 
+	var root := Node3D.new()
+	get_root().add_child(root)
+
 	var rig = IsometricCameraRigScript.new()
 	rig.zoom_min = 8.0
 	rig.zoom_max = 48.0
 	rig.zoom_step = 2.0
 	rig.default_zoom = 20.0
 	rig.zoom_smoothing = 15.0
+	root.add_child(rig)
 
 	var cam = rig.get_camera()
 	assert(cam.projection == Camera3D.PROJECTION_ORTHOGONAL, "FAIL: Camera must be ORTHOGONAL")
@@ -34,13 +38,13 @@ func _init() -> void:
 
 	# 4. Interpolación suave de zoom en process
 	rig.set_zoom(24.0)
-	rig.process_zoom_step(0.1)
+	rig.process_zoom_step(0.05)
 	assert(cam.size < 48.0 and cam.size > 24.0, "FAIL: Camera size should smoothly interpolate towards target_zoom")
 
 	for _i in range(60):
 		rig.process_zoom_step(0.05)
 	assert(is_equal_approx(cam.size, 24.0), "FAIL: Camera size should converge to target_zoom")
 
-	rig.free()
+	root.free()
 	print("[PASS] test_camera_zoom completed successfully.")
 	quit(0)

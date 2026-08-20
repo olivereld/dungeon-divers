@@ -144,7 +144,8 @@ func _process(delta: float) -> void:
 
 func process_zoom_step(delta: float) -> void:
 	if _camera != null and not is_equal_approx(_camera.size, _target_zoom):
-		_camera.size = lerpf(_camera.size, _target_zoom, clampf(zoom_smoothing * delta, 0.0, 1.0))
+		var weight: float = 1.0 - exp(-zoom_smoothing * delta)
+		_camera.size = lerpf(_camera.size, _target_zoom, weight)
 		if absf(_camera.size - _target_zoom) < 0.01:
 			_camera.size = _target_zoom
 
