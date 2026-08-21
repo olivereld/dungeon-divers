@@ -79,8 +79,8 @@ func spawn_stairs(
 
 		if stair_node != null:
 			stair_node.name = "Stair_%s" % st.stair_id
-			var pos_3d: Vector3 = _GridToWorldScript.get_cell_center_world_3d(
-				st.cell, st.floor_number, tile_size, floor_height, 0.0
+			var pos_3d: Vector3 = _GridToWorldScript.get_cell_center_world(
+				st.cell, tile_size, 0.0
 			)
 			stair_node.position = pos_3d
 			stair_node.rotation = Vector3(0.0, st.orientation, 0.0)

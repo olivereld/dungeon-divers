@@ -63,9 +63,9 @@ func _init() -> void:
 		var floor_node: Node3D = pres_root.get_node_or_null("Floor_%d" % f_num)
 		assert(floor_node != null, "Floor container 'Floor_%d' must exist" % f_num)
 
-		var expected_y: float = float(f_num) * config.floor_height
-		assert(is_equal_approx(floor_node.position.y, expected_y), "Floor %d Y-position must be %.1fm (got %.1fm)" % [
-			f_num, expected_y, floor_node.position.y
+		var expected_x: float = float(f_num) * ((float(config.grid_width) * config.cell_size) + 80.0)
+		assert(is_equal_approx(floor_node.position.x, expected_x), "Floor %d X-position must be %.1fm (got %.1fm)" % [
+			f_num, expected_x, floor_node.position.x
 		])
 
 		var floor_grid_map = floor_node.get_node_or_null("FloorGridMap")

@@ -237,7 +237,9 @@ func build_multi_floor_presentation(
 
 	var mesh_lib: MeshLibrary = _placeholder_factory.create_placeholder_library(biome, tile_size)
 
-	# Materializar cada piso en su contenedor con elevación Y
+	# Materializar cada piso en su contenedor con desplazamiento lateral horizontal (Side-by-Side)
+	# para evitar solapamiento visual y oclusión de cámara entre niveles
+	var lateral_spacing: float = (float(config.grid_width) * tile_size) + 80.0
 	for f_num in multi_result.get_floor_numbers():
 		var f_data: DungeonFloorData = multi_result.get_floor(f_num)
 		if f_data == null:
@@ -245,7 +247,7 @@ func build_multi_floor_presentation(
 
 		var floor_container := Node3D.new()
 		floor_container.name = "Floor_%d" % f_num
-		floor_container.position.y = _GridToWorldScript.floor_to_world_y(f_num, floor_h)
+		floor_container.position = Vector3(float(f_num) * lateral_spacing, 0.0, 0.0)
 		staging_root.add_child(floor_container)
 
 		# 1. FloorGridMap
@@ -269,8 +271,16 @@ func build_multi_floor_presentation(
 			floor_cfg.tile_size = tile_size
 			floor_cfg.seed = f_data.seed_used
 
+			# Para pisos superiores con escaleras de bajada, omitir las baldosas en esa celda dejando el hueco abierto
+			var floor_render_grid = f_data.grid
+			if f_data.has_stairs():
+				floor_render_grid = f_data.grid.duplicate_grid()
+				for st in f_data.stairs:
+					if st != null and st.is_downward:
+						floor_render_grid.set_cell(st.cell, _CellGridScript.CellType.VOID)
+
 			var floor_res = _floor_generator.generate_floor_surface(
-				f_data.grid, floor_cfg, f_data.seed_used
+				floor_render_grid, floor_cfg, f_data.seed_used
 			)
 			_floor_spawner.spawn_floor(floor_res, floor_container, biome)
 			floor_grid_map.visible = false

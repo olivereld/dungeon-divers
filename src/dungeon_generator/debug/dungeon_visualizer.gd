@@ -16,6 +16,7 @@ signal generate_3d_requested()
 signal toggle_2d_view_requested()
 signal walls_visibility_toggled(visible: bool)
 signal camera_view_toggled()
+signal player_follow_toggled(is_following: bool)
 
 signal preset_changed(preset_idx: int)
 signal grid_size_changed(w: int, h: int)
@@ -120,7 +121,9 @@ var _hud_3d_panel: PanelContainer = null
 var _opt_3d_floor_view: OptionButton = null
 var _btn_3d_toggle_walls: Button = null
 var _btn_3d_toggle_cam: Button = null
+var _btn_3d_toggle_player: Button = null
 var _walls_visible: bool = true
+var _player_follow_active: bool = true
 
 var is_2d_preview_mode: bool = true
 
@@ -977,7 +980,7 @@ func _setup_3d_hud() -> void:
 	_hud_3d_panel.anchors_preset = Control.PRESET_TOP_RIGHT
 	_hud_3d_panel.anchor_left = 1.0
 	_hud_3d_panel.anchor_right = 1.0
-	_hud_3d_panel.offset_left = -540.0
+	_hud_3d_panel.offset_left = -690.0
 	_hud_3d_panel.offset_right = -18.0
 	_hud_3d_panel.offset_top = 16.0
 	_hud_3d_panel.offset_bottom = 66.0
@@ -1022,7 +1025,18 @@ func _setup_3d_hud() -> void:
 	)
 	hbox.add_child(_btn_3d_toggle_walls)
 
-	# 3. Toggle de Modo de Cámara
+	# 3. Toggle de Modo de Jugador / Cámara Libre
+	_btn_3d_toggle_player = Button.new()
+	_btn_3d_toggle_player.text = "👤 Jugador: ON"
+	_btn_3d_toggle_player.tooltip_text = "Alternar entre modo de Jugador centrado y Cámara Libre [F]"
+	_btn_3d_toggle_player.pressed.connect(func():
+		_player_follow_active = not _player_follow_active
+		_update_player_follow_btn_text()
+		player_follow_toggled.emit(_player_follow_active)
+	)
+	hbox.add_child(_btn_3d_toggle_player)
+
+	# 4. Toggle de Modo de Cámara
 	_btn_3d_toggle_cam = Button.new()
 	_btn_3d_toggle_cam.text = "🎥 Cámara [T]"
 	_btn_3d_toggle_cam.tooltip_text = "Alternar entre cámara Isométrica y Cenital Top-Down"
@@ -1031,7 +1045,7 @@ func _setup_3d_hud() -> void:
 	)
 	hbox.add_child(_btn_3d_toggle_cam)
 
-	# 4. Botón Volver al Plano 2D
+	# 5. Botón Volver al Plano 2D
 	_btn_back_to_2d = Button.new()
 	_btn_back_to_2d.text = "🗺️ Plano 2D [Tab]"
 	_btn_back_to_2d.tooltip_text = "Regresar al visor y generador de planos 2D"
@@ -1039,6 +1053,14 @@ func _setup_3d_hud() -> void:
 	hbox.add_child(_btn_back_to_2d)
 
 	add_child(_hud_3d_panel)
+
+func set_player_follow_active(active: bool) -> void:
+	_player_follow_active = active
+	_update_player_follow_btn_text()
+
+func _update_player_follow_btn_text() -> void:
+	if _btn_3d_toggle_player != null:
+		_btn_3d_toggle_player.text = "👤 Jugador: ON" if _player_follow_active else "🎥 Modo: Libre"
 
 ## Dibuja el mapa 2D segmentado en cuadrícula multinivel o vista individual
 func _on_preview_canvas_draw() -> void:

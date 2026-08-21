@@ -72,6 +72,10 @@ func _setup_visuals_and_collision() -> void:
 		_visual_root.add_child(visor_mesh_instance)
 
 func _physics_process(delta: float) -> void:
+	if not is_visible_in_tree():
+		velocity = Vector3.ZERO
+		return
+
 	# Gravedad
 	if not is_on_floor():
 		velocity.y -= gravity * delta
