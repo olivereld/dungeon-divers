@@ -10,6 +10,7 @@ extends Resource
 @export var floor_height: float = 6.0
 @export var seed: int = 0
 @export var use_fixed_seed: bool = false
+@export var dungeon_archetype: int = 0 ## DungeonArchetype.Type (0 = GENERIC, 1 = MAUSOLEUM, 2 = FORTRESS, 3 = TEMPLE, 4 = MINE)
 
 @export_group("Dimensiones de Rejilla")
 @export_range(16, 256, 1) var grid_width: int = 64
@@ -128,3 +129,34 @@ func apply_preset_massive() -> void:
 	min_target_rooms = 15
 	max_target_rooms = 32
 	corridor_width = 3
+
+func duplicate_config() -> DungeonConfig:
+	var c := DungeonConfig.new()
+	c.dungeon_id = dungeon_id
+	c.floor_number = floor_number
+	c.total_floors = total_floors
+	c.floor_height = floor_height
+	c.seed = seed
+	c.use_fixed_seed = use_fixed_seed
+	c.dungeon_archetype = dungeon_archetype
+	c.grid_width = grid_width
+	c.grid_height = grid_height
+	c.cell_size = cell_size
+	c.wall_height = wall_height
+	c.min_target_rooms = min_target_rooms
+	c.max_target_rooms = max_target_rooms
+	c.mission_depth = mission_depth
+	c.max_grammar_iterations = max_grammar_iterations
+	c.lock_key_frequency = lock_key_frequency
+	c.optional_branch_chance = optional_branch_chance
+	c.boss_enabled = boss_enabled
+	c.algorithm = algorithm
+	c.ca_fill_chance = ca_fill_chance
+	c.ca_iterations = ca_iterations
+	c.bsp_min_room = bsp_min_room
+	c.bsp_max_room = bsp_max_room
+	c.corridor_style = corridor_style
+	c.corridor_width = corridor_width
+	c.extra_loop_chance = extra_loop_chance
+	c.use_astar_carver = use_astar_carver
+	return c

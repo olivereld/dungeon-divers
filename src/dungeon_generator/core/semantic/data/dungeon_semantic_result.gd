@@ -5,6 +5,8 @@ extends RefCounted
 ## Encapsula la estructura jugable, puntos de interés, llaves, cerraduras y trazabilidad
 ## sobre una mazmorra físicamente validada, garantizando 0 mutaciones post-commit.
 
+const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
+
 # 1. Trazabilidad y Semillas
 var base_seed: int = 0
 var attempt: int = 0
@@ -32,13 +34,25 @@ var keys: Array = [] # Array[KeyData]
 var locks: Array = [] # Array[LockData]
 var objectives: Array = [] # Array[ObjectiveData]
 
-# 5. Estado y Diagnóstico
+# 5. Arquetipo Arquitectónico y Propósitos de Sala
+var dungeon_archetype: int = 0
+var dungeon_archetype_name: String = "GENERIC"
+var room_purposes: Dictionary = {} # room_id (int) -> RoomPurpose.Type (int)
+
+# 6. Estado y Diagnóstico
 var gameplay_valid: bool = false
 var gameplay_diagnostics: Dictionary = {}
 var is_committed: bool = false
 
 func mark_committed() -> void:
 	is_committed = true
+
+func get_room_purpose(room_id: int) -> int:
+	return int(room_purposes.get(room_id, 0))
+
+func get_room_purpose_name(room_id: int) -> String:
+	var purpose_id: int = get_room_purpose(room_id)
+	return _RoomPurposeScript.to_name(purpose_id as _RoomPurposeScript.Type)
 
 func get_key_by_id(key_id: int) -> KeyData:
 	for k in keys:
