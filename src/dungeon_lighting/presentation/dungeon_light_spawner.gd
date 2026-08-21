@@ -88,16 +88,17 @@ func spawn_lighting(
 			bracket.name = "TorchBracket"
 			bracket.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			var cyl := CylinderMesh.new()
-			cyl.top_radius = 0.04
-			cyl.bottom_radius = 0.02
-			cyl.height = 0.35
+			cyl.top_radius = 0.05
+			cyl.bottom_radius = 0.025
+			cyl.height = 0.42
 			bracket.mesh = cyl
-			bracket.rotation.x = -PI * 0.14
-			bracket.position = Vector3(0.0, 0.0, -0.04)
+			bracket.rotation.x = PI * 0.18
+			bracket.position = Vector3(0.0, 0.0, 0.06)
 
 			var bracket_mat := StandardMaterial3D.new()
-			bracket_mat.albedo_color = Color(0.25, 0.18, 0.12)
-			bracket_mat.roughness = 0.8
+			bracket_mat.albedo_color = Color(0.20, 0.18, 0.16)
+			bracket_mat.metallic = 0.85
+			bracket_mat.roughness = 0.35
 			bracket.material_override = bracket_mat
 			torch_root.add_child(bracket)
 
@@ -106,16 +107,16 @@ func spawn_lighting(
 			flame.name = "TorchFlame"
 			flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			var flame_mesh := SphereMesh.new()
-			flame_mesh.radius = 0.045
-			flame_mesh.height = 0.11
+			flame_mesh.radius = 0.065
+			flame_mesh.height = 0.18
 			flame.mesh = flame_mesh
-			flame.position = Vector3(0.0, 0.18, -0.06)
+			flame.position = Vector3(0.0, 0.22, 0.12)
 
 			var flame_mat := StandardMaterial3D.new()
-			flame_mat.albedo_color = Color(1.0, 0.75, 0.35, 1.0)
+			flame_mat.albedo_color = Color(1.0, 0.85, 0.45, 1.0)
 			flame_mat.emission_enabled = true
-			flame_mat.emission = Color(1.0, 0.55, 0.15, 1.0)
-			flame_mat.emission_energy_multiplier = 4.5
+			flame_mat.emission = Color(1.0, 0.60, 0.15)
+			flame_mat.emission_energy_multiplier = 6.0
 			flame.material_override = flame_mat
 			torch_root.add_child(flame)
 
@@ -128,7 +129,7 @@ func spawn_lighting(
 		omni.omni_attenuation = profile.attenuation
 		omni.shadow_enabled = profile.shadow_enabled
 		omni.shadow_bias = profile.shadow_bias
-		omni.position = Vector3(0.0, 0.20, -0.10)
+		omni.position = Vector3(0.0, 0.25, 0.16)
 		torch_root.add_child(omni)
 
 		# 4. Controlador de Parpadeo Suave

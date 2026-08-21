@@ -423,8 +423,8 @@ static func append_top_cornice(
 	_add_quad_direct(st, transform, Vector3(-half_len, y_bot, half_w_thin), Vector3(half_len, y_bot, half_w_thin), Vector3(half_len, y_mid, half_w_thick), Vector3(-half_len, y_mid, half_w_thick))
 	_add_quad_direct(st, transform, Vector3(half_len, y_mid, -half_w_thick), Vector3(-half_len, y_mid, -half_w_thick), Vector3(-half_len, y_top, -half_w_thick), Vector3(half_len, y_top, -half_w_thick))
 	_add_quad_direct(st, transform, Vector3(half_len, y_bot, -half_w_thin), Vector3(-half_len, y_bot, -half_w_thin), Vector3(-half_len, y_mid, -half_w_thick), Vector3(half_len, y_mid, -half_w_thick))
-	_add_polygon_5(st, transform, Vector3(half_len, y_bot, half_w_thin), Vector3(half_len, y_mid, half_w_thick), Vector3(half_len, y_top, half_w_thick), Vector3(half_len, y_top, -half_w_thick), Vector3(half_len, y_mid, -half_w_thick), Vector3(half_len, y_bot, -half_w_thin))
-	_add_polygon_5(st, transform, Vector3(-half_len, y_bot, -half_w_thin), Vector3(-half_len, y_mid, -half_w_thick), Vector3(-half_len, y_top, -half_w_thick), Vector3(-half_len, y_top, half_w_thick), Vector3(-half_len, y_mid, half_w_thick), Vector3(-half_len, y_bot, half_w_thin))
+	_add_polygon_5(st, transform, Vector3(half_len, y_bot, -half_w_thin), Vector3(half_len, y_mid, -half_w_thick), Vector3(half_len, y_top, -half_w_thick), Vector3(half_len, y_top, half_w_thick), Vector3(half_len, y_mid, half_w_thick), Vector3(half_len, y_bot, half_w_thin))
+	_add_polygon_5(st, transform, Vector3(-half_len, y_bot, half_w_thin), Vector3(-half_len, y_mid, half_w_thick), Vector3(-half_len, y_top, half_w_thick), Vector3(-half_len, y_top, -half_w_thick), Vector3(-half_len, y_mid, -half_w_thick), Vector3(-half_len, y_bot, -half_w_thin))
 
 static func append_bottom_base(
 	st: SurfaceTool, length: float, total_height: float, slope_height: float,
@@ -525,7 +525,7 @@ static func append_pillowed_brick(
 	_add_quad_direct(st, transform, Vector3(-ix, iy, hz), Vector3(ix, iy, hz), Vector3(ix, hy, iz), Vector3(-ix, hy, iz))
 	_add_quad_direct(st, transform, Vector3(-ix, -hy, iz), Vector3(ix, -hy, iz), Vector3(ix, -iy, hz), Vector3(-ix, -iy, hz))
 	_add_quad_direct(st, transform, Vector3(-ix, hy, -iz), Vector3(ix, hy, -iz), Vector3(ix, iy, -hz), Vector3(-ix, iy, -hz))
-	_add_quad_direct(st, transform, Vector3(-ix, -iy, -hz), Vector3(ix, -iy, -hz), Vector3(ix, -hy, -iz), Vector3(-ix, -hy, -iz))
+	_add_quad_direct(st, transform, Vector3(ix, -hy, -iz), Vector3(-ix, -hy, -iz), Vector3(-ix, -iy, -hz), Vector3(ix, -iy, -hz))
 
 	_add_quad_direct(st, transform, Vector3(ix, -iy, hz), Vector3(hx, -iy, iz), Vector3(hx, iy, iz), Vector3(ix, iy, hz))
 	_add_quad_direct(st, transform, Vector3(-hx, -iy, iz), Vector3(-ix, -iy, hz), Vector3(-ix, iy, hz), Vector3(-hx, iy, iz))

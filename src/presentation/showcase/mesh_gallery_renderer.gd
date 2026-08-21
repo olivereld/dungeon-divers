@@ -20,6 +20,7 @@ const _RoomEntranceScript = preload("res://src/dungeon_generator/core/data/room_
 # Generadores de Piezas Modulares y Suelos
 const _WallMeshBuilderScript = preload("res://src/wall_mesh_generator/core/wall_mesh_builder.gd")
 const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall_mesh_config.gd")
+const _WallMaterialFactoryScript = preload("res://src/wall_mesh_generator/materials/wall_material_factory.gd")
 const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
 const _DungeonFloorGeneratorScript = preload("res://src/floor_tile_generator/facade/dungeon_floor_generator.gd")
 
@@ -28,8 +29,9 @@ const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type
 const _DungeonDoorSpawnerScript = preload("res://src/dungeon_generator/presentation/dungeon_door_spawner.gd")
 const _DungeonDoorManifestScript = preload("res://src/dungeon_generator/core/data/dungeon_door_manifest.gd")
 const _DungeonStairSpawnerScript = preload("res://src/dungeon_generator/presentation/dungeon_stair_spawner.gd")
-const _StairDataScript = preload("res://src/dungeon_generator/core/data/stair_data.gd")
 const _DungeonLightSpawnerScript = preload("res://src/dungeon_lighting/presentation/dungeon_light_spawner.gd")
+const _LightingResultScript = preload("res://src/dungeon_lighting/data/lighting_result.gd")
+const _LightPlacementScript = preload("res://src/dungeon_lighting/data/light_placement.gd")
 const _TorchLightControllerScript = preload("res://src/dungeon_lighting/presentation/torch_light_controller.gd")
 const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
 const _CellGridScript = preload("res://src/dungeon_generator/core/data/cell_grid.gd")
@@ -186,6 +188,7 @@ func _render_modular_wall(params: Dictionary, seed: int) -> Node3D:
 	var mi := MeshInstance3D.new()
 	mi.name = "ModularPieceMesh"
 	mi.mesh = mesh
+	_WallMaterialFactoryScript.apply_materials_to_mesh_instance(mi)
 	container.add_child(mi)
 	return container
 
@@ -291,65 +294,73 @@ func _render_stairs(params: Dictionary, _seed: int) -> Node3D:
 	container.add_child(stair_mesh)
 	return container
 
-func _render_torch(_params: Dictionary, seed: int) -> Node3D:
+func _render_torch(params: Dictionary, seed: int) -> Node3D:
 	var container := Node3D.new()
+	container.name = "TorchShowcaseGroup"
 
-	# Muro de soporte
-	var wall_backing = _render_continuous_wall({"layout": "STRAIGHT", "decoration": false}, seed)
-	wall_backing.position = Vector3(0.0, 0.0, -1.0)
-	container.add_child(wall_backing)
+	var builder := _WallMeshBuilderScript.new()
 
-	# Antorcha activa con flicker
-	var torch_root := Node3D.new()
-	torch_root.name = "ShowcaseTorch"
+	# 1. Segmento de pared recta procedural estilizada centrada en (0, 0, 0)
+	var wall_cfg := _WallMeshConfigScript.new()
+	wall_cfg.piece_type = _WallMeshConfigScript.PieceType.WALL
+	wall_cfg.cube_size = 2.0
+	wall_cfg.cubes_high = 2
+	wall_cfg.seed = seed
+	wall_cfg.centered_origin = true
 
-	var bracket := MeshInstance3D.new()
-	bracket.name = "TorchBracket"
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.04
-	cyl.bottom_radius = 0.02
-	cyl.height = 0.35
-	bracket.mesh = cyl
-	bracket.rotation.x = -PI * 0.14
-	bracket.position = Vector3(0.0, 0.0, -0.04)
-	var bracket_mat := StandardMaterial3D.new()
-	bracket_mat.albedo_color = Color(0.25, 0.18, 0.12)
-	bracket_mat.roughness = 0.8
-	bracket.material_override = bracket_mat
-	torch_root.add_child(bracket)
+	var wall_mesh: ArrayMesh = builder.build_wall_mesh(wall_cfg)
+	var wall_inst := MeshInstance3D.new()
+	wall_inst.name = "WallSegment"
+	wall_inst.mesh = wall_mesh
+	_WallMaterialFactoryScript.apply_materials_to_mesh_instance(wall_inst)
+	wall_inst.position = Vector3.ZERO
+	container.add_child(wall_inst)
 
-	var flame := MeshInstance3D.new()
-	flame.name = "TorchFlame"
-	var flame_mesh := SphereMesh.new()
-	flame_mesh.radius = 0.045
-	flame_mesh.height = 0.11
-	flame.mesh = flame_mesh
-	flame.position = Vector3(0.0, 0.16, 0.06)
-	var flame_mat := StandardMaterial3D.new()
-	flame_mat.albedo_color = Color(1.0, 0.55, 0.1)
-	flame_mat.emission_enabled = true
-	flame_mat.emission = Color(1.0, 0.5, 0.05)
-	flame_mat.emission_energy_multiplier = 4.0
-	flame.material_override = flame_mat
-	torch_root.add_child(flame)
+	# 2. Losa de suelo estocástica real alineada exactamente frente a la pared (Z = 0.20 a 2.20)
+	var floor_cfg := _FloorTileConfigScript.new()
+	floor_cfg.pattern = _FloorTileConfigScript.PatternType.STYLIZED_STONE
+	floor_cfg.tile_size = 2.0
+	floor_cfg.margin = 0.03
+	floor_cfg.seed = seed
 
-	var light := OmniLight3D.new()
-	light.name = "OmniLight"
-	light.light_color = Color(1.0, 0.65, 0.28)
-	light.light_energy = 1.6
-	light.omni_range = 8.0
-	light.omni_attenuation = 1.2
-	light.shadow_enabled = true
-	light.position = Vector3(0.0, 0.22, 0.12)
-	torch_root.add_child(light)
+	var grid := _CellGridScript.new(1, 1)
+	grid.set_cell(Vector2i(0, 0), _CellGridScript.CellType.FLOOR)
 
-	var ctrl := _TorchLightControllerScript.new()
-	ctrl.name = "TorchController"
-	ctrl.base_energy = 1.6
-	ctrl.flicker_amplitude = 0.35
-	ctrl.flicker_speed = 6.0
-	torch_root.add_child(ctrl)
+	var floor_gen := _DungeonFloorGeneratorScript.new()
+	var floor_res = floor_gen.generate_floor_surface(grid, floor_cfg, seed)
 
-	torch_root.position = Vector3(0.0, 1.2, 0.0)
-	container.add_child(torch_root)
+	var floor_container := Node3D.new()
+	floor_container.name = "FloorBase"
+	for i in range(floor_res.clusters.size()):
+		var cluster = floor_res.clusters[i]
+		if cluster.mesh != null:
+			var mi := MeshInstance3D.new()
+			mi.name = "FloorCluster_%02d" % i
+			mi.mesh = cluster.mesh
+			# Alinear exactamente con la cara frontal del muro Z = 0.20
+			mi.position = Vector3(-1.0, 0.0, 0.20)
+			floor_container.add_child(mi)
+	container.add_child(floor_container)
+
+	# 3. Antorcha procedural del DungeonLightSpawner anclada visiblemente al frente del muro (Z = 0.22)
+	var spawner := _DungeonLightSpawnerScript.new()
+	var prof := _LightingProfileScript.new()
+	prof.energy = params.get("energy", 2.2)
+	prof.flicker_enabled = params.get("flicker", true)
+
+	var light_res := _LightingResultScript.new()
+	var placement := _LightPlacementScript.new()
+	placement.light_id = 0
+	placement.cell = Vector2i(0, 0)
+	placement.wall_side = _LightPlacementScript.WallSide.SOUTH
+	placement.kind = &"torch"
+	light_res.placements.append(placement)
+
+	var lighting_staging := Node3D.new()
+	lighting_staging.name = "LightingStaging"
+	# Anclar la antorcha para que torch_root coincida en X=0.0, Y=1.40, Z=+0.26 (sobre la cara frontal del muro)
+	lighting_staging.position = Vector3(-1.0, -0.25, -1.39)
+	spawner.spawn_lighting(light_res, lighting_staging, prof, 2.0)
+	container.add_child(lighting_staging)
+
 	return container

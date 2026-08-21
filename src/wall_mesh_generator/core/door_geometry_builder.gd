@@ -340,9 +340,9 @@ static func _build_cylinder_segment(
 
 		_add_quad(st,
 			start_p + off0,
-			start_p + off1,
+			end_p + off0,
 			end_p + off1,
-			end_p + off0
+			start_p + off1
 		)
 
 static func _add_quad(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3) -> void:
