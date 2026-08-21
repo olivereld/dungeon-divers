@@ -124,6 +124,10 @@ func _render_continuous_wall(params: Dictionary, seed: int) -> Node3D:
 	clusters_container.name = "Clusters"
 	container.add_child(clusters_container)
 
+	var collision_container := Node3D.new()
+	collision_container.name = "Collision"
+	container.add_child(collision_container)
+
 	for i in range(geom_res.generated_meshes.size()):
 		var g_mesh = geom_res.generated_meshes[i]
 		if g_mesh.mesh != null:
@@ -132,6 +136,12 @@ func _render_continuous_wall(params: Dictionary, seed: int) -> Node3D:
 			mi.mesh = g_mesh.mesh
 			mi.position = Vector3(-float(grid_w) * 1.0, 0.0, -float(grid_h) * 1.0)
 			clusters_container.add_child(mi)
+
+		if not g_mesh.collision_shapes.is_empty():
+			var body: StaticBody3D = g_mesh.create_collision_body()
+			body.name = "Body_Cluster_%02d" % i
+			body.position = Vector3(-float(grid_w) * 1.0, 0.0, -float(grid_h) * 1.0)
+			collision_container.add_child(body)
 
 	# Si es habitación, añadir también suelo para ver la unión continua
 	if layout == "ROOM_BOX":
