@@ -349,14 +349,14 @@ func _render_torch(params: Dictionary, seed: int) -> Node3D:
 	var placement := _LightPlacementScript.new()
 	placement.light_id = 0
 	placement.cell = Vector2i(0, 0)
-	placement.wall_side = _LightPlacementScript.WallSide.SOUTH
+	placement.wall_side = _LightPlacementScript.WallSide.NORTH
 	placement.kind = &"torch"
 	light_res.placements.append(placement)
 
 	var lighting_staging := Node3D.new()
 	lighting_staging.name = "LightingStaging"
-	# Anclar la antorcha para que torch_root coincida en X=0.0, Y=1.40, Z=+0.26 (sobre la cara frontal del muro)
-	lighting_staging.position = Vector3(-1.0, -0.25, -1.39)
+	# Anclar la antorcha para que torch_root coincida en X=0.0, Y=1.40, Z=+0.24 (sobre la cara frontal del muro)
+	lighting_staging.position = Vector3(-1.0, -0.25, 0.0)
 	spawner.spawn_lighting(light_res, lighting_staging, prof, 2.0)
 	container.add_child(lighting_staging)
 

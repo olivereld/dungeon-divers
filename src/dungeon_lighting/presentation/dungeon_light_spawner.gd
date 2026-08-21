@@ -64,17 +64,21 @@ func spawn_lighting(
 
 		match placement.wall_side:
 			_LightPlacementScript.WallSide.NORTH:
+				# Muro al Norte (-Z) -> La antorcha mira hacia el Sur (+Z, hacia el interior)
 				wall_offset = Vector3(0.0, 0.0, -offset_dist)
-				torch_rot_y = PI
-			_LightPlacementScript.WallSide.SOUTH:
-				wall_offset = Vector3(0.0, 0.0, offset_dist)
 				torch_rot_y = 0.0
+			_LightPlacementScript.WallSide.SOUTH:
+				# Muro al Sur (+Z) -> La antorcha mira hacia el Norte (-Z, hacia el interior)
+				wall_offset = Vector3(0.0, 0.0, offset_dist)
+				torch_rot_y = PI
 			_LightPlacementScript.WallSide.EAST:
+				# Muro al Este (+X) -> La antorcha mira hacia el Oeste (-X, hacia el interior)
 				wall_offset = Vector3(offset_dist, 0.0, 0.0)
-				torch_rot_y = PI * 0.5
-			_LightPlacementScript.WallSide.WEST:
-				wall_offset = Vector3(-offset_dist, 0.0, 0.0)
 				torch_rot_y = -PI * 0.5
+			_LightPlacementScript.WallSide.WEST:
+				# Muro al Oeste (-X) -> La antorcha mira hacia el Este (+X, hacia el interior)
+				wall_offset = Vector3(-offset_dist, 0.0, 0.0)
+				torch_rot_y = PI * 0.5
 
 		torch_root.position = base_pos + wall_offset
 		torch_root.rotation.y = torch_rot_y

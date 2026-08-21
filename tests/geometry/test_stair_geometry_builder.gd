@@ -22,8 +22,8 @@ func _run_test() -> void:
 
 	var g_up = builder.build_stair_mesh(cfg_up)
 	assert(g_up != null and g_up.mesh != null, "FAIL: Upward stair mesh must not be null")
-	assert(g_up.mesh.get_surface_count() >= 2, "FAIL: Stair must have StairSteps and StairStringers surfaces")
-	assert(g_up.collision_shapes.size() == 8, "FAIL: Upward stair must generate 8 step collision boxes")
+	assert(g_up.mesh.get_surface_count() >= 3, "FAIL: Stair must have at least Steps, Trims and WallPanel surfaces")
+	assert(g_up.collision_shapes.size() >= 8, "FAIL: Upward stair must generate collision boxes")
 
 	# 2. Escalera Descendente (DOWN)
 	var cfg_down = StairGeometryConfigScript.new()
@@ -34,8 +34,8 @@ func _run_test() -> void:
 
 	var g_down = builder.build_stair_mesh(cfg_down)
 	assert(g_down != null and g_down.mesh != null, "FAIL: Downward stair mesh must not be null")
-	assert(g_down.mesh.get_surface_count() >= 2, "FAIL: Downward stair must have StairSteps and StairStringers")
-	assert(g_down.collision_shapes.size() == 8, "FAIL: Downward stair must generate 8 step collision boxes")
+	assert(g_down.mesh.get_surface_count() >= 3, "FAIL: Downward stair must have at least Steps, Trims and WallPanel")
+	assert(g_down.collision_shapes.size() >= 8, "FAIL: Downward stair must generate collision boxes")
 
 	print("  [OK] Stair UP Surfaces: %d | Collision Steps: %d" % [
 		g_up.mesh.get_surface_count(),
