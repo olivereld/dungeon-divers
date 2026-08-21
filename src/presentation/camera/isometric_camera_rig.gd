@@ -2,8 +2,9 @@ class_name IsometricCameraRig
 extends Node3D
 
 ## Módulo de Cámara Isométrica Desacoplado y Reutilizable.
-## Mantiene una proyección ortogonal y orientación fija en ángulo isométrico (Yaw=45°, Pitch=~35.264°, Roll=0°).
-## Incluye seguimiento cinemático suavizado, zoom ortogonal con interpolación y detección de oclusión multi-rayo.
+## Mantiene una proyección ortogonal y orientación fija en ángulo isométrico estricto (Yaw=45°, Pitch=35.264°, Roll=0°).
+## Orquesta seguimiento cinemático suavizado, zoom ortogonal con interpolación, detección de oclusión multi-rayo
+## y desvanecimiento progresivo de muros oclusores (WallFadeController).
 
 signal target_changed(target: Node3D)
 signal zoom_changed(value: float)
@@ -11,6 +12,11 @@ signal occlusion_started(occluders: Array[Node3D])
 signal occlusion_ended(occluders: Array[Node3D])
 
 const _CameraOcclusionDetectorScript = preload("res://src/presentation/camera/camera_occlusion_detector.gd")
+const _WallFadeControllerScript = preload("res://src/presentation/camera/wall_fade_controller.gd")
+
+const ISOMETRIC_YAW: float = 45.0
+const ISOMETRIC_PITCH: float = 35.2643897
+const ISOMETRIC_ROLL: float = 0.0
 
 var _target: Node3D = null
 var _target_zoom: float = 24.0
@@ -31,7 +37,7 @@ var _target_zoom: float = 24.0
 @export var dead_zone: float = 0.05
 
 @export_group("Isometric Orientation")
-@export var yaw_degrees: float = 45.0:
+@export var yaw_degrees: float = ISOMETRIC_YAW:
 	set(val):
 		yaw_degrees = val
 		_update_orientation()
@@ -39,7 +45,7 @@ var _target_zoom: float = 24.0
 	set(val):
 		pitch_degrees = val
 		_update_orientation()
-@export var roll_degrees: float = 0.0:
+@export var roll_degrees: float = ISOMETRIC_ROLL:
 	set(val):
 		roll_degrees = val
 		_update_orientation()
@@ -52,12 +58,24 @@ var _target_zoom: float = 24.0
 @export var zoom_step: float = 2.0
 @export var zoom_smoothing: float = 12.0
 
-@export_group("Occlusion Detection")
+@export_group("Occlusion & Wall Fade")
 @export var occlusion_enabled: bool = true:
 	set(val):
 		occlusion_enabled = val
 		if _occlusion_detector != null:
 			_occlusion_detector.enabled = val
+		if _wall_fade_controller != null:
+			_wall_fade_controller.enabled = val
+@export_range(0.0, 1.0, 0.05) var occluded_transparency: float = 0.75:
+	set(val):
+		occluded_transparency = val
+		if _wall_fade_controller != null:
+			_wall_fade_controller.occluded_transparency = val
+@export_range(0.1, 30.0, 0.5) var fade_speed: float = 12.0:
+	set(val):
+		fade_speed = val
+		if _wall_fade_controller != null:
+			_wall_fade_controller.fade_speed = val
 
 var target_zoom: float:
 	get:
@@ -69,6 +87,7 @@ var _pivot: Node3D = null
 var _camera: Camera3D = null
 var _current_velocity := Vector3.ZERO
 var _occlusion_detector: _CameraOcclusionDetectorScript = null
+var _wall_fade_controller: _WallFadeControllerScript = null
 
 func _ready() -> void:
 	_setup_internal_hierarchy()
@@ -101,6 +120,15 @@ func _setup_internal_hierarchy() -> void:
 		_occlusion_detector.occlusion_started.connect(_on_occlusion_started)
 	if not _occlusion_detector.occlusion_ended.is_connected(_on_occlusion_ended):
 		_occlusion_detector.occlusion_ended.connect(_on_occlusion_ended)
+
+	_wall_fade_controller = get_node_or_null("WallFadeController")
+	if _wall_fade_controller == null:
+		_wall_fade_controller = _WallFadeControllerScript.new()
+		_wall_fade_controller.name = "WallFadeController"
+		_wall_fade_controller.occluded_transparency = occluded_transparency
+		_wall_fade_controller.fade_speed = fade_speed
+		_wall_fade_controller.enabled = occlusion_enabled
+		add_child(_wall_fade_controller)
 
 func _update_orientation() -> void:
 	if _pivot == null:
@@ -157,9 +185,13 @@ func _process_occlusion_check() -> void:
 
 func _on_occlusion_started(occluders: Array[Node3D]) -> void:
 	occlusion_started.emit(occluders)
+	if _wall_fade_controller != null:
+		_wall_fade_controller.fade_out(occluders)
 
 func _on_occlusion_ended(occluders: Array[Node3D]) -> void:
 	occlusion_ended.emit(occluders)
+	if _wall_fade_controller != null:
+		_wall_fade_controller.fade_in(occluders)
 
 func is_target_occluded() -> bool:
 	return _occlusion_detector.is_target_occluded() if _occlusion_detector != null else false
@@ -168,6 +200,11 @@ func get_occlusion_detector() -> _CameraOcclusionDetectorScript:
 	if _occlusion_detector == null:
 		_setup_internal_hierarchy()
 	return _occlusion_detector
+
+func get_wall_fade_controller() -> _WallFadeControllerScript:
+	if _wall_fade_controller == null:
+		_setup_internal_hierarchy()
+	return _wall_fade_controller
 
 func set_target(p_target: Node3D) -> void:
 	if _target != p_target:

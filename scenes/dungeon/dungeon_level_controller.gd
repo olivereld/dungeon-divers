@@ -252,8 +252,12 @@ func _on_random_seed_requested() -> void:
 	_on_seed_submitted(random_seed)
 
 func _setup_camera() -> void:
+	if camera_rig == null:
+		camera_rig = get_node_or_null("IsometricCameraRig")
+
 	if camera_rig != null:
-		camera = camera_rig.get_camera()
+		if camera_rig.has_method("get_camera"):
+			camera = camera_rig.get_camera()
 		if not camera_rig.occlusion_started.is_connected(_on_camera_occlusion_started):
 			camera_rig.occlusion_started.connect(_on_camera_occlusion_started)
 		if not camera_rig.occlusion_ended.is_connected(_on_camera_occlusion_ended):
@@ -371,9 +375,9 @@ func build_3d_presentation() -> void:
 		if camera_rig != null and _player != null:
 			camera_rig.set_target(_player)
 			camera_rig.teleport_to_target()
+			camera_rig.set_zoom(24.0)
 
 		_apply_floor_visibility()
-		_center_camera_on_dungeon()
 		_apply_live_lighting_updates()
 		return
 
@@ -398,7 +402,6 @@ func build_3d_presentation() -> void:
 			_player.visible = true
 
 		_apply_walls_visibility()
-		_center_camera_on_dungeon()
 		_apply_live_lighting_updates()
 
 func _spawn_or_reposition_player() -> void:
@@ -426,6 +429,7 @@ func _spawn_or_reposition_player() -> void:
 	if camera_rig != null:
 		camera_rig.set_target(_player)
 		camera_rig.teleport_to_target()
+		camera_rig.set_zoom(24.0)
 
 var _failure_label: Label = null
 
@@ -446,7 +450,13 @@ func _hide_failure_ui() -> void:
 		_failure_label.visible = false
 
 func _center_camera_on_dungeon() -> void:
-	if camera == null or config == null:
+	if config == null:
+		return
+
+	if camera_rig != null and _player != null:
+		camera_rig.set_target(_player)
+		camera_rig.teleport_to_target()
+		camera_rig.set_zoom(24.0)
 		return
 
 	var grid_w: float = float(config.grid_width)
@@ -462,11 +472,26 @@ func _center_camera_on_dungeon() -> void:
 	else:
 		_zoom = maxf(float(grid_w), float(grid_h)) * config.cell_size * (1.1 if num_floors > 1 else 0.9)
 
-	_camera_pivot = Vector3(center_x, center_y, center_z)
-	camera.size = _zoom
-	_update_camera_transform()
+	if camera_rig != null:
+		camera_rig.clear_target()
+		camera_rig.global_position = Vector3(center_x, center_y, center_z)
+		camera_rig.set_zoom(_zoom)
+	else:
+		_camera_pivot = Vector3(center_x, center_y, center_z)
+		if camera != null:
+			camera.size = _zoom
+		_update_camera_transform()
 
 func _update_camera_transform() -> void:
+	if camera_rig != null:
+		if _is_top_down:
+			camera_rig.pitch_degrees = 90.0
+			camera_rig.yaw_degrees = 0.0
+		else:
+			camera_rig.pitch_degrees = 35.264
+			camera_rig.yaw_degrees = 45.0
+		return
+
 	if camera == null:
 		return
 
@@ -489,16 +514,34 @@ func _process(delta: float) -> void:
 	_handle_camera_pan(delta)
 
 func _handle_camera_pan(delta: float) -> void:
-	if camera == null:
-		return
-
 	var focus_owner = get_viewport().gui_get_focus_owner()
 	if focus_owner is LineEdit or focus_owner is TextEdit:
 		return
 
+	if camera_rig != null:
+		if _player == null or not camera_rig.follow_enabled:
+			var speed: float = camera_rig.get_zoom() * 1.5 * delta
+			var move_dir := Vector3.ZERO
+			var rad_y: float = deg_to_rad(camera_rig.yaw_degrees)
+			var forward := Vector3(-sin(rad_y), 0, -cos(rad_y)).normalized()
+			var right := Vector3(cos(rad_y), 0, -sin(rad_y)).normalized()
+			if Input.is_key_pressed(KEY_W):
+				move_dir += forward
+			if Input.is_key_pressed(KEY_S):
+				move_dir -= forward
+			if Input.is_key_pressed(KEY_A):
+				move_dir -= right
+			if Input.is_key_pressed(KEY_D):
+				move_dir += right
+			if move_dir != Vector3.ZERO:
+				camera_rig.global_position += move_dir.normalized() * speed
+		return
+
+	if camera == null:
+		return
+
 	var speed: float = _zoom * 1.5 * delta
 	var move_dir := Vector3.ZERO
-
 	var rad_y: float = deg_to_rad(_camera_yaw)
 	var forward := Vector3(-sin(rad_y), 0, -cos(rad_y)).normalized()
 	var right := Vector3(cos(rad_y), 0, -sin(rad_y)).normalized()

@@ -29,6 +29,8 @@ const _DungeonLightSpawnerScript = preload("res://src/dungeon_lighting/presentat
 const _DungeonLightingConfigScript = preload("res://src/dungeon_lighting/config/dungeon_lighting_config.gd")
 const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
 
+const CAMERA_OCCLUDER_GROUP: StringName = &"camera_occluder"
+
 var _gridmap_mapper := _GridMapMapperScript.new()
 var _entity_spawner := _DungeonEntitySpawnerScript.new()
 var _door_spawner := _DungeonDoorSpawnerScript.new()
@@ -147,6 +149,11 @@ func build_presentation(
 					col_shape.transform = g_mesh.collision_transforms[i]
 					static_body.add_child(col_shape)
 			wall_inst.add_child(static_body)
+
+			# Etiquetado Semántico para el Módulo de Oclusión de Cámara
+			wall_inst.add_to_group(CAMERA_OCCLUDER_GROUP, true)
+			static_body.add_to_group(CAMERA_OCCLUDER_GROUP, true)
+
 			staging_root.add_child(wall_inst)
 			wall_grid_map.visible = false
 
@@ -303,6 +310,8 @@ func build_multi_floor_presentation(
 					col_shape.transform = g_mesh.collision_transforms[i]
 					static_body.add_child(col_shape)
 			wall_inst.add_child(static_body)
+			wall_inst.add_to_group(CAMERA_OCCLUDER_GROUP, true)
+			static_body.add_to_group(CAMERA_OCCLUDER_GROUP, true)
 			floor_container.add_child(wall_inst)
 
 		# 3. Puertas
@@ -504,6 +513,8 @@ func build_from_dungeon_result(
 					col_shape.transform = g_mesh.collision_transforms[i]
 					static_body.add_child(col_shape)
 			wall_inst.add_child(static_body)
+			wall_inst.add_to_group(CAMERA_OCCLUDER_GROUP, true)
+			static_body.add_to_group(CAMERA_OCCLUDER_GROUP, true)
 			staging_root.add_child(wall_inst)
 
 	# 5. Spawning de Puertas
