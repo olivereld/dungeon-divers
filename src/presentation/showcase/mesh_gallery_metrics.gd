@@ -55,10 +55,21 @@ static func calculate_node_metrics(root: Node3D) -> MetricsData:
 
 			for s in range(mi.mesh.get_surface_count()):
 				var arrays = mi.mesh.surface_get_arrays(s)
-				if arrays.size() > Mesh.ARRAY_VERTEX and arrays[Mesh.ARRAY_VERTEX] != null:
-					data.vertex_count += arrays[Mesh.ARRAY_VERTEX].size()
-				if arrays.size() > Mesh.ARRAY_INDEX and arrays[Mesh.ARRAY_INDEX] != null:
-					data.triangle_count += arrays[Mesh.ARRAY_INDEX].size() / 3
+				if arrays.size() <= Mesh.ARRAY_VERTEX or arrays[Mesh.ARRAY_VERTEX] == null:
+					continue
+
+				var vertices = arrays[Mesh.ARRAY_VERTEX]
+				var vertex_count: int = vertices.size()
+				data.vertex_count += vertex_count
+
+				var primitive := mi.mesh.surface_get_primitive_type(s)
+				if primitive == Mesh.PRIMITIVE_TRIANGLES:
+					var indices = arrays[Mesh.ARRAY_INDEX] if arrays.size() > Mesh.ARRAY_INDEX else null
+					if indices != null and indices.size() > 0:
+						data.triangle_count += indices.size() / 3
+					else:
+						# Malla no indexada: cada 3 vértices definen un triángulo
+						data.triangle_count += vertex_count / 3
 
 	data.bounds = global_aabb
 	return data
