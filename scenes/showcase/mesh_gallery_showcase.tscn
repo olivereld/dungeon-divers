@@ -22,6 +22,23 @@ glow_enabled = true
 glow_intensity = 0.4
 glow_bloom = 0.1
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pedestal"]
+albedo_color = Color(0.2, 0.23, 0.28, 1)
+roughness = 0.8
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_pedestal"]
+material = SubResource("StandardMaterial3D_pedestal")
+top_radius = 2.4
+bottom_radius = 2.6
+height = 0.3
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bounds"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(0.2, 0.8, 1, 0.15)
+wireframe = true
+
 [node name="MeshGalleryShowcase" type="Node3D"]
 script = ExtResource("1_gallery")
 
@@ -45,9 +62,21 @@ light_color = Color(0.9, 0.85, 0.75, 1)
 light_energy = 0.5
 
 [node name="IsometricCameraRig" parent="." instance=ExtResource("2_camera_rig")]
-default_zoom = 10.0
+default_zoom = 8.0
 
 [node name="GalleryRoot" type="Node3D" parent="."]
+
+[node name="ActivePreview" type="Node3D" parent="GalleryRoot"]
+
+[node name="BasePedestal" type="MeshInstance3D" parent="GalleryRoot/ActivePreview"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.15, 0)
+mesh = SubResource("CylinderMesh_pedestal")
+
+[node name="PropAnchor" type="Node3D" parent="GalleryRoot/ActivePreview"]
+
+[node name="DebugBounds" type="MeshInstance3D" parent="GalleryRoot/ActivePreview"]
+visible = false
+material_override = SubResource("StandardMaterial3D_bounds")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
@@ -81,7 +110,7 @@ theme_override_constants/separation = 8
 [node name="HeaderLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
-text = "🏛️ Galería de Mallas 3D"
+text = "🏛️ Mesh Generation Lab"
 
 [node name="CategoryHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
 layout_mode = 2
@@ -120,7 +149,7 @@ mouse_filter = 2
 custom_minimum_size = Vector2(380, 0)
 layout_mode = 2
 mouse_filter = 0
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="TitleLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
 layout_mode = 2
@@ -137,7 +166,13 @@ text = "Script: src/..."
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
 theme_override_font_sizes/font_size = 13
-text = "Geometría: 0 mallas | 0 vértices"
+text = "Mallas: 0 | Superficies: 0 | Vértices: 0 | Triángulos: 0"
+
+[node name="BoundsLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+text = "Dimensiones: 0 × 0 × 0 m"
 
 [node name="DescLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
 layout_mode = 2
@@ -157,12 +192,20 @@ text = "CONTROLES DE INSPECCIÓN"
 
 [node name="Controls" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="RotateCheck" type="CheckBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls"]
 layout_mode = 2
 button_pressed = true
 text = "Rotación Automática 360°"
+
+[node name="WireframeCheck" type="CheckBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls"]
+layout_mode = 2
+text = "Modo Wireframe"
+
+[node name="BoundsCheck" type="CheckBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls"]
+layout_mode = 2
+text = "Visualizar Bounds (AABB)"
 
 [node name="SeedHBox" type="HBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls"]
 layout_mode = 2
@@ -176,3 +219,17 @@ layout_mode = 2
 size_flags_horizontal = 3
 max_value = 9999999.0
 value = 1337.0
+
+[node name="ClusterSection" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ClusterHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ClusterSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.7, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+text = "CLUSTERS DE GEOMETRÍA"
+
+[node name="ClusterList" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ClusterSection"]
+layout_mode = 2
+theme_override_constants/separation = 2
