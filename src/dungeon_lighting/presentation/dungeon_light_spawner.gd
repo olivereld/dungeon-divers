@@ -8,6 +8,7 @@ const _LightingResultScript = preload("res://src/dungeon_lighting/data/lighting_
 const _LightPlacementScript = preload("res://src/dungeon_lighting/data/light_placement.gd")
 const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
 const _TorchLightControllerScript = preload("res://src/dungeon_lighting/presentation/torch_light_controller.gd")
+const _TorchGeometryBuilderScript = preload("res://src/geometry_generator/fixtures/torch_geometry_builder.gd")
 
 ## Spawnea toda la iluminación en el contenedor de presentación StagingRoot.
 func spawn_lighting(
@@ -83,42 +84,11 @@ func spawn_lighting(
 			var torch_inst = profile.torch_scene.instantiate()
 			torch_root.add_child(torch_inst)
 		else:
-			# Crear pequeño soporte estilizado procedural (inclinado hacia la sala)
-			var bracket := MeshInstance3D.new()
-			bracket.name = "TorchBracket"
-			bracket.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			var cyl := CylinderMesh.new()
-			cyl.top_radius = 0.05
-			cyl.bottom_radius = 0.025
-			cyl.height = 0.42
-			bracket.mesh = cyl
-			bracket.rotation.x = PI * 0.18
-			bracket.position = Vector3(0.0, 0.0, 0.06)
-
-			var bracket_mat := StandardMaterial3D.new()
-			bracket_mat.albedo_color = Color(0.20, 0.18, 0.16)
-			bracket_mat.metallic = 0.85
-			bracket_mat.roughness = 0.35
-			bracket.material_override = bracket_mat
-			torch_root.add_child(bracket)
-
-			# Pequeña llama estilizada emisiva
-			var flame := MeshInstance3D.new()
-			flame.name = "TorchFlame"
-			flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			var flame_mesh := SphereMesh.new()
-			flame_mesh.radius = 0.065
-			flame_mesh.height = 0.18
-			flame.mesh = flame_mesh
-			flame.position = Vector3(0.0, 0.22, 0.12)
-
-			var flame_mat := StandardMaterial3D.new()
-			flame_mat.albedo_color = Color(1.0, 0.85, 0.45, 1.0)
-			flame_mat.emission_enabled = true
-			flame_mat.emission = Color(1.0, 0.60, 0.15)
-			flame_mat.emission_energy_multiplier = 6.0
-			flame.material_override = flame_mat
-			torch_root.add_child(flame)
+			# Instanciar fixture 3D desacoplado (Soporte de hierro + Llama emisiva)
+			var torch_builder = _TorchGeometryBuilderScript.new()
+			var fixture_asset = torch_builder.build_torch_fixture()
+			var fixture_node = fixture_asset.to_node3d("Fixture")
+			torch_root.add_child(fixture_node)
 
 		# 3. Luz OmniLight3D (Ilumina 360° la pared, piedras y suelo con degradado cálido)
 		var omni := OmniLight3D.new()

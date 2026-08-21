@@ -6,6 +6,9 @@ extends RefCounted
 
 const _EntryScript = preload("res://src/presentation/showcase/mesh_gallery_entry.gd")
 
+# Fachada Unificada de Geometría
+const _DungeonMeshGeneratorScript = preload("res://src/geometry_generator/facade/dungeon_mesh_generator.gd")
+
 # Generadores de Muros Reales
 const _DungeonGeometryGeneratorScript = preload("res://src/geometry_generator/facade/dungeon_geometry_generator.gd")
 const _WallGeometryConfigScript = preload("res://src/geometry_generator/config/wall_geometry_config.gd")
@@ -23,6 +26,9 @@ const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall
 const _WallMaterialFactoryScript = preload("res://src/wall_mesh_generator/materials/wall_material_factory.gd")
 const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
 const _DungeonFloorGeneratorScript = preload("res://src/floor_tile_generator/facade/dungeon_floor_generator.gd")
+const _ArchGeometryConfigScript = preload("res://src/geometry_generator/config/arch_geometry_config.gd")
+const _DoorGeometryConfigScript = preload("res://src/geometry_generator/config/door_geometry_config.gd")
+const _StairGeometryConfigScript = preload("res://src/geometry_generator/config/stair_geometry_config.gd")
 
 # Puertas, Escaleras e Iluminación
 const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
@@ -35,6 +41,8 @@ const _LightPlacementScript = preload("res://src/dungeon_lighting/data/light_pla
 const _TorchLightControllerScript = preload("res://src/dungeon_lighting/presentation/torch_light_controller.gd")
 const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
 const _CellGridScript = preload("res://src/dungeon_generator/core/data/cell_grid.gd")
+
+var _mesh_facade = _DungeonMeshGeneratorScript.new()
 
 ## Genera el nodo 3D completo a partir de una entrada del catálogo y una semilla.
 func render_entry(entry: MeshGalleryEntry, seed: int, param_overrides: Dictionary = {}) -> Node3D:
@@ -176,9 +184,31 @@ func _render_modular_wall(params: Dictionary, seed: int) -> Node3D:
 	var container := Node3D.new()
 	container.name = "ModularWallGroup"
 
+	var piece = params.get("piece", _WallMeshConfigScript.PieceType.WALL)
+
+	if piece == _WallMeshConfigScript.PieceType.ARCH:
+		var arch_cfg := _ArchGeometryConfigScript.new()
+		arch_cfg.seed = seed
+		arch_cfg.centered_origin = true
+		var gm = _mesh_facade.generate_arch(arch_cfg)
+		if gm != null:
+			var mi: MeshInstance3D = gm.to_mesh_instance("ArchPiece")
+			container.add_child(mi)
+		return container
+
+	if piece == _WallMeshConfigScript.PieceType.DOOR:
+		var door_cfg := _DoorGeometryConfigScript.new()
+		door_cfg.seed = seed
+		door_cfg.centered_origin = true
+		var gm = _mesh_facade.generate_door_leaf(door_cfg)
+		if gm != null:
+			var mi: MeshInstance3D = gm.to_mesh_instance("DoorLeafPiece")
+			container.add_child(mi)
+		return container
+
 	var builder := _WallMeshBuilderScript.new()
 	var cfg := _WallMeshConfigScript.new()
-	cfg.piece_type = params.get("piece", _WallMeshConfigScript.PieceType.WALL)
+	cfg.piece_type = piece
 	cfg.cube_size = 2.0
 	cfg.cubes_high = 2
 	cfg.seed = seed
@@ -208,8 +238,7 @@ func _render_floor_surface(params: Dictionary, seed: int) -> Node3D:
 		for y in range(3):
 			grid.set_cell(Vector2i(x, y), _CellGridScript.CellType.FLOOR)
 
-	var floor_gen := _DungeonFloorGeneratorScript.new()
-	var floor_res = floor_gen.generate_floor_surface(grid, cfg, seed)
+	var floor_res = _mesh_facade.generate_floors(grid, cfg, seed)
 
 	var clusters_container := Node3D.new()
 	clusters_container.name = "Clusters"
@@ -227,71 +256,39 @@ func _render_floor_surface(params: Dictionary, seed: int) -> Node3D:
 	return container
 
 func _render_door_portal(params: Dictionary, seed: int) -> Node3D:
-	var container := Node3D.new()
 	var door_type: int = params.get("door_type", _DoorTypeScript.DoorType.CLOSED_DOOR)
+	var is_open: bool = (door_type == _DoorTypeScript.DoorType.OPEN_PASSAGE)
+	var is_locked: bool = (door_type == _DoorTypeScript.DoorType.LOCKED_DOOR)
 
-	# 1. Arco
-	var arch_node = _render_modular_wall({"piece": _WallMeshConfigScript.PieceType.ARCH}, seed)
-	container.add_child(arch_node)
+	var arch_cfg := _ArchGeometryConfigScript.new()
+	arch_cfg.seed = seed
+	arch_cfg.centered_origin = true
 
-	# 2. Hoja
-	if door_type != _DoorTypeScript.DoorType.OPEN_PASSAGE:
-		var leaf_node = _render_modular_wall({"piece": _WallMeshConfigScript.PieceType.DOOR}, seed)
-		if door_type == _DoorTypeScript.DoorType.LOCKED_DOOR:
-			var lock_mi := MeshInstance3D.new()
-			var box := BoxMesh.new()
-			box.size = Vector3(0.2, 0.25, 0.1)
-			var gold_mat := StandardMaterial3D.new()
-			gold_mat.albedo_color = Color(1.0, 0.8, 0.2)
-			gold_mat.metallic = 0.9
-			gold_mat.roughness = 0.2
-			lock_mi.mesh = box
-			lock_mi.material_override = gold_mat
-			lock_mi.position = Vector3(0.0, 1.2, 0.15)
-			leaf_node.add_child(lock_mi)
-		container.add_child(leaf_node)
+	var door_cfg := _DoorGeometryConfigScript.new()
+	door_cfg.seed = seed
+	door_cfg.centered_origin = true
 
-	return container
+	var portal_asset = _mesh_facade.generate_door_portal(arch_cfg, door_cfg, is_open, is_locked)
+	if portal_asset != null:
+		return portal_asset.to_node3d("DoorPortal")
 
-func _render_stairs(params: Dictionary, _seed: int) -> Node3D:
+	return Node3D.new()
+
+func _render_stairs(params: Dictionary, seed: int) -> Node3D:
 	var container := Node3D.new()
 	var is_downward: bool = params.get("is_downward", false)
 
-	var stair_mesh := MeshInstance3D.new()
-	stair_mesh.name = "Stairs"
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var stair_cfg := _StairGeometryConfigScript.new()
+	stair_cfg.tile_size = 2.0
+	stair_cfg.stair_rise = 1.8
+	stair_cfg.is_downward = is_downward
+	stair_cfg.seed = seed
 
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.35, 0.38, 0.42)
-	mat.roughness = 0.85
-	st.set_material(mat)
+	var gm = _mesh_facade.generate_stairs(stair_cfg)
+	if gm != null:
+		var mi: MeshInstance3D = gm.to_mesh_instance("Stairs")
+		container.add_child(mi)
 
-	var steps: int = 6
-	var step_w: float = 1.8
-	var step_d: float = 2.0 / float(steps)
-	var step_h: float = 2.0 / float(steps)
-
-	for i in range(steps):
-		var y: float = float(steps - 1 - i) * step_h if is_downward else float(i) * step_h
-		var z: float = float(i) * step_d - 1.0
-
-		var p0 := Vector3(-step_w * 0.5, y + step_h, z)
-		var p1 := Vector3(step_w * 0.5, y + step_h, z)
-		var p2 := Vector3(step_w * 0.5, y + step_h, z + step_d)
-		var p3 := Vector3(-step_w * 0.5, y + step_h, z + step_d)
-
-		st.add_vertex(p0)
-		st.add_vertex(p1)
-		st.add_vertex(p2)
-		st.add_vertex(p0)
-		st.add_vertex(p2)
-		st.add_vertex(p3)
-
-	var m := ArrayMesh.new()
-	st.commit(m)
-	stair_mesh.mesh = m
-	container.add_child(stair_mesh)
 	return container
 
 func _render_torch(params: Dictionary, seed: int) -> Node3D:

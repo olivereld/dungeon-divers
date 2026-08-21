@@ -4,7 +4,7 @@ extends RefCounted
 ## Unidad geométrica 3D independiente producida por el generador de geometría.
 ## Encapsula la malla de renderizado, formas de colisión asociadas, bounds y metadatos.
 
-var mesh: ArrayMesh = null
+var mesh: Mesh = null
 var collision_shapes: Array[Shape3D] = []
 var collision_transforms: Array[Transform3D] = []
 var bounds: AABB = AABB()

@@ -8,8 +8,9 @@ extends RefCounted
 
 const _DungeonDoorManifestScript = preload("res://src/dungeon_generator/core/data/dungeon_door_manifest.gd")
 const _RoomEntranceScript = preload("res://src/dungeon_generator/core/data/room_entrance.gd")
-const _WallMeshBuilderScript = preload("res://src/wall_mesh_generator/core/wall_mesh_builder.gd")
-const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall_mesh_config.gd")
+const _DungeonMeshGeneratorScript = preload("res://src/geometry_generator/facade/dungeon_mesh_generator.gd")
+const _ArchGeometryConfigScript = preload("res://src/geometry_generator/config/arch_geometry_config.gd")
+const _DoorGeometryConfigScript = preload("res://src/geometry_generator/config/door_geometry_config.gd")
 const _WallMaterialFactoryScript = preload("res://src/wall_mesh_generator/materials/wall_material_factory.gd")
 const _DungeonDoorEntityScript = preload("res://src/dungeon_generator/presentation/entities/dungeon_door_entity.gd")
 const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
@@ -37,66 +38,39 @@ func spawn_doors(
 	doors_container.name = "Doors"
 	staging_root.add_child(doors_container)
 
-	# Preparar mallas procedurales de arco y puerta si no hay escena personalizada
-	var arch_mesh: ArrayMesh = null
-	var door_leaf_mesh: ArrayMesh = null
+	# Preparar mallas procedurales de arco y puerta desde DungeonMeshGenerator
+	var arch_mesh: Mesh = null
+	var door_leaf_mesh: Mesh = null
 	var door_w: float = 1.06
 	var door_h: float = 2.49
 	var door_th: float = 0.12
 
 	if biome == null or biome.door_scene == null:
-		var builder := _WallMeshBuilderScript.new()
+		var mesh_facade := _DungeonMeshGeneratorScript.new()
 
-		# 1. Malla del Arco de Piedra con materiales PBR por defecto
-		var arch_cfg := _WallMeshConfigScript.new()
-		arch_cfg.piece_type = _WallMeshConfigScript.PieceType.ARCH
-		arch_cfg.centered_origin = true
-		arch_cfg.cube_size = tile_size
-		arch_cfg.cubes_high = maxi(1, wall_height)
+		# 1. Malla del Arco de Piedra
+		var arch_cfg := _ArchGeometryConfigScript.new()
+		arch_cfg.width = tile_size
+		arch_cfg.height = float(wall_height) * tile_size
 		arch_cfg.seed = seed
+		arch_cfg.centered_origin = true
 
-		arch_mesh = builder.build_wall_mesh(arch_cfg)
+		var arch_gm = mesh_facade.generate_arch(arch_cfg)
+		arch_mesh = arch_gm.mesh if arch_gm != null else null
 
-		# 2. Malla de la Hoja de Madera y Aldaba con materiales PBR por defecto
-		door_w = arch_cfg.arch_opening_width - 0.02
-		door_h = arch_cfg.arch_opening_height - 0.01
+		# 2. Malla de la Hoja de Madera y Aldaba
+		door_w = arch_cfg.opening_width - 0.02
+		door_h = arch_cfg.opening_height - 0.01
 
-		var door_cfg := _WallMeshConfigScript.new()
-		door_cfg.piece_type = _WallMeshConfigScript.PieceType.DOOR
-		door_cfg.centered_origin = true
+		var door_cfg := _DoorGeometryConfigScript.new()
 		door_cfg.door_width = door_w
 		door_cfg.door_height = door_h
 		door_cfg.seed = seed
+		door_cfg.centered_origin = true
 		door_th = door_cfg.door_thickness
 
-		door_leaf_mesh = builder.build_wall_mesh(door_cfg)
-
-		# Aplicar materiales PBR robustos con CULL_DISABLED a cada superficie
-		var trim_mat := _WallMaterialFactoryScript.create_trim_material()
-		var panel_mat := _WallMaterialFactoryScript.create_panel_material()
-		var brick_mat := _WallMaterialFactoryScript.create_brick_material()
-		var wood_mat := _WallMaterialFactoryScript.create_wood_material()
-		var iron_mat := _WallMaterialFactoryScript.create_iron_material()
-
-		for s in range(arch_mesh.get_surface_count()):
-			var s_name := arch_mesh.surface_get_name(s)
-			match s_name:
-				"Trims": arch_mesh.surface_set_material(s, trim_mat)
-				"WallPanel": arch_mesh.surface_set_material(s, panel_mat)
-				"Bricks": arch_mesh.surface_set_material(s, brick_mat)
-				_:
-					if s == 0: arch_mesh.surface_set_material(0, trim_mat)
-					elif s == 1: arch_mesh.surface_set_material(1, panel_mat)
-					elif s == 2: arch_mesh.surface_set_material(2, brick_mat)
-
-		for s in range(door_leaf_mesh.get_surface_count()):
-			var s_name := door_leaf_mesh.surface_get_name(s)
-			match s_name:
-				"DoorWood": door_leaf_mesh.surface_set_material(s, wood_mat)
-				"DoorIron": door_leaf_mesh.surface_set_material(s, iron_mat)
-				_:
-					if s == 0: door_leaf_mesh.surface_set_material(0, wood_mat)
-					elif s == 1: door_leaf_mesh.surface_set_material(1, iron_mat)
+		var leaf_gm = mesh_facade.generate_door_leaf(door_cfg)
+		door_leaf_mesh = leaf_gm.mesh if leaf_gm != null else null
 
 	for manifest in door_manifests:
 		if manifest == null:

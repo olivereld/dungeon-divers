@@ -1,4 +1,4 @@
-class_name DoorGeometryBuilder
+# Legacy Door Geometry Builder
 extends RefCounted
 
 ## Generador procedural de geometría 3D para hojas de puerta estilizadas (Fase 9).
