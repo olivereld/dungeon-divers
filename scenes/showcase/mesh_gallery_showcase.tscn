@@ -1,0 +1,178 @@
+[gd_scene format=3 uid="uid://mesh_gallery_showcase_scene"]
+
+[ext_resource type="Script" path="res://scenes/showcase/mesh_gallery_showcase.gd" id="1_gallery"]
+[ext_resource type="PackedScene" path="res://scenes/presentation/camera/isometric_camera_rig.tscn" id="2_camera_rig"]
+
+[sub_resource type="PhysicalSkyMaterial" id="PhysicalSkyMaterial_gallery"]
+turbidity = 0.0
+sun_disk_scale = 0.0
+
+[sub_resource type="Sky" id="Sky_gallery"]
+sky_material = SubResource("PhysicalSkyMaterial_gallery")
+
+[sub_resource type="Environment" id="Environment_gallery"]
+background_mode = 1
+background_color = Color(0.08, 0.1, 0.14, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.7, 0.76, 0.85, 1)
+ambient_light_energy = 1.2
+tonemap_mode = 3
+tonemap_exposure = 1.15
+glow_enabled = true
+glow_intensity = 0.4
+glow_bloom = 0.1
+
+[node name="MeshGalleryShowcase" type="Node3D"]
+script = ExtResource("1_gallery")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_gallery")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 25, 0)
+light_color = Color(1, 0.97, 0.92, 1)
+light_energy = 1.6
+shadow_enabled = true
+
+[node name="FillLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.707107, 0.5, -0.5, 0, 0.707107, 0.707107, 0.707107, 0.5, -0.5, 0, 25, 0)
+light_color = Color(0.65, 0.75, 0.9, 1)
+light_energy = 0.85
+
+[node name="BackLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866025, 0, 25, 0)
+light_color = Color(0.9, 0.85, 0.75, 1)
+light_energy = 0.5
+
+[node name="IsometricCameraRig" parent="." instance=ExtResource("2_camera_rig")]
+default_zoom = 10.0
+
+[node name="GalleryRoot" type="Node3D" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="PanelContainer" type="PanelContainer" parent="UI"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="UI/PanelContainer"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="HBox" type="HBoxContainer" parent="UI/PanelContainer/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="Sidebar" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+mouse_filter = 0
+theme_override_constants/separation = 8
+
+[node name="HeaderLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "🏛️ Galería de Mallas 3D"
+
+[node name="CategoryHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 13
+text = "CATEGORÍAS"
+
+[node name="CategoryList" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HSeparator" type="HSeparator" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+layout_mode = 2
+
+[node name="ItemHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 13
+text = "ELEMENTOS EN EXHIBICIÓN"
+
+[node name="Scroll" type="ScrollContainer" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ItemList" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/Sidebar/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="Spacer" type="Control" parent="UI/PanelContainer/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="InfoPanel" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+mouse_filter = 0
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Nombre del Modelo"
+
+[node name="ScriptLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "Script: src/..."
+
+[node name="StatsLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
+theme_override_font_sizes/font_size = 13
+text = "Geometría: 0 mallas | 0 vértices"
+
+[node name="DescLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 13
+text = "Descripción técnica del elemento..."
+autowrap_mode = 2
+
+[node name="HSeparator2" type="HSeparator" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+layout_mode = 2
+
+[node name="ControlsHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 13
+text = "CONTROLES DE INSPECCIÓN"
+
+[node name="Controls" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RotateCheck" type="CheckBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls"]
+layout_mode = 2
+button_pressed = true
+text = "Rotación Automática 360°"
+
+[node name="SeedHBox" type="HBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls/SeedHBox"]
+layout_mode = 2
+text = "Semilla:"
+
+[node name="SeedSpin" type="SpinBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls/SeedHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 9999999.0
+value = 1337.0
