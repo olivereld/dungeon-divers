@@ -11,7 +11,7 @@ func _run_test() -> void:
 	print("==================================================================")
 
 	var builder = TorchGeometryBuilderScript.new()
-	var fixture_asset = builder.build_torch_fixture(0.42, 1.0)
+	var fixture_asset = builder.build_torch_fixture(1.0, 1.0)
 	assert(fixture_asset != null, "FAIL: Fixture asset must not be null")
 	assert(fixture_asset.has_slot(&"bracket"), "FAIL: Fixture must have bracket slot")
 	assert(fixture_asset.has_slot(&"flame"), "FAIL: Fixture must have flame slot")
