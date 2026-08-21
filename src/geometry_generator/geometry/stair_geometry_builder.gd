@@ -92,20 +92,34 @@ func build_stair_mesh(config = null):
 		# Pared trasera
 		_add_quad_direct(st_panel, Vector3(half_w, y_top_trim, end_z), Vector3(-half_w, y_top_trim, end_z), Vector3(-half_w, stair_rise, end_z), Vector3(half_w, stair_rise, end_z))
 
-		# 4. Ladrillos en relieve laterales
+		# 4. Ladrillos en relieve laterales (calculados dentro de la rampa triangular real)
 		if config.side_bricks_enabled:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = config.seed
 			var bw: float = 0.22; var bh: float = 0.11; var bz: float = 0.045
-			var side_slots: Array[Vector2] = [Vector2(0.20, 0.45), Vector2(0.35, 0.35), Vector2(0.50, 0.65), Vector2(0.70, 0.55), Vector2(0.80, 0.25), Vector2(0.85, 0.75)]
+			var side_slots: Array[Vector2] = [
+				Vector2(0.20, 0.35),
+				Vector2(0.40, 0.40),
+				Vector2(0.60, 0.55),
+				Vector2(0.75, 0.30),
+				Vector2(0.85, 0.70)
+			]
 			for side in [-1, 1]:
 				var x_pos: float = (-half_tot_w - (bz * 0.5)) if side == -1 else (half_tot_w + (bz * 0.5))
 				for slot in side_slots:
 					if rng.randf() <= config.side_brick_density:
-						var b_z: float = lerpf(start_z + 0.15, end_z - 0.15, slot.x) + rng.randf_range(-0.02, 0.02)
-						var b_y: float = lerpf(y_top_trim + 0.06, (stair_rise + stringer_h) - 0.06, slot.y) + rng.randf_range(-0.01, 0.01)
-						var t_brick := Transform3D(Basis(), Vector3(x_pos, b_y, b_z))
-						_append_pillowed_brick(st_bricks, Vector3(bz, bh, bw), t_brick, 0.015)
+						var b_z: float = lerpf(start_z + 0.20, end_z - 0.20, slot.x) + rng.randf_range(-0.02, 0.02)
+						var t_z: float = clampf((b_z - start_z) / total_depth, 0.0, 1.0)
+						var ramp_top_y: float = lerpf(y_top_trim + stringer_h, stair_rise + stringer_h, t_z)
+						var ramp_bot_y: float = y_top_trim
+
+						var safe_max_y: float = ramp_top_y - (bh * 0.5 + 0.10)
+						var safe_min_y: float = ramp_bot_y + (bh * 0.5 + 0.05)
+
+						if safe_max_y > safe_min_y:
+							var b_y: float = lerpf(safe_min_y, safe_max_y, slot.y)
+							var t_brick := Transform3D(Basis(), Vector3(x_pos, b_y, b_z))
+							_append_pillowed_brick(st_bricks, Vector3(bz, bh, bw), t_brick, 0.015)
 
 		# Colisiones UP
 		for i in range(num_steps):
@@ -181,15 +195,21 @@ func build_stair_mesh(config = null):
 			var rng := RandomNumberGenerator.new()
 			rng.seed = config.seed
 			var bw: float = 0.20; var bh: float = 0.10; var bz: float = 0.035
-			var side_slots: Array[Vector2] = [Vector2(0.25, 0.3), Vector2(0.50, 0.6), Vector2(0.75, 0.4), Vector2(0.85, 0.8)]
+			var side_slots: Array[Vector2] = [Vector2(0.25, 0.4), Vector2(0.50, 0.5), Vector2(0.75, 0.4), Vector2(0.85, 0.6)]
 			for side in [-1, 1]:
 				var x_pos: float = (-half_w + (bz * 0.5)) if side == -1 else (half_w - (bz * 0.5))
 				for slot in side_slots:
 					if rng.randf() <= config.side_brick_density:
-						var b_z: float = lerpf(start_z + 0.15, end_z - 0.15, slot.x)
-						var b_y: float = lerpf(-0.15, -stair_rise + 0.20, slot.y)
-						var t_brick := Transform3D(Basis(), Vector3(x_pos, b_y, b_z))
-						_append_pillowed_brick(st_bricks, Vector3(bz, bh, bw), t_brick, 0.012)
+						var b_z: float = lerpf(start_z + 0.20, end_z - 0.20, slot.x)
+						var t_z: float = clampf((b_z - start_z) / total_depth, 0.0, 1.0)
+						var step_y: float = -t_z * stair_rise
+						var safe_min_y: float = step_y + (bh * 0.5 + 0.08)
+						var safe_max_y: float = -(bh * 0.5 + 0.04)
+
+						if safe_max_y > safe_min_y:
+							var b_y: float = lerpf(safe_min_y, safe_max_y, slot.y)
+							var t_brick := Transform3D(Basis(), Vector3(x_pos, b_y, b_z))
+							_append_pillowed_brick(st_bricks, Vector3(bz, bh, bw), t_brick, 0.012)
 
 		# Colisiones DOWN (Cajas escalonadas hacia abajo + caja base inferior)
 		for i in range(num_steps):

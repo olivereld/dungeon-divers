@@ -1,14 +1,7 @@
-[gd_scene format=3 uid="uid://mesh_gallery_showcase_scene"]
+[gd_scene format=3 uid="uid://7bn6de8qmhhw"]
 
-[ext_resource type="Script" path="res://scenes/showcase/mesh_gallery_showcase.gd" id="1_gallery"]
+[ext_resource type="Script" uid="uid://ckx8rj1nc0227" path="res://scenes/showcase/mesh_gallery_showcase.gd" id="1_gallery"]
 [ext_resource type="PackedScene" path="res://scenes/presentation/camera/isometric_camera_rig.tscn" id="2_camera_rig"]
-
-[sub_resource type="PhysicalSkyMaterial" id="PhysicalSkyMaterial_gallery"]
-turbidity = 0.0
-sun_disk_scale = 0.0
-
-[sub_resource type="Sky" id="Sky_gallery"]
-sky_material = SubResource("PhysicalSkyMaterial_gallery")
 
 [sub_resource type="Environment" id="Environment_gallery"]
 background_mode = 1
@@ -37,50 +30,52 @@ transparency = 1
 cull_mode = 2
 shading_mode = 0
 albedo_color = Color(0.2, 0.8, 1, 0.15)
-wireframe = true
 
-[node name="MeshGalleryShowcase" type="Node3D"]
+[node name="MeshGalleryShowcase" type="Node3D" unique_id=133483316]
 script = ExtResource("1_gallery")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1762798112]
 environment = SubResource("Environment_gallery")
 
-[node name="KeyLight" type="DirectionalLight3D" parent="."]
+[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=1683848650]
 transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 25, 0)
 light_color = Color(1, 0.97, 0.92, 1)
 light_energy = 1.6
 shadow_enabled = true
 
-[node name="FillLight" type="DirectionalLight3D" parent="."]
+[node name="FillLight" type="DirectionalLight3D" parent="." unique_id=1527796258]
 transform = Transform3D(-0.707107, 0.5, -0.5, 0, 0.707107, 0.707107, 0.707107, 0.5, -0.5, 0, 25, 0)
 light_color = Color(0.65, 0.75, 0.9, 1)
 light_energy = 0.85
 
-[node name="BackLight" type="DirectionalLight3D" parent="."]
+[node name="BackLight" type="DirectionalLight3D" parent="." unique_id=432854207]
 transform = Transform3D(0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866025, 0, 25, 0)
 light_color = Color(0.9, 0.85, 0.75, 1)
 light_energy = 0.5
 
-[node name="IsometricCameraRig" parent="." instance=ExtResource("2_camera_rig")]
-default_zoom = 8.0
+[node name="IsometricCameraRig" parent="." unique_id=1665956772 instance=ExtResource("2_camera_rig")]
+default_zoom = 5.5
+zoom_min = 1.0
+zoom_max = 60.0
+zoom_step = 0.8
 
-[node name="GalleryRoot" type="Node3D" parent="."]
+[node name="GalleryRoot" type="Node3D" parent="." unique_id=20243288]
 
-[node name="ActivePreview" type="Node3D" parent="GalleryRoot"]
+[node name="ActivePreview" type="Node3D" parent="GalleryRoot" unique_id=1271939698]
 
-[node name="BasePedestal" type="MeshInstance3D" parent="GalleryRoot/ActivePreview"]
+[node name="BasePedestal" type="MeshInstance3D" parent="GalleryRoot/ActivePreview" unique_id=819539887]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.15, 0)
 mesh = SubResource("CylinderMesh_pedestal")
 
-[node name="PropAnchor" type="Node3D" parent="GalleryRoot/ActivePreview"]
+[node name="PropAnchor" type="Node3D" parent="GalleryRoot/ActivePreview" unique_id=397083845]
 
-[node name="DebugBounds" type="MeshInstance3D" parent="GalleryRoot/ActivePreview"]
+[node name="DebugBounds" type="MeshInstance3D" parent="GalleryRoot/ActivePreview" unique_id=1359150520]
 visible = false
 material_override = SubResource("StandardMaterial3D_bounds")
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=923134749]
 
-[node name="PanelContainer" type="PanelContainer" parent="UI"]
+[node name="PanelContainer" type="PanelContainer" parent="UI" unique_id=1889835347]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -88,7 +83,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Margin" type="MarginContainer" parent="UI/PanelContainer"]
+[node name="Margin" type="MarginContainer" parent="UI/PanelContainer" unique_id=1499333978]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 16
@@ -96,140 +91,159 @@ theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 
-[node name="HBox" type="HBoxContainer" parent="UI/PanelContainer/Margin"]
+[node name="HBox" type="HBoxContainer" parent="UI/PanelContainer/Margin" unique_id=1200992842]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 16
 
-[node name="Sidebar" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox"]
+[node name="Sidebar" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox" unique_id=2013203095]
 custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
+size_flags_vertical = 3
 mouse_filter = 0
 theme_override_constants/separation = 8
 
-[node name="HeaderLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+[node name="HeaderLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar" unique_id=1746928529]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "🏛️ Mesh Generation Lab"
 
-[node name="CategoryHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+[node name="CategoryHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar" unique_id=52151453]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_font_sizes/font_size = 13
 text = "CATEGORÍAS"
 
-[node name="CategoryList" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+[node name="CategoryList" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/Sidebar" unique_id=1201114257]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="HSeparator" type="HSeparator" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+[node name="HSeparator" type="HSeparator" parent="UI/PanelContainer/Margin/HBox/Sidebar" unique_id=1310285441]
 layout_mode = 2
 
-[node name="ItemHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+[node name="ItemHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/Sidebar" unique_id=2141090008]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_font_sizes/font_size = 13
-text = "ELEMENTOS EN EXHIBICIÓN"
+text = "OBJETOS DISPONIBLES"
 
-[node name="Scroll" type="ScrollContainer" parent="UI/PanelContainer/Margin/HBox/Sidebar"]
+[node name="Scroll" type="ScrollContainer" parent="UI/PanelContainer/Margin/HBox/Sidebar" unique_id=1892012489]
+custom_minimum_size = Vector2(280, 220)
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
 
-[node name="ItemList" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/Sidebar/Scroll"]
+[node name="ItemList" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/Sidebar/Scroll" unique_id=1852428904]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="Spacer" type="Control" parent="UI/PanelContainer/Margin/HBox"]
+[node name="Spacer" type="Control" parent="UI/PanelContainer/Margin/HBox" unique_id=1011932349]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="InfoPanel" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox"]
+[node name="InfoPanel" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox" unique_id=1645184389]
 custom_minimum_size = Vector2(380, 0)
 layout_mode = 2
 mouse_filter = 0
 theme_override_constants/separation = 10
 
-[node name="TitleLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+[node name="TitleLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=176786064]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "Nombre del Modelo"
 
-[node name="ScriptLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+[node name="ScriptLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=230797924]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
 theme_override_font_sizes/font_size = 12
 text = "Script: src/..."
 
-[node name="StatsLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+[node name="StatsLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=277782895]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
 theme_override_font_sizes/font_size = 13
 text = "Mallas: 0 | Superficies: 0 | Vértices: 0 | Triángulos: 0"
 
-[node name="BoundsLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+[node name="BoundsLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=1874960156]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.85, 0.85, 1)
 theme_override_font_sizes/font_size = 12
 text = "Dimensiones: 0 × 0 × 0 m"
 
-[node name="DescLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+[node name="DescLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=1699912321]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
 theme_override_font_sizes/font_size = 13
 text = "Descripción técnica del elemento..."
 autowrap_mode = 2
 
-[node name="HSeparator2" type="HSeparator" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+[node name="VariantSection" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=1988223344]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="VariantLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel/VariantSection" unique_id=1988223345]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+text = "VARIANTE / CONFIGURACIÓN:"
+
+[node name="VariantDropdown" type="OptionButton" parent="UI/PanelContainer/Margin/HBox/InfoPanel/VariantSection" unique_id=1988223346]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator2" type="HSeparator" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=1726730349]
 layout_mode = 2
 
-[node name="ControlsHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+[node name="ControlsHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=1330164621]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_font_sizes/font_size = 13
 text = "CONTROLES DE INSPECCIÓN"
 
-[node name="Controls" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+[node name="Controls" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=1254879671]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="RotateCheck" type="CheckBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls"]
+[node name="RotateCheck" type="CheckBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls" unique_id=1382501194]
 layout_mode = 2
 button_pressed = true
 text = "Rotación Automática 360°"
 
-[node name="WireframeCheck" type="CheckBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls"]
+[node name="WireframeCheck" type="CheckBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls" unique_id=819976024]
 layout_mode = 2
 text = "Modo Wireframe"
 
-[node name="BoundsCheck" type="CheckBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls"]
+[node name="BoundsCheck" type="CheckBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls" unique_id=2137859672]
 layout_mode = 2
 text = "Visualizar Bounds (AABB)"
 
-[node name="SeedHBox" type="HBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls"]
+[node name="SeedHBox" type="HBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls" unique_id=1768100176]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls/SeedHBox"]
+[node name="Label" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls/SeedHBox" unique_id=686831822]
 layout_mode = 2
 text = "Semilla:"
 
-[node name="SeedSpin" type="SpinBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls/SeedHBox"]
+[node name="SeedSpin" type="SpinBox" parent="UI/PanelContainer/Margin/HBox/InfoPanel/Controls/SeedHBox" unique_id=445318491]
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 9999999.0
 value = 1337.0
 
-[node name="ClusterSection" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel"]
+[node name="ClusterSection" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=1733612209]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="ClusterHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ClusterSection"]
+[node name="ClusterHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ClusterSection" unique_id=1561528498]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.7, 0.4, 1)
 theme_override_font_sizes/font_size = 13
 text = "CLUSTERS DE GEOMETRÍA"
 
-[node name="ClusterList" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ClusterSection"]
+[node name="ClusterList" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ClusterSection" unique_id=1019527258]
 layout_mode = 2
 theme_override_constants/separation = 2

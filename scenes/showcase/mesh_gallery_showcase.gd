@@ -4,6 +4,7 @@ extends Node3D
 ## Mesh Generation Lab (Showcase & Geometry Inspection Studio).
 ## Escena de depuración y análisis para examinar de forma aislada e interactiva
 ## los modelos 3D y clusters procedurales generados por el motor del Dungeon.
+## Soporta scroll vertical en la lista izquierda y selector de variantes a la derecha.
 
 const _CatalogScript = preload("res://src/presentation/showcase/mesh_gallery_catalog.gd")
 const _RendererScript = preload("res://src/presentation/showcase/mesh_gallery_renderer.gd")
@@ -24,6 +25,10 @@ const _EntryScript = preload("res://src/presentation/showcase/mesh_gallery_entry
 @onready var ui_stats_label: Label = $UI/PanelContainer/Margin/HBox/InfoPanel/StatsLabel
 @onready var ui_bounds_label: Label = $UI/PanelContainer/Margin/HBox/InfoPanel/BoundsLabel
 @onready var ui_desc_label: Label = $UI/PanelContainer/Margin/HBox/InfoPanel/DescLabel
+
+@onready var ui_variant_section: VBoxContainer = $UI/PanelContainer/Margin/HBox/InfoPanel/VariantSection
+@onready var ui_variant_dropdown: OptionButton = $UI/PanelContainer/Margin/HBox/InfoPanel/VariantSection/VariantDropdown
+
 @onready var ui_rotate_check: CheckBox = $UI/PanelContainer/Margin/HBox/InfoPanel/Controls/RotateCheck
 @onready var ui_wireframe_check: CheckBox = $UI/PanelContainer/Margin/HBox/InfoPanel/Controls/WireframeCheck
 @onready var ui_bounds_check: CheckBox = $UI/PanelContainer/Margin/HBox/InfoPanel/Controls/BoundsCheck
@@ -34,37 +39,52 @@ const _EntryScript = preload("res://src/presentation/showcase/mesh_gallery_entry
 var _catalog: MeshGalleryCatalog = null
 var _renderer: MeshGalleryRenderer = null
 var _current_category_idx: int = 0
-var _current_item_idx: int = 0
+var _current_group_idx: int = 0
+var _current_variant_idx: int = 0
+var _current_groups: Array[Dictionary] = []
 var _current_entry: MeshGalleryEntry = null
 var _current_seed: int = 1337
 var _auto_rotate: bool = true
 var _rotation_speed: float = 0.8
 var _is_wireframe: bool = false
 var _show_bounds: bool = false
+var _is_dragging: bool = false
+var _mouse_drag_sensitivity: float = 0.008
 
 func _ready() -> void:
 	_catalog = _CatalogScript.new()
 	_renderer = _RendererScript.new()
 
-	_build_category_buttons()
 	_setup_controls()
+	_build_category_buttons()
 	_select_category(0)
 
 func _process(delta: float) -> void:
-	if _auto_rotate and prop_anchor != null:
+	if _auto_rotate and not _is_dragging and prop_anchor != null:
 		prop_anchor.rotation.y += _rotation_speed * delta
 
-func _input(event: InputEvent) -> void:
+	# Rotación manual por teclado con Q / E
+	if Input.is_key_pressed(KEY_Q) and prop_anchor != null:
+		prop_anchor.rotation.y -= 2.0 * delta
+	elif Input.is_key_pressed(KEY_E) and prop_anchor != null:
+		prop_anchor.rotation.y += 2.0 * delta
+
+func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			if camera_rig != null and camera_rig.has_method("zoom_in"):
-				camera_rig.zoom_in(2.0)
+				camera_rig.zoom_in(1.0)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			if camera_rig != null and camera_rig.has_method("zoom_out"):
-				camera_rig.zoom_out(2.0)
+				camera_rig.zoom_out(1.0)
+		elif event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE]:
+			_is_dragging = event.pressed
+	elif event is InputEventMouseMotion and _is_dragging:
+		if prop_anchor != null:
+			prop_anchor.rotation.y += event.relative.x * _mouse_drag_sensitivity
 
 # ==============================================================================
-# UI & NAVEGACIÓN
+# UI & NAVEGACIÓN JERÁRQUICA (CATEGORÍAS -> OBJETOS -> VARIANTES)
 # ==============================================================================
 
 func _build_category_buttons() -> void:
@@ -86,44 +106,70 @@ func _on_category_button_pressed(idx: int) -> void:
 
 func _select_category(idx: int) -> void:
 	_current_category_idx = idx
-	_build_item_buttons()
-	_select_item(0)
+	var categories = _catalog.get_categories()
+	if idx >= categories.size():
+		return
 
-func _build_item_buttons() -> void:
+	var cat_id: StringName = categories[idx].id
+	_current_groups = _catalog.get_grouped_entries_for_category(cat_id)
+	_build_group_buttons()
+	_select_group(0)
+
+func _build_group_buttons() -> void:
 	for child in ui_item_list.get_children():
 		child.queue_free()
 
-	var categories = _catalog.get_categories()
-	if _current_category_idx >= categories.size():
-		return
-
-	var cat = categories[_current_category_idx]
-	var entries: Array = cat.entries
-
-	for i in range(entries.size()):
-		var entry: MeshGalleryEntry = entries[i]
+	for i in range(_current_groups.size()):
+		var g_dict: Dictionary = _current_groups[i]
+		var v_count: int = (g_dict.variants as Array).size()
 		var btn := Button.new()
-		btn.text = "• " + entry.name
+		var badge: String = " (%d)" % v_count if v_count > 1 else ""
+		btn.text = "• " + str(g_dict.group_name) + badge
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.custom_minimum_size = Vector2(0, 32)
-		btn.pressed.connect(_on_item_button_pressed.bind(i))
+		btn.clip_text = true
+		btn.pressed.connect(_on_group_button_pressed.bind(i))
 		ui_item_list.add_child(btn)
 
-func _on_item_button_pressed(idx: int) -> void:
-	_select_item(idx)
+func _on_group_button_pressed(idx: int) -> void:
+	_select_group(idx)
 
-func _select_item(idx: int) -> void:
-	_current_item_idx = idx
-	var categories = _catalog.get_categories()
-	if _current_category_idx >= categories.size():
+func _select_group(idx: int) -> void:
+	_current_group_idx = idx
+	if idx >= _current_groups.size():
 		return
 
-	var cat = categories[_current_category_idx]
-	var entries: Array = cat.entries
-	if idx >= entries.size():
+	var g_dict: Dictionary = _current_groups[idx]
+	var variants: Array = g_dict.variants
+
+	# Poblar dropdown de variantes
+	_populate_variant_dropdown(variants)
+	_select_variant(0)
+
+func _populate_variant_dropdown(variants: Array) -> void:
+	ui_variant_dropdown.clear()
+	for i in range(variants.size()):
+		var v_entry: MeshGalleryEntry = variants[i]
+		ui_variant_dropdown.add_item("%d. %s" % [i + 1, v_entry.variant_name], i)
+
+	ui_variant_dropdown.selected = 0
+	# Si solo hay 1 variante, se muestra deshabilitado o con estilo discreto
+	ui_variant_section.visible = (variants.size() > 0)
+
+func _on_variant_dropdown_selected(idx: int) -> void:
+	_select_variant(idx)
+
+func _select_variant(idx: int) -> void:
+	_current_variant_idx = idx
+	if _current_group_idx >= _current_groups.size():
 		return
 
-	_current_entry = entries[idx]
+	var g_dict: Dictionary = _current_groups[_current_group_idx]
+	var variants: Array = g_dict.variants
+	if idx >= variants.size():
+		return
+
+	_current_entry = variants[idx]
 
 	ui_title_label.text = _current_entry.name
 	ui_script_label.text = "Script: " + _current_entry.script_path
@@ -216,20 +262,14 @@ func _update_debug_bounds(aabb: AABB) -> void:
 	debug_bounds_mesh.position = aabb.position + aabb.size * 0.5
 
 func _apply_wireframe_mode() -> void:
-	if prop_anchor == null:
-		return
-
-	var mesh_instances = prop_anchor.find_children("*", "MeshInstance3D", true, false)
-	for mi in mesh_instances:
-		if mi.material_override != null and mi.material_override is StandardMaterial3D:
-			(mi.material_override as StandardMaterial3D).wireframe = _is_wireframe
-		elif mi.mesh != null:
-			for s in range(mi.mesh.get_surface_count()):
-				var mat = mi.mesh.surface_get_material(s)
-				if mat != null and mat is StandardMaterial3D:
-					(mat as StandardMaterial3D).wireframe = _is_wireframe
+	var vp := get_viewport()
+	if vp != null:
+		vp.debug_draw = Viewport.DEBUG_DRAW_WIREFRAME if _is_wireframe else Viewport.DEBUG_DRAW_DISABLED
 
 func _setup_controls() -> void:
+	if ui_variant_dropdown != null:
+		ui_variant_dropdown.item_selected.connect(_on_variant_dropdown_selected)
+
 	if ui_rotate_check != null:
 		ui_rotate_check.toggled.connect(func(val: bool): _auto_rotate = val)
 	if ui_wireframe_check != null:

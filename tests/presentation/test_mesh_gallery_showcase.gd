@@ -19,14 +19,14 @@ func _run_test() -> void:
 
 	await process_frame
 
-	assert(showcase != null, "FAIL: MeshGalleryShowcase should instantiate cleanly")
-	assert(showcase._categories.size() >= 5, "FAIL: Should have at least 5 categories configured")
+	var categories = showcase._catalog.get_categories()
+	assert(categories.size() >= 5, "FAIL: Should have at least 5 categories configured")
 
-	# Probar cambio de categorías de 0 a 5
-	for i in range(showcase._categories.size()):
+	# Probar cambio de categorías y renderizado
+	for i in range(categories.size()):
 		showcase._select_category(i)
 		await process_frame
-		assert(showcase._spawned_pedestals.size() > 0, "FAIL: Pedestals should be spawned for category %d" % i)
+		assert(showcase.prop_anchor.get_child_count() > 0, "FAIL: Prop should be spawned for category %d" % i)
 
 	root.free()
 

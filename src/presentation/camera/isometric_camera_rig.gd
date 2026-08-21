@@ -53,9 +53,9 @@ var _target_zoom: float = 24.0
 
 @export_group("Orthogonal Zoom")
 @export var default_zoom: float = 24.0
-@export var zoom_min: float = 8.0
-@export var zoom_max: float = 48.0
-@export var zoom_step: float = 2.0
+@export var zoom_min: float = 1.0
+@export var zoom_max: float = 60.0
+@export var zoom_step: float = 1.0
 @export var zoom_smoothing: float = 12.0
 
 @export_group("Occlusion & Wall Fade")
