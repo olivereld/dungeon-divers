@@ -29,8 +29,15 @@ static func calculate_node_metrics(root: Node3D) -> MetricsData:
 	if root == null:
 		return data
 
-	var mesh_instances = root.find_children("*", "MeshInstance3D", true, false)
-	var collision_shapes = root.find_children("*", "CollisionShape3D", true, false)
+	var mesh_instances: Array[Node] = []
+	if root is MeshInstance3D:
+		mesh_instances.append(root)
+	mesh_instances.append_array(root.find_children("*", "MeshInstance3D", true, false))
+
+	var collision_shapes: Array[Node] = []
+	if root is CollisionShape3D:
+		collision_shapes.append(root)
+	collision_shapes.append_array(root.find_children("*", "CollisionShape3D", true, false))
 	data.collision_shape_count = collision_shapes.size()
 
 	var first_point := true

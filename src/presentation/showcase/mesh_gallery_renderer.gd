@@ -161,6 +161,9 @@ func _render_continuous_wall(params: Dictionary, seed: int) -> Node3D:
 	return container
 
 func _render_modular_wall(params: Dictionary, seed: int) -> Node3D:
+	var container := Node3D.new()
+	container.name = "ModularWallGroup"
+
 	var builder := _WallMeshBuilderScript.new()
 	var cfg := _WallMeshConfigScript.new()
 	cfg.piece_type = params.get("piece", _WallMeshConfigScript.PieceType.WALL)
@@ -173,7 +176,8 @@ func _render_modular_wall(params: Dictionary, seed: int) -> Node3D:
 	var mi := MeshInstance3D.new()
 	mi.name = "ModularPieceMesh"
 	mi.mesh = mesh
-	return mi
+	container.add_child(mi)
+	return container
 
 func _render_floor_surface(params: Dictionary, seed: int) -> Node3D:
 	var cfg := _FloorTileConfigScript.new()
