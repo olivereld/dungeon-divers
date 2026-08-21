@@ -20,7 +20,6 @@ const _RoomEntranceScript = preload("res://src/dungeon_generator/core/data/room_
 # Generadores de Piezas Modulares y Suelos
 const _WallMeshBuilderScript = preload("res://src/wall_mesh_generator/core/wall_mesh_builder.gd")
 const _WallMeshConfigScript = preload("res://src/wall_mesh_generator/config/wall_mesh_config.gd")
-const _FloorSurfaceMeshBuilderScript = preload("res://src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd")
 const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
 const _DungeonFloorGeneratorScript = preload("res://src/floor_tile_generator/facade/dungeon_floor_generator.gd")
 
@@ -141,13 +140,23 @@ func _render_continuous_wall(params: Dictionary, seed: int) -> Node3D:
 		floor_cfg.tile_size = 2.0
 		floor_cfg.seed = seed
 		var floor_res = floor_gen.generate_floor_surface(grid, floor_cfg, seed)
-		var floor_builder := _FloorSurfaceMeshBuilderScript.new()
-		var floor_mesh = floor_builder.build_floor_mesh(floor_res, floor_cfg, null)
-		var floor_inst := MeshInstance3D.new()
-		floor_inst.name = "FloorBase"
-		floor_inst.mesh = floor_mesh
-		floor_inst.position = Vector3(-float(grid_w) * 1.0, 0.0, -float(grid_h) * 1.0)
-		container.add_child(floor_inst)
+
+		var floor_container := Node3D.new()
+		floor_container.name = "Floor"
+		container.add_child(floor_container)
+
+		var floor_clusters := Node3D.new()
+		floor_clusters.name = "FloorClusters"
+		floor_container.add_child(floor_clusters)
+
+		for i in range(floor_res.clusters.size()):
+			var cluster = floor_res.clusters[i]
+			if cluster.mesh != null:
+				var floor_inst := MeshInstance3D.new()
+				floor_inst.name = "FloorCluster_%02d" % i
+				floor_inst.mesh = cluster.mesh
+				floor_inst.position = Vector3(-float(grid_w) * 1.0, 0.0, -float(grid_h) * 1.0)
+				floor_clusters.add_child(floor_inst)
 
 	return container
 
@@ -167,7 +176,6 @@ func _render_modular_wall(params: Dictionary, seed: int) -> Node3D:
 	return mi
 
 func _render_floor_surface(params: Dictionary, seed: int) -> Node3D:
-	var builder := _FloorSurfaceMeshBuilderScript.new()
 	var cfg := _FloorTileConfigScript.new()
 	cfg.pattern = params.get("pattern", _FloorTileConfigScript.PatternType.STYLIZED_STONE)
 	cfg.tile_size = 2.0
@@ -176,6 +184,8 @@ func _render_floor_surface(params: Dictionary, seed: int) -> Node3D:
 	cfg.seed = seed
 
 	var container := Node3D.new()
+	container.name = "FloorGroup"
+
 	var grid := _CellGridScript.new(3, 3)
 	for x in range(3):
 		for y in range(3):
@@ -183,13 +193,20 @@ func _render_floor_surface(params: Dictionary, seed: int) -> Node3D:
 
 	var floor_gen := _DungeonFloorGeneratorScript.new()
 	var floor_res = floor_gen.generate_floor_surface(grid, cfg, seed)
-	var mesh = builder.build_floor_mesh(floor_res, cfg, null)
 
-	var mi := MeshInstance3D.new()
-	mi.name = "FloorMesh"
-	mi.mesh = mesh
-	mi.position = Vector3(-3.0, 0.0, -3.0)
-	container.add_child(mi)
+	var clusters_container := Node3D.new()
+	clusters_container.name = "Clusters"
+	container.add_child(clusters_container)
+
+	for i in range(floor_res.clusters.size()):
+		var cluster = floor_res.clusters[i]
+		if cluster.mesh != null:
+			var mi := MeshInstance3D.new()
+			mi.name = "FloorCluster_%02d" % i
+			mi.mesh = cluster.mesh
+			mi.position = Vector3(-3.0, 0.0, -3.0)
+			clusters_container.add_child(mi)
+
 	return container
 
 func _render_door_portal(params: Dictionary, seed: int) -> Node3D:
