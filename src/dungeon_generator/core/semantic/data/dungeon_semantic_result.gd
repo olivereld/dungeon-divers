@@ -54,6 +54,21 @@ func get_room_purpose_name(room_id: int) -> String:
 	var purpose_id: int = get_room_purpose(room_id)
 	return _RoomPurposeScript.to_name(purpose_id as _RoomPurposeScript.Type)
 
+func get_purpose_distribution() -> Dictionary:
+	var dist: Dictionary = {}
+	for r_id in room_purposes:
+		var p: int = int(room_purposes[r_id])
+		dist[p] = int(dist.get(p, 0)) + 1
+	return dist
+
+func get_rooms_by_purpose(purpose_id: int) -> Array[int]:
+	var result: Array[int] = []
+	for r_id in room_purposes:
+		if int(room_purposes[r_id]) == purpose_id:
+			result.append(int(r_id))
+	result.sort()
+	return result
+
 func get_key_by_id(key_id: int) -> KeyData:
 	for k in keys:
 		if k.key_id == key_id:
@@ -84,6 +99,7 @@ func to_debug_string() -> String:
 	var s := "=== DUNGEON SEMANTIC RESULT (BaseSeed: %d, Attempt: %d, Valid: %s) ===\n" % [
 		base_seed, attempt, str(gameplay_valid)
 	]
+	s += "Archetype: %s (ID: %d)\n" % [dungeon_archetype_name, dungeon_archetype]
 	s += "Start Room: %d, Boss Room: %d\n" % [start_room_id, boss_room_id]
 	s += "Critical Path Rooms (%d): %s\n" % [critical_path_rooms.size(), str(critical_path_rooms)]
 	s += "Critical Path Conns (%d): %s\n" % [critical_path_connections.size(), str(critical_path_connections)]
@@ -91,6 +107,21 @@ func to_debug_string() -> String:
 	s += "Keys (%d): %s\n" % [keys.size(), str(keys.map(func(k): return k.to_debug_string()))]
 	s += "Locks (%d): %s\n" % [locks.size(), str(locks.map(func(l): return l.to_debug_string()))]
 	s += "Objectives (%d): %s\n" % [objectives.size(), str(objectives.map(func(o): return o.to_debug_string()))]
+
+	if not room_purposes.is_empty():
+		s += "\n--- Room Purposes Mapping (%d Rooms) ---\n" % room_purposes.size()
+		var sorted_room_ids: Array = room_purposes.keys()
+		sorted_room_ids.sort()
+		for r_id in sorted_room_ids:
+			var p_name: String = get_room_purpose_name(int(r_id))
+			s += "  Room %d -> %s\n" % [int(r_id), p_name]
+
+		s += "\n--- Purpose Distribution Summary ---\n"
+		var dist: Dictionary = get_purpose_distribution()
+		for p_type in dist:
+			var p_name: String = _RoomPurposeScript.to_name(int(p_type) as _RoomPurposeScript.Type)
+			s += "  %s: %d\n" % [p_name, int(dist[p_type])]
+
 	if not gameplay_diagnostics.is_empty():
-		s += "Diagnostics: %s\n" % JSON.stringify(gameplay_diagnostics)
+		s += "\nDiagnostics: %s\n" % JSON.stringify(gameplay_diagnostics)
 	return s
