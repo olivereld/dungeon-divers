@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Resolutor espacial puro de fixtures arquitectónicos por habitación.
 ## Delega el descubrimiento físico a FixtureAnchorResolver y aplica paletas, restricciones
-## y selección determinista para generar FixtureDirectives en los 4 modos (WALL, FLOOR, SURFACE, HANGING).
+## y selección determinista ponderada para generar FixtureDirectives en los 4 modos (WALL, FLOOR, SURFACE, HANGING).
 ## 100% puro: no crea nodos de escena ni muta CellGrid.
 
 const _FixtureDirectiveScript = preload("res://src/presentation/fixtures/fixture_directive.gd")
@@ -26,7 +26,7 @@ func resolve_room_fixtures(
 	tile_size: float = 2.0
 ) -> Array: # Array[FixtureDirective]
 	var directives: Array = []
-	if room_context == null or partition == null or palette == null or palette.fixtures.is_empty():
+	if room_context == null or partition == null or palette == null or palette.entries.is_empty():
 		return directives
 
 	var r_id: int = room_context.room_id
@@ -35,27 +35,27 @@ func resolve_room_fixtures(
 		return directives
 
 	# 1. Resolver fixtures de pared (WALL)
-	var wall_styles = palette.get_fixtures_by_placement(_FixturePlacementModeScript.Mode.WALL)
-	if not wall_styles.is_empty():
-		var wall_dirs = _resolve_wall_fixtures(r_id, r_geom, wall_styles, palette, master_seed, tile_size)
+	var wall_entries = palette.get_entries_for_placement(_FixturePlacementModeScript.Mode.WALL)
+	if not wall_entries.is_empty():
+		var wall_dirs = _resolve_wall_fixtures(r_id, r_geom, palette, master_seed, tile_size)
 		directives.append_array(wall_dirs)
 
 	# 2. Resolver fixtures de suelo (FLOOR)
-	var floor_styles = palette.get_fixtures_by_placement(_FixturePlacementModeScript.Mode.FLOOR)
-	if not floor_styles.is_empty():
-		var floor_dirs = _resolve_floor_fixtures(r_id, r_geom, floor_styles, palette, master_seed, tile_size)
+	var floor_entries = palette.get_entries_for_placement(_FixturePlacementModeScript.Mode.FLOOR)
+	if not floor_entries.is_empty():
+		var floor_dirs = _resolve_floor_fixtures(r_id, r_geom, palette, master_seed, tile_size)
 		directives.append_array(floor_dirs)
 
 	# 3. Resolver fixtures de superficie (SURFACE)
-	var surface_styles = palette.get_fixtures_by_placement(_FixturePlacementModeScript.Mode.SURFACE)
-	if not surface_styles.is_empty():
-		var surface_dirs = _resolve_surface_fixtures(r_id, r_geom, surface_styles, palette, master_seed, tile_size)
+	var surface_entries = palette.get_entries_for_placement(_FixturePlacementModeScript.Mode.SURFACE)
+	if not surface_entries.is_empty():
+		var surface_dirs = _resolve_surface_fixtures(r_id, r_geom, palette, master_seed, tile_size)
 		directives.append_array(surface_dirs)
 
 	# 4. Resolver fixtures colgantes / suspendidos (HANGING)
-	var hanging_styles = palette.get_fixtures_by_placement(_FixturePlacementModeScript.Mode.HANGING)
-	if not hanging_styles.is_empty():
-		var hanging_dirs = _resolve_hanging_fixtures(r_id, r_geom, hanging_styles, palette, master_seed, tile_size)
+	var hanging_entries = palette.get_entries_for_placement(_FixturePlacementModeScript.Mode.HANGING)
+	if not hanging_entries.is_empty():
+		var hanging_dirs = _resolve_hanging_fixtures(r_id, r_geom, palette, master_seed, tile_size)
 		directives.append_array(hanging_dirs)
 
 	return directives
@@ -66,7 +66,6 @@ func resolve_room_fixtures(
 func _resolve_wall_fixtures(
 	room_id: int,
 	r_geom,
-	wall_styles: Array[_FixtureStyleScript],
 	palette: _FixturePaletteScript,
 	master_seed: int,
 	tile_size: float
@@ -93,9 +92,10 @@ func _resolve_wall_fixtures(
 		if roll > palette.wall_fixture_probability:
 			continue
 
-		# Seleccionar estilo determinista
-		var style_idx: int = cell_seed % wall_styles.size()
-		var chosen_style: _FixtureStyleScript = wall_styles[style_idx]
+		# Selección ponderada determinista
+		var chosen_style: _FixtureStyleScript = palette.select_weighted(_FixturePlacementModeScript.Mode.WALL, cell_seed)
+		if chosen_style == null:
+			continue
 
 		var world_pos: Vector3 = anchor.position + chosen_style.offset
 
@@ -126,7 +126,6 @@ func _resolve_wall_fixtures(
 func _resolve_floor_fixtures(
 	room_id: int,
 	r_geom,
-	floor_styles: Array[_FixtureStyleScript],
 	palette: _FixturePaletteScript,
 	master_seed: int,
 	tile_size: float
@@ -153,8 +152,9 @@ func _resolve_floor_fixtures(
 		if roll > palette.floor_fixture_probability:
 			continue
 
-		var style_idx: int = cell_seed % floor_styles.size()
-		var chosen_style: _FixtureStyleScript = floor_styles[style_idx]
+		var chosen_style: _FixtureStyleScript = palette.select_weighted(_FixturePlacementModeScript.Mode.FLOOR, cell_seed)
+		if chosen_style == null:
+			continue
 
 		var world_pos: Vector3 = anchor.position + chosen_style.offset
 		var rot_y: float = float((cell_seed % 4)) * (PI * 0.5)
@@ -186,7 +186,6 @@ func _resolve_floor_fixtures(
 func _resolve_surface_fixtures(
 	room_id: int,
 	r_geom,
-	surface_styles: Array[_FixtureStyleScript],
 	palette: _FixturePaletteScript,
 	master_seed: int,
 	tile_size: float
@@ -210,12 +209,12 @@ func _resolve_surface_fixtures(
 
 		var cell_seed: int = _SeedDerivationScript.derive_seed(master_seed, "fixtures_surface", room_id * 10000 + anchor.cell.x * 100 + anchor.cell.y)
 		var roll: float = float(cell_seed % 1000) / 1000.0
-		# Probabilidad moderada para elementos sobre superficie
 		if roll > (palette.floor_fixture_probability * 0.7):
 			continue
 
-		var style_idx: int = cell_seed % surface_styles.size()
-		var chosen_style: _FixtureStyleScript = surface_styles[style_idx]
+		var chosen_style: _FixtureStyleScript = palette.select_weighted(_FixturePlacementModeScript.Mode.SURFACE, cell_seed)
+		if chosen_style == null:
+			continue
 
 		var world_pos: Vector3 = anchor.position + chosen_style.offset
 		var rot_y: float = float((cell_seed % 4)) * (PI * 0.5)
@@ -247,7 +246,6 @@ func _resolve_surface_fixtures(
 func _resolve_hanging_fixtures(
 	room_id: int,
 	r_geom,
-	hanging_styles: Array[_FixtureStyleScript],
 	palette: _FixturePaletteScript,
 	master_seed: int,
 	tile_size: float
@@ -271,12 +269,12 @@ func _resolve_hanging_fixtures(
 
 		var cell_seed: int = _SeedDerivationScript.derive_seed(master_seed, "fixtures_hanging", room_id * 10000 + anchor.cell.x * 100 + anchor.cell.y)
 		var roll: float = float(cell_seed % 1000) / 1000.0
-		# Probabilidad para faroles colgantes
 		if roll > (palette.floor_fixture_probability * 0.6):
 			continue
 
-		var style_idx: int = cell_seed % hanging_styles.size()
-		var chosen_style: _FixtureStyleScript = hanging_styles[style_idx]
+		var chosen_style: _FixtureStyleScript = palette.select_weighted(_FixturePlacementModeScript.Mode.HANGING, cell_seed)
+		if chosen_style == null:
+			continue
 
 		var world_pos: Vector3 = anchor.position + chosen_style.offset
 		var rot_y: float = float((cell_seed % 8)) * (PI * 0.25)

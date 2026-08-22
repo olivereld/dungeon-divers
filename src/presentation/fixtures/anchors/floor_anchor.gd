@@ -1,5 +1,5 @@
 class_name FloorAnchor
-extends FixtureAnchor
+extends "res://src/presentation/fixtures/fixture_anchor.gd"
 
 ## Anclaje en plano de suelo horizontal.
 
@@ -8,7 +8,7 @@ func _init(
 	p_pos: Vector3 = Vector3.ZERO,
 	p_rot_y: float = 0.0
 ) -> void:
-	mode = 1 # FLOOR
+	mode = _FixturePlacementModeScript.Mode.FLOOR
 	cell = p_cell
 	position = p_pos
 	rotation_y = p_rot_y

@@ -36,6 +36,7 @@ const _StairsPresentationContextBuilderScript = preload("res://src/presentation/
 const _FixtureResolverScript = preload("res://src/presentation/fixtures/fixture_resolver.gd")
 const _FixtureSpawnerScript = preload("res://src/presentation/fixtures/fixture_spawner.gd")
 const _FixturePaletteResolverScript = preload("res://src/presentation/fixtures/fixture_palette_resolver.gd")
+const _DecorationPaletteResolverScript = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 const _ArchitecturalStyleConfigResolverScript = preload("res://src/presentation/architecture/architectural_style_config_resolver.gd")
 
@@ -57,6 +58,7 @@ var _stairs_context_builder := _StairsPresentationContextBuilderScript.new()
 var _fixture_resolver := _FixtureResolverScript.new()
 var _fixture_spawner := _FixtureSpawnerScript.new()
 var _fixture_palette_resolver := _FixturePaletteResolverScript.new()
+var _decoration_palette_resolver := _DecorationPaletteResolverScript.new()
 var _style_config_resolver := _ArchitecturalStyleConfigResolverScript.new()
 var _structural_renderer := _PresentationStructuralRendererScript.new()
 
@@ -169,12 +171,13 @@ func build_presentation(
 		for st_node in stair_res.get("spawned_stairs", []):
 			result.spawned_entities.append(st_node)
 
-	# 5.4 Spawning de Fixtures Arquitectónicos (Antorchas de pared, etc.)
+	# 5.4 Spawning de Fixtures Arquitectónicos (Antorchas, Faroles, Braseros, Velas)
 	var all_fixture_directives: Array = []
+	var arch_type: int = semantic_result.dungeon_archetype if "dungeon_archetype" in semantic_result else 1
 	for r_ctx in room_contexts:
-		var palette = _fixture_palette_resolver.resolve_palette(r_ctx.profile)
+		var dec_palette = _decoration_palette_resolver.resolve_palette(arch_type, r_ctx.purpose, r_ctx.profile)
 		var r_directives = _fixture_resolver.resolve_room_fixtures(
-			r_ctx, geometry_partition, palette, config.seed if config != null else 1337, tile_size
+			r_ctx, geometry_partition, dec_palette.fixtures, config.seed if config != null else 1337, tile_size
 		)
 		all_fixture_directives.append_array(r_directives)
 

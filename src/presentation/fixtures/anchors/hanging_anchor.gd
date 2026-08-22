@@ -1,7 +1,8 @@
 class_name HangingAnchor
-extends FixtureAnchor
+extends "res://src/presentation/fixtures/fixture_anchor.gd"
 
 ## Anclaje suspendido de punto superior / techo / bóveda.
+## Provisionalmente derivado con elevación vertical sobre suelo libre hasta la integración de geometría estructural de techo/vigas.
 
 var suspension_height: float = 2.4
 
@@ -11,7 +12,7 @@ func _init(
 	p_rot_y: float = 0.0,
 	p_suspension_height: float = 2.4
 ) -> void:
-	mode = 3 # HANGING
+	mode = _FixturePlacementModeScript.Mode.HANGING
 	cell = p_cell
 	position = p_pos
 	rotation_y = p_rot_y

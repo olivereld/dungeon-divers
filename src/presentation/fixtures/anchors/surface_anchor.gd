@@ -1,7 +1,8 @@
 class_name SurfaceAnchor
-extends FixtureAnchor
+extends "res://src/presentation/fixtures/fixture_anchor.gd"
 
 ## Anclaje en superficie horizontal de apoyo (suelo, tablero, peana, altar).
+## Provisionalmente derivado de celdas de suelo libre hasta la integración de Room Props (Mesas, Altares, etc.).
 
 var surface_type: StringName = &"floor_surface"
 
@@ -11,7 +12,7 @@ func _init(
 	p_rot_y: float = 0.0,
 	p_surface_type: StringName = &"floor_surface"
 ) -> void:
-	mode = 2 # SURFACE
+	mode = _FixturePlacementModeScript.Mode.SURFACE
 	cell = p_cell
 	position = p_pos
 	rotation_y = p_rot_y

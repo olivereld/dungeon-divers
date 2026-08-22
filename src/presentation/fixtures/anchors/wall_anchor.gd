@@ -1,5 +1,5 @@
 class_name WallAnchor
-extends FixtureAnchor
+extends "res://src/presentation/fixtures/fixture_anchor.gd"
 
 ## Anclaje en plano de muro vertical.
 
@@ -12,7 +12,7 @@ func _init(
 	p_rot_y: float = 0.0,
 	p_normal: Vector3 = Vector3.ZERO
 ) -> void:
-	mode = 0 # WALL
+	mode = _FixturePlacementModeScript.Mode.WALL
 	cell = p_cell
 	wall_side = p_wall_side
 	position = p_pos
