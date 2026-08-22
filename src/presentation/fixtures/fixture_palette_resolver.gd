@@ -25,7 +25,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 
 	match profile.wall_style:
 		_ArchitecturalStyleScript.WallStyle.DARK_STONE:
-			# Criptas / Mausoleos: Antorchas góticas, braseros de pie, candelabros sobre peana y cúmulos de velas
+			# Criptas / Mausoleos: Antorchas góticas, faroles de pared/colgantes, braseros de pie, candelabros y cúmulos de velas
 			palette_id = &"gothic_crypt_palette"
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"gothic_crypt_torch",
@@ -46,7 +46,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixturePlacementModeScript.Mode.WALL,
 				1.0,
 				Vector3(0.0, 1.3, 0.0),
-				true, # Wall mounted
+				true,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
 				Color(1.0, 0.70, 0.30, 1.0),
@@ -58,8 +58,8 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureStyleScript.Type.LANTERN,
 				_FixturePlacementModeScript.Mode.HANGING,
 				1.0,
-				Vector3(0.0, 2.4, 0.0),
-				false, # Hanging
+				Vector3.ZERO,
+				false,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
 				Color(1.0, 0.72, 0.32, 1.0),
@@ -111,7 +111,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 			floor_prob = 0.35
 
 		_ArchitecturalStyleScript.WallStyle.TEMPLE_STONE:
-			# Templos / Santuarios: Antorcha ceremonial, braseros sagrados y cúmulos de velas
+			# Templos / Santuarios: Antorcha ceremonial, faroles, braseros sagrados y cúmulos de velas
 			palette_id = &"ceremonial_temple_palette"
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"ceremonial_temple_torch",
@@ -127,6 +127,19 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				7.5
 			))
 			fixtures_list.append(_FixtureStyleScript.new(
+				&"ceremonial_temple_hanging_lantern",
+				_FixtureStyleScript.Type.LANTERN,
+				_FixturePlacementModeScript.Mode.HANGING,
+				1.05,
+				Vector3.ZERO,
+				false,
+				_FixtureCollisionModeScript.Mode.NONE,
+				true,
+				Color(1.0, 0.82, 0.40, 1.0),
+				1.7,
+				8.0
+			))
+			fixtures_list.append(_FixtureStyleScript.new(
 				&"ceremonial_temple_brazier",
 				_FixtureStyleScript.Type.BRAZIER,
 				_FixturePlacementModeScript.Mode.FLOOR,
@@ -138,6 +151,19 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				Color(1.0, 0.60, 0.20, 1.0),
 				2.2,
 				9.0
+			))
+			fixtures_list.append(_FixtureStyleScript.new(
+				&"ceremonial_temple_candle_holder",
+				_FixtureStyleScript.Type.CANDLE_HOLDER,
+				_FixturePlacementModeScript.Mode.SURFACE,
+				1.0,
+				Vector3.ZERO,
+				false,
+				_FixtureCollisionModeScript.Mode.NONE,
+				true,
+				Color(1.0, 0.85, 0.45, 1.0),
+				1.0,
+				5.0
 			))
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"ceremonial_temple_candle_cluster",
@@ -158,7 +184,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 			floor_prob = 0.30
 
 		_ArchitecturalStyleScript.WallStyle.FORTRESS_STONE:
-			# Fortalezas: Antorchas militares de hierro y faroles de pared
+			# Fortalezas: Antorchas militares de hierro, faroles de pared y braseros
 			palette_id = &"fortress_iron_palette"
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"fortress_iron_torch",
@@ -186,13 +212,39 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				1.4,
 				6.5
 			))
+			fixtures_list.append(_FixtureStyleScript.new(
+				&"fortress_iron_brazier",
+				_FixtureStyleScript.Type.BRAZIER,
+				_FixturePlacementModeScript.Mode.FLOOR,
+				1.0,
+				Vector3.ZERO,
+				false,
+				_FixtureCollisionModeScript.Mode.STATIC_BODY,
+				true,
+				Color(1.0, 0.50, 0.18, 1.0),
+				1.8,
+				7.0
+			))
+			fixtures_list.append(_FixtureStyleScript.new(
+				&"fortress_iron_candle_holder",
+				_FixtureStyleScript.Type.CANDLE_HOLDER,
+				_FixturePlacementModeScript.Mode.SURFACE,
+				0.9,
+				Vector3.ZERO,
+				false,
+				_FixtureCollisionModeScript.Mode.NONE,
+				true,
+				Color(1.0, 0.70, 0.30, 1.0),
+				0.8,
+				4.0
+			))
 			wall_spacing = 3
 			wall_prob = 0.75
 			floor_spacing = 5
-			floor_prob = 0.20
+			floor_prob = 0.25
 
 		_ArchitecturalStyleScript.WallStyle.MINE_ROCK:
-			# Minas: Antorchas utilitarias y faroles colgantes
+			# Minas: Antorchas utilitarias, faroles colgantes y candeleros
 			palette_id = &"mine_shaft_palette"
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"mine_shaft_torch",
@@ -212,7 +264,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureStyleScript.Type.LANTERN,
 				_FixturePlacementModeScript.Mode.HANGING,
 				0.95,
-				Vector3(0.0, 2.2, 0.0),
+				Vector3.ZERO,
 				false,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
@@ -220,10 +272,23 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				1.3,
 				6.0
 			))
+			fixtures_list.append(_FixtureStyleScript.new(
+				&"mine_shaft_candle_holder",
+				_FixtureStyleScript.Type.CANDLE_HOLDER,
+				_FixturePlacementModeScript.Mode.SURFACE,
+				0.9,
+				Vector3.ZERO,
+				false,
+				_FixtureCollisionModeScript.Mode.NONE,
+				true,
+				Color(1.0, 0.65, 0.25, 1.0),
+				0.8,
+				4.0
+			))
 			wall_spacing = 3
 			wall_prob = 0.50
 			floor_spacing = 6
-			floor_prob = 0.15
+			floor_prob = 0.20
 
 		_:
 			return _create_default_palette()
@@ -244,4 +309,47 @@ func _create_default_palette() -> _FixturePaletteScript:
 		1.2,
 		6.0
 	)
-	return _FixturePaletteScript.new(&"default_palette", [default_torch], 3, 0.6, 4, 0.3)
+	var default_brazier = _FixtureStyleScript.new(
+		&"standard_brazier",
+		_FixtureStyleScript.Type.BRAZIER,
+		_FixturePlacementModeScript.Mode.FLOOR,
+		1.0,
+		Vector3.ZERO,
+		false,
+		_FixtureCollisionModeScript.Mode.STATIC_BODY,
+		true,
+		Color(1.0, 0.55, 0.20, 1.0),
+		1.8,
+		7.0
+	)
+	var default_candle = _FixtureStyleScript.new(
+		&"standard_candle_holder",
+		_FixtureStyleScript.Type.CANDLE_HOLDER,
+		_FixturePlacementModeScript.Mode.SURFACE,
+		1.0,
+		Vector3.ZERO,
+		false,
+		_FixtureCollisionModeScript.Mode.NONE,
+		true,
+		Color(1.0, 0.75, 0.35, 1.0),
+		0.9,
+		4.5
+	)
+	var default_hanging = _FixtureStyleScript.new(
+		&"standard_hanging_lantern",
+		_FixtureStyleScript.Type.LANTERN,
+		_FixturePlacementModeScript.Mode.HANGING,
+		1.0,
+		Vector3.ZERO,
+		false,
+		_FixtureCollisionModeScript.Mode.NONE,
+		true,
+		Color(1.0, 0.70, 0.30, 1.0),
+		1.4,
+		6.5
+	)
+	return _FixturePaletteScript.new(
+		&"default_palette",
+		[default_torch, default_brazier, default_candle, default_hanging],
+		3, 0.6, 4, 0.3
+	)
