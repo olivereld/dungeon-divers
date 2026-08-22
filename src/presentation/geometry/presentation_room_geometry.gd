@@ -12,6 +12,7 @@ var bounds: Rect2i = Rect2i()
 var floor_cells: Array[Vector2i] = []
 var wall_cells: Array[Vector2i] = []
 var door_positions: Array[Vector2i] = []
+var stairs_positions: Array[Vector2i] = []
 var profile: _ArchitecturalPresentationProfileScript = null
 
 func _init(
@@ -20,11 +21,13 @@ func _init(
 	p_floor: Array[Vector2i] = [],
 	p_wall: Array[Vector2i] = [],
 	p_doors: Array[Vector2i] = [],
-	p_profile: _ArchitecturalPresentationProfileScript = null
+	p_profile: _ArchitecturalPresentationProfileScript = null,
+	p_stairs: Array[Vector2i] = []
 ) -> void:
 	room_id = p_room_id
 	bounds = p_bounds
 	floor_cells = p_floor
 	wall_cells = p_wall
 	door_positions = p_doors
+	stairs_positions = p_stairs
 	profile = p_profile

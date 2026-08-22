@@ -69,8 +69,10 @@ func resolve_room_composition(
 					break
 				var dir = _try_place_from_entry_list(anchor, focal_entries, room_id, floor_cells_map, comp, rng.randi(), tile_size)
 				if dir != null:
-					comp.add_prop_directive(dir)
-					current_props += 1
+					if comp.add_prop_directive(dir):
+						current_props += 1
+					else:
+						comp.rejected_placements += 1
 
 		# 2. PRIORIDAD 2: SUPPORT PROPS (Bancos, Librerías, Lápidas)
 		var support_entries = _filter_entries_by_role(prop_pal.entries, _DecorationRoleScript.Role.SUPPORT)
@@ -84,8 +86,10 @@ func resolve_room_composition(
 					continue
 				var dir = _try_place_from_entry_list(anchor, support_entries, room_id, floor_cells_map, comp, rng.randi(), tile_size)
 				if dir != null:
-					comp.add_prop_directive(dir)
-					current_props += 1
+					if comp.add_prop_directive(dir):
+						current_props += 1
+					else:
+						comp.rejected_placements += 1
 
 			# Anclajes de suelo para soporte restante
 			var floor_anchors = _anchor_resolver.find_floor_anchors(room_geometry, tile_size)
@@ -96,8 +100,10 @@ func resolve_room_composition(
 					continue
 				var dir = _try_place_from_entry_list(anchor, support_entries, room_id, floor_cells_map, comp, rng.randi(), tile_size)
 				if dir != null:
-					comp.add_prop_directive(dir)
-					current_props += 1
+					if comp.add_prop_directive(dir):
+						current_props += 1
+					else:
+						comp.rejected_placements += 1
 
 		# 3. PRIORIDAD 3: AMBIENT PROPS (Escombros, urnas en esquinas)
 		var ambient_entries = _filter_entries_by_role(prop_pal.entries, _DecorationRoleScript.Role.AMBIENT)
@@ -110,8 +116,10 @@ func resolve_room_composition(
 					continue
 				var dir = _try_place_from_entry_list(anchor, ambient_entries, room_id, floor_cells_map, comp, rng.randi(), tile_size)
 				if dir != null:
-					comp.add_prop_directive(dir)
-					current_props += 1
+					if comp.add_prop_directive(dir):
+						current_props += 1
+					else:
+						comp.rejected_placements += 1
 
 		# 4. PRIORIDAD 4: FUNCTIONAL PROPS (Cofres)
 		var functional_entries = _filter_entries_by_role(prop_pal.entries, _DecorationRoleScript.Role.FUNCTIONAL)
@@ -122,8 +130,10 @@ func resolve_room_composition(
 					break
 				var dir = _try_place_from_entry_list(anchor, functional_entries, room_id, floor_cells_map, comp, rng.randi(), tile_size)
 				if dir != null:
-					comp.add_prop_directive(dir)
-					current_props += 1
+					if comp.add_prop_directive(dir):
+						current_props += 1
+					else:
+						comp.rejected_placements += 1
 
 	# ==========================================================================
 	# PRIORIDAD 5 — FIXTURES ARQUITECTÓNICOS (Antorchas, Faroles, Braseros)
@@ -150,12 +160,17 @@ func _apply_structural_reservations(comp: _DecorationCompositionScript, r_geom) 
 					comp.reserve_cell(d_pos + Vector2i(dx, dy), &"door_clearance")
 
 	# Reservar despeje de escaleras
+	var stairs_list: Array = []
+	if "stairs_positions" in r_geom and r_geom.stairs_positions != null:
+		stairs_list.append_array(r_geom.stairs_positions)
 	if "stairs_cells" in r_geom and r_geom.stairs_cells != null:
-		for s_pos in r_geom.stairs_cells:
-			comp.reserve_cell(s_pos, &"stairs")
-			for dx in [-1, 0, 1]:
-				for dy in [-1, 0, 1]:
-					comp.reserve_cell(s_pos + Vector2i(dx, dy), &"stairs_clearance")
+		stairs_list.append_array(r_geom.stairs_cells)
+
+	for s_pos in stairs_list:
+		comp.reserve_cell(s_pos, &"stairs")
+		for dx in [-1, 0, 1]:
+			for dy in [-1, 0, 1]:
+				comp.reserve_cell(s_pos + Vector2i(dx, dy), &"stairs_clearance")
 
 func _filter_entries_by_role(entries: Array, role: int) -> Array:
 	var result: Array = []

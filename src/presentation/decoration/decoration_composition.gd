@@ -21,12 +21,24 @@ var rejected_placements: int = 0     ## Contador de intentos descartados por col
 func _init(p_room_id: int = -1) -> void:
 	room_id = p_room_id
 
-func add_prop_directive(dir: _PropDirectiveScript) -> void:
+## Registra una directiva de prop validando previamente que ninguna de sus celdas
+## esté en conflicto con celdas reservadas o previamente ocupadas.
+## Retorna true si fue aceptada y registrada; false si fue rechazada por colisión.
+func add_prop_directive(dir: _PropDirectiveScript) -> bool:
 	if dir == null:
-		return
+		return false
+
+	for cell in dir.occupied_cells:
+		if reserved_cells.has(cell):
+			return false
+		if occupied_cells.has(cell):
+			return false
+
 	prop_directives.append(dir)
 	for cell in dir.occupied_cells:
 		occupied_cells[cell] = dir.prop_id
+
+	return true
 
 func add_fixture_directive(dir: _FixtureDirectiveScript) -> void:
 	if dir != null:
