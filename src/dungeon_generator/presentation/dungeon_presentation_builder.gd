@@ -35,8 +35,8 @@ const _DoorPresentationContextBuilderScript = preload("res://src/presentation/ar
 const _StairsPresentationContextBuilderScript = preload("res://src/presentation/architecture/stairs_presentation_context_builder.gd")
 const _FixtureResolverScript = preload("res://src/presentation/fixtures/fixture_resolver.gd")
 const _FixtureSpawnerScript = preload("res://src/presentation/fixtures/fixture_spawner.gd")
-const _FixturePaletteResolverScript = preload("res://src/presentation/fixtures/fixture_palette_resolver.gd")
 const _DecorationPaletteResolverScript = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
+const _DecorationCompositionResolverScript = preload("res://src/presentation/decoration/decoration_composition_resolver.gd")
 const _PropResolverScript = preload("res://src/presentation/props/prop_resolver.gd")
 const _PropSpawnerScript = preload("res://src/presentation/props/prop_spawner.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
@@ -59,8 +59,8 @@ var _door_context_builder := _DoorPresentationContextBuilderScript.new()
 var _stairs_context_builder := _StairsPresentationContextBuilderScript.new()
 var _fixture_resolver := _FixtureResolverScript.new()
 var _fixture_spawner := _FixtureSpawnerScript.new()
-var _fixture_palette_resolver := _FixturePaletteResolverScript.new()
 var _decoration_palette_resolver := _DecorationPaletteResolverScript.new()
+var _composition_resolver := _DecorationCompositionResolverScript.new()
 var _prop_resolver := _PropResolverScript.new()
 var _prop_spawner := _PropSpawnerScript.new()
 var _style_config_resolver := _ArchitecturalStyleConfigResolverScript.new()
@@ -175,30 +175,23 @@ func build_presentation(
 		for st_node in stair_res.get("spawned_stairs", []):
 			result.spawned_entities.append(st_node)
 
-	# 5.4 Spawning de Fixtures Arquitectónicos (Antorchas, Faroles, Braseros, Velas)
+	# 5.4 Composición y Spawning Espacial Integral de Decoración (Fase 6)
 	var all_fixture_directives: Array = []
+	var all_prop_directives: Array = []
 	var arch_type: int = semantic_result.dungeon_archetype if "dungeon_archetype" in semantic_result else 1
+
 	for r_ctx in room_contexts:
 		var dec_palette = _decoration_palette_resolver.resolve_palette(arch_type, r_ctx.purpose, r_ctx.profile)
-		var r_directives = _fixture_resolver.resolve_room_fixtures(
-			r_ctx, geometry_partition, dec_palette.fixtures, config.seed if config != null else 1337, tile_size
+		var r_geom = geometry_partition.get_room_geometry(r_ctx.room_id)
+		var comp = _composition_resolver.resolve_room_composition(
+			r_ctx, dec_palette, r_geom, geometry_partition, config.seed if config != null else 1337, tile_size
 		)
-		all_fixture_directives.append_array(r_directives)
+		all_fixture_directives.append_array(comp.fixture_directives)
+		all_prop_directives.append_array(comp.prop_directives)
 
 	var fix_res: Dictionary = _fixture_spawner.spawn_fixtures(all_fixture_directives, staging_root, biome, tile_size)
 	for fix_node in fix_res.get("spawned_fixtures", []):
 		result.spawned_entities.append(fix_node)
-
-	# 5.5 Spawning de Props de Sala (Sarcófagos, Altares, Bancos, Lápidas, etc.)
-	var all_prop_directives: Array = []
-	for r_ctx in room_contexts:
-		var dec_palette = _decoration_palette_resolver.resolve_palette(arch_type, r_ctx.purpose, r_ctx.profile)
-		if dec_palette != null and dec_palette.props != null:
-			var r_geom = geometry_partition.get_room_geometry(r_ctx.room_id)
-			var r_p_directives = _prop_resolver.resolve_room_props(
-				r_ctx, dec_palette.props, r_geom, config.seed if config != null else 1337, tile_size
-			)
-			all_prop_directives.append_array(r_p_directives)
 
 	for p_dir in all_prop_directives:
 		var p_node = _prop_spawner.spawn_prop(p_dir, staging_root)

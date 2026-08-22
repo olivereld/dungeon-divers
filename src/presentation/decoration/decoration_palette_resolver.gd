@@ -19,12 +19,13 @@ const _PropFootprintScript = preload("res://src/presentation/props/prop_footprin
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
+const _DecorationRoleScript = preload("res://src/presentation/decoration/decoration_role.gd")
 
 ## Resuelve la paleta de decoración completa (fixtures + props) para una sala.
 func resolve_palette(
 	archetype: int,
 	room_purpose: int,
-	profile: _ArchitecturalPresentationProfileScript
+	profile: _ArchitecturalPresentationProfileScript = null
 ) -> _DecorationPaletteScript:
 	var fix_palette: _FixturePaletteScript = null
 	var prop_palette: _PropPaletteScript = null
@@ -236,7 +237,7 @@ func _resolve_mine_fixture_palette(room_purpose: int) -> _FixturePaletteScript:
 	return _FixturePaletteScript.new(&"mine_palette", entries, 3, 0.50, 6, 0.20)
 
 # ==============================================================================
-# PROP PALETTES (FASE 5)
+# PROP PALETTES (FASE 5 & 6)
 # ==============================================================================
 
 func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
@@ -245,42 +246,50 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 	var sarc_closed = _PropStyleScript.new(
 		&"sarcophagus_stone_closed", _PropStyleScript.Type.SARCOPHAGUS,
 		_PropPlacementModeScript.Mode.CENTER, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(2, 1)), &"sarcophagus_prop", {"style": 0, "is_open": false}
+		_PropFootprintScript.new(Vector2i(2, 1)), &"sarcophagus_prop", {"style": 0, "is_open": false},
+		_DecorationRoleScript.Role.FOCAL
 	)
 	var sarc_open = _PropStyleScript.new(
 		&"sarcophagus_stone_open", _PropStyleScript.Type.SARCOPHAGUS,
 		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(2, 1)), &"sarcophagus_prop", {"style": 0, "is_open": true}
+		_PropFootprintScript.new(Vector2i(2, 1)), &"sarcophagus_prop", {"style": 0, "is_open": true},
+		_DecorationRoleScript.Role.FOCAL
 	)
 	var tombstone_wall = _PropStyleScript.new(
 		&"tombstone_classic_wall", _PropStyleScript.Type.TOMBSTONE,
 		_PropPlacementModeScript.Mode.WALL, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(1, 1)), &"tombstone_prop", {"style": 0}
+		_PropFootprintScript.new(Vector2i(1, 1)), &"tombstone_prop", {"style": 0},
+		_DecorationRoleScript.Role.SUPPORT
 	)
 	var tombstone_corner = _PropStyleScript.new(
 		&"tombstone_cross_corner", _PropStyleScript.Type.TOMBSTONE,
 		_PropPlacementModeScript.Mode.CORNER, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(1, 1)), &"tombstone_prop", {"style": 1}
+		_PropFootprintScript.new(Vector2i(1, 1)), &"tombstone_prop", {"style": 1},
+		_DecorationRoleScript.Role.SUPPORT
 	)
 	var altar = _PropStyleScript.new(
 		&"stone_altar_center", _PropStyleScript.Type.ALTAR,
 		_PropPlacementModeScript.Mode.CENTER, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(2, 1)), &"altar_prop", {"style": 1}
+		_PropFootprintScript.new(Vector2i(2, 1)), &"altar_prop", {"style": 1},
+		_DecorationRoleScript.Role.FOCAL
 	)
 	var bench_pew = _PropStyleScript.new(
 		&"church_pew_wall", _PropStyleScript.Type.BENCH,
 		_PropPlacementModeScript.Mode.WALL, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 0}
+		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 0},
+		_DecorationRoleScript.Role.SUPPORT
 	)
 	var bench_stone = _PropStyleScript.new(
 		&"stone_orior_floor", _PropStyleScript.Type.BENCH,
 		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 1}
+		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 1},
+		_DecorationRoleScript.Role.SUPPORT
 	)
 	var rubble_corner = _PropStyleScript.new(
 		&"crypt_rubble_corner", _PropStyleScript.Type.RUBBLE,
 		_PropPlacementModeScript.Mode.CORNER, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(1, 1)), &"rubble_prop", {}
+		_PropFootprintScript.new(Vector2i(1, 1)), &"rubble_prop", {},
+		_DecorationRoleScript.Role.AMBIENT
 	)
 
 	match room_purpose:
@@ -316,17 +325,20 @@ func _resolve_temple_prop_palette(room_purpose: int) -> _PropPaletteScript:
 	var altar = _PropStyleScript.new(
 		&"temple_altar_center", _PropStyleScript.Type.ALTAR,
 		_PropPlacementModeScript.Mode.CENTER, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(2, 1)), &"altar_prop", {"style": 2}
+		_PropFootprintScript.new(Vector2i(2, 1)), &"altar_prop", {"style": 2},
+		_DecorationRoleScript.Role.FOCAL
 	)
 	var bench_pew = _PropStyleScript.new(
 		&"temple_pew_floor", _PropStyleScript.Type.BENCH,
 		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 0}
+		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 0},
+		_DecorationRoleScript.Role.SUPPORT
 	)
 	var bench_wall = _PropStyleScript.new(
 		&"temple_pew_wall", _PropStyleScript.Type.BENCH,
 		_PropPlacementModeScript.Mode.WALL, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 0}
+		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 0},
+		_DecorationRoleScript.Role.SUPPORT
 	)
 
 	entries.append(_PropPaletteEntryScript.new(altar, 80.0))
@@ -343,22 +355,26 @@ func _resolve_fortress_prop_palette(room_purpose: int) -> _PropPaletteScript:
 	var table = _PropStyleScript.new(
 		&"fortress_table_center", _PropStyleScript.Type.TABLE,
 		_PropPlacementModeScript.Mode.CENTER, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(2, 1)), &"table_prop", {"style": 0}
+		_PropFootprintScript.new(Vector2i(2, 1)), &"table_prop", {"style": 0},
+		_DecorationRoleScript.Role.FOCAL
 	)
 	var bench = _PropStyleScript.new(
 		&"fortress_bench_wall", _PropStyleScript.Type.BENCH,
 		_PropPlacementModeScript.Mode.WALL, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 3}
+		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 3},
+		_DecorationRoleScript.Role.SUPPORT
 	)
 	var shelf = _PropStyleScript.new(
 		&"fortress_bookshelf_wall", _PropStyleScript.Type.BOOKSHELF,
 		_PropPlacementModeScript.Mode.WALL, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(1, 1)), &"bookshelf_prop", {"style": 0}
+		_PropFootprintScript.new(Vector2i(1, 1)), &"bookshelf_prop", {"style": 0},
+		_DecorationRoleScript.Role.SUPPORT
 	)
 	var chest = _PropStyleScript.new(
 		&"fortress_chest_corner", _PropStyleScript.Type.CHEST,
 		_PropPlacementModeScript.Mode.CORNER, _PropCollisionModeScript.Mode.INTERACTIVE,
-		_PropFootprintScript.new(Vector2i(1, 1)), &"chest_prop", {"is_open": false}
+		_PropFootprintScript.new(Vector2i(1, 1)), &"chest_prop", {"is_open": false},
+		_DecorationRoleScript.Role.FUNCTIONAL
 	)
 
 	entries.append(_PropPaletteEntryScript.new(table, 60.0))
@@ -376,17 +392,20 @@ func _resolve_mine_prop_palette(room_purpose: int) -> _PropPaletteScript:
 	var crate = _PropStyleScript.new(
 		&"mine_crate_corner", _PropStyleScript.Type.CRATE,
 		_PropPlacementModeScript.Mode.CORNER, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(1, 1)), &"crate_prop", {}
+		_PropFootprintScript.new(Vector2i(1, 1)), &"crate_prop", {},
+		_DecorationRoleScript.Role.AMBIENT
 	)
 	var rubble = _PropStyleScript.new(
 		&"mine_rubble_floor", _PropStyleScript.Type.RUBBLE,
 		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(1, 1)), &"rubble_prop", {}
+		_PropFootprintScript.new(Vector2i(1, 1)), &"rubble_prop", {},
+		_DecorationRoleScript.Role.AMBIENT
 	)
 	var barrel = _PropStyleScript.new(
 		&"mine_barrel_wall", _PropStyleScript.Type.BARREL,
 		_PropPlacementModeScript.Mode.WALL, _PropCollisionModeScript.Mode.BLOCKING,
-		_PropFootprintScript.new(Vector2i(1, 1)), &"barrel_prop", {}
+		_PropFootprintScript.new(Vector2i(1, 1)), &"barrel_prop", {},
+		_DecorationRoleScript.Role.AMBIENT
 	)
 
 	entries.append(_PropPaletteEntryScript.new(crate, 60.0))
@@ -397,4 +416,5 @@ func _resolve_mine_prop_palette(room_purpose: int) -> _PropPaletteScript:
 	palette.density = 0.25
 	palette.max_props_per_room = 4
 	return palette
+
 

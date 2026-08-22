@@ -8,6 +8,7 @@ extends Resource
 const _PropPlacementModeScript = preload("res://src/presentation/props/prop_placement_mode.gd")
 const _PropCollisionModeScript = preload("res://src/presentation/props/prop_collision_mode.gd")
 const _PropFootprintScript = preload("res://src/presentation/props/prop_footprint.gd")
+const _DecorationRoleScript = preload("res://src/presentation/decoration/decoration_role.gd")
 
 enum Type {
 	SARCOPHAGUS = 0,
@@ -29,6 +30,7 @@ enum Type {
 @export var prop_type: Type = Type.SARCOPHAGUS
 @export var placement_mode: int = _PropPlacementModeScript.Mode.FLOOR
 @export var collision_mode: int = _PropCollisionModeScript.Mode.BLOCKING
+@export var role: int = _DecorationRoleScript.Role.SUPPORT
 @export var footprint: _PropFootprintScript = null
 @export var scale: float = 1.0
 @export var offset: Vector3 = Vector3.ZERO
@@ -43,7 +45,8 @@ func _init(
 	p_collision: int = _PropCollisionModeScript.Mode.BLOCKING,
 	p_footprint: _PropFootprintScript = null,
 	p_generator_id: StringName = &"",
-	p_params: Dictionary = {}
+	p_params: Dictionary = {},
+	p_role: int = _DecorationRoleScript.Role.SUPPORT
 ) -> void:
 	id = p_id
 	prop_type = p_type
@@ -52,3 +55,5 @@ func _init(
 	footprint = p_footprint if p_footprint != null else _PropFootprintScript.new(Vector2i.ONE)
 	generator_id = p_generator_id
 	generator_params = p_params
+	role = p_role
+

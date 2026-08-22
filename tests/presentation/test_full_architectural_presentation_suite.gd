@@ -67,10 +67,22 @@ func _run_test() -> void:
 	assert(not pres_res.has_blocking_errors(), "FAIL: Presentation has blocking errors")
 	assert(pres_res.total_tiles_rendered > 0, "FAIL: Tiles rendered must be > 0")
 
+	# Verificar props y fixtures instanciados por composición
+	var prop_count: int = 0
+	var fixture_count: int = 0
+	for child in pres_res.presentation_root.get_children():
+		if child.name.begins_with("Prop_"):
+			prop_count += 1
+		elif child.name == "Fixtures":
+			fixture_count += child.get_child_count()
+
+	assert(prop_count > 0, "FAIL: Expected composed props in presentation root")
+	assert(fixture_count > 0, "FAIL: Expected composed fixtures in presentation root")
+
 	parent_node.queue_free()
 
 	print("  [OK] Absolute determinism verified across independent generation runs.")
 	print("  [OK] CellGrid immutability preserved bit-by-bit.")
-	print("  [OK] Full 3D presentation staging verified without errors.")
+	print("  [OK] Full 3D presentation staging verified with %d props and %d fixtures." % [prop_count, fixture_count])
 	print("[PASS] test_full_architectural_presentation_suite completed successfully.")
 	quit(0)
