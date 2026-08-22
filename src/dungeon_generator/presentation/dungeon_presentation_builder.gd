@@ -120,10 +120,8 @@ func build_presentation(
 		base_floor_cfg.tile_size = tile_size
 		base_floor_cfg.seed = config.seed if config != null else 1337
 
-		var floor_cfg: _FloorTileConfigScript = _style_config_resolver.resolve_floor_config(dominant_profile, base_floor_cfg)
-
-		var floor_res = _floor_generator.generate_floor_surface(
-			semantic_result.grid, floor_cfg, config.seed if config != null else 1337
+		var floor_res = _floor_generator.generate_floor_for_partition(
+			geometry_partition, _style_config_resolver, base_floor_cfg, config.seed if config != null else 1337
 		)
 		_floor_spawner.spawn_floor(floor_res, staging_root, biome)
 		floor_grid_map.visible = false

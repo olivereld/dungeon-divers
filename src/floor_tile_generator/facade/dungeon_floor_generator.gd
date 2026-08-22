@@ -13,11 +13,89 @@ const _FloorCollisionBuilderScript = preload("res://src/floor_tile_generator/col
 const _FloorSurfaceClusterScript = preload("res://src/floor_tile_generator/data/floor_surface_cluster.gd")
 const _FloorSurfaceResultScript = preload("res://src/floor_tile_generator/data/floor_surface_result.gd")
 const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
+const _SeedDerivationScript = preload("res://src/dungeon_generator/core/seed_derivation.gd")
 
 var _region_extractor := _FloorRegionExtractorScript.new()
 var _pattern_gen := _FloorTilePatternScript.new()
 var _mesh_builder := _FloorSurfaceMeshBuilderScript.new()
 var _collision_builder := _FloorCollisionBuilderScript.new()
+
+## Genera la superficie de suelo respetando los estilos arquitectónicos individuales de cada sala y corredores
+func generate_floor_for_partition(
+	partition,
+	config_resolver = null,
+	base_config = null,
+	master_seed: int = 1337
+):
+	var result = _FloorSurfaceResultScript.new()
+	if partition == null:
+		result.add_diagnostic("NULL_PARTITION", "FATAL", "Partition provided to DungeonFloorGenerator is null")
+		return result
+
+	if base_config == null:
+		base_config = _FloorTileConfigScript.new()
+
+	var cluster_id: int = 0
+
+	# 1. Generar clusters de suelo para cada habitación según su perfil
+	for r_geom in partition.get_rooms():
+		if r_geom == null or r_geom.floor_cells.is_empty():
+			continue
+
+		var room_cfg = base_config
+		if config_resolver != null and r_geom.profile != null:
+			room_cfg = config_resolver.resolve_floor_config(r_geom.profile, base_config)
+
+		var room_seed: int = _SeedDerivationScript.derive_seed(master_seed, "presentation_floor", r_geom.room_id)
+		var noise_field = _FloorNoiseFieldScript.new(room_seed, room_cfg.noise_frequency)
+
+		var cluster = _FloorSurfaceClusterScript.new(cluster_id)
+		cluster.cells = r_geom.floor_cells
+
+		for cell_pos in r_geom.floor_cells:
+			var descs: Array = _pattern_gen.generate_descriptors_for_cell(
+				cell_pos, room_cfg, room_seed, noise_field
+			)
+			cluster.descriptors.append_array(descs)
+
+		cluster.mesh = _mesh_builder.build_cluster_mesh(cluster, room_cfg)
+		if cluster.mesh != null:
+			cluster.aabb = cluster.mesh.get_aabb()
+
+		_collision_builder.build_collision_for_cluster(cluster, cluster.cells, room_cfg)
+
+		result.clusters.append(cluster)
+		result.total_tiles_generated += r_geom.floor_cells.size()
+		result.total_descriptors_count += cluster.descriptors.size()
+		cluster_id += 1
+
+	# 2. Generar cluster de suelo para corredores (usando base_config / estilo dominante)
+	if not partition.corridor_floor_cells.is_empty():
+		var corridor_seed: int = _SeedDerivationScript.derive_seed(master_seed, "presentation_floor", 9999)
+		var noise_field = _FloorNoiseFieldScript.new(corridor_seed, base_config.noise_frequency)
+
+		var cluster = _FloorSurfaceClusterScript.new(cluster_id)
+		cluster.cells = partition.corridor_floor_cells
+
+		for cell_pos in partition.corridor_floor_cells:
+			var descs: Array = _pattern_gen.generate_descriptors_for_cell(
+				cell_pos, base_config, corridor_seed, noise_field
+			)
+			cluster.descriptors.append_array(descs)
+
+		cluster.mesh = _mesh_builder.build_cluster_mesh(cluster, base_config)
+		if cluster.mesh != null:
+			cluster.aabb = cluster.mesh.get_aabb()
+
+		_collision_builder.build_collision_for_cluster(cluster, cluster.cells, base_config)
+
+		result.clusters.append(cluster)
+		result.total_tiles_generated += partition.corridor_floor_cells.size()
+		result.total_descriptors_count += cluster.descriptors.size()
+		cluster_id += 1
+
+	result.total_regions_count = cluster_id
+	return result
 
 ## Genera la superficie completa de suelo en modo de datos puros (FloorSurfaceResult)
 func generate_floor_surface(
