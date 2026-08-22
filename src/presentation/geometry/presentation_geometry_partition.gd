@@ -12,6 +12,7 @@ const _PresentationRoomContextScript = preload("res://src/presentation/architect
 var rooms_geometry: Dictionary = {} # room_id -> PresentationRoomGeometry
 var corridor_floor_cells: Array[Vector2i] = []
 var corridor_wall_cells: Array[Vector2i] = []
+var room_id_by_cell: Dictionary = {} # Vector2i -> int (room_id)
 
 func build_partition(
 	grid: CellGrid,
@@ -21,6 +22,7 @@ func build_partition(
 	rooms_geometry.clear()
 	corridor_floor_cells.clear()
 	corridor_wall_cells.clear()
+	room_id_by_cell.clear()
 
 	if grid == null or room_contexts.is_empty():
 		return
@@ -32,8 +34,6 @@ func build_partition(
 			context_by_id[ctx.room_id] = ctx
 
 	# 2. Asignar celdas a cada sala según su Rect2i
-	var all_room_cells: Dictionary = {} # Vector2i -> room_id
-
 	for room in semantic_result.rooms:
 		var r_id: int = room.id
 		var ctx: _PresentationRoomContextScript = context_by_id.get(r_id, null)
@@ -51,7 +51,7 @@ func build_partition(
 				if grid.is_in_bounds(pos):
 					if grid.is_walkable(pos):
 						r_floor.append(pos)
-						all_room_cells[pos] = r_id
+						room_id_by_cell[pos] = r_id
 					elif grid.is_solid(pos):
 						r_wall.append(pos)
 
@@ -71,12 +71,21 @@ func build_partition(
 		)
 		rooms_geometry[r_id] = r_geom
 
-	# 3. Detectar celdas de corredores (suelo que no pertenece a ninguna sala)
+	# 3. Detectar celdas de corredores (suelo transitable que no pertenece a ninguna sala)
 	for y in range(grid.height):
 		for x in range(grid.width):
 			var pos := Vector2i(x, y)
-			if grid.is_walkable(pos) and not all_room_cells.has(pos):
+			if grid.is_walkable(pos) and not room_id_by_cell.has(pos):
 				corridor_floor_cells.append(pos)
 
 func get_room_geometry(room_id: int) -> _PresentationRoomGeometryScript:
 	return rooms_geometry.get(room_id, null)
+
+func get_rooms() -> Array:
+	return rooms_geometry.values()
+
+func get_room_id_at(position: Vector2i) -> int:
+	return room_id_by_cell.get(position, -1)
+
+func is_room_cell(position: Vector2i) -> bool:
+	return room_id_by_cell.has(position)
