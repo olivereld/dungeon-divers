@@ -48,6 +48,8 @@ static func get_valid_purposes_for_archetype(arch: int) -> Array[int]:
 				_RoomPurposeScript.Type.TOMB,
 				_RoomPurposeScript.Type.SACRISTY,
 				_RoomPurposeScript.Type.CRYPT,
+				_RoomPurposeScript.Type.MORTUARY,
+				_RoomPurposeScript.Type.ANTECHAMBER,
 				_RoomPurposeScript.Type.CATACOMB,
 				_RoomPurposeScript.Type.ROYAL_TOMB,
 				_RoomPurposeScript.Type.GENERIC

@@ -34,22 +34,40 @@ func _resolve_mausoleum(purpose: int) -> _ArchitecturalPresentationProfileScript
 				_ArchitecturalStyleScript.FixtureStyle.BRAZIER,
 				_ArchitecturalStyleScript.DecorationPalette.CRYPT
 			)
-		_RoomPurposeScript.Type.TOMB, _RoomPurposeScript.Type.SACRISTY:
+		_RoomPurposeScript.Type.SACRISTY:
 			return _ArchitecturalPresentationProfileScript.new(
-				_ArchitecturalStyleScript.FloorStyle.RUINED_STONE,
+				_ArchitecturalStyleScript.FloorStyle.SMOOTH_SLABS,
 				_ArchitecturalStyleScript.WallStyle.DARK_STONE,
 				_ArchitecturalStyleScript.DoorStyle.STONE_ARCH,
 				_ArchitecturalStyleScript.StairsStyle.STONE,
 				_ArchitecturalStyleScript.FixtureStyle.CANDLE_CLUSTER,
 				_ArchitecturalStyleScript.DecorationPalette.CRYPT
 			)
-		_: # CRYPT, CATACOMB, ENTRANCE, etc.
+		_RoomPurposeScript.Type.TOMB:
 			return _ArchitecturalPresentationProfileScript.new(
 				_ArchitecturalStyleScript.FloorStyle.RUINED_STONE,
 				_ArchitecturalStyleScript.WallStyle.DARK_STONE,
 				_ArchitecturalStyleScript.DoorStyle.STONE_ARCH,
 				_ArchitecturalStyleScript.StairsStyle.STONE,
 				_ArchitecturalStyleScript.FixtureStyle.TORCH,
+				_ArchitecturalStyleScript.DecorationPalette.CRYPT
+			)
+		_RoomPurposeScript.Type.MORTUARY, _RoomPurposeScript.Type.CRYPT:
+			return _ArchitecturalPresentationProfileScript.new(
+				_ArchitecturalStyleScript.FloorStyle.RUINED_STONE,
+				_ArchitecturalStyleScript.WallStyle.DARK_STONE,
+				_ArchitecturalStyleScript.DoorStyle.STONE_ARCH,
+				_ArchitecturalStyleScript.StairsStyle.STONE,
+				_ArchitecturalStyleScript.FixtureStyle.BRAZIER,
+				_ArchitecturalStyleScript.DecorationPalette.CRYPT
+			)
+		_: # ANTECHAMBER, ENTRANCE, CATACOMB, etc.
+			return _ArchitecturalPresentationProfileScript.new(
+				_ArchitecturalStyleScript.FloorStyle.SMOOTH_SLABS,
+				_ArchitecturalStyleScript.WallStyle.DARK_STONE,
+				_ArchitecturalStyleScript.DoorStyle.STONE_ARCH,
+				_ArchitecturalStyleScript.StairsStyle.STONE,
+				_ArchitecturalStyleScript.FixtureStyle.LANTERN,
 				_ArchitecturalStyleScript.DecorationPalette.CRYPT
 			)
 

@@ -10,6 +10,7 @@ enum Type {
 	HALL = 2,
 	CHAMBER = 3,
 	STORAGE = 4,
+	ANTECHAMBER = 5,
 
 	# Mausoleum / Crypt
 	CRYPT = 10,
@@ -17,6 +18,7 @@ enum Type {
 	CATACOMB = 12,
 	SACRISTY = 13,
 	ROYAL_TOMB = 14,
+	MORTUARY = 15,
 
 	# Fortress
 	ARMORY = 20,
