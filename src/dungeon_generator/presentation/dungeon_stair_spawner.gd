@@ -9,6 +9,7 @@ const _StairDataScript = preload("res://src/dungeon_generator/core/data/stair_da
 const _GridToWorldScript = preload("res://src/dungeon_generator/presentation/grid_to_world.gd")
 const _StairGeometryBuilderScript = preload("res://src/geometry_generator/geometry/stair_geometry_builder.gd")
 const _StairGeometryConfigScript = preload("res://src/geometry_generator/config/stair_geometry_config.gd")
+const _StairsPresentationContextScript = preload("res://src/presentation/architecture/stairs_presentation_context.gd")
 
 ## Spawnea todas las escaleras de la lista en el StagingRoot.
 func spawn_stairs(
@@ -17,7 +18,8 @@ func spawn_stairs(
 	biome: BiomeProfile,
 	tile_size: float = 2.0,
 	floor_height: float = 6.0,
-	seed_val: int = 1337
+	seed_val: int = 1337,
+	partition = null
 ) -> Dictionary:
 	var result := {
 		"spawned_stairs": [],
