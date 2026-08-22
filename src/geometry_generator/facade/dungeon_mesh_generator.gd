@@ -49,6 +49,10 @@ const _BookshelfGeometryBuilderScript = preload("res://src/geometry_generator/fi
 const _BookshelfGeometryConfigScript = preload("res://src/geometry_generator/config/bookshelf_geometry_config.gd")
 const _WallShowcaseGeometryBuilderScript = preload("res://src/geometry_generator/fixtures/wall_showcase_geometry_builder.gd")
 const _WallShowcaseGeometryConfigScript = preload("res://src/geometry_generator/config/wall_showcase_geometry_config.gd")
+const _SarcophagusGeometryBuilderScript = preload("res://src/geometry_generator/fixtures/sarcophagus_geometry_builder.gd")
+const _SarcophagusGeometryConfigScript = preload("res://src/geometry_generator/config/sarcophagus_geometry_config.gd")
+const _BenchGeometryBuilderScript = preload("res://src/geometry_generator/fixtures/bench_geometry_builder.gd")
+const _BenchGeometryConfigScript = preload("res://src/geometry_generator/config/bench_geometry_config.gd")
 
 var _wall_generator: RefCounted = null
 var _floor_generator: RefCounted = null
@@ -71,6 +75,8 @@ var _table_builder: RefCounted = null
 var _chair_builder: RefCounted = null
 var _bookshelf_builder: RefCounted = null
 var _wall_showcase_builder: RefCounted = null
+var _sarcophagus_builder: RefCounted = null
+var _bench_builder: RefCounted = null
 
 func _init() -> void:
 	_wall_generator = _DungeonGeometryGeneratorScript.new()
@@ -94,6 +100,8 @@ func _init() -> void:
 	_chair_builder = _ChairGeometryBuilderScript.new()
 	_bookshelf_builder = _BookshelfGeometryBuilderScript.new()
 	_wall_showcase_builder = _WallShowcaseGeometryBuilderScript.new()
+	_sarcophagus_builder = _SarcophagusGeometryBuilderScript.new()
+	_bench_builder = _BenchGeometryBuilderScript.new()
 
 # ==============================================================================
 # 1. MUROS Y ESTRUCTURAS CONTINUAS
@@ -262,3 +270,25 @@ func generate_wall_showcase_fixture(wall_config = null):
 	if wall_config == null:
 		wall_config = _WallShowcaseGeometryConfigScript.new()
 	return _wall_showcase_builder.build_wall_showcase_fixture(wall_config)
+
+func generate_sarcophagus_base(sarcophagus_config = null):
+	if sarcophagus_config == null:
+		sarcophagus_config = _SarcophagusGeometryConfigScript.new()
+	return _sarcophagus_builder.build_sarcophagus_base(sarcophagus_config)
+
+func generate_sarcophagus_lid(sarcophagus_config = null):
+	if sarcophagus_config == null:
+		sarcophagus_config = _SarcophagusGeometryConfigScript.new()
+	return _sarcophagus_builder.build_sarcophagus_lid(sarcophagus_config)
+
+func generate_sarcophagus_fixture(sarcophagus_config = null):
+	if sarcophagus_config == null:
+		sarcophagus_config = _SarcophagusGeometryConfigScript.new()
+	return _sarcophagus_builder.build_sarcophagus_fixture(sarcophagus_config)
+
+func generate_bench_fixture(bench_config = null):
+	if bench_config == null:
+		bench_config = _BenchGeometryConfigScript.new()
+	return _bench_builder.build_bench_fixture(bench_config)
+
+

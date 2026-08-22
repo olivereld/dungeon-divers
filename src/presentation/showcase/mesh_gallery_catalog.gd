@@ -666,6 +666,94 @@ func _register_all_entries() -> void:
 			&"bookshelf_prop",
 			{"style": 2},
 			&"bookshelf", "Librería de Mazmorra (Bookshelf)", "Gótica con Copete Arcano"
+		),
+		_create_entry(
+			&"sarcophagus_stone_closed",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Sarcófago de Piedra Gótica Cerrado (Closed Stone Sarcophagus)",
+			"src/geometry_generator/fixtures/sarcophagus_geometry_builder.gd",
+			"Sarcófago de piedra tallada de cripta con zócalo, 4 pilastras de esquina, arquerías góticas y losa pesada cerrada.",
+			&"sarcophagus_prop",
+			{"style": 0, "is_open": false},
+			&"sarcophagus", "Sarcófago y Féretro (Sarcophagus)", "Piedra Gótica Cerrado"
+		),
+		_create_entry(
+			&"sarcophagus_stone_open",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Sarcófago de Piedra Gótica Abierto (Open Stone Sarcophagus)",
+			"src/geometry_generator/fixtures/sarcophagus_geometry_builder.gd",
+			"Sarcófago de piedra tallada con la tapa desplazada e inclinada diagonalmente sobre el reborde, revelando el interior hueco.",
+			&"sarcophagus_prop",
+			{"style": 0, "is_open": true},
+			&"sarcophagus", "Sarcófago y Féretro (Sarcophagus)", "Piedra Gótica Abierto"
+		),
+		_create_entry(
+			&"sarcophagus_wood_closed",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Féretro de Madera Rústica Cerrado (Closed Wood Coffin)",
+			"src/geometry_generator/fixtures/sarcophagus_geometry_builder.gd",
+			"Féretro rústico de tablones de madera con refuerzos estructurales y tapa cerrada.",
+			&"sarcophagus_prop",
+			{"style": 1, "is_open": false},
+			&"sarcophagus", "Sarcófago y Féretro (Sarcophagus)", "Madera Rústica Cerrado"
+		),
+		_create_entry(
+			&"sarcophagus_wood_open",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Féretro de Madera Rústica Abierto (Open Wood Coffin)",
+			"src/geometry_generator/fixtures/sarcophagus_geometry_builder.gd",
+			"Féretro rústico de madera con la tapa entreabierta y apoyada sobre el borde.",
+			&"sarcophagus_prop",
+			{"style": 1, "is_open": true},
+			&"sarcophagus", "Sarcófago y Féretro (Sarcophagus)", "Madera Rústica Abierto"
+		),
+		_create_entry(
+			&"bench_church_pew",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Banco de Templo / Iglesia (Church Pew)",
+			"src/geometry_generator/fixtures/bench_geometry_builder.gd",
+			"Banco ceremonial de madera noble con costados altos, reposabrazos, balaustres torneados, respaldo inclinado y soporte central.",
+			&"bench_prop",
+			{"style": 0},
+			&"bench", "Bancas y Banquetas (Bench)", "Banco de Iglesia / Templo"
+		),
+		_create_entry(
+			&"bench_stone_orior",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Banco Monumental de Piedra (Stone Orior)",
+			"src/geometry_generator/fixtures/bench_geometry_builder.gd",
+			"Banco monumental de piedra tallada con patas en voluta, losa de asiento pesada con bisel y respaldo decorado.",
+			&"bench_prop",
+			{"style": 1},
+			&"bench", "Bancas y Banquetas (Bench)", "Banco Monumental de Piedra"
+		),
+		_create_entry(
+			&"bench_tavern_hall",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Banco de Taberna con Cojines (Tavern Hall Bench)",
+			"src/geometry_generator/fixtures/bench_geometry_builder.gd",
+			"Banco estilizado de taberna con respaldo arqueado, barrotes, reposabrazos y 2 cojines acolchados mullidos.",
+			&"bench_prop",
+			{"style": 2},
+			&"bench", "Bancas y Banquetas (Bench)", "Taberna con Cojines"
+		),
+		_create_entry(
+			&"bench_rustic_backless",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Banqueta Corrida Rústica (Backless Bench)",
+			"src/geometry_generator/fixtures/bench_geometry_builder.gd",
+			"Banqueta corrida rústica sin respaldo con asiento de tablón grueso y travesaño longitudinal inferior.",
+			&"bench_prop",
+			{"style": 3},
+			&"bench", "Bancas y Banquetas (Bench)", "Banqueta Corrida Sin Respaldo"
 		)
 	])
 

@@ -44,6 +44,8 @@ const _TableGeometryConfigScript = preload("res://src/geometry_generator/config/
 const _ChairGeometryConfigScript = preload("res://src/geometry_generator/config/chair_geometry_config.gd")
 const _BookshelfGeometryConfigScript = preload("res://src/geometry_generator/config/bookshelf_geometry_config.gd")
 const _WallShowcaseGeometryConfigScript = preload("res://src/geometry_generator/config/wall_showcase_geometry_config.gd")
+const _SarcophagusGeometryConfigScript = preload("res://src/geometry_generator/config/sarcophagus_geometry_config.gd")
+const _BenchGeometryConfigScript = preload("res://src/geometry_generator/config/bench_geometry_config.gd")
 
 # Puertas, Escaleras e Iluminación
 const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
@@ -111,6 +113,10 @@ func render_entry(entry: MeshGalleryEntry, seed: int, param_overrides: Dictionar
 			return _render_chair(params, seed)
 		&"bookshelf_prop":
 			return _render_bookshelf(params, seed)
+		&"sarcophagus_prop":
+			return _render_sarcophagus(params, seed)
+		&"bench_prop":
+			return _render_bench(params, seed)
 		_:
 			push_warning("[MeshGalleryRenderer] Generador desconocido: %s" % str(entry.generator_id))
 			return null
@@ -1072,5 +1078,45 @@ func _render_wall_showcase(params: Dictionary, seed: int) -> Node3D:
 		var wall_node = wall_asset.to_node3d("WallShowcase3x2")
 		wall_node.position = Vector3.ZERO
 		container.add_child(wall_node)
+
+	return container
+
+func _render_sarcophagus(params: Dictionary, seed: int) -> Node3D:
+	var container := Node3D.new()
+	container.name = "SarcophagusShowcaseGroup"
+
+	var style_idx: int = int(params.get("style", 0))
+	var is_open: bool = bool(params.get("is_open", false))
+	var sarc_cfg := _SarcophagusGeometryConfigScript.new(
+		style_idx as _SarcophagusGeometryConfigScript.Style,
+		is_open,
+		1.0,
+		seed
+	)
+
+	var sarc_asset = _mesh_facade.generate_sarcophagus_fixture(sarc_cfg)
+	if sarc_asset != null:
+		var sarc_node = sarc_asset.to_node3d("Sarcophagus")
+		sarc_node.position = Vector3.ZERO
+		container.add_child(sarc_node)
+
+	return container
+
+func _render_bench(params: Dictionary, seed: int) -> Node3D:
+	var container := Node3D.new()
+	container.name = "BenchShowcaseGroup"
+
+	var style_idx: int = int(params.get("style", 0))
+	var bench_cfg := _BenchGeometryConfigScript.new(
+		style_idx as _BenchGeometryConfigScript.BenchStyle,
+		1.0,
+		seed
+	)
+
+	var bench_asset = _mesh_facade.generate_bench_fixture(bench_cfg)
+	if bench_asset != null:
+		var bench_node = bench_asset.to_node3d("Bench")
+		bench_node.position = Vector3.ZERO
+		container.add_child(bench_node)
 
 	return container
