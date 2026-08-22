@@ -29,6 +29,7 @@ const _DungeonLightSpawnerScript = preload("res://src/dungeon_lighting/presentat
 const _DungeonLightingConfigScript = preload("res://src/dungeon_lighting/config/dungeon_lighting_config.gd")
 const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
 const _PresentationContextBuilderScript = preload("res://src/presentation/architecture/presentation_context_builder.gd")
+const _PresentationGeometryPartitionScript = preload("res://src/presentation/geometry/presentation_geometry_partition.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 
 const CAMERA_OCCLUDER_GROUP: StringName = &"camera_occluder"
@@ -66,9 +67,13 @@ func build_presentation(
 
 	var tile_size: float = config.cell_size
 
-	# 1.5 Resolver Contextos de Sala y Perfil Arquitectónico Dominante
+	# 1.5 Resolver Contextos de Sala, Partición Geométrica y Perfil Arquitectónico Dominante
 	var room_contexts: Array = _context_builder.build_contexts(semantic_result)
-	var dominant_profile = _context_builder.get_dominant_profile(room_contexts)
+	var dominant_profile = _context_builder.get_dominant_profile(room_contexts, config.dungeon_archetype)
+
+	var geometry_partition := _PresentationGeometryPartitionScript.new()
+	if semantic_result.grid != null:
+		geometry_partition.build_partition(semantic_result.grid, room_contexts, semantic_result)
 
 	# 2. Crear StagingRoot 100% Desacoplado del árbol de escena activo
 	var staging_root := Node3D.new()

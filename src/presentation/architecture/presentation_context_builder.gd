@@ -3,11 +3,13 @@ extends RefCounted
 
 ## Orquestador puro de contextos de presentación arquitectónica.
 ## Transforma un DungeonSemanticResult en una colección de PresentationRoomContext y
-## determina el perfil dominante para guiar el layout visual global.
+## determina el perfil dominante para guiar el layout visual global y corredores.
 
 const _PresentationProfileResolverScript = preload("res://src/presentation/architecture/presentation_profile_resolver.gd")
 const _PresentationRoomContextScript = preload("res://src/presentation/architecture/presentation_room_context.gd")
 const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
+const _PresentationRoomRoleScript = preload("res://src/presentation/architecture/presentation_room_role.gd")
+const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 
 var _resolver := _PresentationProfileResolverScript.new()
 
@@ -23,26 +25,26 @@ func build_contexts(semantic_result: DungeonSemanticResult) -> Array:
 		var purpose: int = semantic_result.get_room_purpose(r_id)
 		var prof: _ArchitecturalPresentationProfileScript = _resolver.resolve(archetype, purpose)
 
-		var role: String = "EXPLORE"
+		var role_type := _PresentationRoomRoleScript.Role.EXPLORE
 		if r_id == semantic_result.start_room_id:
-			role = "START"
+			role_type = _PresentationRoomRoleScript.Role.START
 		elif r_id == semantic_result.boss_room_id:
-			role = "BOSS"
+			role_type = _PresentationRoomRoleScript.Role.BOSS
 		else:
 			for obj in semantic_result.objectives:
 				if obj.room_id == r_id:
-					role = "TREASURE" if obj.type == 0 else "COMBAT"
+					role_type = _PresentationRoomRoleScript.Role.TREASURE if obj.type == 0 else _PresentationRoomRoleScript.Role.COMBAT
 					break
 
-		var ctx := _PresentationRoomContextScript.new(r_id, room.rect, purpose, prof, role)
+		var ctx := _PresentationRoomContextScript.new(r_id, room.rect, purpose, prof, role_type)
 		contexts.append(ctx)
 
 	return contexts
 
-func get_dominant_profile(contexts: Array) -> _ArchitecturalPresentationProfileScript:
+func get_dominant_profile(contexts: Array, fallback_archetype: int = 0) -> _ArchitecturalPresentationProfileScript:
 	if contexts.is_empty():
-		return _resolver.resolve(0, 0)
+		return _resolver.resolve(fallback_archetype, 0)
 	for ctx in contexts:
-		if ctx.gameplay_role == "START":
+		if ctx.role == _PresentationRoomRoleScript.Role.START:
 			return ctx.profile
 	return contexts[0].profile
