@@ -74,6 +74,91 @@ func generate_wall_clusters(
 
 	return result
 
+## Genera los clusters de geometría de muros respetando los estilos arquitectónicos individuales de cada sala.
+func generate_wall_clusters_for_partition(
+	grid: CellGrid,
+	partition, # PresentationGeometryPartition
+	config_resolver = null, # ArchitecturalStyleConfigResolver
+	opening_manifest: WallOpeningManifest = null,
+	wall_config: WallGeometryConfig = null,
+	col_config: CollisionConfig = null,
+	base_dec_config: DecorationConfig = null,
+	material_preset: int = 0,
+	master_seed: int = 1337
+) -> GeometryResult:
+	var result := _GeometryResultScript.new()
+	if grid == null:
+		result.add_diagnostic("NULL_GRID", "FATAL", "Grid provided is null")
+		return result
+
+	if wall_config == null:
+		wall_config = _WallGeometryConfigScript.new()
+	if col_config == null:
+		col_config = _CollisionConfigScript.new()
+	if base_dec_config == null:
+		base_dec_config = _DecorationConfigScript.new()
+
+	# 1. Extracción Topológica (Grafo de aristas respetando aberturas)
+	var graph = _boundary_extractor.extract_graph(grid, opening_manifest)
+	if graph.get_edge_count() == 0:
+		return result
+
+	# 2. Descomposición en Componentes Conexas (Clusters)
+	var components: Array = _component_extractor.extract_components(graph)
+
+	# 3. Generación por cada cluster modulando estilo de sala
+	for comp in components:
+		var g_mesh: GeneratedMesh = _geometry_builder.build_component_mesh(comp, wall_config)
+		if g_mesh.mesh == null:
+			continue
+
+		var prof = _resolve_component_profile(comp, partition)
+		var dec_cfg: DecorationConfig = base_dec_config
+		if config_resolver != null and prof != null:
+			dec_cfg = config_resolver.resolve_wall_decoration_config(prof, base_dec_config)
+
+		_decorator.decorate_component(g_mesh, comp, wall_config, dec_cfg)
+		_material_resolver.resolve_materials_for_mesh(g_mesh, material_preset)
+		_collision_builder.build_collision_for_component(comp, wall_config, col_config, g_mesh)
+
+		result.generated_meshes.append(g_mesh)
+
+	return result
+
+func _resolve_component_profile(comp: WallComponent, partition):
+	if partition == null:
+		return null
+
+	for loop in comp.loops:
+		for pt in loop:
+			var r_id: int = partition.get_room_id_at(pt)
+			if r_id != -1:
+				var r_geom = partition.get_room_geometry(r_id)
+				if r_geom != null and r_geom.profile != null:
+					return r_geom.profile
+			for offset in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+				var n_id: int = partition.get_room_id_at(pt + offset)
+				if n_id != -1:
+					var r_geom = partition.get_room_geometry(n_id)
+					if r_geom != null and r_geom.profile != null:
+						return r_geom.profile
+
+	for chain in comp.open_chains:
+		for pt in chain:
+			var r_id: int = partition.get_room_id_at(pt)
+			if r_id != -1:
+				var r_geom = partition.get_room_geometry(r_id)
+				if r_geom != null and r_geom.profile != null:
+					return r_geom.profile
+			for offset in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+				var n_id: int = partition.get_room_id_at(pt + offset)
+				if n_id != -1:
+					var r_geom = partition.get_room_geometry(n_id)
+					if r_geom != null and r_geom.profile != null:
+						return r_geom.profile
+
+	return null
+
 ## Genera y añade directamente los nodos 3D (MeshInstance3D + StaticBody3D) a un nodo padre.
 func generate_and_attach_wall_nodes(
 	grid: CellGrid,

@@ -146,8 +146,8 @@ func build_presentation(
 		if semantic_result != null and semantic_result.door_pairs != null:
 			opening_manifest = _DoorManifestFactoryScript.create_wall_opening_manifest(semantic_result.door_pairs)
 
-		var geom_res = _geometry_generator.generate_wall_clusters(
-			semantic_result.grid, opening_manifest, wall_config, col_config, dec_config, 0
+		var geom_res = _geometry_generator.generate_wall_clusters_for_partition(
+			semantic_result.grid, geometry_partition, _style_config_resolver, opening_manifest, wall_config, col_config, base_dec, 0, config.seed if config != null else 1337
 		)
 
 		if not geom_res.generated_meshes.is_empty():
