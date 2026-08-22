@@ -1,22 +1,27 @@
 class_name FixtureStyle
 extends Resource
 
-## Definición de estilo y propiedades arquitectónicas de un Fixture (antorcha, brasero, farol, etc.).
-## 100% puro: no contiene nodos 3D ni lógica de colocación.
+## Definición de estilo y propiedades arquitectónicas de un Fixture.
+## Desacoplado 100%: no contiene nodos 3D ni lógica procedimental de colocación.
+
+const _FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
 
 enum Type {
 	TORCH = 0,
-	BRAZIER = 1,
-	LANTERN = 2,
-	CANDLE = 3
+	LANTERN = 1,
+	BRAZIER = 2,
+	CANDLE_HOLDER = 3,
+	CANDLE_CLUSTER = 4
 }
 
 @export var id: StringName = &"gothic_torch"
 @export var fixture_type: Type = Type.TORCH
+@export var placement_mode: int = _FixturePlacementModeScript.Mode.WALL
+@export var is_wall_mounted: bool = false
 @export var scale: float = 1.0
 @export var offset: Vector3 = Vector3.ZERO
 @export var collision_mode: int = 0 # FixtureCollisionMode.Mode
-@export var custom_scene: PackedScene = null # Escena alternativa si no es procedural
+@export var custom_scene: PackedScene = null
 
 # Propiedades de Iluminación Local
 @export var has_light: bool = true
@@ -27,8 +32,10 @@ enum Type {
 func _init(
 	p_id: StringName = &"gothic_torch",
 	p_type: Type = Type.TORCH,
+	p_placement: int = _FixturePlacementModeScript.Mode.WALL,
 	p_scale: float = 1.0,
 	p_offset: Vector3 = Vector3.ZERO,
+	p_is_wall_mounted: bool = false,
 	p_col_mode: int = 0,
 	p_has_light: bool = true,
 	p_light_color: Color = Color(1.0, 0.65, 0.28, 1.0),
@@ -38,8 +45,10 @@ func _init(
 ) -> void:
 	id = p_id
 	fixture_type = p_type
+	placement_mode = p_placement
 	scale = p_scale
 	offset = p_offset
+	is_wall_mounted = p_is_wall_mounted
 	collision_mode = p_col_mode
 	has_light = p_has_light
 	light_color = p_light_color

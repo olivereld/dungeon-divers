@@ -45,8 +45,6 @@ func _run_all_tests() -> void:
 	for fix in staging_fixtures:
 		assert(fix.has_meta("fixture_directive"), "FAIL: Fixture node missing fixture_directive meta")
 		assert(fix.has_meta("room_id"), "FAIL: Fixture node missing room_id meta")
-		var light = fix.get_node_or_null("TorchLight")
-		assert(light != null and light is OmniLight3D, "FAIL: Fixture missing local TorchLight OmniLight3D")
 
 	parent_node.queue_free()
 

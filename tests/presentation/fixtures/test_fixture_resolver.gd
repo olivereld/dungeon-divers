@@ -8,7 +8,7 @@ const PresentationContextBuilderScript = preload("res://src/presentation/archite
 const PresentationGeometryPartitionScript = preload("res://src/presentation/geometry/presentation_geometry_partition.gd")
 const FixturePaletteResolverScript = preload("res://src/presentation/fixtures/fixture_palette_resolver.gd")
 const FixtureResolverScript = preload("res://src/presentation/fixtures/fixture_resolver.gd")
-const FixtureAnchorScript = preload("res://src/presentation/fixtures/fixture_anchor.gd")
+const FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
 
 func _init() -> void:
 	call_deferred("_run_all_tests")
@@ -38,7 +38,7 @@ func _run_all_tests() -> void:
 	var fix_resolver := FixtureResolverScript.new()
 
 	test_fixture_resolver_determinism(room_contexts[0], partition, pal_resolver, fix_resolver, cfg.seed)
-	test_fixture_wall_anchor_and_clearance(room_contexts, partition, pal_resolver, fix_resolver, cfg.seed)
+	test_fixture_wall_and_floor_placement(room_contexts, partition, pal_resolver, fix_resolver, cfg.seed)
 	test_fixture_does_not_overlap_door(room_contexts, partition, pal_resolver, fix_resolver, cfg.seed)
 
 	print("[PASS] All FixtureResolver tests passed successfully!")
@@ -56,23 +56,29 @@ func test_fixture_resolver_determinism(room_ctx, partition, pal_resolver, fix_re
 		assert(dir1[i].rotation_y == dir2[i].rotation_y, "FAIL: Directive rotation mismatch")
 	print("  [OK] test_fixture_resolver_determinism passed.")
 
-func test_fixture_wall_anchor_and_clearance(room_contexts: Array, partition, pal_resolver, fix_resolver, seed_val: int) -> void:
+func test_fixture_wall_and_floor_placement(room_contexts: Array, partition, pal_resolver, fix_resolver, seed_val: int) -> void:
 	for r_ctx in room_contexts:
 		var palette = pal_resolver.resolve_palette(r_ctx.profile)
 		var directives = fix_resolver.resolve_room_fixtures(r_ctx, partition, palette, seed_val)
-		var placed_cells: Array[Vector2i] = []
+		var placed_wall_cells: Array[Vector2i] = []
+		var placed_floor_cells: Array[Vector2i] = []
 
 		for d in directives:
-			assert(d.anchor == FixtureAnchorScript.Type.WALL, "FAIL: Must be WALL anchor")
 			assert(d.style != null, "FAIL: Style must be attached")
+			assert(d.placement != null, "FAIL: Placement must be attached")
 
-			# Verificar espaciado mínimo
-			for p in placed_cells:
-				var dist = abs(d.cell.x - p.x) + abs(d.cell.y - p.y)
-				assert(dist >= palette.wall_fixture_spacing, "FAIL: Clearance violation between fixtures")
-			placed_cells.append(d.cell)
+			if d.placement_mode == FixturePlacementModeScript.Mode.WALL:
+				for p in placed_wall_cells:
+					var dist = abs(d.cell.x - p.x) + abs(d.cell.y - p.y)
+					assert(dist >= palette.wall_fixture_spacing, "FAIL: Wall clearance violation")
+				placed_wall_cells.append(d.cell)
+			elif d.placement_mode == FixturePlacementModeScript.Mode.FLOOR:
+				for p in placed_floor_cells:
+					var dist = abs(d.cell.x - p.x) + abs(d.cell.y - p.y)
+					assert(dist >= palette.floor_fixture_spacing, "FAIL: Floor clearance violation")
+				placed_floor_cells.append(d.cell)
 
-	print("  [OK] test_fixture_wall_anchor_and_clearance passed.")
+	print("  [OK] test_fixture_wall_and_floor_placement passed.")
 
 func test_fixture_does_not_overlap_door(room_contexts: Array, partition, pal_resolver, fix_resolver, seed_val: int) -> void:
 	for r_ctx in room_contexts:
