@@ -3,55 +3,48 @@ extends RefCounted
 
 ## Contexto inmutable de presentación arquitectónica para escaleras de ascenso y descenso.
 ## Vincula el punto de conexión vertical (StairData) con el perfil arquitectónico de la sala
-## anfitriona para determinar el estilo de peldaños y barandillas (Stone vs Wood).
-## 100% puro: no contiene nodos 3D.
+## anfitriona y el piso destino para determinar el estilo de peldaños y barandillas (Stone vs Wood).
+## 100% puro: no contiene nodos 3D ni muta CellGrid.
 
 const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
-const _StairDataScript = preload("res://src/dungeon_generator/core/data/stair_data.gd")
 
 var stair_id: String = ""
+var connection_id: String = ""
+var floor_number: int = 0
+var target_floor: int = -1
 var cell: Vector2i = Vector2i.ZERO
 var room_id: int = -1
-var profile: _ArchitecturalPresentationProfileScript = null
+var source_profile: _ArchitecturalPresentationProfileScript = null
+var target_profile: _ArchitecturalPresentationProfileScript = null
 var is_downward: bool = false
-var resolved_style: _ArchitecturalStyleScript.StairsStyle = _ArchitecturalStyleScript.StairsStyle.STONE
+var orientation: float = 0.0
 
 func _init(
 	p_stair_id: String = "",
+	p_conn_id: String = "",
+	p_floor_num: int = 0,
+	p_target_floor: int = -1,
 	p_cell: Vector2i = Vector2i.ZERO,
 	p_room_id: int = -1,
-	p_profile: _ArchitecturalPresentationProfileScript = null,
+	p_src_prof: _ArchitecturalPresentationProfileScript = null,
+	p_dst_prof: _ArchitecturalPresentationProfileScript = null,
 	p_is_downward: bool = false,
-	p_style: _ArchitecturalStyleScript.StairsStyle = _ArchitecturalStyleScript.StairsStyle.STONE
+	p_orientation: float = 0.0
 ) -> void:
 	stair_id = p_stair_id
+	connection_id = p_conn_id
+	floor_number = p_floor_num
+	target_floor = p_target_floor
 	cell = p_cell
 	room_id = p_room_id
-	profile = p_profile
+	source_profile = p_src_prof
+	target_profile = p_dst_prof
 	is_downward = p_is_downward
-	resolved_style = p_style
+	orientation = p_orientation
 
-static func create_from_stair(
-	stair: _StairDataScript,
-	partition
-) -> RefCounted:
-	if stair == null:
-		return null
-
-	var r_id: int = -1
-	var prof: _ArchitecturalPresentationProfileScript = null
-	var style: _ArchitecturalStyleScript.StairsStyle = _ArchitecturalStyleScript.StairsStyle.STONE
-
-	if partition != null:
-		r_id = partition.get_room_id_at(stair.cell)
-		if r_id != -1:
-			var geom = partition.get_room_geometry(r_id)
-			if geom != null and geom.profile != null:
-				prof = geom.profile
-				style = prof.stairs_style
-
-	var cls = load("res://src/presentation/architecture/stairs_presentation_context.gd") as GDScript
-	return cls.new(
-		stair.stair_id, stair.cell, r_id, prof, stair.is_downward, style
-	)
+func to_debug_string() -> String:
+	var src_str := source_profile.to_debug_string() if source_profile != null else "None"
+	return "StairsPresentationContext(ID: %s, Floor: %d -> %d, Room: %d, Dir: %s, SrcProf: %s)" % [
+		stair_id, floor_number, target_floor, room_id, "DOWN" if is_downward else "UP", src_str
+	]

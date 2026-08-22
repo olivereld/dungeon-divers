@@ -31,6 +31,8 @@ const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighti
 const _PresentationContextBuilderScript = preload("res://src/presentation/architecture/presentation_context_builder.gd")
 const _PresentationGeometryPartitionScript = preload("res://src/presentation/geometry/presentation_geometry_partition.gd")
 const _PresentationStructuralRendererScript = preload("res://src/presentation/geometry/presentation_structural_renderer.gd")
+const _DoorPresentationContextBuilderScript = preload("res://src/presentation/architecture/door_presentation_context_builder.gd")
+const _StairsPresentationContextBuilderScript = preload("res://src/presentation/architecture/stairs_presentation_context_builder.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 const _ArchitecturalStyleConfigResolverScript = preload("res://src/presentation/architecture/architectural_style_config_resolver.gd")
 
@@ -47,6 +49,8 @@ var _floor_spawner := _DungeonFloorSpawnerScript.new()
 var _lighting_generator: _DungeonLightingGeneratorScript = _DungeonLightingGeneratorScript.new()
 var _light_spawner: _DungeonLightSpawnerScript = _DungeonLightSpawnerScript.new()
 var _context_builder := _PresentationContextBuilderScript.new()
+var _door_context_builder := _DoorPresentationContextBuilderScript.new()
+var _stairs_context_builder := _StairsPresentationContextBuilderScript.new()
 var _style_config_resolver := _ArchitecturalStyleConfigResolverScript.new()
 var _structural_renderer := _PresentationStructuralRendererScript.new()
 
@@ -78,6 +82,16 @@ func build_presentation(
 	var geometry_partition := _PresentationGeometryPartitionScript.new()
 	if semantic_result.grid != null:
 		geometry_partition.build_partition(semantic_result.grid, room_contexts, semantic_result)
+
+	# 1.6 Resolver Contextos Relacionales de Puertas entre Salas Conectadas
+	var door_contexts: Array = []
+	if semantic_result.door_pairs != null:
+		door_contexts = _door_context_builder.build(semantic_result.door_pairs, room_contexts)
+
+	# 1.7 Resolver Contextos de Escaleras y Conexiones Verticales
+	var stairs_contexts: Array = []
+	if "stairs" in semantic_result and semantic_result.stairs != null and not semantic_result.stairs.is_empty():
+		stairs_contexts = _stairs_context_builder.build(semantic_result.stairs, room_contexts, geometry_partition)
 
 	# 2. Crear StagingRoot 100% Desacoplado del árbol de escena activo
 	var staging_root := Node3D.new()

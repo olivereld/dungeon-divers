@@ -1,94 +1,44 @@
 class_name DoorPresentationContext
 extends RefCounted
 
-## Contexto inmutable de presentación arquitectónica para puertas y portales.
-## Relaciona un DungeonDoorManifest con los perfiles arquitectónicos de las salas conectadas
-## para determinar el estilo de marco y hoja (Stone Arch, Heavy Iron, Wood Leaf, Mine Frame).
-## 100% puro: no contiene nodos 3D.
+## Contexto inmutable de presentación arquitectónica para una puerta o portal.
+## Relaciona un DoorPair / DungeonDoorManifest con las salas de origen y destino conectadas
+## y sus respectivos perfiles arquitectónicos (source_profile y target_profile).
+## 100% puro: no contiene nodos de escena ni muta CellGrid.
 
 const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
-const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
-const _DungeonDoorManifestScript = preload("res://src/dungeon_generator/core/data/dungeon_door_manifest.gd")
 
+var connection_id: int = -1
 var door_id: String = ""
-var cell: Vector2i = Vector2i.ZERO
-var adjacent_cell: Vector2i = Vector2i.ZERO
-var room_a_id: int = -1
-var room_b_id: int = -1
-var profile_a: _ArchitecturalPresentationProfileScript = null
-var profile_b: _ArchitecturalPresentationProfileScript = null
-var resolved_style: _ArchitecturalStyleScript.DoorStyle = _ArchitecturalStyleScript.DoorStyle.STONE_ARCH
+var source_room_id: int = -1
+var target_room_id: int = -1
+var source_profile: _ArchitecturalPresentationProfileScript = null
+var target_profile: _ArchitecturalPresentationProfileScript = null
+var position: Vector2i = Vector2i.ZERO
+var adjacent_position: Vector2i = Vector2i.ZERO
 
 func _init(
+	p_conn_id: int = -1,
 	p_door_id: String = "",
-	p_cell: Vector2i = Vector2i.ZERO,
-	p_adj_cell: Vector2i = Vector2i.ZERO,
-	p_a_id: int = -1,
-	p_b_id: int = -1,
-	p_prof_a: _ArchitecturalPresentationProfileScript = null,
-	p_prof_b: _ArchitecturalPresentationProfileScript = null,
-	p_style: _ArchitecturalStyleScript.DoorStyle = _ArchitecturalStyleScript.DoorStyle.STONE_ARCH
+	p_src_id: int = -1,
+	p_dst_id: int = -1,
+	p_src_prof: _ArchitecturalPresentationProfileScript = null,
+	p_dst_prof: _ArchitecturalPresentationProfileScript = null,
+	p_pos: Vector2i = Vector2i.ZERO,
+	p_adj_pos: Vector2i = Vector2i.ZERO
 ) -> void:
+	connection_id = p_conn_id
 	door_id = p_door_id
-	cell = p_cell
-	adjacent_cell = p_adj_cell
-	room_a_id = p_a_id
-	room_b_id = p_b_id
-	profile_a = p_prof_a
-	profile_b = p_prof_b
-	resolved_style = p_style
+	source_room_id = p_src_id
+	target_room_id = p_dst_id
+	source_profile = p_src_prof
+	target_profile = p_dst_prof
+	position = p_pos
+	adjacent_position = p_adj_pos
 
-static func create_from_manifest(
-	manifest: _DungeonDoorManifestScript,
-	partition
-) -> RefCounted:
-	if manifest == null:
-		return null
-
-	var r_a_id: int = -1
-	var r_b_id: int = -1
-
-	if partition != null:
-		r_a_id = partition.get_room_id_at(manifest.cell)
-		r_b_id = partition.get_room_id_at(manifest.adjacent_cell)
-
-		# Si una celda no tiene sala directa, buscar en vecinas ortogonales
-		if r_a_id == -1:
-			for offset in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
-				var candidate: int = partition.get_room_id_at(manifest.cell + offset)
-				if candidate != -1:
-					r_a_id = candidate
-					break
-		if r_b_id == -1:
-			for offset in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
-				var candidate: int = partition.get_room_id_at(manifest.adjacent_cell + offset)
-				if candidate != -1 and candidate != r_a_id:
-					r_b_id = candidate
-					break
-
-	var prof_a: _ArchitecturalPresentationProfileScript = null
-	var prof_b: _ArchitecturalPresentationProfileScript = null
-
-	if partition != null:
-		if r_a_id != -1:
-			var geom_a = partition.get_room_geometry(r_a_id)
-			if geom_a != null:
-				prof_a = geom_a.profile
-		if r_b_id != -1:
-			var geom_b = partition.get_room_geometry(r_b_id)
-			if geom_b != null:
-				prof_b = geom_b.profile
-
-	# Resolver estilo prioritario entre ambas salas
-	var style: _ArchitecturalStyleScript.DoorStyle = _ArchitecturalStyleScript.DoorStyle.STONE_ARCH
-	if prof_a != null and prof_a.door_style != _ArchitecturalStyleScript.DoorStyle.STONE_ARCH:
-		style = prof_a.door_style
-	elif prof_b != null and prof_b.door_style != _ArchitecturalStyleScript.DoorStyle.STONE_ARCH:
-		style = prof_b.door_style
-	elif prof_a != null:
-		style = prof_a.door_style
-
-	var cls = load("res://src/presentation/architecture/door_presentation_context.gd") as GDScript
-	return cls.new(
-		manifest.door_id, manifest.cell, manifest.adjacent_cell, r_a_id, r_b_id, prof_a, prof_b, style
-	)
+func to_debug_string() -> String:
+	var src_str := source_profile.to_debug_string() if source_profile != null else "None"
+	var dst_str := target_profile.to_debug_string() if target_profile != null else "None"
+	return "DoorPresentationContext(ID: %s, Conn: %d, Room %d -> Room %d, SrcProf: %s, DstProf: %s)" % [
+		door_id, connection_id, source_room_id, target_room_id, src_str, dst_str
+	]
