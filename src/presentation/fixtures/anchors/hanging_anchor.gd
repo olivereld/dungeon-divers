@@ -12,9 +12,9 @@ func _init(
 	p_rot_y: float = 0.0,
 	p_suspension_height: float = 2.4
 ) -> void:
-	mode = _FixturePlacementModeScript.Mode.HANGING
-	cell = p_cell
-	position = p_pos
-	rotation_y = p_rot_y
-	normal = Vector3.DOWN
-	suspension_height = p_suspension_height
+	self.mode = _FixturePlacementModeScript.Mode.HANGING
+	self.cell = p_cell
+	self.position = p_pos
+	self.rotation_y = p_rot_y
+	self.normal = Vector3.DOWN
+	self.suspension_height = p_suspension_height

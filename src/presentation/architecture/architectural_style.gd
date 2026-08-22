@@ -84,7 +84,7 @@ static func fixture_to_name(style: int) -> String:
 			return k
 	return "UNKNOWN"
 
-static func palette_to_name(palette: DecorationPalette) -> String:
+static func palette_to_name(palette: int) -> String:
 	for k in DecorationPalette.keys():
 		if DecorationPalette[k] == palette:
 			return k

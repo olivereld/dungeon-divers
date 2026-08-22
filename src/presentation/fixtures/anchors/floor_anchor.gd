@@ -8,8 +8,8 @@ func _init(
 	p_pos: Vector3 = Vector3.ZERO,
 	p_rot_y: float = 0.0
 ) -> void:
-	mode = _FixturePlacementModeScript.Mode.FLOOR
-	cell = p_cell
-	position = p_pos
-	rotation_y = p_rot_y
-	normal = Vector3.UP
+	self.mode = _FixturePlacementModeScript.Mode.FLOOR
+	self.cell = p_cell
+	self.position = p_pos
+	self.rotation_y = p_rot_y
+	self.normal = Vector3.UP

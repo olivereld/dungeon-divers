@@ -12,9 +12,9 @@ func _init(
 	p_rot_y: float = 0.0,
 	p_surface_type: StringName = &"floor_surface"
 ) -> void:
-	mode = _FixturePlacementModeScript.Mode.SURFACE
-	cell = p_cell
-	position = p_pos
-	rotation_y = p_rot_y
-	normal = Vector3.UP
-	surface_type = p_surface_type
+	self.mode = _FixturePlacementModeScript.Mode.SURFACE
+	self.cell = p_cell
+	self.position = p_pos
+	self.rotation_y = p_rot_y
+	self.normal = Vector3.UP
+	self.surface_type = p_surface_type

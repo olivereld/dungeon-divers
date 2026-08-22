@@ -12,9 +12,9 @@ func _init(
 	p_rot_y: float = 0.0,
 	p_normal: Vector3 = Vector3.ZERO
 ) -> void:
-	mode = _FixturePlacementModeScript.Mode.WALL
-	cell = p_cell
-	wall_side = p_wall_side
-	position = p_pos
-	rotation_y = p_rot_y
-	normal = p_normal
+	self.mode = _FixturePlacementModeScript.Mode.WALL
+	self.cell = p_cell
+	self.wall_side = p_wall_side
+	self.position = p_pos
+	self.rotation_y = p_rot_y
+	self.normal = p_normal

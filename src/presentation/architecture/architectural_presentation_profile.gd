@@ -12,7 +12,7 @@ var wall_style: _ArchitecturalStyleScript.WallStyle = _ArchitecturalStyleScript.
 var door_style: _ArchitecturalStyleScript.DoorStyle = _ArchitecturalStyleScript.DoorStyle.STONE_ARCH
 var stairs_style: _ArchitecturalStyleScript.StairsStyle = _ArchitecturalStyleScript.StairsStyle.STONE
 var fixture_style: _ArchitecturalStyleScript.FixtureStyle = _ArchitecturalStyleScript.FixtureStyle.TORCH
-var decoration_palette: _ArchitecturalStyleScript.DecorationPalette = _ArchitecturalStyleScript.DecorationPalette.GENERIC
+var decoration_palette: int = _ArchitecturalStyleScript.DecorationPalette.GENERIC
 
 func _init(
 	p_floor: _ArchitecturalStyleScript.FloorStyle = _ArchitecturalStyleScript.FloorStyle.GENERIC_STONE,
@@ -20,7 +20,7 @@ func _init(
 	p_door: _ArchitecturalStyleScript.DoorStyle = _ArchitecturalStyleScript.DoorStyle.STONE_ARCH,
 	p_stairs: _ArchitecturalStyleScript.StairsStyle = _ArchitecturalStyleScript.StairsStyle.STONE,
 	p_fixture: _ArchitecturalStyleScript.FixtureStyle = _ArchitecturalStyleScript.FixtureStyle.TORCH,
-	p_palette: _ArchitecturalStyleScript.DecorationPalette = _ArchitecturalStyleScript.DecorationPalette.GENERIC
+	p_palette: int = _ArchitecturalStyleScript.DecorationPalette.GENERIC
 ) -> void:
 	floor_style = p_floor
 	wall_style = p_wall
