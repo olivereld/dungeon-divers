@@ -91,6 +91,7 @@ var _lbl_fog_density: Label = null
 var _preview_overlay: ColorRect = null
 var _preview_canvas: Control = null
 var _seed_line_edit: LineEdit = null
+var _opt_archetype: OptionButton = null
 var _opt_algorithm: OptionButton = null
 var _spin_floors: SpinBox = null
 var _opt_floor_view: OptionButton = null
@@ -293,18 +294,18 @@ func _setup_2d_full_interface() -> void:
 	arch_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
 	arch_vbox.add_child(arch_lbl)
 
-	var opt_arch := OptionButton.new()
-	opt_arch.add_item("Mausoleum / Crypt (Referencia)", 1)
-	opt_arch.add_item("Fortress", 2)
-	opt_arch.add_item("Temple", 3)
-	opt_arch.add_item("Mine", 4)
-	opt_arch.add_item("Generic", 0)
-	opt_arch.selected = 0 # Mausoleum por defecto
-	opt_arch.item_selected.connect(func(idx: int):
-		var arch_id: int = opt_arch.get_item_id(idx)
+	_opt_archetype = OptionButton.new()
+	_opt_archetype.add_item("Crypt / Mausoleum (Referencia)", 1)
+	_opt_archetype.add_item("Fortress", 2)
+	_opt_archetype.add_item("Temple", 3)
+	_opt_archetype.add_item("Mine", 4)
+	_opt_archetype.add_item("Generic", 0)
+	_opt_archetype.selected = 0 # Crypt por defecto
+	_opt_archetype.item_selected.connect(func(idx: int):
+		var arch_id: int = _opt_archetype.get_item_id(idx)
 		archetype_changed.emit(arch_id)
 	)
-	arch_vbox.add_child(opt_arch)
+	arch_vbox.add_child(_opt_archetype)
 	_tab_params_container.add_child(arch_vbox)
 
 	# Fila Algoritmo
@@ -1595,3 +1596,12 @@ func _on_build_3d_pressed() -> void:
 
 func _on_back_to_2d_pressed() -> void:
 	toggle_2d_view_requested.emit()
+
+func set_selected_archetype(p_arch_id: int) -> void:
+	if _opt_archetype == null:
+		return
+	for idx in range(_opt_archetype.item_count):
+		if _opt_archetype.get_item_id(idx) == p_arch_id:
+			_opt_archetype.select(idx)
+			return
+

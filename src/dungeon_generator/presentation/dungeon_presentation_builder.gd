@@ -279,112 +279,115 @@ func build_multi_floor_presentation(
 		floor_container.position = Vector3(float(f_num) * lateral_spacing, 0.0, 0.0)
 		staging_root.add_child(floor_container)
 
-		# 1. FloorGridMap
+		var f_semantic: DungeonSemanticResult = f_data.semantic_result
+		if f_semantic == null:
+			f_semantic = DungeonSemanticResult.new()
+			f_semantic.grid = f_data.grid
+			f_semantic.rooms = f_data.rooms if ("rooms" in f_data and f_data.rooms != null) else []
+			f_semantic.connections = f_data.connections if ("connections" in f_data and f_data.connections != null) else []
+			f_semantic.corridor_paths = f_data.corridor_paths if ("corridor_paths" in f_data and f_data.corridor_paths != null) else []
+			f_semantic.door_pairs = f_data.door_pairs if ("door_pairs" in f_data and f_data.door_pairs != null) else []
+			f_semantic.stairs = f_data.stairs if ("stairs" in f_data and f_data.stairs != null) else []
+			f_semantic.dungeon_archetype = config.dungeon_archetype
+
+		# 1. Resolver Contextos de Sala, Partición Geométrica y Contextos Relacionales
+		var room_contexts: Array = _context_builder.build_contexts(f_semantic)
+		var geometry_partition := _PresentationGeometryPartitionScript.new()
+		if f_semantic.grid != null:
+			geometry_partition.build_partition(f_semantic.grid, room_contexts, f_semantic)
+
+		var door_contexts: Array = []
+		if f_semantic.door_pairs != null:
+			door_contexts = _door_context_builder.build(f_semantic.door_pairs, room_contexts)
+
+		var stairs_contexts: Array = []
+		if "stairs" in f_semantic and f_semantic.stairs != null and not f_semantic.stairs.is_empty():
+			stairs_contexts = _stairs_context_builder.build(f_semantic.stairs, room_contexts, geometry_partition)
+
+		# 2. Configurar GridMaps de piso
 		var floor_grid_map := GridMap.new()
 		floor_grid_map.name = "FloorGridMap"
 		floor_grid_map.cell_size = Vector3(tile_size, 0.02, tile_size)
 		floor_grid_map.mesh_library = mesh_lib
 		floor_container.add_child(floor_grid_map)
 
-		if f_data.grid != null:
-			var grid = f_data.grid
-			for y in range(grid.height):
-				for x in range(grid.width):
-					if grid.is_walkable(Vector2i(x, y)):
-						floor_grid_map.set_cell_item(Vector3i(x, 0, y), biome.floor_index if biome != null else 0, 0)
-						result.total_tiles_rendered += 1
+		var wall_grid_map := GridMap.new()
+		wall_grid_map.name = "WallGridMap"
+		wall_grid_map.cell_size = Vector3(tile_size, tile_size, tile_size)
+		wall_grid_map.mesh_library = mesh_lib
+		floor_container.add_child(wall_grid_map)
 
-		# 1.1 Floor Surface & Tile Spawner (Fases M1-M8)
-		if biome.dungeon_floor_scene == null and biome.floor_scene == null and f_data.grid != null:
-			var floor_cfg: _FloorTileConfigScript = config.floor_tile_config if (config != null and "floor_tile_config" in config and config.floor_tile_config != null) else _FloorTileConfigScript.new()
-			floor_cfg.tile_size = tile_size
-			floor_cfg.seed = f_data.seed_used
-
-			# Para pisos superiores con escaleras de bajada, omitir las baldosas en esa celda dejando el hueco abierto
-			var floor_render_grid = f_data.grid
-			if f_data.has_stairs():
-				floor_render_grid = f_data.grid.duplicate_grid()
-				for st in f_data.stairs:
-					if st != null and st.is_downward:
-						floor_render_grid.set_cell(st.cell, _CellGridScript.CellType.VOID)
-
-			var floor_res = _floor_generator.generate_floor_surface(
-				floor_render_grid, floor_cfg, f_data.seed_used
-			)
-			_floor_spawner.spawn_floor(floor_res, floor_container, biome)
-			floor_grid_map.visible = false
-
-		# 2. ContinuousWalls a través de DungeonGeometryGenerator
-		var wall_config := _WallGeometryConfigScript.new()
-		wall_config.cube_size = tile_size
-		wall_config.cubes_high = maxi(1, config.wall_height)
-		wall_config.seed = f_data.seed_used
-
-		var col_config := _CollisionConfigScript.new()
-		col_config.mode = _CollisionConfigScript.CollisionMode.COMPOUND_BOX
-
-		var dec_config := _DecorationConfigScript.new()
-		dec_config.enabled = true
-		dec_config.seed = f_data.seed_used
-
-		var opening_manifest = null
-		if f_data.door_pairs != null:
-			opening_manifest = _DoorManifestFactoryScript.create_wall_opening_manifest(f_data.door_pairs)
-
-		var geom_res = _geometry_generator.generate_wall_clusters(
-			f_data.grid, opening_manifest, wall_config, col_config, dec_config, 0
+		var map_res: Dictionary = _gridmap_mapper.map_grid(
+			f_semantic.grid, biome, floor_grid_map, wall_grid_map, config
 		)
+		result.total_tiles_rendered += int(map_res.get("total_tiles", 0))
 
-		if not geom_res.generated_meshes.is_empty():
-			var wall_inst := MeshInstance3D.new()
-			wall_inst.name = "ContinuousWalls"
-			wall_inst.mesh = geom_res.get_unified_mesh()
+		# 3. Renderizado Estructural Desacoplado (Suelos y Muros 3D Continuos)
+		var struct_res: Dictionary = _structural_renderer.render_structure(
+			geometry_partition, f_semantic, config, biome, floor_container, floor_grid_map, wall_grid_map
+		)
+		for diag in struct_res.get("diagnostics", []):
+			result.diagnostics.append(diag)
 
-			var static_body := StaticBody3D.new()
-			static_body.name = "WallStaticBody"
-			for g_mesh in geom_res.generated_meshes:
-				for i in range(g_mesh.collision_shapes.size()):
-					var col_shape := CollisionShape3D.new()
-					col_shape.shape = g_mesh.collision_shapes[i]
-					col_shape.transform = g_mesh.collision_transforms[i]
-					static_body.add_child(col_shape)
-			wall_inst.add_child(static_body)
-			wall_inst.add_to_group(CAMERA_OCCLUDER_GROUP, true)
-			static_body.add_to_group(CAMERA_OCCLUDER_GROUP, true)
-			floor_container.add_child(wall_inst)
-
-		# 3. Puertas
-		if f_data.door_pairs != null:
-			var door_manifests = _DoorManifestFactoryScript.create_door_manifests(f_data.door_pairs)
+		# 4. Spawning de Puertas
+		if f_semantic.door_pairs != null and not f_semantic.door_pairs.is_empty():
+			var door_manifests = _DoorManifestFactoryScript.create_door_manifests(f_semantic.door_pairs)
 			var door_res: Dictionary = _door_spawner.spawn_doors(
-				door_manifests, floor_container, biome, tile_size, config.wall_height, f_data.seed_used, f_data.grid
+				door_manifests, floor_container, biome, tile_size,
+				config.wall_height if config != null else 2,
+				f_data.seed_used, f_semantic.grid,
+				geometry_partition, door_contexts
 			)
 			for d in door_res.get("spawned_doors", []):
 				result.spawned_entities.append(d)
 
-		# 4. Escaleras del piso
+		# 5. Spawning de Escaleras del piso
 		if f_data.has_stairs():
 			var stair_res: Dictionary = _stair_spawner.spawn_stairs(
-				f_data.stairs, floor_container, biome, tile_size, floor_h, f_data.seed_used
+				f_data.stairs, floor_container, biome, tile_size, floor_h, f_data.seed_used,
+				geometry_partition, stairs_contexts
 			)
 			for st_node in stair_res.get("spawned_stairs", []):
 				result.spawned_entities.append(st_node)
 
-		# 5. Iluminación Procedural del piso
+		# 6. Composición y Spawning de Decoración (Fixtures + Props por Habitación)
+		var all_fixture_directives: Array = []
+		var all_prop_directives: Array = []
+		var arch_type: int = f_semantic.dungeon_archetype if ("dungeon_archetype" in f_semantic and f_semantic.dungeon_archetype != 0) else config.dungeon_archetype
+
+		for r_ctx in room_contexts:
+			var dec_palette = _decoration_palette_resolver.resolve_palette(arch_type, r_ctx.purpose, r_ctx.profile)
+			var r_geom = geometry_partition.get_room_geometry(r_ctx.room_id)
+			var comp = _composition_resolver.resolve_room_composition(
+				r_ctx, dec_palette, r_geom, geometry_partition, f_data.seed_used, tile_size
+			)
+			all_fixture_directives.append_array(comp.fixture_directives)
+			all_prop_directives.append_array(comp.prop_directives)
+
+		var fix_res: Dictionary = _fixture_spawner.spawn_fixtures(all_fixture_directives, floor_container, biome, tile_size)
+		for fix_node in fix_res.get("spawned_fixtures", []):
+			result.spawned_entities.append(fix_node)
+
+		for p_dir in all_prop_directives:
+			var p_node = _prop_spawner.spawn_prop(p_dir, floor_container)
+			if p_node != null:
+				result.spawned_entities.append(p_node)
+
+		# 7. Iluminación Procedural del piso
 		var light_cfg: _DungeonLightingConfigScript = config.lighting_config if (config != null and "lighting_config" in config and config.lighting_config != null) else _DungeonLightingConfigScript.new()
 		var light_prof: _LightingProfileScript = biome.lighting_profile if (biome != null and "lighting_profile" in biome and biome.lighting_profile != null) else _LightingProfileScript.new()
-
-		var f_semantic := DungeonSemanticResult.new()
-		f_semantic.grid = f_data.grid
-		f_semantic.rooms = f_data.rooms if ("rooms" in f_data and f_data.rooms != null) else []
-		f_semantic.connections = f_data.connections if ("connections" in f_data and f_data.connections != null) else []
-		f_semantic.corridor_paths = f_data.corridor_paths if ("corridor_paths" in f_data and f_data.corridor_paths != null) else []
-		f_semantic.door_pairs = f_data.door_pairs if ("door_pairs" in f_data and f_data.door_pairs != null) else []
 
 		var light_res = _lighting_generator.generate_lighting(
 			f_semantic, light_cfg, f_data.seed_used
 		)
 		_light_spawner.spawn_lighting(light_res, floor_container, light_prof, tile_size)
+
+		# 8. Entidades del piso
+		var spawn_res: Dictionary = _entity_spawner.spawn_entities(
+			f_semantic, floor_container, biome, config
+		)
+		for ent in spawn_res.get("spawned_entities", []):
+			result.spawned_entities.append(ent)
 
 	# Atomic Swap
 	if active_presentation != null:

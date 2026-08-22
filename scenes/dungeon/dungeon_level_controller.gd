@@ -234,6 +234,11 @@ func _on_floors_changed(p_floors: int) -> void:
 
 func _on_floor_view_mode_changed(p_floor_idx: int) -> void:
 	_current_isolated_floor = p_floor_idx
+	if _current_multi_result != null:
+		var target_f: int = 0 if _current_isolated_floor == -1 else _current_isolated_floor
+		var f_data = _current_multi_result.get_floor(target_f)
+		if f_data != null and f_data.semantic_result != null:
+			_current_semantic_result = f_data.semantic_result
 	if visualizer != null:
 		visualizer.update_floor_view_options(config.total_floors if config != null else 1, _current_isolated_floor)
 		if visualizer.is_2d_preview_mode and _current_multi_result != null:
@@ -333,6 +338,9 @@ func regenerate(force_new_seed: bool = false) -> void:
 		_generation_state = "FAILED"
 		return
 
+	if visualizer != null:
+		visualizer.set_selected_archetype(config.dungeon_archetype)
+
 	if force_new_seed:
 		config.seed = 0
 		config.use_fixed_seed = false
@@ -357,7 +365,8 @@ func regenerate(force_new_seed: bool = false) -> void:
 		_hide_failure_ui()
 		_current_multi_result = multi_res
 		_current_result = null
-		_current_semantic_result = null
+		var f0_data = multi_res.get_floor(0)
+		_current_semantic_result = f0_data.semantic_result if (f0_data != null and f0_data.semantic_result != null) else null
 		_generation_state = "READY_2D"
 
 		if visualizer != null:
@@ -422,25 +431,26 @@ func build_3d_presentation() -> void:
 
 	# Si es multi-piso
 	if config.total_floors > 1 and _current_multi_result != null:
+		var t_pres_0 = Time.get_ticks_msec()
 		var pres_res = _presentation_builder.build_multi_floor_presentation(
 			_current_multi_result, self, biome, config, _current_presentation_root
 		)
+		_time_presentation_ms = float(Time.get_ticks_msec() - t_pres_0)
 		if not pres_res.success:
+			_generation_state = "FAILED"
 			_show_failure_ui("Fallo en presentación multi-piso 3D:\n" + pres_res.to_debug_string())
 			return
 
+		_generation_state = "READY_3D"
 		_current_presentation_root = pres_res.presentation_root
 		_current_presentation_root.visible = true
 
 		var f0 = _current_multi_result.get_floor(0)
-		if f0 != null and not f0.rooms.is_empty():
-			var center_cell = f0.rooms[0].get_center()
-			var p_pos := GridToWorld.get_cell_center_world_3d(center_cell, 0, config.cell_size, config.floor_height, 0.5)
-			if _player == null:
-				_player = _PlayerTestScript.new()
-				_player.name = "Player"
-				add_child(_player)
-			_player.position = p_pos
+		if f0 != null and f0.semantic_result != null:
+			_current_semantic_result = f0.semantic_result
+
+		_spawn_or_reposition_player()
+		if _player != null:
 			_player.visible = _is_player_active
 
 		if camera_rig != null:
@@ -455,6 +465,22 @@ func build_3d_presentation() -> void:
 
 		_apply_floor_visibility()
 		_apply_live_lighting_updates()
+
+		# Loguear diagnóstico runtime de materialización multi-piso
+		var arch_lbl: String = "CRYPT" if config.dungeon_archetype == _DungeonArchetypeScript.Type.MAUSOLEUM else _DungeonArchetypeScript.to_name(config.dungeon_archetype)
+		var total_props: int = 0
+		var total_fixtures: int = 0
+		for child in _current_presentation_root.get_children():
+			if child.name.begins_with("Floor_"):
+				for f_child in child.get_children():
+					if f_child.name.begins_with("Prop_"):
+						total_props += 1
+					elif f_child.name == "Fixtures":
+						total_fixtures += f_child.get_child_count()
+
+		print("[DungeonLevel MultiFloor] Materialized Archetype: %s | Floors: %d | Total Props: %d | Total Fixtures: %d" % [
+			arch_lbl, _current_multi_result.get_floor_count(), total_props, total_fixtures
+		])
 		return
 
 	# Si es mono-piso
@@ -475,6 +501,27 @@ func build_3d_presentation() -> void:
 		_generation_state = "READY_3D"
 		_current_presentation_root = pres_res.presentation_root
 		_current_presentation_root.visible = true
+
+		# Loguear diagnóstico runtime de materialización
+		var arch_lbl: String = "CRYPT" if config.dungeon_archetype == _DungeonArchetypeScript.Type.MAUSOLEUM else _DungeonArchetypeScript.to_name(config.dungeon_archetype)
+		var total_props: int = 0
+		var total_fixtures: int = 0
+		for child in _current_presentation_root.get_children():
+			if child.name.begins_with("Prop_"):
+				total_props += 1
+			elif child.name == "Fixtures":
+				total_fixtures += child.get_child_count()
+
+		print("[DungeonLevel] Materialized Archetype: %s | Rooms: %d | Total Props: %d | Total Fixtures: %d" % [
+			arch_lbl, _current_semantic_result.rooms.size(), total_props, total_fixtures
+		])
+
+		for room in _current_semantic_result.rooms:
+			var purp_id: int = _current_semantic_result.room_purposes.get(room.id, 0)
+			var purp_name: String = _RoomPurposeScript.to_name(purp_id)
+			print("  - Room %d (%s): Bounds (%d, %d) [%dx%d]" % [
+				room.id, purp_name, room.rect.position.x, room.rect.position.y, room.rect.size.x, room.rect.size.y
+			])
 
 		# Posicionar o spawnear personaje de prueba
 		_spawn_or_reposition_player()
@@ -669,7 +716,7 @@ func _update_debug_overlay() -> void:
 
 	var arch_name: String = "UNKNOWN"
 	var arch_id: int = config.dungeon_archetype if config != null else 0
-	arch_name = _DungeonArchetypeScript.to_name(arch_id)
+	arch_name = "CRYPT" if arch_id == _DungeonArchetypeScript.Type.MAUSOLEUM else _DungeonArchetypeScript.to_name(arch_id)
 
 	var text := ""
 	text += "[b][color=yellow]═══ DUNGEON DEBUG (F3) ═══[/color][/b]\n"
@@ -717,24 +764,45 @@ func _update_debug_overlay() -> void:
 	_debug_overlay_label.text = text
 
 func _get_player_current_room() -> Dictionary:
-	if _player == null or (_current_semantic_result == null and _current_result == null):
+	if _player == null:
 		return {}
 
 	var cell_size: float = config.cell_size if config != null else 2.0
-	var p_cell := Vector2i(
-		int(floor(_player.global_position.x / cell_size)),
-		int(floor(_player.global_position.z / cell_size))
-	)
+	var grid_w: float = float(config.grid_width) if config != null else 48.0
+	var lateral_spacing: float = (grid_w * cell_size) + 80.0
 
-	if _current_semantic_result != null:
+	if _current_multi_result != null:
+		var p_x: float = _player.global_position.x
+		var f_idx: int = int(floor((p_x + 40.0) / lateral_spacing)) if lateral_spacing > 0.0 else 0
+		var f_data = _current_multi_result.get_floor(f_idx)
+		if f_data != null and f_data.semantic_result != null:
+			var local_x: float = p_x - (float(f_idx) * lateral_spacing)
+			var p_cell := Vector2i(
+				int(floor(local_x / cell_size)),
+				int(floor(_player.global_position.z / cell_size))
+			)
+			for room in f_data.semantic_result.rooms:
+				if room.rect.has_point(p_cell):
+					var purp_id: int = f_data.semantic_result.room_purposes.get(room.id, 0)
+					return {"id": room.id, "rect": room.rect, "purpose": purp_id, "floor": f_idx}
+
+	elif _current_semantic_result != null:
+		var p_cell := Vector2i(
+			int(floor(_player.global_position.x / cell_size)),
+			int(floor(_player.global_position.z / cell_size))
+		)
 		for room in _current_semantic_result.rooms:
 			if room.rect.has_point(p_cell):
 				var purp_id: int = _current_semantic_result.room_purposes.get(room.id, 0)
-				return {"id": room.id, "rect": room.rect, "purpose": purp_id}
+				return {"id": room.id, "rect": room.rect, "purpose": purp_id, "floor": 0}
 	elif _current_result != null:
+		var p_cell := Vector2i(
+			int(floor(_player.global_position.x / cell_size)),
+			int(floor(_player.global_position.z / cell_size))
+		)
 		for room in _current_result.rooms:
 			if room.rect.has_point(p_cell):
-				return {"id": room.id, "rect": room.rect, "purpose": 0}
+				return {"id": room.id, "rect": room.rect, "purpose": 0, "floor": 0}
 	return {}
 
 func _handle_camera_pan(delta: float) -> void:

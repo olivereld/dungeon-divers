@@ -78,6 +78,7 @@ func generate_multi_floor(
 			return multi_result
 
 		var floor_data: DungeonFloorData = _DungeonFloorDataScript.from_dungeon_result(d_res)
+		floor_data.semantic_result = sem_res
 		multi_result.add_floor(floor_data)
 
 	# 4. Planificar y conectar escaleras entre pisos consecutivos

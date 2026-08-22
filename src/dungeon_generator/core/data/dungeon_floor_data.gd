@@ -13,6 +13,7 @@ var door_pairs: Array = []
 var stairs: Array = []
 var seed_used: int = 0
 var metadata: Dictionary = {}
+var semantic_result: DungeonSemanticResult = null
 
 func _init(
 	p_floor_number: int = 0,
@@ -31,6 +32,9 @@ func _init(
 func add_stair(stair: StairData) -> void:
 	if stair != null and not stairs.has(stair):
 		stairs.append(stair)
+		if semantic_result != null and ("stairs" in semantic_result):
+			if not semantic_result.stairs.has(stair):
+				semantic_result.stairs.append(stair)
 
 ## Retorna el StairData ubicado en una celda específica (o null si no hay).
 func get_stair_at(cell: Vector2i) -> StairData:
