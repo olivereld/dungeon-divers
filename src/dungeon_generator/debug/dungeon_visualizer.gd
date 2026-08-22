@@ -18,6 +18,7 @@ signal walls_visibility_toggled(visible: bool)
 signal camera_view_toggled()
 signal player_follow_toggled(is_following: bool)
 
+signal archetype_changed(archetype_idx: int)
 signal preset_changed(preset_idx: int)
 signal grid_size_changed(w: int, h: int)
 signal mission_depth_changed(depth: int)
@@ -281,6 +282,30 @@ func _setup_2d_full_interface() -> void:
 
 	seed_vbox.add_child(seed_input_hbox)
 	_tab_params_container.add_child(seed_vbox)
+
+	# Fila Arquetipo de Mazmorra (Fase 10)
+	var arch_vbox := VBoxContainer.new()
+	arch_vbox.add_theme_constant_override("separation", 4)
+
+	var arch_lbl := Label.new()
+	arch_lbl.text = "Arquetipo Arquitectónico:"
+	arch_lbl.add_theme_font_size_override("font_size", 12)
+	arch_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	arch_vbox.add_child(arch_lbl)
+
+	var opt_arch := OptionButton.new()
+	opt_arch.add_item("Mausoleum / Crypt (Referencia)", 1)
+	opt_arch.add_item("Fortress", 2)
+	opt_arch.add_item("Temple", 3)
+	opt_arch.add_item("Mine", 4)
+	opt_arch.add_item("Generic", 0)
+	opt_arch.selected = 0 # Mausoleum por defecto
+	opt_arch.item_selected.connect(func(idx: int):
+		var arch_id: int = opt_arch.get_item_id(idx)
+		archetype_changed.emit(arch_id)
+	)
+	arch_vbox.add_child(opt_arch)
+	_tab_params_container.add_child(arch_vbox)
 
 	# Fila Algoritmo
 	var algo_vbox := VBoxContainer.new()

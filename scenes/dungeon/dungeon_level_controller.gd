@@ -18,6 +18,8 @@ const _MultiFloorGeneratorScript = preload("res://src/dungeon_generator/core/mul
 const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
 const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
 const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
+const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
+const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 
 var _pipeline: DungeonPipeline = DungeonPipeline.new()
 var _semantic_orchestrator := _SemanticOrchestratorScript.new()
@@ -30,6 +32,18 @@ var _current_multi_result: DungeonMultiFloorResult = null
 var _current_semantic_result: DungeonSemanticResult = null
 var _current_presentation_root: Node3D = null
 var _player: CharacterBody3D = null
+
+# Métricas de generación por etapas
+var _time_layout_ms: float = 0.0
+var _time_semantic_ms: float = 0.0
+var _time_presentation_ms: float = 0.0
+var _generation_state: String = "IDLE"
+
+# Debug Overlay (F3)
+var _debug_overlay_canvas: CanvasLayer = null
+var _debug_overlay_panel: PanelContainer = null
+var _debug_overlay_label: RichTextLabel = null
+var _debug_overlay_visible: bool = false
 
 var _camera_pivot := Vector3.ZERO
 var _zoom: float = 40.0
@@ -44,12 +58,15 @@ func _ready() -> void:
 	if config == null:
 		config = preload("res://resources/configs/hybrid_dungeon.tres")
 
+	_setup_debug_overlay()
 	_connect_visualizer_signals()
 	_setup_camera()
 	regenerate(false)
 
 func _connect_visualizer_signals() -> void:
 	if visualizer != null:
+		if not visualizer.archetype_changed.is_connected(_on_archetype_changed):
+			visualizer.archetype_changed.connect(_on_archetype_changed)
 		if not visualizer.seed_submitted.is_connected(_on_seed_submitted):
 			visualizer.seed_submitted.connect(_on_seed_submitted)
 		if not visualizer.random_seed_requested.is_connected(_on_random_seed_requested):
@@ -303,10 +320,17 @@ func _setup_camera() -> void:
 	camera.size = _zoom
 	_update_camera_transform()
 
+func _on_archetype_changed(p_arch_id: int) -> void:
+	if config != null:
+		config.dungeon_archetype = p_arch_id
+		regenerate(false)
+
 ## Paso 1: Generación lógica y apertura de la vista previa 2D
 func regenerate(force_new_seed: bool = false) -> void:
+	_generation_state = "GENERATING"
 	_connect_visualizer_signals()
 	if config == null:
+		_generation_state = "FAILED"
 		return
 
 	if force_new_seed:
@@ -321,8 +345,12 @@ func regenerate(force_new_seed: bool = false) -> void:
 
 	# FLUJO MULTI-PISO (Fase 10 / M8)
 	if config.total_floors > 1:
+		var t_multi_0 = Time.get_ticks_msec()
 		var multi_res: DungeonMultiFloorResult = _multi_floor_generator.generate_multi_floor(config)
+		_time_layout_ms = float(Time.get_ticks_msec() - t_multi_0)
+		_time_semantic_ms = 0.0
 		if multi_res == null or not multi_res.is_valid:
+			_generation_state = "FAILED"
 			_show_failure_ui("Generación multi-piso fallida.\nPresiona [R] o [Espacio] para reintentar.")
 			return
 
@@ -330,6 +358,7 @@ func regenerate(force_new_seed: bool = false) -> void:
 		_current_multi_result = multi_res
 		_current_result = null
 		_current_semantic_result = null
+		_generation_state = "READY_2D"
 
 		if visualizer != null:
 			visualizer.update_floor_view_options(config.total_floors, _current_isolated_floor)
@@ -337,8 +366,12 @@ func regenerate(force_new_seed: bool = false) -> void:
 		return
 
 	# FLUJO MONO-PISO ESTÁNDAR
+	var t_core_0 = Time.get_ticks_msec()
 	var new_result = _pipeline.generate(config, DungeonPipeline.MAX_ATTEMPTS, force_new_seed)
+	_time_layout_ms = float(Time.get_ticks_msec() - t_core_0)
+
 	if new_result == null:
+		_generation_state = "FAILED"
 		push_error("[DungeonLevelController] Falló la generación física tras %d intentos para '%s'." % [
 			DungeonPipeline.MAX_ATTEMPTS,
 			config.dungeon_id if ("dungeon_id" in config) else "default"
@@ -349,8 +382,12 @@ func regenerate(force_new_seed: bool = false) -> void:
 		return
 
 	# 2. Generar modelo semántico (Fase 7)
+	var t_sem_0 = Time.get_ticks_msec()
 	var new_semantic = _semantic_orchestrator.generate_semantics(new_result, config)
+	_time_semantic_ms = float(Time.get_ticks_msec() - t_sem_0)
+
 	if new_semantic == null or not new_semantic.gameplay_valid:
+		_generation_state = "FAILED"
 		push_error("[DungeonLevelController] Falló la validación semántica.")
 		if _current_semantic_result != null:
 			return
@@ -361,6 +398,7 @@ func regenerate(force_new_seed: bool = false) -> void:
 	_current_result = new_result
 	_current_semantic_result = new_semantic
 	_current_multi_result = null
+	_generation_state = "READY_2D"
 
 	# Mostrar el Plano 2D interactivo en la UI
 	if visualizer != null:
@@ -421,16 +459,20 @@ func build_3d_presentation() -> void:
 
 	# Si es mono-piso
 	if _current_semantic_result != null:
+		var t_pres_0 = Time.get_ticks_msec()
 		var pres_res = _presentation_builder.build_presentation(
 			_current_semantic_result, self, biome, config, _current_presentation_root, true
 		)
+		_time_presentation_ms = float(Time.get_ticks_msec() - t_pres_0)
 
 		if not pres_res.success:
+			_generation_state = "FAILED"
 			push_error("[DungeonLevelController] Falló la presentación 3D:\n%s" % pres_res.to_debug_string())
 			if not pres_res.previous_presentation_preserved:
 				_show_failure_ui("Fallo en presentación 3D:\n" + pres_res.to_debug_string())
 			return
 
+		_generation_state = "READY_3D"
 		_current_presentation_root = pres_res.presentation_root
 		_current_presentation_root.visible = true
 
@@ -465,7 +507,14 @@ func _spawn_or_reposition_player() -> void:
 				spawn_grid_pos = obj.position
 				break
 		if spawn_grid_pos == Vector2i.ZERO and not _current_semantic_result.rooms.is_empty():
-			spawn_grid_pos = _current_semantic_result.rooms[0].center
+			# Seleccionar sala de entrada si existe, de lo contrario la primera sala
+			var entrance = _current_semantic_result.get_room_by_purpose(_RoomPurposeScript.Type.ENTRANCE)
+			if entrance == null:
+				entrance = _current_semantic_result.get_room_by_purpose(_RoomPurposeScript.Type.ANTECHAMBER)
+			if entrance != null:
+				spawn_grid_pos = entrance.center
+			else:
+				spawn_grid_pos = _current_semantic_result.rooms[0].center
 	elif _current_result != null and not _current_result.rooms.is_empty():
 		spawn_grid_pos = _current_result.rooms[0].center
 
@@ -574,6 +623,119 @@ func _update_camera_transform() -> void:
 
 func _process(delta: float) -> void:
 	_handle_camera_pan(delta)
+	if _debug_overlay_visible:
+		_update_debug_overlay()
+
+func _setup_debug_overlay() -> void:
+	if _debug_overlay_canvas != null:
+		return
+
+	_debug_overlay_canvas = CanvasLayer.new()
+	_debug_overlay_canvas.layer = 100
+	_debug_overlay_canvas.visible = false
+	add_child(_debug_overlay_canvas)
+
+	_debug_overlay_panel = PanelContainer.new()
+	_debug_overlay_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_debug_overlay_panel.position = Vector2(16, 16)
+	_debug_overlay_panel.custom_minimum_size = Vector2(360, 240)
+
+	var style_box := StyleBoxFlat.new()
+	style_box.bg_color = Color(0.04, 0.07, 0.12, 0.88)
+	style_box.border_color = Color(0.25, 0.45, 0.70, 0.95)
+	style_box.set_border_width_all(2)
+	style_box.set_corner_radius_all(6)
+	style_box.set_content_margin_all(12)
+	_debug_overlay_panel.add_theme_stylebox_override("panel", style_box)
+
+	_debug_overlay_label = RichTextLabel.new()
+	_debug_overlay_label.bbcode_enabled = true
+	_debug_overlay_label.fit_content = true
+	_debug_overlay_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_debug_overlay_label.add_theme_font_size_override("normal_font_size", 12)
+	_debug_overlay_panel.add_child(_debug_overlay_label)
+	_debug_overlay_canvas.add_child(_debug_overlay_panel)
+
+func _toggle_debug_overlay() -> void:
+	_debug_overlay_visible = not _debug_overlay_visible
+	if _debug_overlay_canvas != null:
+		_debug_overlay_canvas.visible = _debug_overlay_visible
+	if _debug_overlay_visible:
+		_update_debug_overlay()
+
+func _update_debug_overlay() -> void:
+	if _debug_overlay_label == null:
+		return
+
+	var arch_name: String = "UNKNOWN"
+	var arch_id: int = config.dungeon_archetype if config != null else 0
+	arch_name = _DungeonArchetypeScript.to_name(arch_id)
+
+	var text := ""
+	text += "[b][color=yellow]═══ DUNGEON DEBUG (F3) ═══[/color][/b]\n"
+	text += "[color=cyan]State:[/color] %s | [color=cyan]Archetype:[/color] %s\n" % [_generation_state, arch_name]
+	text += "[color=cyan]Seed:[/color] %d | [color=cyan]Floors:[/color] %d\n" % [
+		config.seed if config != null else 0,
+		config.total_floors if config != null else 1
+	]
+	text += "----------------------------------------\n"
+	text += "[b]Timings:[/b] Core: %.1fms | Sem: %.1fms | Pres: %.1fms | [color=green]Total: %.1fms[/color]\n" % [
+		_time_layout_ms,
+		_time_semantic_ms,
+		_time_presentation_ms,
+		_time_layout_ms + _time_semantic_ms + _time_presentation_ms
+	]
+	text += "----------------------------------------\n"
+
+	var room_count: int = _current_semantic_result.rooms.size() if _current_semantic_result != null else (_current_result.rooms.size() if _current_result != null else 0)
+	var door_count: int = _current_semantic_result.door_pairs.size() if _current_semantic_result != null else 0
+	var stairs_count: int = _current_semantic_result.objectives.size() if _current_semantic_result != null else 0
+
+	var fixture_count: int = 0
+	var prop_count: int = 0
+	if _current_presentation_root != null:
+		for child in _current_presentation_root.get_children():
+			if child.name.begins_with("Prop_"):
+				prop_count += 1
+			elif child.name == "Fixtures":
+				fixture_count += child.get_child_count()
+
+	text += "[b]World:[/b] Rooms: %d | Doors: %d\n" % [room_count, door_count]
+	text += "[b]Decoration:[/b] Fixtures: %d | Props: %d\n" % [fixture_count, prop_count]
+	text += "----------------------------------------\n"
+
+	# Inspección en tiempo real de la sala actual del jugador
+	var cur_room = _get_player_current_room()
+	if cur_room != null:
+		var p_name = _RoomPurposeScript.to_name(cur_room.get("purpose", 0))
+		text += "[b][color=light_green]Current Room:[/color][/b] ID: %d | [color=yellow]%s[/color]\n" % [cur_room.get("id", 0), p_name]
+		var r_rect: Rect2i = cur_room.get("rect", Rect2i())
+		text += "Bounds: (%d, %d) [%dx%d]\n" % [r_rect.position.x, r_rect.position.y, r_rect.size.x, r_rect.size.y]
+	else:
+		text += "[b][color=gray]Current Area:[/color][/b] Corridor / Transition\n"
+
+	_debug_overlay_label.text = text
+
+func _get_player_current_room() -> Dictionary:
+	if _player == null or (_current_semantic_result == null and _current_result == null):
+		return {}
+
+	var cell_size: float = config.cell_size if config != null else 2.0
+	var p_cell := Vector2i(
+		int(floor(_player.global_position.x / cell_size)),
+		int(floor(_player.global_position.z / cell_size))
+	)
+
+	if _current_semantic_result != null:
+		for room in _current_semantic_result.rooms:
+			if room.rect.has_point(p_cell):
+				var purp_id: int = _current_semantic_result.room_purposes.get(room.id, 0)
+				return {"id": room.id, "rect": room.rect, "purpose": purp_id}
+	elif _current_result != null:
+		for room in _current_result.rooms:
+			if room.rect.has_point(p_cell):
+				return {"id": room.id, "rect": room.rect, "purpose": 0}
+	return {}
 
 func _handle_camera_pan(delta: float) -> void:
 	var focus_owner = get_viewport().gui_get_focus_owner()
@@ -629,6 +791,8 @@ func _input(event: InputEvent) -> void:
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
+			KEY_F3:
+				_toggle_debug_overlay()
 			KEY_SPACE, KEY_ENTER:
 				if visualizer != null and visualizer.is_2d_preview_mode:
 					build_3d_presentation()
