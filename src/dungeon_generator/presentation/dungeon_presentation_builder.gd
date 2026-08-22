@@ -31,6 +31,7 @@ const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighti
 const _PresentationContextBuilderScript = preload("res://src/presentation/architecture/presentation_context_builder.gd")
 const _PresentationGeometryPartitionScript = preload("res://src/presentation/geometry/presentation_geometry_partition.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
+const _ArchitecturalStyleConfigResolverScript = preload("res://src/presentation/architecture/architectural_style_config_resolver.gd")
 
 const CAMERA_OCCLUDER_GROUP: StringName = &"camera_occluder"
 
@@ -45,6 +46,7 @@ var _floor_spawner := _DungeonFloorSpawnerScript.new()
 var _lighting_generator: _DungeonLightingGeneratorScript = _DungeonLightingGeneratorScript.new()
 var _light_spawner: _DungeonLightSpawnerScript = _DungeonLightSpawnerScript.new()
 var _context_builder := _PresentationContextBuilderScript.new()
+var _style_config_resolver := _ArchitecturalStyleConfigResolverScript.new()
 
 ## Construye la presentación 3D de un piso semántico individual.
 func build_presentation(
@@ -114,24 +116,11 @@ func build_presentation(
 
 	# 4.0 Generar y materializar Geometría Procedural de Suelo (Fases M1-M8)
 	if biome.dungeon_floor_scene == null and biome.floor_scene == null and semantic_result.grid != null:
-		var floor_cfg: _FloorTileConfigScript = config.floor_tile_config if (config != null and "floor_tile_config" in config and config.floor_tile_config != null) else _FloorTileConfigScript.new()
-		floor_cfg.tile_size = tile_size
-		floor_cfg.seed = config.seed if config != null else 1337
+		var base_floor_cfg: _FloorTileConfigScript = config.floor_tile_config if (config != null and "floor_tile_config" in config and config.floor_tile_config != null) else _FloorTileConfigScript.new()
+		base_floor_cfg.tile_size = tile_size
+		base_floor_cfg.seed = config.seed if config != null else 1337
 
-		if config.floor_tile_config == null and dominant_profile != null:
-			match dominant_profile.floor_style:
-				_ArchitecturalStyleScript.FloorStyle.RUINED_STONE:
-					floor_cfg.pattern = _FloorTileConfigScript.PatternType.RUINED_TILES
-				_ArchitecturalStyleScript.FloorStyle.COBBLESTONE:
-					floor_cfg.pattern = _FloorTileConfigScript.PatternType.COBBLESTONE
-				_ArchitecturalStyleScript.FloorStyle.BRICK:
-					floor_cfg.pattern = _FloorTileConfigScript.PatternType.BRICK
-				_ArchitecturalStyleScript.FloorStyle.SMOOTH_SLABS, _ArchitecturalStyleScript.FloorStyle.TEMPLE_TILES:
-					floor_cfg.pattern = _FloorTileConfigScript.PatternType.SMOOTH_SLABS
-				_ArchitecturalStyleScript.FloorStyle.MINE_ROCK:
-					floor_cfg.pattern = _FloorTileConfigScript.PatternType.COBBLESTONE
-				_:
-					floor_cfg.pattern = _FloorTileConfigScript.PatternType.STYLIZED_STONE
+		var floor_cfg: _FloorTileConfigScript = _style_config_resolver.resolve_floor_config(dominant_profile, base_floor_cfg)
 
 		var floor_res = _floor_generator.generate_floor_surface(
 			semantic_result.grid, floor_cfg, config.seed if config != null else 1337
@@ -149,26 +138,11 @@ func build_presentation(
 		var col_config := _CollisionConfigScript.new()
 		col_config.mode = _CollisionConfigScript.CollisionMode.COMPOUND_BOX
 
-		var dec_config := _DecorationConfigScript.new()
-		dec_config.enabled = true
-		dec_config.seed = config.seed if config != null else 1337
+		var base_dec := _DecorationConfigScript.new()
+		base_dec.enabled = true
+		base_dec.seed = config.seed if config != null else 1337
 
-		if dominant_profile != null:
-			match dominant_profile.wall_style:
-				_ArchitecturalStyleScript.WallStyle.FORTRESS_STONE:
-					dec_config.style = _DecorationConfigScript.DecorationStyle.FULL_MASONRY
-					dec_config.brick_density = 0.75
-				_ArchitecturalStyleScript.WallStyle.DARK_STONE:
-					dec_config.style = _DecorationConfigScript.DecorationStyle.STYLIZED_CLUSTERS
-					dec_config.brick_density = 0.50
-				_ArchitecturalStyleScript.WallStyle.TEMPLE_STONE:
-					dec_config.style = _DecorationConfigScript.DecorationStyle.STYLIZED_CLUSTERS
-					dec_config.brick_density = 0.35
-				_ArchitecturalStyleScript.WallStyle.MINE_ROCK:
-					dec_config.style = _DecorationConfigScript.DecorationStyle.FULL_MASONRY
-					dec_config.brick_density = 0.60
-				_:
-					dec_config.style = _DecorationConfigScript.DecorationStyle.STYLIZED_CLUSTERS
+		var dec_config: _DecorationConfigScript = _style_config_resolver.resolve_wall_decoration_config(dominant_profile, base_dec)
 
 		var opening_manifest = null
 		if semantic_result != null and semantic_result.door_pairs != null:
