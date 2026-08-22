@@ -71,7 +71,16 @@ const TEST_SUITES: Array[String] = [
 	"res://tests/presentation/test_dungeon_visualizer_archetype_view.gd",
 	"res://tests/geometry/test_urn_geometry_builder.gd",
 	"res://tests/presentation/decoration/test_crypt_urn_palette.gd",
-	"res://tests/presentation/fixtures/test_lantern_light_illumination.gd"
+	"res://tests/presentation/fixtures/test_lantern_light_illumination.gd",
+
+	# 8. Intelligent Decoration & Composition System (Blocks A-D)
+	"res://tests/presentation/decoration/composition/test_composition_contracts.gd",
+	"res://tests/presentation/decoration/composition/test_placement_constraints.gd",
+	"res://tests/presentation/decoration/composition/test_decoration_occupancy_map.gd",
+	"res://tests/presentation/decoration/composition/test_candidate_and_orientation.gd",
+	"res://tests/presentation/decoration/composition/test_placement_scorer.gd",
+	"res://tests/presentation/decoration/composition/test_composition_profile_rules.gd",
+	"res://tests/presentation/decoration/composition/test_composition_planner_e2e.gd"
 ]
 
 func _init() -> void:

@@ -3,7 +3,7 @@ extends SceneTree
 ## Test suite para validar la integración de Urnas en las paletas de Criptas / Catacumbas / Tumbas / Templos.
 
 const DecorationPaletteResolver = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
-const RoomPurpose = preload("res://src/dungeon_generator/core/semantic/room_purpose.gd")
+const RoomPurpose = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const PropStyle = preload("res://src/presentation/props/prop_style.gd")
 const PropPlacementMode = preload("res://src/presentation/props/prop_placement_mode.gd")
 const PropAssetProvider = preload("res://src/presentation/decoration/assets/prop_asset_provider.gd")

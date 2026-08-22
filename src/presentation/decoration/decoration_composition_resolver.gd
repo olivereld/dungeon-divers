@@ -21,9 +21,11 @@ const _PropDirectiveScript = preload("res://src/presentation/props/prop_directiv
 const _PropStyleScript = preload("res://src/presentation/props/prop_style.gd")
 const _FixtureResolverScript = preload("res://src/presentation/fixtures/fixture_resolver.gd")
 const _PresentationGeometryPartitionScript = preload("res://src/presentation/geometry/presentation_geometry_partition.gd")
+const _DecorationCompositionPlannerScript = preload("res://src/presentation/decoration/composition/decoration_composition_planner.gd")
 
 var _anchor_resolver := _PropAnchorResolverScript.new()
 var _fixture_resolver := _FixtureResolverScript.new()
+var _planner := _DecorationCompositionPlannerScript.new()
 
 func resolve_room_composition(
 	room_context,
@@ -31,7 +33,8 @@ func resolve_room_composition(
 	room_geometry,
 	partition = null,
 	base_seed: int = 1337,
-	tile_size: float = 2.0
+	tile_size: float = 2.0,
+	composition_profile = null
 ) -> _DecorationCompositionScript:
 	var room_id: int = room_context.room_id if room_context != null else -1
 	var comp := _DecorationCompositionScript.new(room_id)
@@ -40,6 +43,19 @@ func resolve_room_composition(
 		return comp
 
 	var seed_ctx := _PresentationSeedContextScript.for_room(base_seed, room_id)
+
+	# Delegar al planificador inteligente si se suministra un perfil de composición
+	if composition_profile != null:
+		return _planner.plan_room_composition(
+			composition_profile,
+			palette,
+			room_geometry,
+			room_context,
+			partition,
+			seed_ctx,
+			tile_size
+		)
+
 	var floor_cells_map: Dictionary = {}
 	for fc in room_geometry.floor_cells:
 		floor_cells_map[fc] = true

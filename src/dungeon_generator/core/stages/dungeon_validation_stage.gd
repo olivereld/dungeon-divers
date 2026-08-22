@@ -25,7 +25,9 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 
 	# 2. Quality Gate Formal (Hard Constraints + Soft Fitness)
 	var qg_res = _DungeonQualityGateScript.evaluate(ctx)
-	ctx.record_timing("quality_gate_validation", float(Time.get_ticks_msec() - t0))
+	var val_time: float = float(Time.get_ticks_msec() - t0)
+	ctx.record_timing("flood_fill_connectivity", val_time)
+	ctx.record_timing("quality_gate_validation", val_time)
 
 	if not qg_res.hard_valid:
 		var error_msg: String = "[DungeonValidationStage] Attempt %d: Quality Gate Hard Failure: %s" % [

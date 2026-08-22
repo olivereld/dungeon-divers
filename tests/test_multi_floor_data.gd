@@ -51,7 +51,7 @@ func _init() -> void:
 	assert(floor_nums.size() == 2 and floor_nums[0] == 0 and floor_nums[1] == 1, "Floor numbers must be [0, 1]")
 
 	# 3. Validar Consultas Cruzadas
-	var f0_conns: Array[FloorConnection] = multi_result.get_vertical_connections_for_floor(0)
+	var f0_conns: Array = multi_result.get_vertical_connections_for_floor(0)
 	assert(f0_conns.size() == 1 and f0_conns[0] == vconn, "Floor 0 must have exactly 1 vertical connection")
 
 	var found_stair: StairData = multi_result.get_stair_data("stair_f1_down")

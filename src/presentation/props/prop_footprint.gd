@@ -39,5 +39,8 @@ func get_occupied_cells(origin: Vector2i, rotation_deg: float = 0.0) -> Array[Ve
 
 	return cells
 
+func get_cells_at(origin: Vector2i, rotation_deg: float = 0.0) -> Array[Vector2i]:
+	return get_occupied_cells(origin, rotation_deg)
+
 func get_cell_count() -> int:
 	return size.x * size.y
