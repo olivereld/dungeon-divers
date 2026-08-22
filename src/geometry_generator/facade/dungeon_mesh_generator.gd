@@ -53,6 +53,8 @@ const _SarcophagusGeometryBuilderScript = preload("res://src/geometry_generator/
 const _SarcophagusGeometryConfigScript = preload("res://src/geometry_generator/config/sarcophagus_geometry_config.gd")
 const _BenchGeometryBuilderScript = preload("res://src/geometry_generator/fixtures/bench_geometry_builder.gd")
 const _BenchGeometryConfigScript = preload("res://src/geometry_generator/config/bench_geometry_config.gd")
+const _UrnGeometryBuilderScript = preload("res://src/geometry_generator/fixtures/urn_geometry_builder.gd")
+const _UrnGeometryConfigScript = preload("res://src/geometry_generator/config/urn_geometry_config.gd")
 
 var _wall_generator: RefCounted = null
 var _floor_generator: RefCounted = null
@@ -77,6 +79,7 @@ var _bookshelf_builder: RefCounted = null
 var _wall_showcase_builder: RefCounted = null
 var _sarcophagus_builder: RefCounted = null
 var _bench_builder: RefCounted = null
+var _urn_builder: RefCounted = null
 
 func _init() -> void:
 	_wall_generator = _DungeonGeometryGeneratorScript.new()
@@ -102,6 +105,7 @@ func _init() -> void:
 	_wall_showcase_builder = _WallShowcaseGeometryBuilderScript.new()
 	_sarcophagus_builder = _SarcophagusGeometryBuilderScript.new()
 	_bench_builder = _BenchGeometryBuilderScript.new()
+	_urn_builder = _UrnGeometryBuilderScript.new()
 
 # ==============================================================================
 # 1. MUROS Y ESTRUCTURAS CONTINUAS
@@ -290,5 +294,10 @@ func generate_bench_fixture(bench_config = null):
 	if bench_config == null:
 		bench_config = _BenchGeometryConfigScript.new()
 	return _bench_builder.build_bench_fixture(bench_config)
+
+func generate_urn_fixture(urn_config = null):
+	if urn_config == null:
+		urn_config = _UrnGeometryConfigScript.new()
+	return _urn_builder.build_urn_fixture(urn_config)
 
 

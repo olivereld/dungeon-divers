@@ -82,6 +82,14 @@ func build_procedural_prop(builder_id: StringName, params: Dictionary) -> Node3D
 			var asset = _mesh_facade.generate_sack_fixture(cfg)
 			return asset.to_node3d("Sack") if asset != null else null
 
+		&"urn_prop":
+			var style_idx: int = params.get("style", 0)
+			var scale_m: float = params.get("scale", 1.0)
+			var has_lid: bool = params.get("has_lid", true)
+			var cfg = _mesh_facade._UrnGeometryConfigScript.new(style_idx, scale_m, has_lid)
+			var asset = _mesh_facade.generate_urn_fixture(cfg)
+			return asset.to_node3d("Urn") if asset != null else null
+
 		_:
 			push_warning("[PropProceduralFactory] Constructor procedural no reconocido: %s" % str(builder_id))
 			return null

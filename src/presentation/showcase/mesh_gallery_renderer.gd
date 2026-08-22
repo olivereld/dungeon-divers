@@ -46,6 +46,7 @@ const _BookshelfGeometryConfigScript = preload("res://src/geometry_generator/con
 const _WallShowcaseGeometryConfigScript = preload("res://src/geometry_generator/config/wall_showcase_geometry_config.gd")
 const _SarcophagusGeometryConfigScript = preload("res://src/geometry_generator/config/sarcophagus_geometry_config.gd")
 const _BenchGeometryConfigScript = preload("res://src/geometry_generator/config/bench_geometry_config.gd")
+const _UrnGeometryConfigScript = preload("res://src/geometry_generator/config/urn_geometry_config.gd")
 
 # Puertas, Escaleras e Iluminación
 const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
@@ -117,6 +118,8 @@ func render_entry(entry: MeshGalleryEntry, seed: int, param_overrides: Dictionar
 			return _render_sarcophagus(params, seed)
 		&"bench_prop":
 			return _render_bench(params, seed)
+		&"urn_prop":
+			return _render_urn(params, seed)
 		_:
 			push_warning("[MeshGalleryRenderer] Generador desconocido: %s" % str(entry.generator_id))
 			return null
@@ -1118,5 +1121,30 @@ func _render_bench(params: Dictionary, seed: int) -> Node3D:
 		var bench_node = bench_asset.to_node3d("Bench")
 		bench_node.position = Vector3.ZERO
 		container.add_child(bench_node)
+
+	return container
+
+func _render_urn(params: Dictionary, seed: int) -> Node3D:
+	var container := Node3D.new()
+	container.name = "UrnShowcaseGroup"
+
+	var style_idx: int = int(params.get("style", 0))
+	var scale_m: float = float(params.get("scale", 1.0))
+	var has_lid: bool = bool(params.get("has_lid", true))
+
+	var urn_cfg = _UrnGeometryConfigScript.new(
+		style_idx as _UrnGeometryConfigScript.Style,
+		scale_m,
+		has_lid,
+		12,
+		0,
+		seed
+	)
+
+	var urn_asset = _mesh_facade.generate_urn_fixture(urn_cfg)
+	if urn_asset != null:
+		var urn_node = urn_asset.to_node3d("Urn")
+		urn_node.position = Vector3.ZERO
+		container.add_child(urn_node)
 
 	return container

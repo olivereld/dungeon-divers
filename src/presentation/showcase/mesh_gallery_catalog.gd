@@ -754,6 +754,50 @@ func _register_all_entries() -> void:
 			&"bench_prop",
 			{"style": 3},
 			&"bench", "Bancas y Banquetas (Bench)", "Banqueta Corrida Sin Respaldo"
+		),
+		_create_entry(
+			&"urn_banded_stone",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Urna Ovoidal con Bandas en Relieve (Banded Stone Urn)",
+			"src/geometry_generator/fixtures/urn_geometry_builder.gd",
+			"Vasija ovoidal de piedra/arcilla con boca ancha acampanada, bordes biselados y 3 anillos horizontales en relieve.",
+			&"urn_prop",
+			{"style": 0, "scale": 1.0, "has_lid": true},
+			&"urn", "Urnas y Vasijas de Mazmorra (Urn)", "Urna Ovoidal con Bandas (Suelo)"
+		),
+		_create_entry(
+			&"urn_skull_relic",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Urna de Cripta con Tapa y Calavera (Skull Relic Urn)",
+			"src/geometry_generator/fixtures/urn_geometry_builder.gd",
+			"Urna funeraria sellada de cripta con tapa cilíndrica biselada, hombro angular y relieve gótico frontal de calavera.",
+			&"urn_prop",
+			{"style": 1, "scale": 1.0, "has_lid": true},
+			&"urn", "Urnas y Vasijas de Mazmorra (Urn)", "Urna de Cripta con Calavera (Suelo)"
+		),
+		_create_entry(
+			&"urn_ceremonial_pedestal",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Copa y Urna Monumental con Pedestal (Pedestal Urn)",
+			"src/geometry_generator/fixtures/urn_geometry_builder.gd",
+			"Urna clásica monumental sobre pedestal cuadrado con fuste torneado, cáliz moldurado y tapa con remate en pomo de bellota.",
+			&"urn_prop",
+			{"style": 2, "scale": 1.0, "has_lid": true},
+			&"urn", "Urnas y Vasijas de Mazmorra (Urn)", "Copa Monumental con Pedestal (Suelo/Centro)"
+		),
+		_create_entry(
+			&"urn_canopic_jar_surface",
+			&"props",
+			"📦 Props de Suelo (Floor Props)",
+			"Frasco Canopo para Mesa / Superficie (Canopic Jar)",
+			"src/geometry_generator/fixtures/urn_geometry_builder.gd",
+			"Urna compacta y esbelta con cuello alto y sello cónico diseñada para colocarse sobre mesas, altares o estantes.",
+			&"urn_prop",
+			{"style": 3, "scale": 0.65, "has_lid": true},
+			&"urn", "Urnas y Vasijas de Mazmorra (Urn)", "Frasco Canopo Compacto (Mesa / Superficie)"
 		)
 	])
 

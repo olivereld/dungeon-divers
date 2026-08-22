@@ -1,11 +1,12 @@
 class_name DungeonVisualizer
 extends Control
 
-## Visualizador y Generador 2D interactivo a pantalla completa con soporte multinivel (Fase 10 / M8) y transición a 3D.
+## Visualizador y Generador 2D interactivo a pantalla completa con soporte multinivel (Fase 10 / M8),
+## transición a 3D, selector de modos de vista (Generación vs Arquetipos) e inspección interactiva por cursor (Hover / Tooltips).
 ## Estructura de diseño:
-## - Panel Izquierdo: Configuración completa, Estadísticas globales/piso, Leyenda y Botón de Generación 3D.
-## - Panel Derecho: Segmentación en rejilla multinivel ("PISO 1", "PISO 2", "PISO 3", "PISO 4") o vista de piso aislado.
-## - Toolbar 3D Flotante: Controles limpios de visualización 3D (Selector de pisos aislados, Ocultar/Mostrar paredes, Modo cámara y Regreso al plano).
+## - Panel Izquierdo: Pestañas de Configuración (Parámetros, Suelos, Arquetipos), Estadísticas, Leyenda dinámica y Botón 3D.
+## - Panel Derecho: Barra de Modos de Vista (🗺️ Generación / 🏛️ Arquetipos), Lienzo 2D interactivo con resaltado y Tooltips flotantes.
+## - Toolbar 3D Flotante: Controles de navegación 3D y retorno al plano.
 
 signal seed_submitted(seed_val: int)
 signal random_seed_requested()
@@ -46,22 +47,60 @@ signal lighting_rim_color_changed(color: Color)
 signal lighting_rim_energy_changed(energy: float)
 signal lighting_fog_density_changed(density: float)
 
+enum ViewMode {
+	GENERATION = 0,
+	ARCHETYPE = 1
+}
+
 const _DungeonAsciiExporterScript = preload("res://src/dungeon_generator/debug/dungeon_ascii_exporter.gd")
 const _DoorPhysicalValidatorScript = preload("res://src/dungeon_generator/core/validation/door_physical_validator.gd")
 const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
 const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
 const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
+const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
+const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
+const _PresentationProfileResolverScript = preload("res://src/presentation/architecture/presentation_profile_resolver.gd")
+const _DecorationPaletteResolverScript = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
+const _DecorationCompositionResolverScript = preload("res://src/presentation/decoration/decoration_composition_resolver.gd")
+const _PresentationRoomGeometryScript = preload("res://src/presentation/geometry/presentation_room_geometry.gd")
+const _PresentationRoomContextScript = preload("res://src/presentation/architecture/presentation_room_context.gd")
+const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 
 var _last_result: RefCounted = null # DungeonResult o DungeonFloorData
 var _last_semantic: DungeonSemanticResult = null
 var _last_multi_result: DungeonMultiFloorResult = null
 var _selected_floor_view: int = -1 # -1 = Todos los pisos en rejilla segmentada, >= 0 = Piso específico
+var _current_view_mode: int = ViewMode.GENERATION
+
+# Resolutores para inspección de arquetipos
+var _profile_resolver := _PresentationProfileResolverScript.new()
+var _dec_resolver := _DecorationPaletteResolverScript.new()
+var _comp_resolver := _DecorationCompositionResolverScript.new()
+
+# Estado de interacción por cursor (Hover / Tooltips)
+var _hovered_room_id: int = -1
+var _hovered_floor_idx: int = -1
+var _hovered_mouse_pos := Vector2.ZERO
+var _hovered_room_data: Dictionary = {}
+var _floor_viewports: Array[Dictionary] = []
 
 # Controles de Pestañas
 var _tab_btn_params: Button = null
 var _tab_btn_floors: Button = null
+var _tab_btn_archetypes: Button = null
 var _tab_params_container: VBoxContainer = null
 var _tab_floors_container: VBoxContainer = null
+var _tab_archetypes_container: VBoxContainer = null
+
+# Controles de Arquetipos en Sidebar
+var _arch_info_header: Label = null
+var _arch_dist_container: HFlowContainer = null
+var _arch_rooms_list: VBoxContainer = null
+
+# Controles de Barra Superior del Canvas 2D
+var _btn_view_generation: Button = null
+var _btn_view_archetypes: Button = null
+var _lbl_canvas_title: Label = null
 
 # Controles de Configuración en el Plano 2D (Parámetros)
 var _preview_overlay: ColorRect = null
@@ -83,6 +122,7 @@ var _btn_copy_ascii: Button = null
 var _btn_build_3d: Button = null
 var _btn_back_to_2d: Button = null
 var _info_stats_label: RichTextLabel = null
+var _legend_label: RichTextLabel = null
 
 # Controles de Configuración de Suelos 3D
 var _opt_floor_pattern: OptionButton = null
@@ -153,10 +193,10 @@ func _setup_2d_full_interface() -> void:
 	margin_container.add_child(main_hbox)
 
 	# ==========================================
-	# SIDEBAR IZQUIERDA (Configuración + Estadísticas + Acciones)
+	# SIDEBAR IZQUIERDA (Configuración + Arquetipos + Estadísticas)
 	# ==========================================
 	var sidebar := PanelContainer.new()
-	sidebar.custom_minimum_size = Vector2(360, 0)
+	sidebar.custom_minimum_size = Vector2(370, 0)
 	sidebar.size_flags_vertical = SIZE_EXPAND_FILL
 
 	var sidebar_style := StyleBoxFlat.new()
@@ -194,9 +234,9 @@ func _setup_2d_full_interface() -> void:
 	var sep1 := HSeparator.new()
 	sidebar_vbox.add_child(sep1)
 
-	# --- BARRA DE PESTAÑAS (PARÁMETROS / SUELOS) ---
+	# --- BARRA DE PESTAÑAS (PARÁMETROS / SUELOS / ARQUETIPOS) ---
 	var tab_bar_hbox := HBoxContainer.new()
-	tab_bar_hbox.add_theme_constant_override("separation", 6)
+	tab_bar_hbox.add_theme_constant_override("separation", 4)
 
 	_tab_btn_params = Button.new()
 	_tab_btn_params.text = "⚙️ Parámetros"
@@ -209,6 +249,12 @@ func _setup_2d_full_interface() -> void:
 	_tab_btn_floors.size_flags_horizontal = SIZE_EXPAND_FILL
 	_tab_btn_floors.pressed.connect(func(): _switch_tab(1))
 	tab_bar_hbox.add_child(_tab_btn_floors)
+
+	_tab_btn_archetypes = Button.new()
+	_tab_btn_archetypes.text = "🏛️ Arquetipos"
+	_tab_btn_archetypes.size_flags_horizontal = SIZE_EXPAND_FILL
+	_tab_btn_archetypes.pressed.connect(func(): _switch_tab(2))
+	tab_bar_hbox.add_child(_tab_btn_archetypes)
 
 	sidebar_vbox.add_child(tab_bar_hbox)
 
@@ -353,86 +399,97 @@ func _setup_2d_full_interface() -> void:
 		grid_size_changed.emit(int(_spin_grid_w.value), int(_spin_grid_h.value))
 	)
 	dims_hbox.add_child(_spin_grid_h)
+
 	dims_vbox.add_child(dims_hbox)
 	_tab_params_container.add_child(dims_vbox)
 
-	# Fila Profundidad de Misión & Ancho de Pasillo
-	var depth_corridor_hbox := HBoxContainer.new()
-	depth_corridor_hbox.add_theme_constant_override("separation", 8)
+	# Fila Profundidad Misión & Ancho Pasillo
+	var params_grid := GridContainer.new()
+	params_grid.columns = 2
+	params_grid.add_theme_constant_override("h_separation", 8)
+	params_grid.add_theme_constant_override("v_separation", 4)
 
-	var depth_vbox := VBoxContainer.new()
-	depth_vbox.size_flags_horizontal = SIZE_EXPAND_FILL
-	depth_vbox.add_theme_constant_override("separation", 4)
 	var depth_lbl := Label.new()
 	depth_lbl.text = "Profundidad Misión:"
 	depth_lbl.add_theme_font_size_override("font_size", 11)
 	depth_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
-	depth_vbox.add_child(depth_lbl)
-	_spin_depth = SpinBox.new()
-	_spin_depth.min_value = 2
-	_spin_depth.max_value = 20
-	_spin_depth.value = 5
-	_spin_depth.value_changed.connect(func(v: float):
-		mission_depth_changed.emit(int(v))
-	)
-	depth_vbox.add_child(_spin_depth)
-	depth_corridor_hbox.add_child(depth_vbox)
+	params_grid.add_child(depth_lbl)
 
-	var corr_vbox := VBoxContainer.new()
-	corr_vbox.size_flags_horizontal = SIZE_EXPAND_FILL
-	corr_vbox.add_theme_constant_override("separation", 4)
 	var corr_lbl := Label.new()
 	corr_lbl.text = "Ancho Pasillo:"
 	corr_lbl.add_theme_font_size_override("font_size", 11)
 	corr_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
-	corr_vbox.add_child(corr_lbl)
+	params_grid.add_child(corr_lbl)
+
+	_spin_depth = SpinBox.new()
+	_spin_depth.min_value = 1
+	_spin_depth.max_value = 20
+	_spin_depth.value = 5
+	_spin_depth.size_flags_horizontal = SIZE_EXPAND_FILL
+	_spin_depth.value_changed.connect(func(v: float):
+		mission_depth_changed.emit(int(v))
+	)
+	params_grid.add_child(_spin_depth)
+
 	_spin_corridor_w = SpinBox.new()
 	_spin_corridor_w.min_value = 1
 	_spin_corridor_w.max_value = 4
 	_spin_corridor_w.value = 2
+	_spin_corridor_w.size_flags_horizontal = SIZE_EXPAND_FILL
 	_spin_corridor_w.value_changed.connect(func(v: float):
 		corridor_width_changed.emit(int(v))
 	)
-	corr_vbox.add_child(_spin_corridor_w)
-	depth_corridor_hbox.add_child(corr_vbox)
-	_tab_params_container.add_child(depth_corridor_hbox)
+	params_grid.add_child(_spin_corridor_w)
 
-	# Fila Pisos Multinivel
+	_tab_params_container.add_child(params_grid)
+
+	# Fila Pisos & Selector de Piso
 	var floors_hbox := HBoxContainer.new()
 	floors_hbox.add_theme_constant_override("separation", 8)
 
+	var floors_cnt_vbox := VBoxContainer.new()
+	floors_cnt_vbox.size_flags_horizontal = SIZE_EXPAND_FILL
 	var floors_lbl := Label.new()
-	floors_lbl.text = "Pisos:"
-	floors_lbl.add_theme_font_size_override("font_size", 12)
-	floors_hbox.add_child(floors_lbl)
+	floors_lbl.text = "Pisos: 1"
+	floors_lbl.add_theme_font_size_override("font_size", 11)
+	floors_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	floors_cnt_vbox.add_child(floors_lbl)
 
 	_spin_floors = SpinBox.new()
 	_spin_floors.min_value = 1
-	_spin_floors.max_value = 10
+	_spin_floors.max_value = 6
 	_spin_floors.value = 1
 	_spin_floors.value_changed.connect(func(v: float):
+		floors_lbl.text = "Pisos: %d" % int(v)
 		floors_changed.emit(int(v))
 	)
-	floors_hbox.add_child(_spin_floors)
+	floors_cnt_vbox.add_child(_spin_floors)
+	floors_hbox.add_child(floors_cnt_vbox)
+
+	var floor_sel_vbox := VBoxContainer.new()
+	floor_sel_vbox.size_flags_horizontal = SIZE_EXPAND_FILL
+	var fsel_lbl := Label.new()
+	fsel_lbl.text = "Vista de Piso:"
+	fsel_lbl.add_theme_font_size_override("font_size", 11)
+	fsel_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	floor_sel_vbox.add_child(fsel_lbl)
 
 	_opt_floor_view = OptionButton.new()
-	_opt_floor_view.size_flags_horizontal = SIZE_EXPAND_FILL
+	_opt_floor_view.add_item("🏢 Todos", -1)
+	_opt_floor_view.add_item("🏢 Piso 1", 0)
 	_opt_floor_view.item_selected.connect(func(idx: int):
-		var floor_id = _opt_floor_view.get_item_id(idx)
-		_selected_floor_view = floor_id
-		if _opt_3d_floor_view != null:
-			_opt_3d_floor_view.select(idx)
-		floor_view_mode_changed.emit(floor_id)
-		if _preview_canvas != null:
-			_preview_canvas.queue_redraw()
-		_update_stats_panel()
+		var f_id = _opt_floor_view.get_item_id(idx)
+		_selected_floor_view = f_id
+		floor_view_mode_changed.emit(f_id)
 	)
-	floors_hbox.add_child(_opt_floor_view)
-	update_floor_view_options(1)
+	floor_sel_vbox.add_child(_opt_floor_view)
+	floors_hbox.add_child(floor_sel_vbox)
+
 	_tab_params_container.add_child(floors_hbox)
 
+	# Fila Acciones 2D
 	var actions_hbox := HBoxContainer.new()
-	actions_hbox.add_theme_constant_override("separation", 8)
+	actions_hbox.add_theme_constant_override("separation", 6)
 
 	_btn_generate_2d = Button.new()
 	_btn_generate_2d.text = "🔄 Regenerar"
@@ -441,8 +498,7 @@ func _setup_2d_full_interface() -> void:
 	actions_hbox.add_child(_btn_generate_2d)
 
 	_btn_copy_ascii = Button.new()
-	_btn_copy_ascii.text = "📝 Copiar ASCII"
-	_btn_copy_ascii.tooltip_text = "Copiar el plano de la mazmorra en formato texto / código ASCII para pegar en chats"
+	_btn_copy_ascii.text = "📄 Copiar ASCII"
 	_btn_copy_ascii.size_flags_horizontal = SIZE_EXPAND_FILL
 	_btn_copy_ascii.pressed.connect(_on_copy_ascii_pressed)
 	actions_hbox.add_child(_btn_copy_ascii)
@@ -450,7 +506,7 @@ func _setup_2d_full_interface() -> void:
 	_tab_params_container.add_child(actions_hbox)
 
 	# =========================================================================
-	# PESTAÑA 1: CONFIGURACIÓN DE SUELOS PROCEDURALES
+	# PESTAÑA 1: SUELOS PROCEDURALES
 	# =========================================================================
 	_tab_floors_container = VBoxContainer.new()
 	_tab_floors_container.add_theme_constant_override("separation", 10)
@@ -458,41 +514,41 @@ func _setup_2d_full_interface() -> void:
 	sidebar_vbox.add_child(_tab_floors_container)
 
 	# Fila Patrón de Suelo
-	var pattern_vbox := VBoxContainer.new()
-	pattern_vbox.add_theme_constant_override("separation", 4)
+	var pattern_floor_vbox := VBoxContainer.new()
+	pattern_floor_vbox.add_theme_constant_override("separation", 4)
 	var pattern_lbl := Label.new()
-	pattern_lbl.text = "Patrón de Suelo:"
+	pattern_lbl.text = "Patrón Geométrico de Baldosas:"
 	pattern_lbl.add_theme_font_size_override("font_size", 12)
 	pattern_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
-	pattern_vbox.add_child(pattern_lbl)
+	pattern_floor_vbox.add_child(pattern_lbl)
 
 	_opt_floor_pattern = OptionButton.new()
-	_opt_floor_pattern.add_item("Stylized Stone (Zelda/Diablo)", _FloorTileConfigScript.PatternType.STYLIZED_STONE)
-	_opt_floor_pattern.add_item("Cobblestone (Adoquines)", _FloorTileConfigScript.PatternType.COBBLESTONE)
-	_opt_floor_pattern.add_item("Brick (Ladrillos)", _FloorTileConfigScript.PatternType.BRICK)
-	_opt_floor_pattern.add_item("Smooth Slabs (Losas Amplias)", _FloorTileConfigScript.PatternType.SMOOTH_SLABS)
-	_opt_floor_pattern.add_item("Ruined Tiles (Suelo Agrietado)", _FloorTileConfigScript.PatternType.RUINED_TILES)
+	_opt_floor_pattern.add_item("Piedra Estilizada (Stylized Stone)", _FloorTileConfigScript.PatternType.STYLIZED_STONE)
+	_opt_floor_pattern.add_item("Adoquines Irregulares (Cobblestone)", _FloorTileConfigScript.PatternType.COBBLESTONE)
+	_opt_floor_pattern.add_item("Ladrillos (Brick)", _FloorTileConfigScript.PatternType.BRICK)
+	_opt_floor_pattern.add_item("Losas Lisas (Smooth Slabs)", _FloorTileConfigScript.PatternType.SMOOTH_SLABS)
+	_opt_floor_pattern.add_item("Baldosas Ruinosas (Ruined Tiles)", _FloorTileConfigScript.PatternType.RUINED_TILES)
 	_opt_floor_pattern.select(0)
 	_opt_floor_pattern.item_selected.connect(func(idx: int):
 		floor_pattern_changed.emit(_opt_floor_pattern.get_item_id(idx))
 	)
-	pattern_vbox.add_child(_opt_floor_pattern)
-	_tab_floors_container.add_child(pattern_vbox)
+	pattern_floor_vbox.add_child(_opt_floor_pattern)
+	_tab_floors_container.add_child(pattern_floor_vbox)
 
-	# Fila Tema / Color de Material PBR
+	# Fila Preset de Material PBR
 	var preset_floor_vbox := VBoxContainer.new()
 	preset_floor_vbox.add_theme_constant_override("separation", 4)
-	var preset_floor_lbl := Label.new()
-	preset_floor_lbl.text = "Tema / Color de Suelo PBR:"
-	preset_floor_lbl.add_theme_font_size_override("font_size", 12)
-	preset_floor_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
-	preset_floor_vbox.add_child(preset_floor_lbl)
+	var preset_mat_lbl := Label.new()
+	preset_mat_lbl.text = "Preset de Material PBR:"
+	preset_mat_lbl.add_theme_font_size_override("font_size", 12)
+	preset_mat_lbl.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88, 1.0))
+	preset_floor_vbox.add_child(preset_mat_lbl)
 
 	_opt_floor_preset = OptionButton.new()
-	_opt_floor_preset.add_item("Pizarra Estilizada (Slate)", 0)
-	_opt_floor_preset.add_item("Piedra Cálida (Warm Stone)", 1)
+	_opt_floor_preset.add_item("Piedra Antigua (Ancient Stone)", 0)
+	_opt_floor_preset.add_item("Piedra de Fortaleza (Fortress Stone)", 1)
 	_opt_floor_preset.add_item("Cripta Oscura (Dark Crypt)", 2)
-	_opt_floor_preset.add_item("Ruinas Arenisca (Sandstone)", 3)
+	_opt_floor_preset.add_item("Templo Ceremonial (Ceremonial Temple)", 3)
 	_opt_floor_preset.select(0)
 	_opt_floor_preset.item_selected.connect(func(idx: int):
 		floor_preset_changed.emit(_opt_floor_preset.get_item_id(idx))
@@ -572,7 +628,47 @@ func _setup_2d_full_interface() -> void:
 	)
 	_tab_floors_container.add_child(_check_floor_noise)
 
-	# Inicializar pestañas activas
+	# =========================================================================
+	# PESTAÑA 2: ARQUETIPOS Y DESGLOSE SEMÁNTICO (NUEVO)
+	# =========================================================================
+	_tab_archetypes_container = VBoxContainer.new()
+	_tab_archetypes_container.add_theme_constant_override("separation", 10)
+	_tab_archetypes_container.visible = false
+	sidebar_vbox.add_child(_tab_archetypes_container)
+
+	_arch_info_header = Label.new()
+	_arch_info_header.text = "🏛️ Arquetipo: Crypt / Mausoleum"
+	_arch_info_header.add_theme_font_size_override("font_size", 12)
+	_arch_info_header.add_theme_color_override("font_color", Color(0.95, 0.85, 0.40, 1.0))
+	_tab_archetypes_container.add_child(_arch_info_header)
+
+	var dist_lbl := Label.new()
+	dist_lbl.text = "Distribución de Propósitos:"
+	dist_lbl.add_theme_font_size_override("font_size", 11)
+	dist_lbl.add_theme_color_override("font_color", Color(0.70, 0.80, 0.95, 1.0))
+	_tab_archetypes_container.add_child(dist_lbl)
+
+	_arch_dist_container = HFlowContainer.new()
+	_arch_dist_container.add_theme_constant_override("h_separation", 4)
+	_arch_dist_container.add_theme_constant_override("v_separation", 4)
+	_tab_archetypes_container.add_child(_arch_dist_container)
+
+	var rooms_list_title := Label.new()
+	rooms_list_title.text = "Salas y Composición Arquitectónica:"
+	rooms_list_title.add_theme_font_size_override("font_size", 11)
+	rooms_list_title.add_theme_color_override("font_color", Color(0.70, 0.80, 0.95, 1.0))
+	_tab_archetypes_container.add_child(rooms_list_title)
+
+	var arch_scroll := ScrollContainer.new()
+	arch_scroll.custom_minimum_size = Vector2(0, 220)
+	arch_scroll.size_flags_vertical = SIZE_EXPAND_FILL
+	_arch_rooms_list = VBoxContainer.new()
+	_arch_rooms_list.size_flags_horizontal = SIZE_EXPAND_FILL
+	_arch_rooms_list.add_theme_constant_override("separation", 6)
+	arch_scroll.add_child(_arch_rooms_list)
+	_tab_archetypes_container.add_child(arch_scroll)
+
+	# Inicializar pestaña 0 activa
 	_switch_tab(0)
 
 	var sep2 := HSeparator.new()
@@ -604,7 +700,7 @@ func _setup_2d_full_interface() -> void:
 	stats_panel.add_child(_info_stats_label)
 	sidebar_vbox.add_child(stats_panel)
 
-	# --- SECCIÓN 3: LEYENDA VISUAL ---
+	# --- SECCIÓN 3: LEYENDA VISUAL DINÁMICA ---
 	var legend_title := Label.new()
 	legend_title.text = "🗺️ LEYENDA"
 	legend_title.add_theme_font_size_override("font_size", 13)
@@ -621,12 +717,12 @@ func _setup_2d_full_interface() -> void:
 	leg_style.content_margin_bottom = 8.0
 	legend_panel.add_theme_stylebox_override("panel", leg_style)
 
-	var leg_lbl := RichTextLabel.new()
-	leg_lbl.bbcode_enabled = true
-	leg_lbl.fit_content = true
-	leg_lbl.text = "[color=#f1d240]■ Habitación[/color]   [color=#38b861]■ Pasillo[/color]\n[color=#ef4444]■ Puerta Roja[/color]   [color=#3b82f6]■ Arco Libre[/color]\n[color=#10b981]● Spawn Jugador[/color]   [color=#ef4444]● Boss[/color]\n[color=#3b82f6]🪜 Escalera Arriba[/color]   [color=#8b5cf6]🪜 Escalera Abajo[/color]"
-	legend_panel.add_child(leg_lbl)
+	_legend_label = RichTextLabel.new()
+	_legend_label.bbcode_enabled = true
+	_legend_label.fit_content = true
+	legend_panel.add_child(_legend_label)
 	sidebar_vbox.add_child(legend_panel)
+	_update_legend()
 
 	# Espaciador vertical
 	var spacer := Control.new()
@@ -642,7 +738,7 @@ func _setup_2d_full_interface() -> void:
 	sidebar_vbox.add_child(_btn_build_3d)
 
 	# ==========================================
-	# ÁREA PRINCIPAL DERECHA (Canvas 2D Segmentado)
+	# ÁREA PRINCIPAL DERECHA (Barra Superior + Canvas 2D)
 	# ==========================================
 	var right_panel := PanelContainer.new()
 	right_panel.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -655,17 +751,117 @@ func _setup_2d_full_interface() -> void:
 	right_style.set_corner_radius_all(10)
 	right_style.content_margin_left = 12.0
 	right_style.content_margin_right = 12.0
-	right_style.content_margin_top = 12.0
+	right_style.content_margin_top = 10.0
 	right_style.content_margin_bottom = 12.0
 	right_panel.add_theme_stylebox_override("panel", right_style)
 	main_hbox.add_child(right_panel)
 
+	var right_vbox := VBoxContainer.new()
+	right_vbox.size_flags_horizontal = SIZE_EXPAND_FILL
+	right_vbox.size_flags_vertical = SIZE_EXPAND_FILL
+	right_vbox.add_theme_constant_override("separation", 8)
+	right_panel.add_child(right_vbox)
+
+	# --- BARRA SUPERIOR DEL CANVAS (SELECTOR DE MODO DE VISTA) ---
+	var top_canvas_bar := HBoxContainer.new()
+	top_canvas_bar.add_theme_constant_override("separation", 10)
+	top_canvas_bar.size_flags_horizontal = SIZE_EXPAND_FILL
+
+	_lbl_canvas_title = Label.new()
+	_lbl_canvas_title.text = "🗺️ PLANO DE GENERACIÓN"
+	_lbl_canvas_title.add_theme_font_size_override("font_size", 14)
+	_lbl_canvas_title.add_theme_color_override("font_color", Color(0.90, 0.92, 0.96, 1.0))
+	top_canvas_bar.add_child(_lbl_canvas_title)
+
+	var bar_spacer := Control.new()
+	bar_spacer.size_flags_horizontal = SIZE_EXPAND_FILL
+	top_canvas_bar.add_child(bar_spacer)
+
+	# Botones de alternancia de vista
+	var view_mode_box := HBoxContainer.new()
+	view_mode_box.add_theme_constant_override("separation", 4)
+
+	_btn_view_generation = Button.new()
+	_btn_view_generation.text = "🗺️ Vista Generación"
+	_btn_view_generation.tooltip_text = "Vista física del plano (habitaciones, pasillos, puertas y objetivos)"
+	_btn_view_generation.pressed.connect(func(): set_view_mode(ViewMode.GENERATION))
+	view_mode_box.add_child(_btn_view_generation)
+
+	_btn_view_archetypes = Button.new()
+	_btn_view_archetypes.text = "🏛️ Vista Arquetipos"
+	_btn_view_archetypes.tooltip_text = "Vista semántica con código de colores y propósitos arquitectónicos"
+	_btn_view_archetypes.pressed.connect(func(): set_view_mode(ViewMode.ARCHETYPE))
+	view_mode_box.add_child(_btn_view_archetypes)
+
+	top_canvas_bar.add_child(view_mode_box)
+	right_vbox.add_child(top_canvas_bar)
+
+	# --- CANVAS DE DIBUJO 2D ---
 	_preview_canvas = Control.new()
 	_preview_canvas.name = "PreviewCanvas"
 	_preview_canvas.size_flags_horizontal = SIZE_EXPAND_FILL
 	_preview_canvas.size_flags_vertical = SIZE_EXPAND_FILL
+	_preview_canvas.mouse_filter = MOUSE_FILTER_PASS
 	_preview_canvas.draw.connect(_on_preview_canvas_draw)
-	right_panel.add_child(_preview_canvas)
+	_preview_canvas.gui_input.connect(_on_preview_canvas_gui_input)
+	_preview_canvas.mouse_exited.connect(_on_preview_canvas_mouse_exited)
+	right_vbox.add_child(_preview_canvas)
+
+	_update_view_mode_buttons()
+
+## Cambia el modo de visualización 2D (Generación vs Arquetipos)
+func set_view_mode(mode: int) -> void:
+	if _current_view_mode == mode:
+		return
+	_current_view_mode = mode
+	_update_view_mode_buttons()
+	_update_legend()
+	if _current_view_mode == ViewMode.ARCHETYPE:
+		_switch_tab(2)
+	elif _current_view_mode == ViewMode.GENERATION and _tab_archetypes_container != null and _tab_archetypes_container.visible:
+		_switch_tab(0)
+	if _preview_canvas != null:
+		_preview_canvas.queue_redraw()
+
+func _update_view_mode_buttons() -> void:
+	if _lbl_canvas_title != null:
+		_lbl_canvas_title.text = "🗺️ PLANO DE GENERACIÓN FÍSICA" if _current_view_mode == ViewMode.GENERATION else "🏛️ PLANO DE ARQUETIPOS SEMÁNTICOS"
+
+	var active_style := StyleBoxFlat.new()
+	active_style.bg_color = Color(0.20, 0.35, 0.55, 0.95)
+	active_style.border_color = Color(0.45, 0.70, 1.0, 1.0)
+	active_style.set_border_width_all(1)
+	active_style.set_corner_radius_all(6)
+
+	var inactive_style := StyleBoxFlat.new()
+	inactive_style.bg_color = Color(0.10, 0.13, 0.18, 0.8)
+	inactive_style.border_color = Color(0.25, 0.30, 0.40, 0.5)
+	inactive_style.set_border_width_all(1)
+	inactive_style.set_corner_radius_all(6)
+
+	if _btn_view_generation != null:
+		if _current_view_mode == ViewMode.GENERATION:
+			_btn_view_generation.add_theme_stylebox_override("normal", active_style)
+			_btn_view_generation.add_theme_color_override("font_color", Color.WHITE)
+		else:
+			_btn_view_generation.add_theme_stylebox_override("normal", inactive_style)
+			_btn_view_generation.add_theme_color_override("font_color", Color(0.65, 0.70, 0.80))
+
+	if _btn_view_archetypes != null:
+		if _current_view_mode == ViewMode.ARCHETYPE:
+			_btn_view_archetypes.add_theme_stylebox_override("normal", active_style)
+			_btn_view_archetypes.add_theme_color_override("font_color", Color.WHITE)
+		else:
+			_btn_view_archetypes.add_theme_stylebox_override("normal", inactive_style)
+			_btn_view_archetypes.add_theme_color_override("font_color", Color(0.65, 0.70, 0.80))
+
+func _update_legend() -> void:
+	if _legend_label == null:
+		return
+	if _current_view_mode == ViewMode.GENERATION:
+		_legend_label.text = "[color=#f1d240]■ Habitación[/color]   [color=#38b861]■ Pasillo[/color]\n[color=#ef4444]■ Puerta Roja[/color]   [color=#3b82f6]■ Arco Libre[/color]\n[color=#10b981]● Spawn Jugador[/color]   [color=#ef4444]● Boss[/color]\n[color=#3b82f6]🪜 Escalera Arriba[/color]   [color=#8b5cf6]🪜 Escalera Abajo[/color]"
+	else:
+		_legend_label.text = "[color=#4ade80]■ ENTRANCE[/color]   [color=#f87171]■ ROYAL_TOMB/BOSS[/color]\n[color=#fb923c]■ CRYPT/ARMORY[/color]   [color=#38bdf8]■ TOMB/STORAGE[/color]\n[color=#c084fc]■ SACRISTY/SHRINE[/color]   [color=#94a3b8]■ HALL/EXPLORE[/color]"
 
 ## Configura la barra flotante superior de herramientas de visualización 3D
 func _setup_3d_hud() -> void:
@@ -759,11 +955,139 @@ func _update_player_follow_btn_text() -> void:
 	if _btn_3d_toggle_player != null:
 		_btn_3d_toggle_player.text = "👤 Jugador: ON" if _player_follow_active else "🎥 Modo: Libre"
 
+# ==============================================================================
+# MANEJO DE EVENTOS DE RATÓN (HOVER / INSPECCIÓN)
+# ==============================================================================
+
+func _on_preview_canvas_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion or event is InputEventMouseButton:
+		var m_pos: Vector2 = event.position
+		var found_room_id: int = -1
+		var found_floor_idx: int = -1
+		var found_room_obj = null
+		var found_sem = null
+
+		for vp in _floor_viewports:
+			if vp.get("bounds", Rect2()).has_point(m_pos):
+				var origin: Vector2 = vp.get("origin", Vector2.ZERO)
+				var t_scale: float = vp.get("tile_scale", 1.0)
+				if t_scale > 0.0:
+					var gx: int = int(floor((m_pos.x - origin.x) / t_scale))
+					var gy: int = int(floor((m_pos.y - origin.y) / t_scale))
+					var cell := Vector2i(gx, gy)
+					var rooms: Array = vp.get("rooms", [])
+					for r in rooms:
+						if r != null and r.rect.has_point(cell):
+							found_room_id = r.id
+							found_floor_idx = vp.get("floor_idx", 0)
+							found_room_obj = r
+							found_sem = vp.get("semantic", null)
+							break
+				if found_room_id != -1:
+					break
+
+		if found_room_id != _hovered_room_id or found_floor_idx != _hovered_floor_idx:
+			_hovered_room_id = found_room_id
+			_hovered_floor_idx = found_floor_idx
+			_hovered_mouse_pos = m_pos
+			if found_room_id != -1 and found_room_obj != null:
+				_build_hover_room_data(found_room_obj, found_floor_idx, found_sem)
+			else:
+				_hovered_room_data.clear()
+			if _preview_canvas != null:
+				_preview_canvas.queue_redraw()
+		elif found_room_id != -1:
+			_hovered_mouse_pos = m_pos
+			if _preview_canvas != null:
+				_preview_canvas.queue_redraw()
+
+func _on_preview_canvas_mouse_exited() -> void:
+	if _hovered_room_id != -1:
+		_hovered_room_id = -1
+		_hovered_floor_idx = -1
+		_hovered_room_data.clear()
+		if _preview_canvas != null:
+			_preview_canvas.queue_redraw()
+
+func _build_hover_room_data(room_obj, floor_idx: int, sem_result: DungeonSemanticResult) -> void:
+	_hovered_room_data.clear()
+	if room_obj == null:
+		return
+
+	var r_id: int = room_obj.id
+	var purpose_id: int = _RoomPurposeScript.Type.CRYPT
+	var purpose_name: String = "CRYPT"
+	var arch_type: int = 1
+
+	if sem_result != null:
+		purpose_id = sem_result.get_room_purpose(r_id)
+		purpose_name = sem_result.get_room_purpose_name(r_id)
+		arch_type = sem_result.dungeon_archetype
+
+	var role: String = "EXPLORE"
+	if sem_result != null:
+		if r_id == sem_result.start_room_id:
+			role = "START"
+		elif r_id == sem_result.boss_room_id:
+			role = "BOSS"
+		else:
+			for obj in sem_result.objectives:
+				if obj.room_id == r_id:
+					role = "TREASURE" if obj.type == 0 else "COMBAT"
+					break
+	else:
+		if room_obj.room_type == &"start": role = "START"
+		elif room_obj.room_type == &"boss": role = "BOSS"
+		elif room_obj.room_type == &"treasure": role = "TREASURE"
+		elif room_obj.room_type == &"goal": role = "META"
+
+	var arch_prof = _profile_resolver.resolve(arch_type, purpose_id)
+	var p_col: Color = _get_purpose_color(purpose_id)
+
+	# Resolver conteo de composiciones
+	var focal_cnt: int = 0
+	var support_cnt: int = 0
+	var ambient_cnt: int = 0
+	if sem_result != null:
+		var dec_palette = _dec_resolver.resolve_palette(arch_type, purpose_id, arch_prof)
+		var r_geom = _PresentationRoomGeometryScript.new()
+		r_geom.room_id = r_id
+		r_geom.bounds = room_obj.rect
+		var r_ctx = _PresentationRoomContextScript.new()
+		r_ctx.room_id = r_id
+		r_ctx.purpose = purpose_id
+		r_ctx.profile = arch_prof
+		var comp = _comp_resolver.resolve_room_composition(r_ctx, dec_palette, r_geom, null, sem_result.seed if ("seed" in sem_result) else 1337, 2.0)
+		focal_cnt = comp.get_focal_props().size()
+		support_cnt = comp.get_support_props().size()
+		ambient_cnt = comp.get_ambient_props().size()
+
+	_hovered_room_data = {
+		"room_id": r_id,
+		"floor_idx": floor_idx,
+		"role": role,
+		"purpose_id": purpose_id,
+		"purpose_name": purpose_name,
+		"purpose_color": p_col,
+		"dimensions": "%d×%d celdas (%d m²)" % [room_obj.rect.size.x, room_obj.rect.size.y, room_obj.rect.size.x * room_obj.rect.size.y * 4],
+		"wall_style": _ArchitecturalStyleScript.wall_to_name(arch_prof.wall_style),
+		"floor_style": _ArchitecturalStyleScript.floor_to_name(arch_prof.floor_style),
+		"door_style": _ArchitecturalStyleScript.door_to_name(arch_prof.door_style),
+		"focal_cnt": focal_cnt,
+		"support_cnt": support_cnt,
+		"ambient_cnt": ambient_cnt
+	}
+
+# ==============================================================================
+# RENDERIZADO DEL MAPA 2D Y TOOLTIPS
+# ==============================================================================
+
 ## Dibuja el mapa 2D segmentado en cuadrícula multinivel o vista individual
 func _on_preview_canvas_draw() -> void:
 	if _preview_canvas == null:
 		return
 
+	_floor_viewports.clear()
 	var canvas_size: Vector2 = _preview_canvas.size
 	if canvas_size.x <= 20 or canvas_size.y <= 20:
 		return
@@ -778,54 +1102,55 @@ func _on_preview_canvas_draw() -> void:
 			if f_data != null:
 				var is_entry: bool = (_selected_floor_view == 0)
 				var is_boss: bool = (_selected_floor_view == floor_count - 1)
-				_draw_floor_blueprint(f_data.grid, f_data.rooms, f_data.door_pairs, f_data.stairs, Rect2(Vector2.ZERO, canvas_size), "PISO %d" % (_selected_floor_view + 1), is_entry, is_boss, _selected_floor_view + 1)
-			return
-
-		# Vista segmentada de todos los pisos ("TODOS")
-		var cols: int = 1
-		var rows: int = 1
-		if floor_count == 2:
-			cols = 2; rows = 1
-		elif floor_count in [3, 4]:
-			cols = 2; rows = 2
-		elif floor_count in [5, 6]:
-			cols = 3; rows = 2
-		elif floor_count in [7, 8, 9]:
-			cols = 3; rows = 3
+				_draw_floor_blueprint(f_data.grid, f_data.rooms, f_data.door_pairs, f_data.stairs, Rect2(Vector2.ZERO, canvas_size), "PISO %d" % (_selected_floor_view + 1), is_entry, is_boss, _selected_floor_view + 1, f_data.semantic_result)
 		else:
-			cols = 4; rows = 3
+			# Vista segmentada de todos los pisos ("TODOS")
+			var cols: int = 1
+			var rows: int = 1
+			if floor_count == 2:
+				cols = 2; rows = 1
+			elif floor_count in [3, 4]:
+				cols = 2; rows = 2
+			elif floor_count in [5, 6]:
+				cols = 3; rows = 2
+			elif floor_count in [7, 8, 9]:
+				cols = 3; rows = 3
+			else:
+				cols = 4; rows = 3
 
-		var cell_w: float = canvas_size.x / float(cols)
-		var cell_h: float = canvas_size.y / float(rows)
+			var cell_w: float = canvas_size.x / float(cols)
+			var cell_h: float = canvas_size.y / float(rows)
 
-		for f_idx in range(floor_count):
-			var col: int = f_idx % cols
-			var row: int = f_idx / cols
-			var cell_rect := Rect2(Vector2(float(col) * cell_w, float(row) * cell_h), Vector2(cell_w, cell_h))
+			for f_idx in range(floor_count):
+				var col: int = f_idx % cols
+				var row: int = f_idx / cols
+				var cell_rect := Rect2(Vector2(float(col) * cell_w, float(row) * cell_h), Vector2(cell_w, cell_h))
 
-			var f_data = _last_multi_result.get_floor(f_idx)
-			if f_data != null and f_data.grid != null:
-				var is_entry: bool = (f_idx == 0)
-				var is_boss: bool = (f_idx == floor_count - 1)
-				_draw_floor_blueprint(f_data.grid, f_data.rooms, f_data.door_pairs, f_data.stairs, cell_rect, "PISO %d" % (f_idx + 1), is_entry, is_boss, f_idx + 1)
+				var f_data = _last_multi_result.get_floor(f_idx)
+				if f_data != null and f_data.grid != null:
+					var is_entry: bool = (f_idx == 0)
+					var is_boss: bool = (f_idx == floor_count - 1)
+					_draw_floor_blueprint(f_data.grid, f_data.rooms, f_data.door_pairs, f_data.stairs, cell_rect, "PISO %d" % (f_idx + 1), is_entry, is_boss, f_idx + 1, f_data.semantic_result)
 
-		# Dibujar líneas divisorias de cuadrícula
-		for c in range(1, cols):
-			var x_pos: float = float(c) * cell_w
-			_preview_canvas.draw_line(Vector2(x_pos, 0), Vector2(x_pos, canvas_size.y), Color(0.20, 0.28, 0.40, 0.5), 1.0)
-		for r in range(1, rows):
-			var y_pos: float = float(r) * cell_h
-			_preview_canvas.draw_line(Vector2(0, y_pos), Vector2(canvas_size.x, y_pos), Color(0.20, 0.28, 0.40, 0.5), 1.0)
-		return
+			# Dibujar líneas divisorias de cuadrícula
+			for c in range(1, cols):
+				var x_pos: float = float(c) * cell_w
+				_preview_canvas.draw_line(Vector2(x_pos, 0), Vector2(x_pos, canvas_size.y), Color(0.20, 0.28, 0.40, 0.5), 1.0)
+			for r in range(1, rows):
+				var y_pos: float = float(r) * cell_h
+				_preview_canvas.draw_line(Vector2(0, y_pos), Vector2(canvas_size.x, y_pos), Color(0.20, 0.28, 0.40, 0.5), 1.0)
 
 	# CASO MONO-PISO ESTÁNDAR
-	if _last_result != null and _last_result.grid != null:
+	elif _last_result != null and _last_result.grid != null:
 		var rooms: Array = _last_result.rooms
 		var door_pairs: Array = _last_result.door_pairs
 		var stairs: Array = []
 		if "stairs" in _last_result:
 			stairs = _last_result.stairs
-		_draw_floor_blueprint(_last_result.grid, rooms, door_pairs, stairs, Rect2(Vector2.ZERO, canvas_size), "PISO 1", true, true, 1)
+		_draw_floor_blueprint(_last_result.grid, rooms, door_pairs, stairs, Rect2(Vector2.ZERO, canvas_size), "PISO 1", true, true, 1, _last_semantic)
+
+	# DIBUJAR TOOLTIP FLOTANTE SOBRE SALA EN HOVER
+	_draw_hover_tooltip_card(canvas_size)
 
 func _draw_floor_blueprint(
 	grid: CellGrid,
@@ -836,7 +1161,8 @@ func _draw_floor_blueprint(
 	floor_title: String,
 	is_entry_floor: bool,
 	is_boss_floor: bool,
-	floor_number: int = 1
+	floor_number: int = 1,
+	semantic_res: DungeonSemanticResult = null
 ) -> void:
 	if grid == null or _preview_canvas == null:
 		return
@@ -858,7 +1184,18 @@ func _draw_floor_blueprint(
 		bounds_rect.position.y + margin_top + ((available_h - (float(gh) * tile_scale)) * 0.5)
 	)
 
-	# 1. Dibujar Título del Piso (con estilo nítido y tamaño proporcional)
+	# Registrar viewport activo para interacción por ratón
+	_floor_viewports.append({
+		"floor_idx": floor_number - 1,
+		"origin": origin,
+		"tile_scale": tile_scale,
+		"bounds": bounds_rect,
+		"rooms": rooms,
+		"semantic": semantic_res,
+		"grid": grid
+	})
+
+	# 1. Dibujar Título del Piso
 	var title_pos := bounds_rect.position + Vector2(margin_side, 18.0)
 	_preview_canvas.draw_string(
 		ThemeDB.fallback_font,
@@ -870,32 +1207,50 @@ func _draw_floor_blueprint(
 		Color(0.95, 0.95, 0.95, 0.9)
 	)
 
-	# 2. Dibujar celdas base
+	# 2. Dibujar celdas base según el Modo de Vista
 	for y in range(gh):
 		for x in range(gw):
 			var pos := Vector2i(x, y)
 			var ctype: int = grid.get_cell(pos)
 			var rect := Rect2(origin + Vector2(x, y) * tile_scale, Vector2(tile_scale, tile_scale))
 
-			match ctype:
-				CellGrid.CellType.FLOOR:
-					_preview_canvas.draw_rect(rect, Color("#f1d240")) # Amarillo
-				CellGrid.CellType.CORRIDOR:
-					_preview_canvas.draw_rect(rect, Color("#38b861")) # Verde
-				CellGrid.CellType.DOOR:
-					_preview_canvas.draw_rect(rect, Color("#38b861"))
-				CellGrid.CellType.WALL:
-					_preview_canvas.draw_rect(rect, Color("#181b22")) # Muro oscuro
-				CellGrid.CellType.COLUMN:
-					_preview_canvas.draw_rect(rect, Color("#475569"))
-				CellGrid.CellType.STAIRS_UP:
-					_preview_canvas.draw_rect(rect, Color("#3b82f6")) # Azul
-				CellGrid.CellType.STAIRS_DOWN:
-					_preview_canvas.draw_rect(rect, Color("#8b5cf6")) # Púrpura
-				CellGrid.CellType.SPAWN:
-					_preview_canvas.draw_rect(rect, Color("#10b981"))
-				_:
-					_preview_canvas.draw_rect(rect, Color("#0d1017"))
+			if _current_view_mode == ViewMode.GENERATION:
+				match ctype:
+					CellGrid.CellType.FLOOR:
+						_preview_canvas.draw_rect(rect, Color("#f1d240")) # Amarillo
+					CellGrid.CellType.CORRIDOR:
+						_preview_canvas.draw_rect(rect, Color("#38b861")) # Verde
+					CellGrid.CellType.DOOR:
+						_preview_canvas.draw_rect(rect, Color("#38b861"))
+					CellGrid.CellType.WALL:
+						_preview_canvas.draw_rect(rect, Color("#181b22")) # Muro oscuro
+					CellGrid.CellType.COLUMN:
+						_preview_canvas.draw_rect(rect, Color("#475569"))
+					CellGrid.CellType.STAIRS_UP:
+						_preview_canvas.draw_rect(rect, Color("#3b82f6")) # Azul
+					CellGrid.CellType.STAIRS_DOWN:
+						_preview_canvas.draw_rect(rect, Color("#8b5cf6")) # Púrpura
+					CellGrid.CellType.SPAWN:
+						_preview_canvas.draw_rect(rect, Color("#10b981"))
+					_:
+						_preview_canvas.draw_rect(rect, Color("#0d1017"))
+			else:
+				# VISTA DE ARQUETIPOS
+				match ctype:
+					CellGrid.CellType.FLOOR:
+						_preview_canvas.draw_rect(rect, Color(0.14, 0.17, 0.24, 0.8))
+					CellGrid.CellType.CORRIDOR, CellGrid.CellType.DOOR:
+						_preview_canvas.draw_rect(rect, Color(0.22, 0.28, 0.36, 0.9))
+					CellGrid.CellType.WALL:
+						_preview_canvas.draw_rect(rect, Color("#10131a"))
+					CellGrid.CellType.COLUMN:
+						_preview_canvas.draw_rect(rect, Color("#334155"))
+					CellGrid.CellType.STAIRS_UP:
+						_preview_canvas.draw_rect(rect, Color("#3b82f6"))
+					CellGrid.CellType.STAIRS_DOWN:
+						_preview_canvas.draw_rect(rect, Color("#8b5cf6"))
+					_:
+						_preview_canvas.draw_rect(rect, Color("#090b10"))
 
 	# 3. Dibujar puertas y arcos
 	if door_pairs != null:
@@ -905,24 +1260,72 @@ func _draw_floor_blueprint(
 			_draw_door_marker(dp.door_a, grid, origin, tile_scale)
 			_draw_door_marker(dp.door_b, grid, origin, tile_scale)
 
-	# 4. Dibujar contornos de habitaciones y etiquetas compactas
+	# 4. Dibujar habitaciones y etiquetas según Modo de Vista
 	for r in rooms:
-		if r != null:
-			var c_pos: Vector2 = origin + Vector2(r.rect.position.x, r.rect.position.y) * tile_scale
-			var r_size: Vector2 = Vector2(r.rect.size.x, r.rect.size.y) * tile_scale
-			var r_rect := Rect2(c_pos, r_size)
-			_preview_canvas.draw_rect(r_rect, Color(1, 1, 1, 0.40), false, 1.0)
+		if r == null:
+			continue
+
+		var c_pos: Vector2 = origin + Vector2(r.rect.position.x, r.rect.position.y) * tile_scale
+		var r_size: Vector2 = Vector2(r.rect.size.x, r.rect.size.y) * tile_scale
+		var r_rect := Rect2(c_pos, r_size)
+		var is_hovered: bool = (_hovered_room_id == r.id and _hovered_floor_idx == (floor_number - 1))
+
+		if _current_view_mode == ViewMode.ARCHETYPE:
+			var purpose_id: int = _RoomPurposeScript.Type.CRYPT
+			var purpose_name: String = "CRYPT"
+			if semantic_res != null:
+				purpose_id = semantic_res.get_room_purpose(r.id)
+				purpose_name = semantic_res.get_room_purpose_name(r.id)
+			var p_col: Color = _get_purpose_color(purpose_id)
+
+			# Relleno del color del propósito
+			_preview_canvas.draw_rect(r_rect, Color(p_col.r, p_col.g, p_col.b, 0.45 if not is_hovered else 0.65))
+			_preview_canvas.draw_rect(r_rect, p_col if not is_hovered else Color.WHITE, false, 3.0 if is_hovered else 1.8)
+
+			# Etiqueta central con fondo oscuro
+			if tile_scale >= 2.5:
+				var tag_text: String = "#%d\n%s" % [r.id, purpose_name]
+				var tag_font_size: int = clampi(int(tile_scale * 0.85), 9, 13)
+				var center_pt := r_rect.position + r_rect.size * 0.5
+				var str_sz := ThemeDB.fallback_font.get_string_size(purpose_name, HORIZONTAL_ALIGNMENT_CENTER, -1, tag_font_size)
+				var pill_w: float = maxf(str_sz.x + 10.0, 42.0)
+				var pill_h: float = str_sz.y * 2.0 + 6.0
+				var p_rect := Rect2(center_pt - Vector2(pill_w * 0.5, pill_h * 0.5), Vector2(pill_w, pill_h))
+
+				_preview_canvas.draw_rect(p_rect, Color(0.08, 0.10, 0.14, 0.88))
+				_preview_canvas.draw_rect(p_rect, p_col, false, 1.0)
+				_preview_canvas.draw_string(
+					ThemeDB.fallback_font,
+					Vector2(p_rect.position.x, center_pt.y - 2.0),
+					"#%d" % r.id,
+					HORIZONTAL_ALIGNMENT_CENTER,
+					int(pill_w),
+					tag_font_size,
+					Color.WHITE
+				)
+				_preview_canvas.draw_string(
+					ThemeDB.fallback_font,
+					Vector2(p_rect.position.x, center_pt.y + str_sz.y - 1.0),
+					purpose_name,
+					HORIZONTAL_ALIGNMENT_CENTER,
+					int(pill_w),
+					maxi(8, tag_font_size - 2),
+					p_col
+				)
+		else:
+			# VISTA DE GENERACIÓN
+			_preview_canvas.draw_rect(r_rect, Color(1, 1, 1, 0.35 if not is_hovered else 0.65), false, 2.5 if is_hovered else 1.0)
+			if is_hovered:
+				_preview_canvas.draw_rect(r_rect, Color(1.0, 0.95, 0.40, 0.25))
 
 			var is_special_objective = (r.room_type == &"boss" and is_boss_floor) or (r.room_type == &"start" and is_entry_floor) or (r.room_type == &"goal") or (r.room_type == &"treasure")
 
-			# Solo dibujar etiqueta de número de habitación si NO es una sala con objetivo especial central
 			if not is_special_objective and tile_scale >= 3.0:
 				var label_text: String = "#%d" % r.id
 				var tag_font_size: int = clampi(int(tile_scale * 0.9), 9, 11)
 				var tag_pos := c_pos + Vector2(3, 3)
 				_draw_text_pill(tag_pos, label_text, tag_font_size, Color(0.92, 0.92, 0.92, 0.95), Color(0.10, 0.12, 0.16, 0.85))
 
-			# Iconos y badges de objetivos centrales específicos
 			var center_cell = r.get_center()
 			if r.room_type == &"boss" and is_boss_floor:
 				_draw_objective_badge(center_cell, origin, tile_scale, Color("#ef4444"), "💀 BOSS")
@@ -940,6 +1343,53 @@ func _draw_floor_blueprint(
 				var stair_color: Color = Color("#8b5cf6") if st.is_downward else Color("#3b82f6")
 				var stair_lbl: String = "🪜 BAJADA" if st.is_downward else "🪜 SUBIDA"
 				_draw_objective_badge(st.cell, origin, tile_scale, stair_color, stair_lbl)
+
+## Dibuja la tarjeta flotante de inspección detallada de una sala al pasar el cursor
+func _draw_hover_tooltip_card(canvas_size: Vector2) -> void:
+	if _hovered_room_id == -1 or _hovered_room_data.is_empty():
+		return
+
+	var d = _hovered_room_data
+	var card_w: float = 270.0
+	var card_h: float = 126.0
+
+	var card_pos := _hovered_mouse_pos + Vector2(18.0, 18.0)
+	if card_pos.x + card_w > canvas_size.x - 10.0:
+		card_pos.x = _hovered_mouse_pos.x - card_w - 18.0
+	if card_pos.y + card_h > canvas_size.y - 10.0:
+		card_pos.y = canvas_size.y - card_h - 10.0
+	card_pos.x = maxf(10.0, card_pos.x)
+	card_pos.y = maxf(10.0, card_pos.y)
+
+	var card_rect := Rect2(card_pos, Vector2(card_w, card_h))
+	var p_col: Color = d.get("purpose_color", Color(0.3, 0.8, 0.4))
+
+	# Fondo y borde resplandeciente
+	_preview_canvas.draw_rect(card_rect, Color(0.08, 0.11, 0.16, 0.96))
+	_preview_canvas.draw_rect(card_rect, p_col, false, 1.5)
+
+	# Cabecera
+	var header_rect := Rect2(card_pos, Vector2(card_w, 28.0))
+	_preview_canvas.draw_rect(header_rect, Color(p_col.r, p_col.g, p_col.b, 0.22))
+
+	var head_text: String = "🏛️ SALA #%d  [%s]  → %s" % [d.room_id, d.role, d.purpose_name]
+	_preview_canvas.draw_string(ThemeDB.fallback_font, card_pos + Vector2(8, 19), head_text, HORIZONTAL_ALIGNMENT_LEFT, int(card_w - 16), 12, Color.WHITE)
+
+	# Línea 1: Dimensiones y Rol
+	var l1_text: String = "📐 Tamaño: %s" % d.dimensions
+	_preview_canvas.draw_string(ThemeDB.fallback_font, card_pos + Vector2(10, 48), l1_text, HORIZONTAL_ALIGNMENT_LEFT, int(card_w - 20), 11, Color(0.85, 0.88, 0.94))
+
+	# Línea 2: Estilos Arquitectónicos
+	var l2_text: String = "🧱 %s | 🔲 %s | 🚪 %s" % [d.wall_style, d.floor_style, d.door_style]
+	_preview_canvas.draw_string(ThemeDB.fallback_font, card_pos + Vector2(10, 72), l2_text, HORIZONTAL_ALIGNMENT_LEFT, int(card_w - 20), 10, Color(0.70, 0.80, 0.95))
+
+	# Línea 3: Composición de Props / Decoración
+	var l3_text: String = "👑 Focal: %d | 📦 Support: %d | 🪨 Ambient: %d" % [d.focal_cnt, d.support_cnt, d.ambient_cnt]
+	_preview_canvas.draw_string(ThemeDB.fallback_font, card_pos + Vector2(10, 96), l3_text, HORIZONTAL_ALIGNMENT_LEFT, int(card_w - 20), 10, Color(0.95, 0.80, 0.35))
+
+	# Línea 4: Indicador de piso
+	var l4_text: String = "🏢 Piso %d" % (d.floor_idx + 1)
+	_preview_canvas.draw_string(ThemeDB.fallback_font, card_pos + Vector2(10, 116), l4_text, HORIZONTAL_ALIGNMENT_LEFT, int(card_w - 20), 9, Color(0.55, 0.60, 0.70))
 
 ## Dibuja un badge de objetivo (Spawn, Boss, Goal, Escaleras) centrado con píldora de fondo legible
 func _draw_objective_badge(grid_pos: Vector2i, origin: Vector2, tile_scale: float, color: Color, label: String) -> void:
@@ -1007,6 +1457,19 @@ func _draw_door_marker(door, grid: CellGrid, origin: Vector2, tile_scale: float)
 	_preview_canvas.draw_rect(rect, col)
 	_preview_canvas.draw_rect(rect, Color.WHITE, false, 1.0)
 
+func _get_purpose_color(p: int) -> Color:
+	match p:
+		_RoomPurposeScript.Type.ENTRANCE: return Color(0.3, 0.8, 0.4) # Verde esmeralda
+		_RoomPurposeScript.Type.THRONE_ROOM, _RoomPurposeScript.Type.ROYAL_TOMB, _RoomPurposeScript.Type.SANCTUM, _RoomPurposeScript.Type.FORGE:
+			return Color(0.95, 0.3, 0.3) # Rojo carmesí / Jefe
+		_RoomPurposeScript.Type.ARMORY, _RoomPurposeScript.Type.GUARD_ROOM, _RoomPurposeScript.Type.CRYPT, _RoomPurposeScript.Type.EXCAVATION:
+			return Color(0.9, 0.6, 0.2) # Naranja cobrizo / Combate
+		_RoomPurposeScript.Type.TOMB, _RoomPurposeScript.Type.STORAGE, _RoomPurposeScript.Type.LIBRARY, _RoomPurposeScript.Type.MINE_STORAGE:
+			return Color(0.3, 0.7, 0.95) # Azul zafiro / Tesoro
+		_RoomPurposeScript.Type.SHRINE, _RoomPurposeScript.Type.ALTAR_ROOM, _RoomPurposeScript.Type.SACRISTY, _RoomPurposeScript.Type.MEDITATION_ROOM:
+			return Color(0.8, 0.4, 0.9) # Púrpura místico / Sagrado
+		_: return Color(0.7, 0.7, 0.75) # Gris pizarra / Neutro
+
 ## Muestra la vista previa 2D de un resultado mono-piso
 func show_2d_preview(res: RefCounted, semantic: DungeonSemanticResult = null) -> void:
 	_last_result = res
@@ -1024,6 +1487,7 @@ func show_2d_preview(res: RefCounted, semantic: DungeonSemanticResult = null) ->
 		_preview_canvas.queue_redraw()
 
 	_update_stats_panel()
+	_update_archetypes_panel()
 
 ## Muestra la vista previa 2D de un resultado multi-piso
 func show_multi_floor_preview(multi_res: DungeonMultiFloorResult, selected_floor_idx: int = -1) -> void:
@@ -1043,6 +1507,7 @@ func show_multi_floor_preview(multi_res: DungeonMultiFloorResult, selected_floor
 		_preview_canvas.queue_redraw()
 
 	_update_stats_panel()
+	_update_archetypes_panel()
 
 func hide_2d_preview() -> void:
 	is_2d_preview_mode = false
@@ -1056,9 +1521,10 @@ func _switch_tab(tab_idx: int) -> void:
 		_tab_params_container.visible = (tab_idx == 0)
 	if _tab_floors_container != null:
 		_tab_floors_container.visible = (tab_idx == 1)
+	if _tab_archetypes_container != null:
+		_tab_archetypes_container.visible = (tab_idx == 2)
 
-	# Estilos visuales de los botones de pestañas
-	var btns = [_tab_btn_params, _tab_btn_floors]
+	var btns = [_tab_btn_params, _tab_btn_floors, _tab_btn_archetypes]
 	var active_style := StyleBoxFlat.new()
 	active_style.bg_color = Color(0.20, 0.32, 0.50, 0.95)
 	active_style.border_color = Color(0.40, 0.60, 0.90, 1.0)
@@ -1081,6 +1547,106 @@ func _switch_tab(tab_idx: int) -> void:
 		else:
 			b.add_theme_stylebox_override("normal", inactive_style)
 			b.add_theme_color_override("font_color", Color(0.65, 0.70, 0.80))
+
+func _update_archetypes_panel() -> void:
+	if _tab_archetypes_container == null:
+		return
+
+	var sem: DungeonSemanticResult = _last_semantic
+	if _last_multi_result != null:
+		var target_f: int = 0 if _selected_floor_view == -1 else _selected_floor_view
+		var f_data = _last_multi_result.get_floor(target_f)
+		if f_data != null and f_data.semantic_result != null:
+			sem = f_data.semantic_result
+
+	if sem == null:
+		if _arch_info_header != null:
+			_arch_info_header.text = "🏛️ Sin datos semánticos disponibles"
+		return
+
+	if _arch_info_header != null:
+		var arch_name: String = sem.dungeon_archetype_name
+		var room_cnt: int = sem.rooms.size()
+		var is_valid_str: String = "VALID" if sem.gameplay_valid else "INVALID"
+		_arch_info_header.text = "🏛️ %s | Salas: %d | Estado: %s" % [arch_name, room_cnt, is_valid_str]
+
+	# Distribución
+	if _arch_dist_container != null:
+		for c in _arch_dist_container.get_children():
+			c.queue_free()
+
+		var dist := sem.get_purpose_distribution()
+		for p_type in dist:
+			var p_name: String = _RoomPurposeScript.to_name(int(p_type) as _RoomPurposeScript.Type)
+			var p_count: int = int(dist[p_type])
+			var badge := Label.new()
+			badge.text = " [%s: %d] " % [p_name, p_count]
+			badge.add_theme_color_override("font_color", _get_purpose_color(int(p_type)))
+			badge.add_theme_font_size_override("font_size", 10)
+			_arch_dist_container.add_child(badge)
+
+	# Lista de Salas
+	if _arch_rooms_list != null:
+		for c in _arch_rooms_list.get_children():
+			c.queue_free()
+
+		var sorted_ids: Array = sem.room_purposes.keys()
+		sorted_ids.sort()
+
+		for r_id in sorted_ids:
+			var purpose_id: int = int(sem.room_purposes[r_id])
+			var p_name: String = sem.get_room_purpose_name(r_id)
+			var role: String = "EXPLORE"
+
+			if r_id == sem.start_room_id:
+				role = "START"
+			elif r_id == sem.boss_room_id:
+				role = "BOSS"
+			else:
+				for obj in sem.objectives:
+					if obj.room_id == r_id:
+						role = "TREASURE" if obj.type == 0 else "COMBAT"
+						break
+
+			var row := VBoxContainer.new()
+			row.add_theme_constant_override("separation", 1)
+
+			var top_line := HBoxContainer.new()
+			top_line.add_theme_constant_override("separation", 6)
+
+			var lbl_id := Label.new()
+			lbl_id.custom_minimum_size.x = 55
+			lbl_id.text = "Sala #%d" % r_id
+			lbl_id.add_theme_font_size_override("font_size", 11)
+
+			var lbl_role := Label.new()
+			lbl_role.custom_minimum_size.x = 75
+			lbl_role.text = "[%s]" % role
+			lbl_role.add_theme_font_size_override("font_size", 10)
+			lbl_role.add_theme_color_override("font_color", Color(0.95, 0.8, 0.3) if role in ["START", "BOSS", "TREASURE"] else Color(0.70, 0.75, 0.80))
+
+			var lbl_purpose := Label.new()
+			lbl_purpose.text = "→ %s" % p_name
+			lbl_purpose.add_theme_font_size_override("font_size", 11)
+			lbl_purpose.add_theme_color_override("font_color", _get_purpose_color(purpose_id))
+
+			top_line.add_child(lbl_id)
+			top_line.add_child(lbl_role)
+			top_line.add_child(lbl_purpose)
+
+			var arch_prof = _profile_resolver.resolve(sem.dungeon_archetype, purpose_id)
+			var bot_line := Label.new()
+			bot_line.add_theme_font_size_override("font_size", 9)
+			bot_line.add_theme_color_override("font_color", Color(0.60, 0.65, 0.72))
+			bot_line.text = "   🧱 %s | 🔲 %s | 🚪 %s" % [
+				_ArchitecturalStyleScript.wall_to_name(arch_prof.wall_style),
+				_ArchitecturalStyleScript.floor_to_name(arch_prof.floor_style),
+				_ArchitecturalStyleScript.door_to_name(arch_prof.door_style)
+			]
+
+			row.add_child(top_line)
+			row.add_child(bot_line)
+			_arch_rooms_list.add_child(row)
 
 func get_current_lighting_profile() -> LightingProfile:
 	return _LightingProfileScript.new()
@@ -1258,4 +1824,3 @@ func set_selected_archetype(p_arch_id: int) -> void:
 		if _opt_archetype.get_item_id(idx) == p_arch_id:
 			_opt_archetype.select(idx)
 			return
-

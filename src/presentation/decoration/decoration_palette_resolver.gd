@@ -102,12 +102,12 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 		1.0, Vector3.ZERO, false, _FixtureCollisionModeScript.Mode.NONE,
 		true, Color(0.376, 0.161, 0.671, 1.0), 0.6, 2.2
 	)
-	# TODO: Volver Activar la lampara de mano (hanging_lantern)
+	# Lámpara colgante reactivada con soporte de cadena volumétrica
 	match room_purpose:
 		_RoomPurposeScript.Type.TOMB, _RoomPurposeScript.Type.ROYAL_TOMB:
 			entries.append(_FixturePaletteEntryScript.new(torch, 25.0))
 			entries.append(_FixturePaletteEntryScript.new(wall_lantern, 75.0))
-			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 0))
+			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 45.0))
 			entries.append(_FixturePaletteEntryScript.new(brazier, 70.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_cluster, 80.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_holder, 90.0))
@@ -116,7 +116,7 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 		_RoomPurposeScript.Type.ENTRANCE, _RoomPurposeScript.Type.HALL, _RoomPurposeScript.Type.CHAMBER:
 			entries.append(_FixturePaletteEntryScript.new(torch, 80.0))
 			entries.append(_FixturePaletteEntryScript.new(wall_lantern, 20.0))
-			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 0))
+			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 25.0))
 			entries.append(_FixturePaletteEntryScript.new(brazier, 35.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_cluster, 65.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_holder, 70.0))
@@ -125,7 +125,7 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 		_RoomPurposeScript.Type.SACRISTY, _RoomPurposeScript.Type.CATACOMB:
 			entries.append(_FixturePaletteEntryScript.new(torch, 15.0))
 			entries.append(_FixturePaletteEntryScript.new(wall_lantern, 85.0))
-			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 0))
+			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 35.0))
 			entries.append(_FixturePaletteEntryScript.new(brazier, 90.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_cluster, 95.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_holder, 95.0))
@@ -134,7 +134,7 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 		_: # CRYPT y genéricos
 			entries.append(_FixturePaletteEntryScript.new(torch, 65.0))
 			entries.append(_FixturePaletteEntryScript.new(wall_lantern, 35.0))
-			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 0))
+			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 30.0))
 			entries.append(_FixturePaletteEntryScript.new(brazier, 50.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_cluster, 60.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_holder, 80.0))
@@ -291,6 +291,30 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 		_PropFootprintScript.new(Vector2i(1, 1)), &"rubble_prop", {},
 		_DecorationRoleScript.Role.AMBIENT
 	)
+	var urn_banded_floor = _PropStyleScript.new(
+		&"crypt_urn_banded_floor", _PropStyleScript.Type.URN,
+		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
+		_PropFootprintScript.new(Vector2i(1, 1)), &"urn_prop", {"style": 0, "scale": 1.0, "has_lid": true},
+		_DecorationRoleScript.Role.SUPPORT
+	)
+	var urn_relic_floor = _PropStyleScript.new(
+		&"crypt_urn_relic_floor", _PropStyleScript.Type.URN,
+		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
+		_PropFootprintScript.new(Vector2i(1, 1)), &"urn_prop", {"style": 1, "scale": 1.0, "has_lid": true},
+		_DecorationRoleScript.Role.SUPPORT
+	)
+	var urn_pedestal_floor = _PropStyleScript.new(
+		&"temple_urn_pedestal_floor", _PropStyleScript.Type.URN,
+		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
+		_PropFootprintScript.new(Vector2i(1, 1)), &"urn_prop", {"style": 2, "scale": 1.0, "has_lid": true},
+		_DecorationRoleScript.Role.SUPPORT
+	)
+	var urn_canopic_surface = _PropStyleScript.new(
+		&"crypt_urn_canopic_surface", _PropStyleScript.Type.URN,
+		_PropPlacementModeScript.Mode.CORNER, _PropCollisionModeScript.Mode.BLOCKING,
+		_PropFootprintScript.new(Vector2i(1, 1)), &"urn_prop", {"style": 3, "scale": 0.65, "has_lid": true},
+		_DecorationRoleScript.Role.AMBIENT
+	)
 
 	match room_purpose:
 		_RoomPurposeScript.Type.TOMB:
@@ -298,26 +322,34 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(sarc_open, 30.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 60.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 40.0))
+			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 55.0))
+			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 50.0))
+			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 35.0))
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 40.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_tomb", entries)
-			pal.density = 0.35
-			pal.max_props_per_room = 7
+			pal.density = 0.38
+			pal.max_props_per_room = 8
 			return pal
 
 		_RoomPurposeScript.Type.ROYAL_TOMB:
 			entries.append(_PropPaletteEntryScript.new(sarc_closed, 90.0))
 			entries.append(_PropPaletteEntryScript.new(sarc_open, 20.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 60.0))
+			entries.append(_PropPaletteEntryScript.new(urn_pedestal_floor, 65.0))
+			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 50.0))
+			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 40.0))
 			entries.append(_PropPaletteEntryScript.new(bench_stone, 40.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_royal_tomb", entries)
-			pal.density = 0.40
-			pal.max_props_per_room = 8
+			pal.density = 0.42
+			pal.max_props_per_room = 9
 			return pal
 
 		_RoomPurposeScript.Type.MORTUARY:
 			entries.append(_PropPaletteEntryScript.new(altar, 80.0))
 			entries.append(_PropPaletteEntryScript.new(sarc_open, 60.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 50.0))
+			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 60.0))
+			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 45.0))
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 60.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_mortuary", entries)
 			pal.density = 0.40
@@ -328,6 +360,8 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(altar, 90.0))
 			entries.append(_PropPaletteEntryScript.new(bench_pew, 70.0))
 			entries.append(_PropPaletteEntryScript.new(bench_stone, 40.0))
+			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 60.0))
+			entries.append(_PropPaletteEntryScript.new(urn_pedestal_floor, 45.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 20.0))
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 20.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_sacristy", entries)
@@ -339,15 +373,19 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(sarc_open, 70.0))
 			entries.append(_PropPaletteEntryScript.new(sarc_closed, 50.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 40.0))
+			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 75.0))
+			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 65.0))
+			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 40.0))
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 60.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_crypt", entries)
-			pal.density = 0.35
-			pal.max_props_per_room = 6
+			pal.density = 0.38
+			pal.max_props_per_room = 7
 			return pal
 
 		_: # ANTECHAMBER, ENTRANCE, HALL, etc.
 			entries.append(_PropPaletteEntryScript.new(bench_pew, 70.0))
 			entries.append(_PropPaletteEntryScript.new(bench_stone, 50.0))
+			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 40.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 30.0))
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 40.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_antechamber", entries)
@@ -375,14 +413,28 @@ func _resolve_temple_prop_palette(room_purpose: int) -> _PropPaletteScript:
 		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 0},
 		_DecorationRoleScript.Role.SUPPORT
 	)
+	var urn_pedestal_floor = _PropStyleScript.new(
+		&"temple_urn_pedestal_floor", _PropStyleScript.Type.URN,
+		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
+		_PropFootprintScript.new(Vector2i(1, 1)), &"urn_prop", {"style": 2, "scale": 1.0, "has_lid": true},
+		_DecorationRoleScript.Role.SUPPORT
+	)
+	var urn_canopic_surface = _PropStyleScript.new(
+		&"temple_urn_canopic_surface", _PropStyleScript.Type.URN,
+		_PropPlacementModeScript.Mode.CORNER, _PropCollisionModeScript.Mode.BLOCKING,
+		_PropFootprintScript.new(Vector2i(1, 1)), &"urn_prop", {"style": 3, "scale": 0.65, "has_lid": true},
+		_DecorationRoleScript.Role.AMBIENT
+	)
 
 	entries.append(_PropPaletteEntryScript.new(altar, 80.0))
 	entries.append(_PropPaletteEntryScript.new(bench_pew, 60.0))
 	entries.append(_PropPaletteEntryScript.new(bench_wall, 40.0))
+	entries.append(_PropPaletteEntryScript.new(urn_pedestal_floor, 55.0))
+	entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 45.0))
 
 	var palette := _PropPaletteScript.new(&"temple_props", entries)
-	palette.density = 0.30
-	palette.max_props_per_room = 5
+	palette.density = 0.32
+	palette.max_props_per_room = 6
 	return palette
 
 func _resolve_fortress_prop_palette(room_purpose: int) -> _PropPaletteScript:

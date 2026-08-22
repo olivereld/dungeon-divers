@@ -65,7 +65,12 @@ const TEST_SUITES: Array[String] = [
 	# 6. Room Ownership, Corredores & Semántica (Fase Corredores)
 	"res://tests/test_corridor_regression_seeds.gd",
 	"res://tests/test_corridor_ownership_and_semantics.gd",
-	"res://tests/test_widening_widths.gd"
+	"res://tests/test_widening_widths.gd",
+
+	# 7. Presentation & Visualizer
+	"res://tests/presentation/test_dungeon_visualizer_archetype_view.gd",
+	"res://tests/geometry/test_urn_geometry_builder.gd",
+	"res://tests/presentation/decoration/test_crypt_urn_palette.gd"
 ]
 
 func _init() -> void:

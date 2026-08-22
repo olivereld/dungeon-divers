@@ -3,8 +3,9 @@ extends RefCounted
 
 ## Constructor geométrico procedural de estilo low-poly para Faroles Góticos (Hanging Lantern y Wall Lantern).
 ## Soporta:
-## 1. Farol Colgante (Hanging): Anilla hexagonal superior de suspensión.
-## 2. Farol de Pared (Wall-Mounted): Remate en aguja superior, placa de anclaje a pared en -Z,
+## 1. Farol Colgante (Hanging): Anilla base, cadena de eslabones 3D entrelazados (interlocking chain links)
+##    y roseta de suspensión de techo con grillete/gancho de forja.
+## 2. Farol de Pared (Wall-Mounted): Remate en aguja gótica superior, placa de anclaje a pared en -Z,
 ##    asiento cónico sólido, brazo horizontal volumétrico con espigón frontal y ménsula inferior en voluta 3D sólida.
 
 const _GeneratedMeshScript = preload("res://src/geometry_generator/data/generated_mesh.gd")
@@ -53,19 +54,49 @@ func build_lantern_fixture(config = null):
 	# Bisel inferior del alero hacia el cuerpo de la jaula
 	_build_ngon_frustum(st_frame, y_roof_bot, y_roof_eave, r_cage, r_roof_eave, angles)
 
-	# --- B. REMATE SUPERIOR (COLGANTE VS AGUJA DE PARED) ---
+	# --- B. REMATE SUPERIOR (SISTEMA DE CADENA COLGANTE VS AGUJA DE PARED) ---
 	if not config.is_wall_mounted:
-		# Anilla de suspensión hexagonal
+		# Fuste / Cuello base de suspensión
 		var y_stem_bot: float = y_roof_top
 		var y_stem_top: float = y_roof_top + 0.035 * s
-		var r_stem: float = 0.016 * s
+		var r_stem: float = 0.022 * s
 		_build_ngon_frustum(st_frame, y_stem_bot, y_stem_top, r_stem, r_stem, angles)
+		_build_ngon_cap(st_frame, y_stem_top, r_stem, angles, true)
 
-		var y_ring_center: float = y_stem_top + 0.065 * s
-		var r_ring_out: float = 0.055 * s
-		var r_ring_in: float = 0.035 * s
-		var ring_thick: float = 0.018 * s
-		_build_vertical_hex_ring(st_frame, y_ring_center, r_ring_out, r_ring_in, ring_thick)
+		# Anilla base de la cúpula
+		var r_link_out: float = 0.044 * s
+		var r_link_in: float = 0.026 * s
+		var link_thick: float = 0.015 * s
+		var y_base_ring: float = y_stem_top + r_link_out * 0.85
+		_build_3d_chain_link(st_frame, Vector3(0.0, y_base_ring, 0.0), r_link_out, r_link_in, link_thick, 0)
+
+		# Cadena de eslabones 3D entrelazados (Interlocking Chain Links)
+		var num_links: int = maxi(1, config.chain_links)
+		var link_step: float = (r_link_out + r_link_in) * 0.88
+		var cur_y: float = y_base_ring
+
+		for l_idx in range(num_links):
+			cur_y += link_step
+			var axis: int = (l_idx + 1) % 2 # Alternar planos X-Y (0) y Z-Y (1)
+			_build_3d_chain_link(st_frame, Vector3(0.0, cur_y, 0.0), r_link_out, r_link_in, link_thick, axis)
+
+		# Roseta / Anclaje de techo y gancho superior (Ceiling Rosette & Bracket)
+		if config.has_ceiling_mount:
+			var y_hook: float = cur_y + link_step * 0.85
+			# Gancho de forja superior conectado al último eslabón
+			_build_3d_chain_link(st_frame, Vector3(0.0, y_hook, 0.0), r_link_out * 0.85, r_link_in * 0.85, link_thick, (num_links) % 2)
+
+			# Placa / Roseta de techo octogonal
+			var y_mount_bot: float = y_hook + r_link_out * 0.80
+			var y_mount_top: float = y_mount_bot + 0.025 * s
+			var r_mount_base: float = 0.085 * s
+			var r_mount_top: float = 0.105 * s
+			var mount_angles: Array[float] = []
+			for m_i in range(8):
+				mount_angles.append(float(m_i) * (TAU / 8.0))
+			_build_ngon_frustum(st_frame, y_mount_bot, y_mount_top, r_mount_base, r_mount_top, mount_angles)
+			_build_ngon_cap(st_frame, y_mount_bot, r_mount_base, mount_angles, false)
+			_build_ngon_cap(st_frame, y_mount_top, r_mount_top, mount_angles, true)
 	else:
 		# Remate en aguja torneada gótica (Finial Spire)
 		_build_spire_finial(st_frame, y_roof_top, r_roof_top, angles, s)
@@ -85,18 +116,19 @@ func build_lantern_fixture(config = null):
 	# Tapa de fondo
 	_build_ngon_cap(st_frame, y_base_bot, r_base_bot, angles, false)
 
-	# --- D. POSTES Y ARCOS GÓTICOS DE LA JAULA (WINDOW FRAMES & LATTICE) ---
+	# --- D. POSTES VOLUMÉTRICOS 3D Y ARCOS GÓTICOS DE LA JAULA ---
 	var pillar_w: float = 0.026 * s
+	var pillar_d: float = 0.024 * s
 	var arch_h_top: float = 0.065 * s
 	var arch_h_bot: float = 0.065 * s
 
-	# 1. Postes esquineros
+	# 1. Postes esquineros 3D sólidos
 	for angle in angles:
 		var p_top := Vector3(cos(angle) * r_cage, y_roof_bot, sin(angle) * r_cage)
 		var p_bot := Vector3(cos(angle) * r_cage, y_cage_bot, sin(angle) * r_cage)
-		_build_corner_pillar(st_frame, p_top, p_bot, pillar_w)
+		_build_corner_pillar_3d(st_frame, p_top, p_bot, pillar_w, pillar_d)
 
-	# 2. Arcos ojivales superior e inferior en cada una de las caras
+	# 2. Arcos ojivales superior e inferior volumétricos en cada cara
 	for i in range(num_sides):
 		var i_next: int = (i + 1) % num_sides
 		var a0: float = angles[i]
@@ -111,10 +143,18 @@ func build_lantern_fixture(config = null):
 		var cusp_top := mid_top + Vector3(0.0, -arch_h_top, 0.0)
 		var cusp_bot := mid_bot + Vector3(0.0, arch_h_bot, 0.0)
 
-		# Cúspide de arco superior (tímpano apuntado hacia abajo)
+		# Tímpano de arco superior (cara exterior e interior)
+		var in_depth: Vector3 = -(mid_top.normalized() * (0.014 * s))
 		_add_triangle_direct(st_frame, v_top0, v_top1, cusp_top)
-		# Cúspide de arco inferior (alfeizar apuntado hacia arriba)
+		_add_triangle_direct(st_frame, v_top1 + in_depth, v_top0 + in_depth, cusp_top + in_depth)
+		_add_quad_direct(st_frame, v_top0, cusp_top, cusp_top + in_depth, v_top0 + in_depth)
+		_add_quad_direct(st_frame, cusp_top, v_top1, v_top1 + in_depth, cusp_top + in_depth)
+
+		# Alféizar de arco inferior (cara exterior e interior)
 		_add_triangle_direct(st_frame, v_bot1, v_bot0, cusp_bot)
+		_add_triangle_direct(st_frame, v_bot0 + in_depth, v_bot1 + in_depth, cusp_bot + in_depth)
+		_add_quad_direct(st_frame, v_bot1, cusp_bot, cusp_bot + in_depth, v_bot1 + in_depth)
+		_add_quad_direct(st_frame, cusp_bot, v_bot0, v_bot0 + in_depth, cusp_bot + in_depth)
 
 	# --- E. SOPORTE DE PARED INFERIOR VOLUMÉTRICO (WALL BRACKET & SOLID 3D SCROLL) ---
 	if config.is_wall_mounted:
@@ -137,7 +177,7 @@ func build_lantern_fixture(config = null):
 	var st_glass := SurfaceTool.new()
 	st_glass.begin(Mesh.PRIMITIVE_TRIANGLES)
 
-	var r_glass: float = (r_cage * 0.94)
+	var r_glass: float = (r_cage * 0.93)
 	var y_glass_top: float = (y_roof_bot - 0.005 * s)
 	var y_glass_bot: float = (y_cage_bot + 0.005 * s)
 
@@ -315,7 +355,8 @@ static func _build_ngon_frustum(st: SurfaceTool, y_bot: float, y_top: float, r_b
 		var p_t1 := Vector3(cos(a1) * r_top, y_top, sin(a1) * r_top)
 		var p_t0 := Vector3(cos(a0) * r_top, y_top, sin(a0) * r_top)
 
-		_add_quad_direct(st, p_b0, p_b1, p_t1, p_t0)
+		# Devanado antihorario visto desde fuera para normales exteriores correctas
+		_add_quad_direct(st, p_b0, p_t0, p_t1, p_b1)
 
 static func _build_ngon_cap(st: SurfaceTool, y: float, r: float, angles: Array[float], is_top: bool) -> void:
 	var n: int = angles.size()
@@ -327,45 +368,106 @@ static func _build_ngon_cap(st: SurfaceTool, y: float, r: float, angles: Array[f
 		var p0 := Vector3(cos(a0) * r, y, sin(a0) * r)
 		var p1 := Vector3(cos(a1) * r, y, sin(a1) * r)
 		if is_top:
-			_add_triangle_direct(st, center, p0, p1)
-		else:
+			# Normal hacia +Y
 			_add_triangle_direct(st, center, p1, p0)
+		else:
+			# Normal hacia -Y
+			_add_triangle_direct(st, center, p0, p1)
 
-static func _build_vertical_hex_ring(st: SurfaceTool, y_center: float, r_out: float, r_in: float, depth: float) -> void:
-	var h_d: float = depth * 0.5
-	var n: int = 6
-	for i in range(n):
-		var i_next: int = (i + 1) % n
-		var a0: float = float(i) * (TAU / 6.0)
-		var a1: float = float(i_next) * (TAU / 6.0)
+## Construye un eslabón toroidal 3D volumétrico cerrado para cadenas medievales de forja.
+## axis: 0 = plano X-Y (grosor en Z), 1 = plano Z-Y (grosor en X)
+static func _build_3d_chain_link(st: SurfaceTool, center: Vector3, r_out: float, r_in: float, thickness: float, axis: int) -> void:
+	var h_t: float = thickness * 0.5
+	var n: int = 8 # Octágono suave low-poly
+	var step: float = TAU / float(n)
 
-		var p_o0 := Vector3(cos(a0) * r_out, y_center + sin(a0) * r_out, h_d)
-		var p_o1 := Vector3(cos(a1) * r_out, y_center + sin(a1) * r_out, h_d)
-		var p_i1 := Vector3(cos(a1) * r_in, y_center + sin(a1) * r_in, h_d)
-		var p_i0 := Vector3(cos(a0) * r_in, y_center + sin(a0) * r_in, h_d)
+	if axis == 0:
+		# Plano X-Y, grosor a lo largo de Z
+		for i in range(n):
+			var a0: float = float(i) * step
+			var a1: float = float(i + 1) * step
 
-		var pb_o0 := Vector3(cos(a0) * r_out, y_center + sin(a0) * r_out, -h_d)
-		var pb_o1 := Vector3(cos(a1) * r_out, y_center + sin(a1) * r_out, -h_d)
-		var pb_i1 := Vector3(cos(a1) * r_in, y_center + sin(a1) * r_in, -h_d)
-		var pb_i0 := Vector3(cos(a0) * r_in, y_center + sin(a0) * r_in, -h_d)
+			var cos0: float = cos(a0)
+			var sin0: float = sin(a0)
+			var cos1: float = cos(a1)
+			var sin1: float = sin(a1)
 
-		_add_quad_direct(st, p_o0, p_o1, p_i1, p_i0)
-		_add_quad_direct(st, pb_o1, pb_o0, pb_i0, pb_i1)
-		_add_quad_direct(st, pb_o0, pb_o1, p_o1, p_o0)
-		_add_quad_direct(st, p_i0, p_i1, pb_i1, pb_i0)
+			# Cara frontal (+Z)
+			var pf_o0 := center + Vector3(cos0 * r_out, sin0 * r_out, h_t)
+			var pf_o1 := center + Vector3(cos1 * r_out, sin1 * r_out, h_t)
+			var pf_i1 := center + Vector3(cos1 * r_in, sin1 * r_in, h_t)
+			var pf_i0 := center + Vector3(cos0 * r_in, sin0 * r_in, h_t)
 
-static func _build_corner_pillar(st: SurfaceTool, p_top: Vector3, p_bot: Vector3, width: float) -> void:
+			# Cara trasera (-Z)
+			var pb_o0 := center + Vector3(cos0 * r_out, sin0 * r_out, -h_t)
+			var pb_o1 := center + Vector3(cos1 * r_out, sin1 * r_out, -h_t)
+			var pb_i1 := center + Vector3(cos1 * r_in, sin1 * r_in, -h_t)
+			var pb_i0 := center + Vector3(cos0 * r_in, sin0 * r_in, -h_t)
+
+			# 1. Frontal (+Z)
+			_add_quad_direct(st, pf_o0, pf_o1, pf_i1, pf_i0)
+			# 2. Trasera (-Z)
+			_add_quad_direct(st, pb_o1, pb_o0, pb_i0, pb_i1)
+			# 3. Borde exterior (Rim Outward)
+			_add_quad_direct(st, pb_o0, pb_o1, pf_o1, pf_o0)
+			# 4. Borde interior (Hole Inward)
+			_add_quad_direct(st, pf_i0, pf_i1, pb_i1, pb_i0)
+	else:
+		# Plano Z-Y, grosor a lo largo de X
+		for i in range(n):
+			var a0: float = float(i) * step
+			var a1: float = float(i + 1) * step
+
+			var cos0: float = cos(a0)
+			var sin0: float = sin(a0)
+			var cos1: float = cos(a1)
+			var sin1: float = sin(a1)
+
+			# Cara derecha (+X)
+			var pf_o0 := center + Vector3(h_t, cos0 * r_out, sin0 * r_out)
+			var pf_o1 := center + Vector3(h_t, cos1 * r_out, sin1 * r_out)
+			var pf_i1 := center + Vector3(h_t, cos1 * r_in, sin1 * r_in)
+			var pf_i0 := center + Vector3(h_t, cos0 * r_in, sin0 * r_in)
+
+			# Cara izquierda (-X)
+			var pb_o0 := center + Vector3(-h_t, cos0 * r_out, sin0 * r_out)
+			var pb_o1 := center + Vector3(-h_t, cos1 * r_out, sin1 * r_out)
+			var pb_i1 := center + Vector3(-h_t, cos1 * r_in, sin1 * r_in)
+			var pb_i0 := center + Vector3(-h_t, cos0 * r_in, sin0 * r_in)
+
+			# 1. Derecha (+X)
+			_add_quad_direct(st, pf_o0, pf_o1, pf_i1, pf_i0)
+			# 2. Izquierda (-X)
+			_add_quad_direct(st, pb_o1, pb_o0, pb_i0, pb_i1)
+			# 3. Borde exterior (Rim Outward)
+			_add_quad_direct(st, pb_o0, pb_o1, pf_o1, pf_o0)
+			# 4. Borde interior (Hole Inward)
+			_add_quad_direct(st, pf_i0, pf_i1, pb_i1, pb_i0)
+
+static func _build_corner_pillar_3d(st: SurfaceTool, p_top: Vector3, p_bot: Vector3, width: float, depth: float) -> void:
 	var dir := (p_top - p_bot).normalized()
 	var out_dir := Vector3(p_top.x, 0.0, p_top.z).normalized()
 	var tangent := out_dir.cross(dir).normalized()
 	var h_w: float = width * 0.5
+	var h_d: float = depth * 0.5
 
-	var p0 := p_bot - (tangent * h_w) + (out_dir * h_w)
-	var p1 := p_bot + (tangent * h_w) + (out_dir * h_w)
-	var p2 := p_top + (tangent * h_w) + (out_dir * h_w)
-	var p3 := p_top - (tangent * h_w) + (out_dir * h_w)
+	# Vértices inferiores
+	var b_ol := p_bot - (tangent * h_w) + (out_dir * h_d)
+	var b_or := p_bot + (tangent * h_w) + (out_dir * h_d)
+	var b_ir := p_bot + (tangent * h_w) - (out_dir * h_d)
+	var b_il := p_bot - (tangent * h_w) - (out_dir * h_d)
 
-	_add_quad_direct(st, p0, p1, p2, p3)
+	# Vértices superiores
+	var t_ol := p_top - (tangent * h_w) + (out_dir * h_d)
+	var t_or := p_top + (tangent * h_w) + (out_dir * h_d)
+	var t_ir := p_top + (tangent * h_w) - (out_dir * h_d)
+	var t_il := p_top - (tangent * h_w) - (out_dir * h_d)
+
+	# 4 caras laterales volumétricas sólidas con normales correctas
+	_add_quad_direct(st, b_ol, t_ol, t_or, b_or) # Cara exterior frontal
+	_add_quad_direct(st, b_or, t_or, t_ir, b_ir) # Cara lateral derecha
+	_add_quad_direct(st, b_ir, t_ir, t_il, b_il) # Cara interior trasera
+	_add_quad_direct(st, b_il, t_il, t_ol, b_ol) # Cara lateral izquierda
 
 static func _add_quad_direct(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3) -> void:
 	_add_triangle_direct(st, p0, p1, p2)

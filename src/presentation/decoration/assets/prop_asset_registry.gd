@@ -53,10 +53,25 @@ func _register_default_definitions() -> void:
 	register_definition(_PropAssetDefinitionScript.create_procedural_definition(
 		&"crypt_rubble_corner", &"rubble_prop", {}
 	))
+	register_definition(_PropAssetDefinitionScript.create_procedural_definition(
+		&"crypt_urn_banded_floor", &"urn_prop", {"style": 0, "scale": 1.0, "has_lid": true}
+	))
+	register_definition(_PropAssetDefinitionScript.create_procedural_definition(
+		&"crypt_urn_relic_floor", &"urn_prop", {"style": 1, "scale": 1.0, "has_lid": true}
+	))
+	register_definition(_PropAssetDefinitionScript.create_procedural_definition(
+		&"crypt_urn_canopic_surface", &"urn_prop", {"style": 3, "scale": 0.65, "has_lid": true}
+	))
 
 	# 2. Temple Props
 	register_definition(_PropAssetDefinitionScript.create_procedural_definition(
 		&"temple_altar_center", &"altar_prop", {"style": 2}
+	))
+	register_definition(_PropAssetDefinitionScript.create_procedural_definition(
+		&"temple_urn_pedestal_floor", &"urn_prop", {"style": 2, "scale": 1.0, "has_lid": true}
+	))
+	register_definition(_PropAssetDefinitionScript.create_procedural_definition(
+		&"temple_urn_canopic_surface", &"urn_prop", {"style": 3, "scale": 0.65, "has_lid": true}
 	))
 	register_definition(_PropAssetDefinitionScript.create_procedural_definition(
 		&"temple_pew_floor", &"bench_prop", {"style": 0}
