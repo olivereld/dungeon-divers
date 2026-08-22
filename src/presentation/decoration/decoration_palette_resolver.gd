@@ -64,22 +64,22 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 		&"gothic_crypt_torch",
 		_FixtureStyleScript.Type.TORCH,
 		_FixturePlacementModeScript.Mode.WALL,
-		1.0, Vector3(0.0, 1.2, 0.0), false, _FixtureCollisionModeScript.Mode.NONE,
+		1.0, Vector3(0.0, 2.0, 0.0), false, _FixtureCollisionModeScript.Mode.NONE,
 		true, Color(1.0, 0.62, 0.25, 1.0), 1.4, 6.5
 	)
 	var wall_lantern = _FixtureStyleScript.new(
 		&"gothic_crypt_wall_lantern",
 		_FixtureStyleScript.Type.LANTERN,
 		_FixturePlacementModeScript.Mode.WALL,
-		1.0, Vector3(0.0, 1.3, 0.0), true, _FixtureCollisionModeScript.Mode.NONE,
-		true, Color(1.0, 0.70, 0.30, 1.0), 1.5, 7.0
+		1.0, Vector3(0.0, 2.0, 0.0), true, _FixtureCollisionModeScript.Mode.NONE,
+		true, Color(0.376, 0.161, 0.671, 1.0), 1.5, 7.0
 	)
 	var hanging_lantern = _FixtureStyleScript.new(
 		&"gothic_crypt_hanging_lantern",
 		_FixtureStyleScript.Type.LANTERN,
 		_FixturePlacementModeScript.Mode.HANGING,
 		1.0, Vector3.ZERO, false, _FixtureCollisionModeScript.Mode.NONE,
-		true, Color(1.0, 0.72, 0.32, 1.0), 1.6, 7.5
+		true, Color(0.376, 0.161, 0.671, 1.0), 1.6, 7.5
 	)
 	var brazier = _FixtureStyleScript.new(
 		&"gothic_crypt_brazier",
@@ -93,21 +93,21 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 		_FixtureStyleScript.Type.CANDLE_HOLDER,
 		_FixturePlacementModeScript.Mode.SURFACE,
 		1.0, Vector3.ZERO, false, _FixtureCollisionModeScript.Mode.NONE,
-		true, Color(1.0, 0.80, 0.40, 1.0), 0.9, 4.5
+		true, Color(0.376, 0.161, 0.671, 1.0), 0.8, 3.2
 	)
 	var candle_cluster = _FixtureStyleScript.new(
 		&"gothic_crypt_candle_cluster",
 		_FixtureStyleScript.Type.CANDLE_CLUSTER,
 		_FixturePlacementModeScript.Mode.FLOOR,
 		1.0, Vector3.ZERO, false, _FixtureCollisionModeScript.Mode.NONE,
-		true, Color(1.0, 0.75, 0.35, 1.0), 1.1, 5.0
+		true, Color(0.376, 0.161, 0.671, 1.0), 0.6, 2.2
 	)
-
+	# TODO: Volver Activar la lampara de mano (hanging_lantern)
 	match room_purpose:
 		_RoomPurposeScript.Type.TOMB, _RoomPurposeScript.Type.ROYAL_TOMB:
 			entries.append(_FixturePaletteEntryScript.new(torch, 25.0))
 			entries.append(_FixturePaletteEntryScript.new(wall_lantern, 75.0))
-			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 50.0))
+			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 0))
 			entries.append(_FixturePaletteEntryScript.new(brazier, 70.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_cluster, 80.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_holder, 90.0))
@@ -116,7 +116,7 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 		_RoomPurposeScript.Type.ENTRANCE, _RoomPurposeScript.Type.HALL, _RoomPurposeScript.Type.CHAMBER:
 			entries.append(_FixturePaletteEntryScript.new(torch, 80.0))
 			entries.append(_FixturePaletteEntryScript.new(wall_lantern, 20.0))
-			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 30.0))
+			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 0))
 			entries.append(_FixturePaletteEntryScript.new(brazier, 35.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_cluster, 65.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_holder, 70.0))
@@ -125,7 +125,7 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 		_RoomPurposeScript.Type.SACRISTY, _RoomPurposeScript.Type.CATACOMB:
 			entries.append(_FixturePaletteEntryScript.new(torch, 15.0))
 			entries.append(_FixturePaletteEntryScript.new(wall_lantern, 85.0))
-			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 70.0))
+			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 0))
 			entries.append(_FixturePaletteEntryScript.new(brazier, 90.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_cluster, 95.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_holder, 95.0))
@@ -134,7 +134,7 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 		_: # CRYPT y genéricos
 			entries.append(_FixturePaletteEntryScript.new(torch, 65.0))
 			entries.append(_FixturePaletteEntryScript.new(wall_lantern, 35.0))
-			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 40.0))
+			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 0))
 			entries.append(_FixturePaletteEntryScript.new(brazier, 50.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_cluster, 60.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_holder, 80.0))
@@ -147,7 +147,7 @@ func _resolve_temple_fixture_palette(room_purpose: int) -> _FixturePaletteScript
 	var entries: Array[_FixturePaletteEntryScript] = []
 	var torch = _FixtureStyleScript.new(
 		&"ceremonial_temple_torch", _FixtureStyleScript.Type.TORCH,
-		_FixturePlacementModeScript.Mode.WALL, 1.05, Vector3(0.0, 1.3, 0.0), false, 0,
+		_FixturePlacementModeScript.Mode.WALL, 1.05, Vector3(0.0, 2.0, 0.0), false, 0,
 		true, Color(1.0, 0.78, 0.35, 1.0), 1.6, 7.5
 	)
 	var hanging = _FixtureStyleScript.new(
@@ -185,12 +185,12 @@ func _resolve_fortress_fixture_palette(room_purpose: int) -> _FixturePaletteScri
 	var entries: Array[_FixturePaletteEntryScript] = []
 	var torch = _FixtureStyleScript.new(
 		&"fortress_iron_torch", _FixtureStyleScript.Type.TORCH,
-		_FixturePlacementModeScript.Mode.WALL, 1.0, Vector3(0.0, 1.2, 0.0), false, 0,
+		_FixturePlacementModeScript.Mode.WALL, 1.0, Vector3(0.0, 2.0, 0.0), false, 0,
 		true, Color(1.0, 0.55, 0.20, 1.0), 1.3, 6.0
 	)
 	var wall_lantern = _FixtureStyleScript.new(
 		&"fortress_iron_wall_lantern", _FixtureStyleScript.Type.LANTERN,
-		_FixturePlacementModeScript.Mode.WALL, 1.0, Vector3(0.0, 1.25, 0.0), true, 0,
+		_FixturePlacementModeScript.Mode.WALL, 1.0, Vector3(0.0, 2.0, 0.0), true, 0,
 		true, Color(1.0, 0.65, 0.25, 1.0), 1.4, 6.5
 	)
 	var brazier = _FixtureStyleScript.new(
@@ -217,7 +217,7 @@ func _resolve_mine_fixture_palette(room_purpose: int) -> _FixturePaletteScript:
 	var entries: Array[_FixturePaletteEntryScript] = []
 	var torch = _FixtureStyleScript.new(
 		&"mine_shaft_torch", _FixtureStyleScript.Type.TORCH,
-		_FixturePlacementModeScript.Mode.WALL, 0.95, Vector3(0.0, 1.1, 0.0), false, 0,
+		_FixturePlacementModeScript.Mode.WALL, 0.95, Vector3(0.0, 2.0, 0.0), false, 0,
 		true, Color(1.0, 0.50, 0.18, 1.0), 1.2, 5.5
 	)
 	var hanging = _FixtureStyleScript.new(
@@ -451,5 +451,3 @@ func _resolve_mine_prop_palette(room_purpose: int) -> _PropPaletteScript:
 	palette.density = 0.25
 	palette.max_props_per_room = 4
 	return palette
-
-

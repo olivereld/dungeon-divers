@@ -197,16 +197,6 @@ func build_presentation(
 		var p_node = _prop_spawner.spawn_prop(p_dir, staging_root)
 		if p_node != null:
 			result.spawned_entities.append(p_node)
-
-	# 5.6 Generación de Iluminación Procedural 3D
-	var light_cfg: _DungeonLightingConfigScript = config.lighting_config if (config != null and "lighting_config" in config and config.lighting_config != null) else _DungeonLightingConfigScript.new()
-	var light_prof: _LightingProfileScript = biome.lighting_profile if (biome != null and "lighting_profile" in biome and biome.lighting_profile != null) else _LightingProfileScript.new()
-
-	var light_res = _lighting_generator.generate_lighting(
-		semantic_result, light_cfg, config.seed if config != null else 1337
-	)
-	_light_spawner.spawn_lighting(light_res, staging_root, light_prof, tile_size)
-
 	# 6. Spawning de Entidades (Marcadores, Llaves, Cerraduras) en Staging
 	var spawn_res: Dictionary = _entity_spawner.spawn_entities(
 		semantic_result, staging_root, biome, config
@@ -372,15 +362,6 @@ func build_multi_floor_presentation(
 			var p_node = _prop_spawner.spawn_prop(p_dir, floor_container)
 			if p_node != null:
 				result.spawned_entities.append(p_node)
-
-		# 7. Iluminación Procedural del piso
-		var light_cfg: _DungeonLightingConfigScript = config.lighting_config if (config != null and "lighting_config" in config and config.lighting_config != null) else _DungeonLightingConfigScript.new()
-		var light_prof: _LightingProfileScript = biome.lighting_profile if (biome != null and "lighting_profile" in biome and biome.lighting_profile != null) else _LightingProfileScript.new()
-
-		var light_res = _lighting_generator.generate_lighting(
-			f_semantic, light_cfg, f_data.seed_used
-		)
-		_light_spawner.spawn_lighting(light_res, floor_container, light_prof, tile_size)
 
 		# 8. Entidades del piso
 		var spawn_res: Dictionary = _entity_spawner.spawn_entities(

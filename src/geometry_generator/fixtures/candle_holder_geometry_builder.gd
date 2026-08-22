@@ -188,10 +188,11 @@ func build_candle_holder_fixture(config = null):
 
 	# Material Llama Emisiva
 	var mat_flame := StandardMaterial3D.new()
-	mat_flame.albedo_color = Color(1.0, 0.65, 0.15, 1.0)
+	var flame_col: Color = config.flame_color if config != null and "flame_color" in config else Color(1.0, 0.70, 0.20, 1.0)
+	mat_flame.albedo_color = flame_col
 	mat_flame.roughness = 0.1
 	mat_flame.emission_enabled = true
-	mat_flame.emission = Color(1.0, 0.70, 0.20, 1.0)
+	mat_flame.emission = flame_col
 	mat_flame.emission_energy_multiplier = 3.6
 	g_flames.material_slots[0] = mat_flame
 	asset.add_mesh(&"candle_flames", g_flames)

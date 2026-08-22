@@ -15,6 +15,8 @@ var _noise := FastNoiseLite.new()
 var _time_accum: float = 0.0
 
 func _ready() -> void:
+	if target_light == null and get_parent() is Light3D:
+		target_light = get_parent() as Light3D
 	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_noise.frequency = 0.5
 	_time_accum = time_offset

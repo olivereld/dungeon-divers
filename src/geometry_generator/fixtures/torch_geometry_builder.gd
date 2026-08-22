@@ -63,7 +63,7 @@ func build_torch_fixture(scale_mult: float = 1.0, flame_scale: float = 1.0):
 	var arm_w: float = 0.035 * scale_mult
 	var arm_h: float = 0.040 * scale_mult
 	var arm_z_front: float = -0.035 * scale_mult
-	var arm_z_back: float = -0.16 * scale_mult
+	var arm_z_back: float = -0.22 * scale_mult
 	_build_box(st,
 		Vector3(-arm_w * 0.5, y_col_chamfer_bot + 0.005, arm_z_back),
 		Vector3(arm_w * 0.5, y_col_chamfer_top - 0.005, arm_z_front)

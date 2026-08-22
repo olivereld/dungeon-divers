@@ -10,6 +10,7 @@ extends Resource
 @export var num_sides: int = 8
 @export var candle_count: int = 3
 @export var wax_color: Color = Color(0.93, 0.90, 0.82, 1.0) # Blanco marfil / cera cálida
+@export var flame_color: Color = Color(1.0, 0.70, 0.20, 1.0) # Color de la llama
 @export var seed: int = 1337
 
 func _init(

@@ -21,7 +21,7 @@ func _init(p_id: StringName = &"", p_entries: Array[_PropPaletteEntryScript] = [
 func get_entries_for_placement(placement: int) -> Array[_PropPaletteEntryScript]:
 	var result: Array[_PropPaletteEntryScript] = []
 	for entry in entries:
-		if entry != null and entry.style != null and entry.style.placement_mode == placement:
+		if entry != null and entry.style != null and entry.style.placement_mode == placement and entry.weight > 0.0:
 			result.append(entry)
 	return result
 
@@ -30,13 +30,15 @@ func select_weighted(placement: int, seed_val: int) -> _PropStyleScript:
 	var valid_entries = get_entries_for_placement(placement)
 	if valid_entries.is_empty():
 		return null
+	if valid_entries.size() == 1:
+		return valid_entries[0].style if valid_entries[0].weight > 0.0 else null
 
 	var total_weight: float = 0.0
 	for entry in valid_entries:
 		total_weight += maxf(0.0, entry.weight)
 
 	if total_weight <= 0.0:
-		return valid_entries[0].style
+		return null
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_val

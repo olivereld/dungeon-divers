@@ -20,6 +20,7 @@ enum ClusterDensity {
 @export var max_radius: float = 0.045
 @export var generate_wax_pool: bool = true
 @export var wax_color: Color = Color(0.93, 0.90, 0.82, 1.0)
+@export var flame_color: Color = Color(1.0, 0.70, 0.20, 1.0)
 @export var seed: int = 1337
 
 func _init(

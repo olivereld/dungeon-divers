@@ -118,7 +118,7 @@ func build_lantern_fixture(config = null):
 
 	# --- E. SOPORTE DE PARED INFERIOR VOLUMÉTRICO (WALL BRACKET & SOLID 3D SCROLL) ---
 	if config.is_wall_mounted:
-		var z_wall: float = -0.28 * s
+		var z_wall: float = -0.42 * s
 		_build_wall_bracket_solid(st_frame, y_base_bot, z_wall, angles, s)
 
 	st_frame.generate_tangents()
@@ -240,11 +240,11 @@ static func _build_wall_bracket_solid(st: SurfaceTool, y_lantern_bot: float, z_w
 
 	# Curva suavizada de 6 nodos en arco parabólico
 	var curve_pts: Array[Vector3] = [
-		Vector3(0.0, y_plate_bot + 0.03 * s, z_wall + 0.01 * s),
-		Vector3(0.0, y_plate_bot + 0.06 * s, z_wall + 0.06 * s),
-		Vector3(0.0, y_plate_bot + 0.11 * s, z_wall + 0.13 * s),
-		Vector3(0.0, y_arm_bot - 0.06 * s, z_wall + 0.20 * s),
-		Vector3(0.0, y_arm_bot - 0.01 * s, z_wall + 0.26 * s),
+		Vector3(0.0, y_plate_bot + 0.03 * s, z_wall + 0.02 * s),
+		Vector3(0.0, y_plate_bot + 0.08 * s, z_wall + 0.09 * s),
+		Vector3(0.0, y_plate_bot + 0.15 * s, z_wall + 0.18 * s),
+		Vector3(0.0, y_arm_bot - 0.08 * s, z_wall + 0.28 * s),
+		Vector3(0.0, y_arm_bot - 0.02 * s, z_wall + 0.38 * s),
 		Vector3(0.0, y_arm_bot, 0.0)
 	]
 

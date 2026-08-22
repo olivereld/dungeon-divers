@@ -52,18 +52,18 @@ func find_wall_anchors(r_geom, tile_size: float = 2.0) -> Array[_WallAnchorScrip
 		elif floor_cells_map.has(w_pos + Vector2i(1, 0)):
 			valid_side = SIDE_WEST
 			facing_normal = Vector3(1.0, 0.0, 0.0)
-			rot_y = -PI * 0.5
+			rot_y = PI * 0.5
 		elif floor_cells_map.has(w_pos + Vector2i(-1, 0)):
 			valid_side = SIDE_EAST
 			facing_normal = Vector3(-1.0, 0.0, 0.0)
-			rot_y = PI * 0.5
+			rot_y = -PI * 0.5
 
 		if valid_side == -1:
 			continue
 
 		var center_x: float = (float(w_pos.x) + 0.5) * tile_size
 		var center_z: float = (float(w_pos.y) + 0.5) * tile_size
-		var world_pos := Vector3(center_x, 0.0, center_z) + (facing_normal * (tile_size * 0.48))
+		var world_pos := Vector3(center_x, 0.0, center_z) + (facing_normal * (tile_size * 0.50))
 
 		var anchor := _WallAnchorScript.new(
 			w_pos,

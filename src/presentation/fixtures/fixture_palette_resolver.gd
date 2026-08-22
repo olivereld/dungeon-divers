@@ -32,7 +32,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureStyleScript.Type.TORCH,
 				_FixturePlacementModeScript.Mode.WALL,
 				1.0,
-				Vector3(0.0, 1.2, 0.0),
+				Vector3(0.0, 2.0, 0.0),
 				false,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
@@ -45,11 +45,11 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureStyleScript.Type.LANTERN,
 				_FixturePlacementModeScript.Mode.WALL,
 				1.0,
-				Vector3(0.0, 1.3, 0.0),
+				Vector3(0.0, 2.0, 0.0),
 				true,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
-				Color(1.0, 0.70, 0.30, 1.0),
+				Color(0.376, 0.161, 0.671, 1.0),
 				1.5,
 				7.0
 			))
@@ -62,7 +62,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				false,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
-				Color(1.0, 0.72, 0.32, 1.0),
+				Color(0.376, 0.161, 0.671, 1.0),
 				1.6,
 				7.5
 			))
@@ -88,9 +88,9 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				false,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
-				Color(1.0, 0.80, 0.40, 1.0),
-				0.9,
-				4.5
+				Color(0.376, 0.161, 0.671, 1.0),
+				0.8,
+				3.2
 			))
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"gothic_crypt_candle_cluster",
@@ -101,9 +101,9 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				false,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
-				Color(1.0, 0.75, 0.35, 1.0),
-				1.1,
-				5.0
+				Color(0.376, 0.161, 0.671, 1.0),
+				0.6,
+				2.2
 			))
 			wall_spacing = 3
 			wall_prob = 0.70
@@ -118,7 +118,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureStyleScript.Type.TORCH,
 				_FixturePlacementModeScript.Mode.WALL,
 				1.05,
-				Vector3(0.0, 1.3, 0.0),
+				Vector3(0.0, 2.0, 0.0),
 				false,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
@@ -191,7 +191,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureStyleScript.Type.TORCH,
 				_FixturePlacementModeScript.Mode.WALL,
 				1.0,
-				Vector3(0.0, 1.2, 0.0),
+				Vector3(0.0, 2.0, 0.0),
 				false,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
@@ -204,7 +204,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureStyleScript.Type.LANTERN,
 				_FixturePlacementModeScript.Mode.WALL,
 				1.0,
-				Vector3(0.0, 1.25, 0.0),
+				Vector3(0.0, 2.0, 0.0),
 				true,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
@@ -251,7 +251,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureStyleScript.Type.TORCH,
 				_FixturePlacementModeScript.Mode.WALL,
 				0.95,
-				Vector3(0.0, 1.1, 0.0),
+				Vector3(0.0, 2.0, 0.0),
 				false,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,

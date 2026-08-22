@@ -22,6 +22,7 @@ const _CandleHolderGeometryBuilderScript = preload("res://src/geometry_generator
 const _CandleHolderGeometryConfigScript = preload("res://src/geometry_generator/config/candle_holder_geometry_config.gd")
 const _CandleClusterGeometryBuilderScript = preload("res://src/geometry_generator/fixtures/candle_cluster_geometry_builder.gd")
 const _CandleClusterGeometryConfigScript = preload("res://src/geometry_generator/config/candle_cluster_geometry_config.gd")
+const _TorchLightControllerScript = preload("res://src/dungeon_lighting/presentation/torch_light_controller.gd")
 
 var _torch_builder = _TorchGeometryBuilderScript.new()
 var _lantern_builder = _LanternGeometryBuilderScript.new()
@@ -79,19 +80,25 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 	var style: _FixtureStyleScript = directive.style
 	var scale_mult: float = directive.scale
 	var generated_asset = null
+	var forward_mount_offset: float = 0.0
 	var light_offset := Vector3(0.0, 0.22 * scale_mult, 0.12 * scale_mult)
 
 	match style.fixture_type:
 		_FixtureStyleScript.Type.TORCH:
 			generated_asset = _torch_builder.build_torch_fixture(scale_mult, scale_mult)
-			light_offset = Vector3(0.0, 0.20 * scale_mult, 0.11 * scale_mult)
+			forward_mount_offset = 0.22 * scale_mult
+			light_offset = Vector3(0.0, 0.35 * scale_mult, forward_mount_offset)
 
 		_FixtureStyleScript.Type.LANTERN:
 			var l_cfg = _LanternGeometryConfigScript.new()
 			l_cfg.scale_mult = scale_mult
 			l_cfg.is_wall_mounted = style.is_wall_mounted
+			if style.has_light:
+				l_cfg.glass_color = style.light_color
 			generated_asset = _lantern_builder.build_lantern_fixture(l_cfg)
-			light_offset = Vector3(0.0, 0.05 * scale_mult, 0.0 if not style.is_wall_mounted else 0.12 * scale_mult)
+			if style.is_wall_mounted:
+				forward_mount_offset = 0.42 * scale_mult
+			light_offset = Vector3(0.0, -0.05 * scale_mult, forward_mount_offset)
 
 		_FixtureStyleScript.Type.BRAZIER:
 			var b_cfg = _BrazierGeometryConfigScript.new()
@@ -102,14 +109,18 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 		_FixtureStyleScript.Type.CANDLE_HOLDER:
 			var ch_cfg = _CandleHolderGeometryConfigScript.new()
 			ch_cfg.scale_mult = scale_mult
+			if style.has_light:
+				ch_cfg.flame_color = style.light_color
 			generated_asset = _candle_holder_builder.build_candle_holder_fixture(ch_cfg)
-			light_offset = Vector3(0.0, 0.40 * scale_mult, 0.0)
+			light_offset = Vector3(0.0, 0.78 * scale_mult, 0.0)
 
 		_FixtureStyleScript.Type.CANDLE_CLUSTER:
 			var cc_cfg = _CandleClusterGeometryConfigScript.new()
 			cc_cfg.scale_mult = scale_mult
+			if style.has_light:
+				cc_cfg.flame_color = style.light_color
 			generated_asset = _candle_cluster_builder.build_candle_cluster_fixture(cc_cfg)
-			light_offset = Vector3(0.0, 0.25 * scale_mult, 0.0)
+			light_offset = Vector3(0.0, 0.38 * scale_mult, 0.0)
 
 	if generated_asset == null:
 		return root_node
@@ -122,6 +133,8 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 			m_inst.name = String(slot).capitalize().replace(" ", "")
 			m_inst.mesh = gm.mesh
 			m_inst.transform = generated_asset.get_mesh_transform(slot)
+			if forward_mount_offset > 0.0:
+				m_inst.position.z += forward_mount_offset
 
 			for mat_slot in gm.material_slots.keys():
 				m_inst.set_surface_override_material(mat_slot, gm.material_slots[mat_slot])
@@ -131,7 +144,7 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 
 			root_node.add_child(m_inst)
 
-	# Luz local OmniLight3D
+	# Luz local OmniLight3D y controlador de parpadeo realista
 	if style.has_light:
 		var light := OmniLight3D.new()
 		light.name = "FixtureLight"
@@ -141,5 +154,32 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 		light.omni_range = style.light_range
 		light.shadow_enabled = true
 		root_node.add_child(light)
+
+		# Controlador de parpadeo orgánico e intermitencia de velas
+		var flicker := _TorchLightControllerScript.new()
+		flicker.name = "FixtureFlicker"
+		flicker.target_light = light
+		flicker.base_energy = style.light_energy
+
+		match style.fixture_type:
+			_FixtureStyleScript.Type.CANDLE_HOLDER:
+				flicker.flicker_amplitude = 0.35 # Intermitencia notable y viva
+				flicker.flicker_speed = 8.5      # Aleteo rápido característico de vela
+			_FixtureStyleScript.Type.CANDLE_CLUSTER:
+				flicker.flicker_amplitude = 0.30 # Oscilación colectiva de cúmulo
+				flicker.flicker_speed = 7.5
+			_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.TORCH:
+				flicker.flicker_amplitude = 0.22
+				flicker.flicker_speed = 6.0
+			_FixtureStyleScript.Type.LANTERN:
+				flicker.flicker_amplitude = 0.12
+				flicker.flicker_speed = 4.5
+			_:
+				flicker.flicker_amplitude = 0.25
+				flicker.flicker_speed = 6.5
+
+		# Desfasar el tiempo según la posición espacial para evitar parpadeo sincronizado
+		flicker.time_offset = float(directive.cell.x * 43.17 + directive.cell.y * 79.23 + directive.room_id * 17.5)
+		light.add_child(flicker)
 
 	return root_node

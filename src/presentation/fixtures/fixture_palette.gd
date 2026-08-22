@@ -44,11 +44,11 @@ func _init(
 	floor_fixture_spacing = p_floor_spacing
 	floor_fixture_probability = p_floor_prob
 
-## Retorna todas las entradas compatibles con un modo de placement específico.
+## Retorna todas las entradas compatibles con un modo de placement específico con peso > 0.
 func get_entries_for_placement(mode: int) -> Array[_FixturePaletteEntryScript]:
 	var result: Array[_FixturePaletteEntryScript] = []
 	for e in entries:
-		if e != null and e.style != null and e.style.placement_mode == mode:
+		if e != null and e.style != null and e.style.placement_mode == mode and e.weight > 0.0:
 			result.append(e)
 	return result
 
@@ -65,19 +65,19 @@ func select_weighted(mode: int, seed_val: int) -> _FixtureStyleScript:
 	if valid_entries.is_empty():
 		return null
 	if valid_entries.size() == 1:
-		return valid_entries[0].style
+		return valid_entries[0].style if valid_entries[0].weight > 0.0 else null
 
 	var total_weight: float = 0.0
 	for e in valid_entries:
-		total_weight += e.weight
+		total_weight += maxf(0.0, e.weight)
 
 	if total_weight <= 0.0:
-		return valid_entries[0].style
+		return null
 
 	var roll: float = (float(abs(seed_val) % 10000) / 10000.0) * total_weight
 	var cumulative: float = 0.0
 	for e in valid_entries:
-		cumulative += e.weight
+		cumulative += maxf(0.0, e.weight)
 		if cumulative >= roll:
 			return e.style
 

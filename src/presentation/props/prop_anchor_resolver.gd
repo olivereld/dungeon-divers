@@ -64,10 +64,10 @@ func find_wall_anchors(r_geom, tile_size: float = 2.0) -> Array[_WallPropAnchorS
 			rot_y = PI # Mirando hacia el Norte (-Z en 3D)
 		elif not floor_cells_map.has(f_pos + Vector2i(-1, 0)): # Pared al Oeste (-X)
 			wall_dir = Vector2i(-1, 0)
-			rot_y = -PI * 0.5 # Mirando hacia el Este (+X en 3D)
+			rot_y = PI * 0.5 # Mirando hacia el Este (+X en 3D)
 		elif not floor_cells_map.has(f_pos + Vector2i(1, 0)): # Pared al Este (+X)
 			wall_dir = Vector2i(1, 0)
-			rot_y = PI * 0.5 # Mirando hacia el Oeste (-X en 3D)
+			rot_y = -PI * 0.5 # Mirando hacia el Oeste (-X en 3D)
 
 		if wall_dir != Vector2i.ZERO:
 			var world_pos := Vector3(float(f_pos.x) * tile_size + tile_size * 0.5, 0.0, float(f_pos.y) * tile_size + tile_size * 0.5)

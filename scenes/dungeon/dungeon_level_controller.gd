@@ -464,7 +464,6 @@ func build_3d_presentation() -> void:
 				camera_rig.clear_target()
 
 		_apply_floor_visibility()
-		_apply_live_lighting_updates()
 
 		# Loguear diagnóstico runtime de materialización multi-piso
 		var arch_lbl: String = "CRYPT" if config.dungeon_archetype == _DungeonArchetypeScript.Type.MAUSOLEUM else _DungeonArchetypeScript.to_name(config.dungeon_archetype)
@@ -539,7 +538,6 @@ func build_3d_presentation() -> void:
 				camera_rig.clear_target()
 
 		_apply_walls_visibility()
-		_apply_live_lighting_updates()
 
 func _spawn_or_reposition_player() -> void:
 	if _player == null:
@@ -964,11 +962,12 @@ func _apply_live_lighting_updates() -> void:
 	if _current_presentation_root != null:
 		var omnis = _current_presentation_root.find_children("*", "OmniLight3D", true, false)
 		for omni in omnis:
-			omni.light_color = prof.light_color
-			omni.light_energy = prof.energy
-			omni.omni_range = prof.omni_range
-			omni.omni_attenuation = prof.attenuation
-			omni.shadow_enabled = prof.shadow_enabled
+			if omni.name == "OmniLight3D": # Solo antorchas de pared genéricas, nunca FixtureLights
+				omni.light_color = prof.light_color
+				omni.light_energy = prof.energy
+				omni.omni_range = prof.omni_range
+				omni.omni_attenuation = prof.attenuation
+				omni.shadow_enabled = prof.shadow_enabled
 
 		var controllers = _current_presentation_root.find_children("*", "TorchLightController", true, false)
 		for ctrl in controllers:
