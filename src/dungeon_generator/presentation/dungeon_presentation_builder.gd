@@ -145,10 +145,23 @@ func build_presentation(
 			config.wall_height if config != null else 2,
 			config.seed if config != null else 1337,
 			semantic_result.grid,
-			geometry_partition
+			geometry_partition,
+			door_contexts
 		)
 		for d_node in door_res.get("spawned_doors", []):
 			result.spawned_entities.append(d_node)
+
+	# 5.2 Spawning de Escaleras en Staging
+	if "stairs" in semantic_result and semantic_result.stairs != null and not semantic_result.stairs.is_empty():
+		var stair_res: Dictionary = _stair_spawner.spawn_stairs(
+			semantic_result.stairs, staging_root, biome, tile_size,
+			float(config.wall_height) * tile_size if config != null else 6.0,
+			config.seed if config != null else 1337,
+			geometry_partition,
+			stairs_contexts
+		)
+		for st_node in stair_res.get("spawned_stairs", []):
+			result.spawned_entities.append(st_node)
 
 	# 5.5 Generación de Iluminación Procedural 3D
 	var light_cfg: _DungeonLightingConfigScript = config.lighting_config if (config != null and "lighting_config" in config and config.lighting_config != null) else _DungeonLightingConfigScript.new()
