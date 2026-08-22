@@ -6,18 +6,25 @@ extends RefCounted
 ## rotación, escala y metadatos sin acoplarse a configuraciones o generadores concretos.
 
 const _PropDirectiveScript = preload("res://src/presentation/props/prop_directive.gd")
-const _PropAssetProviderScript = preload("res://src/presentation/props/prop_asset_provider.gd")
+const _PropAssetProviderScript = preload("res://src/presentation/decoration/assets/prop_asset_provider.gd")
 
-var _asset_provider := _PropAssetProviderScript.new()
+var _asset_provider: _PropAssetProviderScript = null
+
+func _init(provider: _PropAssetProviderScript = null) -> void:
+	_asset_provider = provider if provider != null else _PropAssetProviderScript.new()
 
 func get_asset_provider() -> _PropAssetProviderScript:
 	return _asset_provider
+
+func set_asset_provider(provider: _PropAssetProviderScript) -> void:
+	if provider != null:
+		_asset_provider = provider
 
 func spawn_prop(directive: _PropDirectiveScript, parent: Node3D = null) -> Node3D:
 	if directive == null or directive.style == null:
 		return null
 
-	var node: Node3D = _asset_provider.create_prop_node(directive)
+	var node: Node3D = _asset_provider.materialize_by_id(directive.prop_id)
 	if node == null:
 		node = Node3D.new()
 
