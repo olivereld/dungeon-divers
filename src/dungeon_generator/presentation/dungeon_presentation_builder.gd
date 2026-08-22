@@ -30,6 +30,7 @@ const _DungeonLightingConfigScript = preload("res://src/dungeon_lighting/config/
 const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
 const _PresentationContextBuilderScript = preload("res://src/presentation/architecture/presentation_context_builder.gd")
 const _PresentationGeometryPartitionScript = preload("res://src/presentation/geometry/presentation_geometry_partition.gd")
+const _PresentationStructuralRendererScript = preload("res://src/presentation/geometry/presentation_structural_renderer.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 const _ArchitecturalStyleConfigResolverScript = preload("res://src/presentation/architecture/architectural_style_config_resolver.gd")
 
@@ -47,6 +48,7 @@ var _lighting_generator: _DungeonLightingGeneratorScript = _DungeonLightingGener
 var _light_spawner: _DungeonLightSpawnerScript = _DungeonLightSpawnerScript.new()
 var _context_builder := _PresentationContextBuilderScript.new()
 var _style_config_resolver := _ArchitecturalStyleConfigResolverScript.new()
+var _structural_renderer := _PresentationStructuralRendererScript.new()
 
 ## Construye la presentación 3D de un piso semántico individual.
 func build_presentation(
@@ -114,64 +116,12 @@ func build_presentation(
 	for diag in map_res.get("diagnostics", []):
 		result.diagnostics.append(diag)
 
-	# 4.0 Generar y materializar Geometría Procedural de Suelo (Fases M1-M8)
-	if biome.dungeon_floor_scene == null and biome.floor_scene == null and semantic_result.grid != null:
-		var base_floor_cfg: _FloorTileConfigScript = config.floor_tile_config if (config != null and "floor_tile_config" in config and config.floor_tile_config != null) else _FloorTileConfigScript.new()
-		base_floor_cfg.tile_size = tile_size
-		base_floor_cfg.seed = config.seed if config != null else 1337
-
-		var floor_res = _floor_generator.generate_floor_for_partition(
-			geometry_partition, _style_config_resolver, base_floor_cfg, config.seed if config != null else 1337
-		)
-		_floor_spawner.spawn_floor(floor_res, staging_root, biome)
-		floor_grid_map.visible = false
-
-	# 4.1 Generar Malla Continua de Paredes a través de DungeonGeometryGenerator (Fase M6)
-	if biome.wall_scene == null:
-		var wall_config := _WallGeometryConfigScript.new()
-		wall_config.cube_size = tile_size
-		wall_config.cubes_high = maxi(1, config.wall_height if config != null else 2)
-		wall_config.seed = config.seed if config != null else 1337
-
-		var col_config := _CollisionConfigScript.new()
-		col_config.mode = _CollisionConfigScript.CollisionMode.COMPOUND_BOX
-
-		var base_dec := _DecorationConfigScript.new()
-		base_dec.enabled = true
-		base_dec.seed = config.seed if config != null else 1337
-
-		var dec_config: _DecorationConfigScript = _style_config_resolver.resolve_wall_decoration_config(dominant_profile, base_dec)
-
-		var opening_manifest = null
-		if semantic_result != null and semantic_result.door_pairs != null:
-			opening_manifest = _DoorManifestFactoryScript.create_wall_opening_manifest(semantic_result.door_pairs)
-
-		var geom_res = _geometry_generator.generate_wall_clusters_for_partition(
-			semantic_result.grid, geometry_partition, _style_config_resolver, opening_manifest, wall_config, col_config, base_dec, 0, config.seed if config != null else 1337
-		)
-
-		if not geom_res.generated_meshes.is_empty():
-			var wall_inst := MeshInstance3D.new()
-			wall_inst.name = "ContinuousWalls"
-			wall_inst.mesh = geom_res.get_unified_mesh()
-			wall_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-			var static_body := StaticBody3D.new()
-			static_body.name = "WallStaticBody"
-			for g_mesh in geom_res.generated_meshes:
-				for i in range(g_mesh.collision_shapes.size()):
-					var col_shape := CollisionShape3D.new()
-					col_shape.shape = g_mesh.collision_shapes[i]
-					col_shape.transform = g_mesh.collision_transforms[i]
-					static_body.add_child(col_shape)
-			wall_inst.add_child(static_body)
-
-			# Etiquetado Semántico para el Módulo de Oclusión de Cámara
-			wall_inst.add_to_group(CAMERA_OCCLUDER_GROUP, true)
-			static_body.add_to_group(CAMERA_OCCLUDER_GROUP, true)
-
-			staging_root.add_child(wall_inst)
-			wall_grid_map.visible = false
+	# 4.0 & 4.1 Renderizado Estructural Desacoplado (Suelos y Muros 3D)
+	var struct_res: Dictionary = _structural_renderer.render_structure(
+		geometry_partition, semantic_result, config, biome, staging_root, floor_grid_map, wall_grid_map
+	)
+	for diag in struct_res.get("diagnostics", []):
+		result.diagnostics.append(diag)
 
 	# 5. Spawning de Puertas y Portales en Staging (Fase 9)
 	if semantic_result != null and semantic_result.door_pairs != null:
