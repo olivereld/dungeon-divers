@@ -79,10 +79,19 @@ func _run_test() -> void:
 	assert(prop_count > 0, "FAIL: Expected composed props in presentation root")
 	assert(fixture_count > 0, "FAIL: Expected composed fixtures in presentation root")
 
-	parent_node.queue_free()
+	# 3. Test de Room Archetype Lab (Generación aislada)
+	var lab_gen := preload("res://src/presentation/showcase/room_archetype_lab/room_archetype_lab_generator.gd").new()
+	var lab_req := preload("res://src/presentation/showcase/room_archetype_lab/room_preview_request.gd").new(
+		DungeonArchetypeScript.Type.MAUSOLEUM, 11, test_seed
+	)
+	var lab_res = lab_gen.generate_preview(lab_req)
+	assert(lab_res.success, "FAIL: Lab preview generation failed")
+	assert(lab_res.diagnostics.get("props_count", 0) > 0, "FAIL: Lab preview props missing")
+	lab_res.room_root.free()
 
 	print("  [OK] Absolute determinism verified across independent generation runs.")
 	print("  [OK] CellGrid immutability preserved bit-by-bit.")
 	print("  [OK] Full 3D presentation staging verified with %d props and %d fixtures." % [prop_count, fixture_count])
+	print("  [OK] Room Archetype Lab isolated generation verified successfully.")
 	print("[PASS] test_full_architectural_presentation_suite completed successfully.")
 	quit(0)
