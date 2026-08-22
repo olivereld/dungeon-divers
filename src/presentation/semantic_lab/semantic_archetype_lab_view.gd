@@ -10,10 +10,13 @@ const _DungeonPipelineScript = preload("res://src/dungeon_generator/core/dungeon
 const _SemanticOrchestratorScript = preload("res://src/dungeon_generator/core/semantic/semantic_orchestrator.gd")
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
+const _PresentationProfileResolverScript = preload("res://src/presentation/architecture/presentation_profile_resolver.gd")
+const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 
 # Pipeline & State
 var _pipeline := _DungeonPipelineScript.new()
 var _orchestrator := _SemanticOrchestratorScript.new()
+var _profile_resolver := _PresentationProfileResolverScript.new()
 var current_dungeon_result: DungeonResult = null
 var current_semantic_result: DungeonSemanticResult = null
 var current_seed: int = 1337
@@ -124,23 +127,40 @@ func _refresh_display() -> void:
 					role = "TREASURE" if obj.type == 0 else "COMBAT"
 					break
 
-		var row := HBoxContainer.new()
+		var row := VBoxContainer.new()
+		var top_line := HBoxContainer.new()
+
 		var lbl_id := Label.new()
-		lbl_id.custom_minimum_size.x = 70
+		lbl_id.custom_minimum_size.x = 65
 		lbl_id.text = "Sala #%d" % r_id
 
 		var lbl_role := Label.new()
-		lbl_role.custom_minimum_size.x = 100
+		lbl_role.custom_minimum_size.x = 90
 		lbl_role.text = "[%s]" % role
-		lbl_role.add_theme_color_override("font_color", Color(0.9, 0.75, 0.3) if role == "START" or role == "BOSS" else Color(0.7, 0.7, 0.7))
+		lbl_role.add_theme_color_override("font_color", Color(0.95, 0.8, 0.3) if role == "START" or role == "BOSS" else Color(0.75, 0.75, 0.75))
 
 		var lbl_purpose := Label.new()
 		lbl_purpose.text = "→ %s" % p_name
 		lbl_purpose.add_theme_color_override("font_color", _get_purpose_color(purpose_id))
 
-		row.add_child(lbl_id)
-		row.add_child(lbl_role)
-		row.add_child(lbl_purpose)
+		top_line.add_child(lbl_id)
+		top_line.add_child(lbl_role)
+		top_line.add_child(lbl_purpose)
+
+		# Resolver perfil arquitectónico
+		var arch_prof = _profile_resolver.resolve(current_semantic_result.dungeon_archetype, purpose_id)
+		var bot_line := Label.new()
+		bot_line.add_theme_color_override("font_color", Color(0.65, 0.68, 0.75))
+		bot_line.text = "    🧱 %s | 🔲 %s | 🚪 %s | 🕯️ %s | 🎨 %s" % [
+			_ArchitecturalStyleScript.wall_to_name(arch_prof.wall_style),
+			_ArchitecturalStyleScript.floor_to_name(arch_prof.floor_style),
+			_ArchitecturalStyleScript.door_to_name(arch_prof.door_style),
+			_ArchitecturalStyleScript.fixture_to_name(arch_prof.fixture_style),
+			_ArchitecturalStyleScript.palette_to_name(arch_prof.decoration_palette)
+		]
+
+		row.add_child(top_line)
+		row.add_child(bot_line)
 		ui_rooms_list.add_child(row)
 
 	if ui_trace_label != null:
