@@ -11,12 +11,14 @@ const _SemanticOrchestratorScript = preload("res://src/dungeon_generator/core/se
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const _PresentationProfileResolverScript = preload("res://src/presentation/architecture/presentation_profile_resolver.gd")
+const _DecorationPaletteResolverScript = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 
 # Pipeline & State
 var _pipeline := _DungeonPipelineScript.new()
 var _orchestrator := _SemanticOrchestratorScript.new()
 var _profile_resolver := _PresentationProfileResolverScript.new()
+var _dec_resolver := _DecorationPaletteResolverScript.new()
 var current_dungeon_result: DungeonResult = null
 var current_semantic_result: DungeonSemanticResult = null
 var current_seed: int = 1337
@@ -147,16 +149,20 @@ func _refresh_display() -> void:
 		top_line.add_child(lbl_role)
 		top_line.add_child(lbl_purpose)
 
-		# Resolver perfil arquitectónico
+		# Resolver perfil arquitectónico y paleta de decoración
 		var arch_prof = _profile_resolver.resolve(current_semantic_result.dungeon_archetype, purpose_id)
+		var dec_palette = _dec_resolver.resolve_palette(current_semantic_result.dungeon_archetype, purpose_id, arch_prof)
+		var fix_count: int = dec_palette.fixtures.entries.size() if dec_palette != null and dec_palette.fixtures != null else 0
+		var prop_count: int = dec_palette.props.entries.size() if dec_palette != null and dec_palette.props != null else 0
+
 		var bot_line := Label.new()
 		bot_line.add_theme_color_override("font_color", Color(0.65, 0.68, 0.75))
-		bot_line.text = "    🧱 %s | 🔲 %s | 🚪 %s | 🕯️ %s | 🎨 %s" % [
+		bot_line.text = "    🧱 %s | 🔲 %s | 🚪 %s | 🕯️ Fixtures (%d tipos) | 📦 Props (%d tipos)" % [
 			_ArchitecturalStyleScript.wall_to_name(arch_prof.wall_style),
 			_ArchitecturalStyleScript.floor_to_name(arch_prof.floor_style),
 			_ArchitecturalStyleScript.door_to_name(arch_prof.door_style),
-			_ArchitecturalStyleScript.fixture_to_name(arch_prof.fixture_style),
-			_ArchitecturalStyleScript.palette_to_name(arch_prof.decoration_palette)
+			fix_count,
+			prop_count
 		]
 
 		row.add_child(top_line)

@@ -37,6 +37,8 @@ const _FixtureResolverScript = preload("res://src/presentation/fixtures/fixture_
 const _FixtureSpawnerScript = preload("res://src/presentation/fixtures/fixture_spawner.gd")
 const _FixturePaletteResolverScript = preload("res://src/presentation/fixtures/fixture_palette_resolver.gd")
 const _DecorationPaletteResolverScript = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
+const _PropResolverScript = preload("res://src/presentation/props/prop_resolver.gd")
+const _PropSpawnerScript = preload("res://src/presentation/props/prop_spawner.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 const _ArchitecturalStyleConfigResolverScript = preload("res://src/presentation/architecture/architectural_style_config_resolver.gd")
 
@@ -59,6 +61,8 @@ var _fixture_resolver := _FixtureResolverScript.new()
 var _fixture_spawner := _FixtureSpawnerScript.new()
 var _fixture_palette_resolver := _FixturePaletteResolverScript.new()
 var _decoration_palette_resolver := _DecorationPaletteResolverScript.new()
+var _prop_resolver := _PropResolverScript.new()
+var _prop_spawner := _PropSpawnerScript.new()
 var _style_config_resolver := _ArchitecturalStyleConfigResolverScript.new()
 var _structural_renderer := _PresentationStructuralRendererScript.new()
 
@@ -185,7 +189,23 @@ func build_presentation(
 	for fix_node in fix_res.get("spawned_fixtures", []):
 		result.spawned_entities.append(fix_node)
 
-	# 5.5 Generación de Iluminación Procedural 3D
+	# 5.5 Spawning de Props de Sala (Sarcófagos, Altares, Bancos, Lápidas, etc.)
+	var all_prop_directives: Array = []
+	for r_ctx in room_contexts:
+		var dec_palette = _decoration_palette_resolver.resolve_palette(arch_type, r_ctx.purpose, r_ctx.profile)
+		if dec_palette != null and dec_palette.props != null:
+			var r_geom = geometry_partition.get_room_geometry(r_ctx.room_id)
+			var r_p_directives = _prop_resolver.resolve_room_props(
+				r_ctx, dec_palette.props, r_geom, config.seed if config != null else 1337, tile_size
+			)
+			all_prop_directives.append_array(r_p_directives)
+
+	for p_dir in all_prop_directives:
+		var p_node = _prop_spawner.spawn_prop(p_dir, staging_root)
+		if p_node != null:
+			result.spawned_entities.append(p_node)
+
+	# 5.6 Generación de Iluminación Procedural 3D
 	var light_cfg: _DungeonLightingConfigScript = config.lighting_config if (config != null and "lighting_config" in config and config.lighting_config != null) else _DungeonLightingConfigScript.new()
 	var light_prof: _LightingProfileScript = biome.lighting_profile if (biome != null and "lighting_profile" in biome and biome.lighting_profile != null) else _LightingProfileScript.new()
 
