@@ -15,6 +15,7 @@ const _WallMaterialFactoryScript = preload("res://src/wall_mesh_generator/materi
 const _DungeonDoorEntityScript = preload("res://src/dungeon_generator/presentation/entities/dungeon_door_entity.gd")
 const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
 const _DoorPhysicalValidatorScript = preload("res://src/dungeon_generator/core/validation/door_physical_validator.gd")
+const _DoorPresentationContextScript = preload("res://src/presentation/architecture/door_presentation_context.gd")
 
 ## Spawnea todas las puertas a partir de la lista de DungeonDoorManifest en el StagingRoot.
 func spawn_doors(
@@ -24,7 +25,8 @@ func spawn_doors(
 	tile_size: float = 2.0,
 	wall_height: int = 2,
 	seed: int = 1337,
-	grid: CellGrid = null
+	grid: CellGrid = null,
+	partition = null
 ) -> Dictionary:
 	var result := {
 		"spawned_doors": [],

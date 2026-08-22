@@ -130,7 +130,8 @@ func build_presentation(
 			door_manifests, staging_root, biome, tile_size,
 			config.wall_height if config != null else 2,
 			config.seed if config != null else 1337,
-			semantic_result.grid
+			semantic_result.grid,
+			geometry_partition
 		)
 		for d_node in door_res.get("spawned_doors", []):
 			result.spawned_entities.append(d_node)
