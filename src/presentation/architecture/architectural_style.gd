@@ -78,7 +78,7 @@ static func stairs_to_name(style: StairsStyle) -> String:
 			return k
 	return "UNKNOWN"
 
-static func fixture_to_name(style: FixtureStyle) -> String:
+static func fixture_to_name(style: int) -> String:
 	for k in FixtureStyle.keys():
 		if FixtureStyle[k] == style:
 			return k

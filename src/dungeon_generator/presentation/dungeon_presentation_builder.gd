@@ -33,6 +33,9 @@ const _PresentationGeometryPartitionScript = preload("res://src/presentation/geo
 const _PresentationStructuralRendererScript = preload("res://src/presentation/geometry/presentation_structural_renderer.gd")
 const _DoorPresentationContextBuilderScript = preload("res://src/presentation/architecture/door_presentation_context_builder.gd")
 const _StairsPresentationContextBuilderScript = preload("res://src/presentation/architecture/stairs_presentation_context_builder.gd")
+const _FixtureResolverScript = preload("res://src/presentation/fixtures/fixture_resolver.gd")
+const _FixtureSpawnerScript = preload("res://src/presentation/fixtures/fixture_spawner.gd")
+const _FixturePaletteResolverScript = preload("res://src/presentation/fixtures/fixture_palette_resolver.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 const _ArchitecturalStyleConfigResolverScript = preload("res://src/presentation/architecture/architectural_style_config_resolver.gd")
 
@@ -51,6 +54,9 @@ var _light_spawner: _DungeonLightSpawnerScript = _DungeonLightSpawnerScript.new(
 var _context_builder := _PresentationContextBuilderScript.new()
 var _door_context_builder := _DoorPresentationContextBuilderScript.new()
 var _stairs_context_builder := _StairsPresentationContextBuilderScript.new()
+var _fixture_resolver := _FixtureResolverScript.new()
+var _fixture_spawner := _FixtureSpawnerScript.new()
+var _fixture_palette_resolver := _FixturePaletteResolverScript.new()
 var _style_config_resolver := _ArchitecturalStyleConfigResolverScript.new()
 var _structural_renderer := _PresentationStructuralRendererScript.new()
 
@@ -162,6 +168,19 @@ func build_presentation(
 		)
 		for st_node in stair_res.get("spawned_stairs", []):
 			result.spawned_entities.append(st_node)
+
+	# 5.4 Spawning de Fixtures Arquitectónicos (Antorchas de pared, etc.)
+	var all_fixture_directives: Array = []
+	for r_ctx in room_contexts:
+		var palette = _fixture_palette_resolver.resolve_palette(r_ctx.profile)
+		var r_directives = _fixture_resolver.resolve_room_fixtures(
+			r_ctx, geometry_partition, palette, config.seed if config != null else 1337, tile_size
+		)
+		all_fixture_directives.append_array(r_directives)
+
+	var fix_res: Dictionary = _fixture_spawner.spawn_fixtures(all_fixture_directives, staging_root, biome, tile_size)
+	for fix_node in fix_res.get("spawned_fixtures", []):
+		result.spawned_entities.append(fix_node)
 
 	# 5.5 Generación de Iluminación Procedural 3D
 	var light_cfg: _DungeonLightingConfigScript = config.lighting_config if (config != null and "lighting_config" in config and config.lighting_config != null) else _DungeonLightingConfigScript.new()

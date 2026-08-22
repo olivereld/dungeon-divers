@@ -46,14 +46,19 @@ func build_partition(
 		var r_doors: Array[Vector2i] = []
 
 		var r_rect: Rect2i = room.rect
+		var r_rect_expanded: Rect2i = r_rect.grow(1)
 
-		for y in range(r_rect.position.y, r_rect.end.y):
-			for x in range(r_rect.position.x, r_rect.end.x):
+		for y in range(r_rect_expanded.position.y, r_rect_expanded.end.y):
+			for x in range(r_rect_expanded.position.x, r_rect_expanded.end.x):
 				var pos := Vector2i(x, y)
 				if grid.is_in_bounds(pos):
-					if grid.is_walkable(pos):
-						r_floor.append(pos)
-						room_id_by_cell[pos] = r_id
+					if r_rect.has_point(pos):
+						if grid.is_walkable(pos):
+							r_floor.append(pos)
+							room_id_by_cell[pos] = r_id
+						elif grid.is_solid(pos):
+							r_wall.append(pos)
+							all_room_walls[pos] = true
 					elif grid.is_solid(pos):
 						r_wall.append(pos)
 						all_room_walls[pos] = true
