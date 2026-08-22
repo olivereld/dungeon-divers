@@ -139,7 +139,10 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 			for mat_slot in gm.material_slots.keys():
 				m_inst.set_surface_override_material(mat_slot, gm.material_slots[mat_slot])
 
-			if style.collision_mode == _FixtureCollisionModeScript.Mode.STATIC_BODY and slot != &"flame" and slot != &"flames":
+			if slot == &"lantern_glass" or slot == &"glass" or slot == &"flame" or slot == &"flames":
+				m_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+			if style.collision_mode == _FixtureCollisionModeScript.Mode.STATIC_BODY and slot != &"flame" and slot != &"flames" and slot != &"lantern_glass":
 				m_inst.create_trimesh_collision()
 
 			root_node.add_child(m_inst)
@@ -152,7 +155,9 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 		light.light_color = style.light_color
 		light.light_energy = style.light_energy
 		light.omni_range = style.light_range
+		light.omni_attenuation = 1.0
 		light.shadow_enabled = true
+		light.shadow_bias = 0.08
 		root_node.add_child(light)
 
 		# Controlador de parpadeo orgánico e intermitencia de velas

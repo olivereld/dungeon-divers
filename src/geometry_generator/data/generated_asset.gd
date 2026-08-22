@@ -41,6 +41,8 @@ func to_node3d(prefix: String = "Asset") -> Node3D:
 			var mi: MeshInstance3D = gm.to_mesh_instance(String(slot))
 			var xform: Transform3D = transforms.get(slot, Transform3D.IDENTITY)
 			mi.transform = xform
+			if slot == &"lantern_glass" or slot == &"glass" or slot == &"flame" or slot == &"flames":
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			root.add_child(mi)
 
 			if not gm.collision_shapes.is_empty():

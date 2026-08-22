@@ -49,9 +49,9 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				true,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
-				Color(0.376, 0.161, 0.671, 1.0),
-				1.5,
-				7.0
+				Color(0.82, 0.38, 0.96, 1.0),
+				2.4,
+				8.0
 			))
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"gothic_crypt_hanging_lantern",
@@ -62,9 +62,9 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				false,
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
-				Color(0.376, 0.161, 0.671, 1.0),
-				1.6,
-				7.5
+				Color(0.82, 0.38, 0.96, 1.0),
+				2.5,
+				8.5
 			))
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"gothic_crypt_brazier",
@@ -136,8 +136,8 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
 				Color(1.0, 0.82, 0.40, 1.0),
-				1.7,
-				8.0
+				2.4,
+				8.5
 			))
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"ceremonial_temple_brazier",
@@ -209,8 +209,8 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
 				Color(1.0, 0.65, 0.25, 1.0),
-				1.4,
-				6.5
+				2.3,
+				8.0
 			))
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"fortress_iron_brazier",
@@ -269,8 +269,8 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 				_FixtureCollisionModeScript.Mode.NONE,
 				true,
 				Color(1.0, 0.58, 0.22, 1.0),
-				1.3,
-				6.0
+				2.2,
+				8.0
 			))
 			fixtures_list.append(_FixtureStyleScript.new(
 				&"mine_shaft_candle_holder",

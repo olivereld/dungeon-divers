@@ -70,7 +70,8 @@ const TEST_SUITES: Array[String] = [
 	# 7. Presentation & Visualizer
 	"res://tests/presentation/test_dungeon_visualizer_archetype_view.gd",
 	"res://tests/geometry/test_urn_geometry_builder.gd",
-	"res://tests/presentation/decoration/test_crypt_urn_palette.gd"
+	"res://tests/presentation/decoration/test_crypt_urn_palette.gd",
+	"res://tests/presentation/fixtures/test_lantern_light_illumination.gd"
 ]
 
 func _init() -> void:

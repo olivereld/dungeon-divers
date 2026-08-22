@@ -193,12 +193,14 @@ func build_lantern_fixture(config = null):
 
 	# Material de Cristal Mágico / Vidrio Emisivo
 	var mat_glass := StandardMaterial3D.new()
-	mat_glass.albedo_color = config.glass_color
+	mat_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_glass.albedo_color = Color(config.glass_color.r, config.glass_color.g, config.glass_color.b, 0.82)
 	mat_glass.roughness = 0.15
 	mat_glass.metallic = 0.1
 	mat_glass.emission_enabled = true
 	mat_glass.emission = config.glass_color
 	mat_glass.emission_energy_multiplier = config.glass_emission_energy
+	mat_glass.cull_mode = BaseMaterial3D.CULL_DISABLED
 	g_glass.material_slots[0] = mat_glass
 	asset.add_mesh(&"lantern_glass", g_glass)
 

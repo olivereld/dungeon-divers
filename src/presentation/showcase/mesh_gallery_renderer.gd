@@ -532,18 +532,19 @@ func _render_lantern(params: Dictionary, seed: int) -> Node3D:
 		if lantern_asset != null:
 			var lantern_node = lantern_asset.to_node3d("WallLanternFixture")
 			# Posicionar placa a Z=0.20 (cara de la pared)
-			var mount_pos := Vector3(0.0, 1.45, 0.48)
+			var mount_pos := Vector3(0.0, 1.45, 0.42)
 			lantern_node.position = mount_pos
 			container.add_child(lantern_node)
 
 			var omni := OmniLight3D.new()
 			omni.name = "LanternLight"
 			omni.light_color = lantern_cfg.glass_color
-			omni.light_energy = params.get("energy", 2.2)
-			omni.omni_range = 8.0
-			omni.omni_attenuation = 1.3
+			omni.light_energy = params.get("energy", 2.6)
+			omni.omni_range = 8.5
+			omni.omni_attenuation = 1.0
 			omni.shadow_enabled = true
-			omni.position = mount_pos
+			omni.shadow_bias = 0.08
+			omni.position = mount_pos + Vector3(0.0, -0.05, 0.0)
 			container.add_child(omni)
 
 			if params.get("flicker", true):
@@ -585,17 +586,18 @@ func _render_lantern(params: Dictionary, seed: int) -> Node3D:
 		var lantern_asset = _mesh_facade.generate_lantern_fixture(lantern_cfg)
 		if lantern_asset != null:
 			var lantern_node = lantern_asset.to_node3d("LanternFixture")
-			lantern_node.position = Vector3(0.0, 0.65, 0.0)
+			lantern_node.position = Vector3(0.0, 1.15, 0.0)
 			container.add_child(lantern_node)
 
 			var omni := OmniLight3D.new()
 			omni.name = "LanternLight"
 			omni.light_color = lantern_cfg.glass_color
-			omni.light_energy = params.get("energy", 2.2)
-			omni.omni_range = 7.5
-			omni.omni_attenuation = 1.3
+			omni.light_energy = params.get("energy", 2.6)
+			omni.omni_range = 8.5
+			omni.omni_attenuation = 1.0
 			omni.shadow_enabled = true
-			omni.position = Vector3(0.0, 0.65, 0.0)
+			omni.shadow_bias = 0.08
+			omni.position = Vector3(0.0, 1.10, 0.0)
 			container.add_child(omni)
 
 			if params.get("flicker", true):
