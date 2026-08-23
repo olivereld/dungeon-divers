@@ -110,12 +110,17 @@ func plan_room_composition(
 		for t in purpose_profile.templates:
 			rules_to_execute.append_array(t.get_all_rules())
 
-	var max_allowed: int = profile.max_total_props if profile != null else 8
+	var max_allowed: int = profile.max_total_props if profile != null else 10
 	var total_placed: int = 0
 	var primary_placed_cells: Array[Vector2i] = []
 
 	if not rules_to_execute.is_empty() and palette.props != null:
 		rules_to_execute.sort_custom(func(a, b): return a.composition_role < b.composition_role)
+
+		# Calcular la reserva total de min_count entre todas las reglas
+		var total_min_reserved: int = 0
+		for rule in rules_to_execute:
+			total_min_reserved += rule.min_count
 
 		for rule in rules_to_execute:
 			if total_placed >= max_allowed:
@@ -123,10 +128,19 @@ func plan_room_composition(
 
 			var target_entries: Array = _find_matching_palette_entries(palette.props.entries, rule, intent)
 			if target_entries.is_empty():
+				total_min_reserved -= rule.min_count
 				continue
 
-			var target_count: int = mini(rule.max_count, max_allowed - total_placed)
+			# Permitir al menos min_count, limitando extras según el presupuesto restante reservado para otras reglas
+			var remaining_budget: int = max_allowed - total_placed
+			var other_rules_min: int = total_min_reserved - rule.min_count
+			var available_for_extras: int = maxi(0, remaining_budget - other_rules_min)
+			var target_count: int = mini(rule.max_count, rule.min_count + available_for_extras)
+			target_count = mini(target_count, remaining_budget)
 			var placed_for_rule: int = 0
+
+			# Descontar el min_count reservado de esta regla
+			total_min_reserved -= rule.min_count
 
 			# Descubrir anclajes según el modo
 			var anchors: Array = _discover_anchors_for_rule(rule, room_geometry, tile_size)

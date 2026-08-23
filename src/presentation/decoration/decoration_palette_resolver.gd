@@ -341,7 +341,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 40.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_tomb", entries)
 			pal.density = 0.38
-			pal.max_props_per_room = 8
+			pal.max_props_per_room = 10
 			return pal
 
 		_RoomPurposeScript.Type.ROYAL_TOMB:
@@ -354,7 +354,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(bench_stone, 40.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_royal_tomb", entries)
 			pal.density = 0.42
-			pal.max_props_per_room = 9
+			pal.max_props_per_room = 12
 			return pal
 
 		_RoomPurposeScript.Type.MORTUARY:
@@ -366,7 +366,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 60.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_mortuary", entries)
 			pal.density = 0.40
-			pal.max_props_per_room = 7
+			pal.max_props_per_room = 10
 			return pal
 
 		_RoomPurposeScript.Type.SACRISTY, _RoomPurposeScript.Type.ALTAR_ROOM:
@@ -379,7 +379,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 20.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_sacristy", entries)
 			pal.density = 0.35
-			pal.max_props_per_room = 6
+			pal.max_props_per_room = 8
 			return pal
 
 		_RoomPurposeScript.Type.CRYPT, _RoomPurposeScript.Type.CATACOMB:
@@ -392,7 +392,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 60.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_crypt", entries)
 			pal.density = 0.38
-			pal.max_props_per_room = 7
+			pal.max_props_per_room = 10
 			return pal
 
 		_: # ANTECHAMBER, ENTRANCE, HALL, etc.
@@ -403,7 +403,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 40.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_antechamber", entries)
 			pal.density = 0.30
-			pal.max_props_per_room = 5
+			pal.max_props_per_room = 7
 			return pal
 
 func _resolve_temple_prop_palette(room_purpose: int) -> _PropPaletteScript:
