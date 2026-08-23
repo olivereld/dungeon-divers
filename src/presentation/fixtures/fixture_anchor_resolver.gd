@@ -126,10 +126,19 @@ func find_hanging_anchors(r_geom, tile_size: float = 2.0, default_height: float 
 	if r_geom == null or r_geom.floor_cells.is_empty():
 		return anchors
 
-	# Los anclajes de techo no colisionan con el tránsito de suelo, solo evitan muros
+	# Calcular centroide de la habitación para priorizar iluminación cenital centrada
+	var room_center := Vector2(r_geom.rect.get_center()) if "rect" in r_geom else Vector2.ZERO
+	if room_center == Vector2.ZERO and not r_geom.floor_cells.is_empty():
+		var sum_v := Vector2.ZERO
+		for fc in r_geom.floor_cells:
+			sum_v += Vector2(fc)
+		room_center = sum_v / float(r_geom.floor_cells.size())
+
 	var sorted_floors: Array = r_geom.floor_cells.duplicate()
 	sorted_floors.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		return a.y < b.y if a.y != b.y else a.x < b.x
+		var da = (Vector2(a) - room_center).length_squared()
+		var db = (Vector2(b) - room_center).length_squared()
+		return da < db if da != db else (a.y < b.y if a.y != b.y else a.x < b.x)
 	)
 
 	for f_pos in sorted_floors:
