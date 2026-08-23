@@ -49,6 +49,11 @@ func plan_room_lighting(
 	for d in door_cells:
 		door_map[d] = true
 
+	var floor_cells_map: Dictionary = {}
+	if "floor_cells" in room_geom and room_geom.floor_cells != null:
+		for fc in room_geom.floor_cells:
+			floor_cells_map[fc] = true
+
 	var occupied_cells_map: Dictionary = {}
 	for f_dir in result:
 		occupied_cells_map[f_dir.placement.cell] = true
@@ -119,10 +124,6 @@ func plan_room_lighting(
 			for anchor in focal_anchors:
 				if placed_for_rule >= rule.max_count:
 					break
-				if occupied_cells_map.has(anchor.cell):
-					continue
-				if rule.placement_mode == _FixturePlacementModeScript.Mode.FLOOR and occupancy != null and occupancy.is_cell_occupied(anchor.cell):
-					continue
 
 				var entry = matching_entries[(placed_for_rule + seed_val) % matching_entries.size()]
 				var style: _FixtureStyleScript = entry.style
@@ -130,6 +131,16 @@ func plan_room_lighting(
 				var mode: int = rule.placement_mode
 				var m_budget: float = mode_budgets.get(mode, budget)
 				var m_cost: float = mode_costs.get(mode, 0.0)
+
+				var foot_cells: Array[Vector2i] = []
+				if mode == _FixturePlacementModeScript.Mode.FLOOR or mode == _FixturePlacementModeScript.Mode.SURFACE:
+					foot_cells = _get_fixture_footprint_cells(anchor.cell, style, anchor.rotation_y if "rotation_y" in anchor else 0.0)
+					if not _is_footprint_valid(foot_cells, floor_cells_map, door_map, occupied_cells_map, occupancy):
+						continue
+				else:
+					if occupied_cells_map.has(anchor.cell):
+						continue
+					foot_cells = [anchor.cell]
 
 				if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget) or m_cost == 0.0:
 					var a_pos: Vector3 = anchor.position if "position" in anchor else (anchor.world_position if "world_position" in anchor else Vector3.ZERO)
@@ -150,7 +161,10 @@ func plan_room_lighting(
 						style.scale
 					)
 					result.append(f_dir)
-					occupied_cells_map[anchor.cell] = true
+					if occupancy != null and (mode == _FixturePlacementModeScript.Mode.FLOOR or mode == _FixturePlacementModeScript.Mode.SURFACE):
+						occupancy.add_footprint(foot_cells, style.id, 0)
+					for c in foot_cells:
+						occupied_cells_map[c] = true
 					placed_for_rule += 1
 					mode_costs[mode] = m_cost + cost
 					mode_placed_counts[mode] = mode_placed_counts.get(mode, 0) + 1
@@ -228,14 +242,14 @@ func plan_room_lighting(
 					if placed_for_rule >= rule.min_count and m_cost >= m_budget:
 						break
 					var fa = floor_anchors[i]
-					if door_map.has(fa.cell) or occupied_cells_map.has(fa.cell):
-						continue
-					if occupancy != null and occupancy.is_cell_occupied(fa.cell):
-						continue
 
 					var entry = matching_entries[(i + seed_val) % matching_entries.size()]
 					var style: _FixtureStyleScript = entry.style
 					var cost: float = _get_style_cost(style)
+
+					var foot_cells := _get_fixture_footprint_cells(fa.cell, style, fa.rotation_y if "rotation_y" in fa else 0.0)
+					if not _is_footprint_valid(foot_cells, floor_cells_map, door_map, occupied_cells_map, occupancy):
+						continue
 
 					if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget) or m_cost == 0.0:
 						var fa_pos: Vector3 = fa.position if "position" in fa else (fa.world_position if "world_position" in fa else Vector3.ZERO)
@@ -249,7 +263,10 @@ func plan_room_lighting(
 						)
 						var f_dir := _FixtureDirectiveScript.new(style.id, room_id, style, pl, style.scale)
 						result.append(f_dir)
-						occupied_cells_map[fa.cell] = true
+						if occupancy != null:
+							occupancy.add_footprint(foot_cells, style.id, 0)
+						for c in foot_cells:
+							occupied_cells_map[c] = true
 						m_cost += cost
 						mode_costs[mode] = m_cost
 						placed_for_rule += 1
@@ -298,14 +315,14 @@ func plan_room_lighting(
 					if placed_for_rule >= rule.min_count and m_cost >= m_budget:
 						break
 					var sa = surface_anchors[i]
-					if door_map.has(sa.cell) or occupied_cells_map.has(sa.cell):
-						continue
-					if occupancy != null and occupancy.is_cell_occupied(sa.cell):
-						continue
 
 					var entry = matching_entries[(i + seed_val) % matching_entries.size()]
 					var style: _FixtureStyleScript = entry.style
 					var cost: float = _get_style_cost(style)
+
+					var foot_cells := _get_fixture_footprint_cells(sa.cell, style, sa.rotation_y if "rotation_y" in sa else 0.0)
+					if not _is_footprint_valid(foot_cells, floor_cells_map, door_map, occupied_cells_map, occupancy):
+						continue
 
 					if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget) or m_cost == 0.0:
 						var sa_pos: Vector3 = sa.position if "position" in sa else (sa.world_position if "world_position" in sa else Vector3.ZERO)
@@ -319,7 +336,10 @@ func plan_room_lighting(
 						)
 						var f_dir := _FixtureDirectiveScript.new(style.id, room_id, style, pl, style.scale)
 						result.append(f_dir)
-						occupied_cells_map[sa.cell] = true
+						if occupancy != null:
+							occupancy.add_footprint(foot_cells, style.id, 0)
+						for c in foot_cells:
+							occupied_cells_map[c] = true
 						m_cost += cost
 						mode_costs[mode] = m_cost
 						placed_for_rule += 1
@@ -352,6 +372,30 @@ static func _filter_entries_for_rule(palette, rule) -> Array:
 		result.append(entry)
 
 	return result
+
+static func _get_fixture_footprint_cells(anchor_cell: Vector2i, style, rotation_y: float = 0.0) -> Array[Vector2i]:
+	if style != null and "footprint" in style and style.footprint != null:
+		var deg_y: float = rotation_y * 180.0 / PI
+		return style.footprint.get_occupied_cells(anchor_cell, deg_y)
+	return [anchor_cell]
+
+static func _is_footprint_valid(
+	foot_cells: Array[Vector2i],
+	floor_cells_map: Dictionary,
+	door_map: Dictionary,
+	occupied_cells_map: Dictionary,
+	occupancy
+) -> bool:
+	for c in foot_cells:
+		if not floor_cells_map.has(c):
+			return false
+		if door_map.has(c):
+			return false
+		if occupied_cells_map.has(c):
+			return false
+		if occupancy != null and occupancy.is_cell_occupied(c):
+			return false
+	return true
 
 static func _create_default_rule(mode: int, p_min: int, p_max: int) -> _FixtureBudgetRuleScript:
 	return _FixtureBudgetRuleScript.new(mode, p_min, p_max)

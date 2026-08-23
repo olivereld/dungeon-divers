@@ -5,6 +5,7 @@ extends Resource
 ## Desacoplado 100%: no contiene nodos 3D ni lógica procedimental de colocación.
 
 const _FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
+const _PropFootprintScript = preload("res://src/presentation/props/prop_footprint.gd")
 
 enum Type {
 	TORCH = 0,
@@ -20,6 +21,7 @@ enum Type {
 @export var is_wall_mounted: bool = false
 @export var scale: float = 1.0
 @export var offset: Vector3 = Vector3.ZERO
+@export var footprint: _PropFootprintScript = null
 @export var collision_mode: int = 0 # FixtureCollisionMode.Mode
 @export var custom_scene: PackedScene = null
 
@@ -41,7 +43,8 @@ func _init(
 	p_light_color: Color = Color(1.0, 0.65, 0.28, 1.0),
 	p_light_energy: float = 1.2,
 	p_light_range: float = 6.0,
-	p_scene: PackedScene = null
+	p_scene: PackedScene = null,
+	p_footprint: _PropFootprintScript = null
 ) -> void:
 	id = p_id
 	fixture_type = p_type
@@ -55,3 +58,4 @@ func _init(
 	light_energy = p_light_energy
 	light_range = p_light_range
 	custom_scene = p_scene
+	footprint = p_footprint
