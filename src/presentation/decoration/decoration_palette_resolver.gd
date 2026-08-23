@@ -105,7 +105,7 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 	)
 	# Lámpara colgante reactivada con soporte de cadena volumétrica
 	match room_purpose:
-		_RoomPurposeScript.Type.TOMB, _RoomPurposeScript.Type.ROYAL_TOMB:
+		_RoomPurposeScript.Type.TOMB, _RoomPurposeScript.Type.ROYAL_TOMB, _RoomPurposeScript.Type.SANCTUM:
 			entries.append(_FixturePaletteEntryScript.new(torch, 25.0))
 			entries.append(_FixturePaletteEntryScript.new(wall_lantern, 75.0))
 			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 45.0))
@@ -344,14 +344,16 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			pal.max_props_per_room = 10
 			return pal
 
-		_RoomPurposeScript.Type.ROYAL_TOMB:
+		_RoomPurposeScript.Type.ROYAL_TOMB, _RoomPurposeScript.Type.SANCTUM:
 			entries.append(_PropPaletteEntryScript.new(sarc_closed, 90.0))
 			entries.append(_PropPaletteEntryScript.new(sarc_open, 20.0))
+			entries.append(_PropPaletteEntryScript.new(altar, 75.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 60.0))
 			entries.append(_PropPaletteEntryScript.new(urn_pedestal_floor, 65.0))
 			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 50.0))
 			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 40.0))
 			entries.append(_PropPaletteEntryScript.new(bench_stone, 40.0))
+			entries.append(_PropPaletteEntryScript.new(bench_pew, 50.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_royal_tomb", entries)
 			pal.density = 0.42
 			pal.max_props_per_room = 12

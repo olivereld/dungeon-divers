@@ -8,6 +8,7 @@ const FixtureSpawnerScript = preload("res://src/presentation/fixtures/fixture_sp
 const FixtureDirectiveScript = preload("res://src/presentation/fixtures/fixture_directive.gd")
 const FixtureStyleScript = preload("res://src/presentation/fixtures/fixture_style.gd")
 const FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
+const FixturePlacementScript = preload("res://src/presentation/fixtures/fixture_placement.gd")
 
 func _init() -> void:
 	print("==================================================================")
@@ -33,7 +34,7 @@ func _init() -> void:
 	var node_hang: Node3D = asset_hang.to_node3d("LanternTest")
 	var found_glass_mi: bool = false
 	for child in node_hang.get_children():
-		if child is MeshInstance3D and child.name.contains("Glass"):
+		if child is MeshInstance3D and child.name.to_lower().contains("glass"):
 			found_glass_mi = true
 			assert(child.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "FAIL: Glass MeshInstance3D must have cast_shadow OFF")
 	assert(found_glass_mi, "FAIL: Found Glass MeshInstance3D in to_node3d hierarchy")
@@ -54,17 +55,27 @@ func _init() -> void:
 		2.4,
 		8.0
 	)
-	var directive = FixtureDirectiveScript.new(
-		style_lantern,
+	var placement = FixturePlacementScript.new(
+		FixturePlacementModeScript.Mode.WALL,
 		Vector2i(2, 2),
 		0,
 		Vector3(4.0, 2.0, 4.0),
 		0.0,
-		FixturePlacementModeScript.Mode.WALL
+		Vector3.UP
+	)
+	var directive = FixtureDirectiveScript.new(
+		style_lantern.id,
+		0,
+		style_lantern,
+		placement,
+		1.0
 	)
 
-	var root_spawn = spawner.spawn_fixture(directive)
-	assert(root_spawn != null, "FAIL: Spawned lantern node is null")
+	var staging_root = Node3D.new()
+	var spawn_res = spawner.spawn_fixtures([directive], staging_root, null, 2.0)
+	var spawned_fixtures = spawn_res.get("spawned_fixtures", [])
+	assert(not spawned_fixtures.is_empty(), "FAIL: Spawned lantern node is empty")
+	var root_spawn = spawned_fixtures[0]
 
 	var light_node: OmniLight3D = null
 	for child in root_spawn.get_children():
@@ -77,7 +88,7 @@ func _init() -> void:
 	assert(light_node.shadow_bias >= 0.05, "FAIL: Shadow bias must be >= 0.05 to prevent self-shadowing acne")
 	assert(light_node.light_energy >= 2.0, "FAIL: Lantern light energy must provide strong illumination")
 
-	root_spawn.free()
+	staging_root.free()
 	print("  [OK] FixtureSpawner OmniLight3D illumination parameters verified.")
 
 	print("==================================================================")

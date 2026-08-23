@@ -189,10 +189,41 @@ func _register_crypt_purpose_profiles() -> void:
 	_profiles[_RoomPurposeScript.Type.CATACOMB] = catacomb_profile
 	_profiles[_RoomPurposeScript.Type.CRYPT] = catacomb_profile
 	_profiles[_RoomPurposeScript.Type.MORTUARY] = catacomb_profile
+	_profiles[_RoomPurposeScript.Type.CHAMBER] = catacomb_profile
+	_profiles[_RoomPurposeScript.Type.HALL] = ante_profile
+	_profiles[_RoomPurposeScript.Type.SANCTUM] = tomb_profile
+	_profiles[_RoomPurposeScript.Type.SHRINE] = sacristy_profile
+	_profiles[_RoomPurposeScript.Type.STORAGE] = catacomb_profile
 
 func _build_generic_profile(purpose_type: int) -> _DecorationPurposeProfileScript:
 	var prof := _DecorationPurposeProfileScript.new()
 	prof.purpose_type = purpose_type
 	var intent := _DecorationRoomIntentScript.new()
+	intent.allowed_tags = [
+		_DecorationTagScript.FOCAL, _DecorationTagScript.BURIAL, _DecorationTagScript.SEATING,
+		_DecorationTagScript.LIGHTING, _DecorationTagScript.FURNITURE, _DecorationTagScript.WALL_DECOR,
+		_DecorationTagScript.CORNER_DECOR, _DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
+	]
 	prof.intent = intent
+
+	var template := _DecorationCompositionTemplateScript.new()
+	template.template_id = &"generic_fallback_template"
+
+	var r_primary := _DecorationCompositionRuleScript.new()
+	r_primary.rule_id = &"generic_primary"
+	r_primary.composition_role = _CompositionRoleScript.Role.PRIMARY
+	r_primary.placement_mode = _PropPlacementModeScript.Mode.CENTER
+	r_primary.min_count = 1
+	r_primary.max_count = 1
+	template.primary_rule = r_primary
+
+	var r_support := _DecorationCompositionRuleScript.new()
+	r_support.rule_id = &"generic_support"
+	r_support.composition_role = _CompositionRoleScript.Role.SECONDARY
+	r_support.placement_mode = -1
+	r_support.min_count = 1
+	r_support.max_count = 3
+	template.support_rules.append(r_support)
+
+	prof.templates.append(template)
 	return prof
