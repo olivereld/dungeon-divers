@@ -38,6 +38,8 @@ func resolve_floor_config(
 			cfg.pattern = _FloorTileConfigScript.PatternType.SMOOTH_SLABS
 		_ArchitecturalStyleScript.FloorStyle.MINE_ROCK:
 			cfg.pattern = _FloorTileConfigScript.PatternType.COBBLESTONE
+		_ArchitecturalStyleScript.FloorStyle.CATACOMB_DIRT:
+			cfg.pattern = _FloorTileConfigScript.PatternType.CATACOMB_DIRT
 		_:
 			cfg.pattern = _FloorTileConfigScript.PatternType.STYLIZED_STONE
 

@@ -104,7 +104,8 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 			var b_cfg = _BrazierGeometryConfigScript.new()
 			b_cfg.scale_mult = scale_mult
 			generated_asset = _brazier_builder.build_brazier_fixture(b_cfg)
-			light_offset = Vector3(0.0, 0.70 * scale_mult, 0.0)
+			# Posicionar la fuente de luz justo sobre la cama de brasas/cáliz (Y=1.25m) para libre propagación
+			light_offset = Vector3(0.0, 1.25 * scale_mult, 0.0)
 
 		_FixtureStyleScript.Type.CANDLE_HOLDER:
 			var ch_cfg = _CandleHolderGeometryConfigScript.new()
@@ -139,10 +140,13 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 			for mat_slot in gm.material_slots.keys():
 				m_inst.set_surface_override_material(mat_slot, gm.material_slots[mat_slot])
 
-			if slot == &"lantern_glass" or slot == &"glass" or slot == &"flame" or slot == &"flames":
+			# Evitar que la propia malla de la luminaria (cáliz, brasas, llamas o vidrios) atrape u ocluya su emisión lumínica
+			var is_ember_or_glass: bool = (slot == &"lantern_glass" or slot == &"glass" or slot == &"flame" or slot == &"flames" or slot == &"firebed" or slot == &"glowing_firebed" or slot == &"coals")
+			var is_brazier_mesh: bool = (style.fixture_type == _FixtureStyleScript.Type.BRAZIER)
+			if is_ember_or_glass or is_brazier_mesh:
 				m_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-			if style.collision_mode == _FixtureCollisionModeScript.Mode.STATIC_BODY and slot != &"flame" and slot != &"flames" and slot != &"lantern_glass":
+			if style.collision_mode == _FixtureCollisionModeScript.Mode.STATIC_BODY and not is_ember_or_glass:
 				m_inst.create_trimesh_collision()
 
 			root_node.add_child(m_inst)

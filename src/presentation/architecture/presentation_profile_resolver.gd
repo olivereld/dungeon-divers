@@ -61,7 +61,16 @@ func _resolve_mausoleum(purpose: int) -> _ArchitecturalPresentationProfileScript
 				_ArchitecturalStyleScript.FixtureStyle.BRAZIER,
 				_ArchitecturalStyleScript.DecorationPalette.CRYPT
 			)
-		_: # ANTECHAMBER, ENTRANCE, CATACOMB, etc.
+		_RoomPurposeScript.Type.CATACOMB:
+			return _ArchitecturalPresentationProfileScript.new(
+				_ArchitecturalStyleScript.FloorStyle.CATACOMB_DIRT,
+				_ArchitecturalStyleScript.WallStyle.DARK_STONE,
+				_ArchitecturalStyleScript.DoorStyle.STONE_ARCH,
+				_ArchitecturalStyleScript.StairsStyle.STONE,
+				_ArchitecturalStyleScript.FixtureStyle.TORCH,
+				_ArchitecturalStyleScript.DecorationPalette.CRYPT
+			)
+		_: # ANTECHAMBER, ENTRANCE, etc.
 			return _ArchitecturalPresentationProfileScript.new(
 				_ArchitecturalStyleScript.FloorStyle.SMOOTH_SLABS,
 				_ArchitecturalStyleScript.WallStyle.DARK_STONE,

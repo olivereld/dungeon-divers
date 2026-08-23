@@ -45,6 +45,8 @@ func generate_descriptors_for_cell(
 			_generate_smooth_slabs_pattern(descriptors, world_offset, config, rng, noise_field)
 		_FloorTileConfigScript.PatternType.RUINED_TILES:
 			_generate_ruined_tiles_pattern(descriptors, world_offset, config, rng, noise_field, cell_hash)
+		_FloorTileConfigScript.PatternType.CATACOMB_DIRT:
+			_generate_catacomb_dirt_pattern(descriptors, world_offset, config, rng, noise_field, cell_hash)
 		_:
 			_generate_stochastic_stone_pattern(descriptors, world_offset, config, rng, noise_field, cell_hash)
 
@@ -303,3 +305,80 @@ func _generate_ruined_tiles_pattern(
 				var frag_tone: float = base_tone + rng.randf_range(-0.10, 0.05)
 				var d = _TileDescriptorScript.new(Rect2(x0, y0, w, h_rect), frag_h, base_bevel * 0.8, frag_tone, 1, 0.0, world_offset, poly, Vector2.ZERO, _TileDescriptorScript.SizeClass.SHARD)
 				descriptors.append(d)
+
+## Patrón 5: Suelo de Tierra de Catacumba / Cripta con Relieve y Baldosas Incrustadas
+func _generate_catacomb_dirt_pattern(
+	descriptors: Array,
+	world_offset: Vector2,
+	config,
+	rng: RandomNumberGenerator,
+	noise_field,
+	cell_hash: int
+) -> void:
+	var tile_size: float = config.tile_size
+	var macro_tone: float = noise_field.get_tone_offset(world_offset.x, world_offset.y) if config.use_noise_modulation else 0.0
+
+	# 1. Baldosas/Losas rotas incrustadas esparcidas (0 a 3 losas desgastadas)
+	var slab_count: int = rng.randi_range(0, 2)
+	if (cell_hash % 3) == 0:
+		slab_count = rng.randi_range(1, 3)
+
+	for s_i in range(slab_count):
+		var w: float = rng.randf_range(0.35, 0.65)
+		var h_rect: float = rng.randf_range(0.30, 0.60)
+		var x0: float = rng.randf_range(0.1, tile_size - w - 0.1)
+		var y0: float = rng.randf_range(0.1, tile_size - h_rect - 0.1)
+		var x1: float = x0 + w
+		var y1: float = y0 + h_rect
+
+		var slab_h: float = rng.randf_range(0.025, 0.042) # Losa semi-enterrada
+		var slab_bevel: float = rng.randf_range(0.02, 0.035)
+		var slab_tone: float = macro_tone + rng.randf_range(-0.06, 0.06)
+
+		var is_broken: bool = rng.randf() < 0.65
+		if is_broken:
+			# Losa astillada en polígono trapezoidal/irregular
+			var corner_cut: float = rng.randf_range(0.05, 0.15)
+			var poly: PackedVector2Array = [
+				Vector2(x0 + corner_cut, y0),
+				Vector2(x1, y0 + corner_cut * 0.5),
+				Vector2(x1 - corner_cut * 0.5, y1),
+				Vector2(x0, y1 - corner_cut)
+			]
+			var desc = _TileDescriptorScript.new(
+				Rect2(x0, y0, w, h_rect), slab_h, slab_bevel, slab_tone, 1, 0.0,
+				world_offset, poly, Vector2.ZERO, _TileDescriptorScript.SizeClass.SHARD
+			)
+			descriptors.append(desc)
+		else:
+			var desc_rect := Rect2(x0, y0, w, h_rect)
+			var desc = _TileDescriptorScript.new(
+				desc_rect, slab_h, slab_bevel, slab_tone, 0, 0.0,
+				world_offset, PackedVector2Array(), Vector2.ZERO, _TileDescriptorScript.SizeClass.SMALL
+			)
+			descriptors.append(desc)
+
+	# 2. Guijarros y esquirlas de piedra sueltas en la tierra (2 a 6 piedrecitas)
+	var pebble_count: int = rng.randi_range(2, 6)
+	for p_i in range(pebble_count):
+		var p_cx: float = rng.randf_range(0.15, tile_size - 0.15)
+		var p_cy: float = rng.randf_range(0.15, tile_size - 0.15)
+		var rad: float = rng.randf_range(0.04, 0.09)
+		var p_h: float = rng.randf_range(0.020, 0.038)
+		var p_tone: float = macro_tone + rng.randf_range(-0.12, 0.08)
+
+		# Pequeño rombo/hexágono procedural
+		var pebble_poly: PackedVector2Array = [
+			Vector2(p_cx - rad, p_cy),
+			Vector2(p_cx - rad * 0.3, p_cy - rad * 0.8),
+			Vector2(p_cx + rad * 0.7, p_cy - rad * 0.4),
+			Vector2(p_cx + rad, p_cy + rad * 0.2),
+			Vector2(p_cx + rad * 0.2, p_cy + rad * 0.9),
+			Vector2(p_cx - rad * 0.6, p_cy + rad * 0.5)
+		]
+		var p_desc = _TileDescriptorScript.new(
+			Rect2(p_cx - rad, p_cy - rad, rad * 2.0, rad * 2.0),
+			p_h, rad * 0.4, p_tone, 1, 0.0, world_offset, pebble_poly,
+			Vector2.ZERO, _TileDescriptorScript.SizeClass.SHARD
+		)
+		descriptors.append(p_desc)

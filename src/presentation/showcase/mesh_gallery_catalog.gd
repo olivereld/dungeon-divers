@@ -154,62 +154,109 @@ func _register_all_entries() -> void:
 		)
 	])
 
-	# 2. Suelos y Patrones Estocásticos (DungeonFloorGenerator)
-	_add_category(&"floors", "🔲 Suelos & Patrones Estocásticos", [
+	# 2. Suelos y Superficies Procedurales (DungeonFloorGenerator)
+	_add_category(&"floors", "🔲 Suelos & Superficies Procedurales", [
+		# --- Grupo 1: Suelo de Tierra de Catacumba (Catacomb Dirt) ---
+		_create_entry(
+			&"floor_catacomb_dirt_dark",
+			&"floors",
+			"🔲 Suelos & Superficies Procedurales",
+			"Tierra Oscura de Cripta con Relieve (Dark Catacomb Dirt)",
+			"src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd",
+			"Suelo de tierra de cripta pura con relieve 3D ondulante, depresiones de enterramiento, baldosas rotas semienterradas y guijarros.",
+			&"floor_surface",
+			{"pattern": _FloorTileConfigScript.PatternType.CATACOMB_DIRT, "material_preset": 2, "grid_size": 3},
+			&"catacomb_dirt", "Suelo de Tierra de Catacumba (Catacomb Dirt)", "Tierra Oscura de Cripta (3x3)"
+		),
+		_create_entry(
+			&"floor_catacomb_dirt_warm",
+			&"floors",
+			"🔲 Suelos & Superficies Procedurales",
+			"Tierra Sepulcral Cálida (Warm Loam Dirt)",
+			"src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd",
+			"Suelo de tierra fértil/arcillosa con micro-relieve continuo, montículos y esquirlas de losas desgastadas.",
+			&"floor_surface",
+			{"pattern": _FloorTileConfigScript.PatternType.CATACOMB_DIRT, "material_preset": 1, "grid_size": 3},
+			&"catacomb_dirt", "Suelo de Tierra de Catacumba (Catacomb Dirt)", "Tierra Sepulcral Cálida (3x3)"
+		),
+		_create_entry(
+			&"floor_catacomb_dirt_slate",
+			&"floors",
+			"🔲 Suelos & Superficies Procedurales",
+			"Tierra con Baldosas de Pizarra (Slate Catacomb Dirt)",
+			"src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd",
+			"Tierra con baldosas de pizarra gris astilladas y guijarros incrustados.",
+			&"floor_surface",
+			{"pattern": _FloorTileConfigScript.PatternType.CATACOMB_DIRT, "material_preset": 0, "grid_size": 3},
+			&"catacomb_dirt", "Suelo de Tierra de Catacumba (Catacomb Dirt)", "Tierra Neutra con Baldosas (3x3)"
+		),
+		_create_entry(
+			&"floor_catacomb_dirt_single",
+			&"floors",
+			"🔲 Suelos & Superficies Procedurales",
+			"Baldosa Individual de Tierra 2x2m (Single Dirt Tile)",
+			"src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd",
+			"Vista detallada de una celda única de 2x2m con relieve 3D de tierra orgánica y fragmentos de losa.",
+			&"floor_surface",
+			{"pattern": _FloorTileConfigScript.PatternType.CATACOMB_DIRT, "material_preset": 2, "grid_size": 1, "tile_size": 2.0},
+			&"catacomb_dirt", "Suelo de Tierra de Catacumba (Catacomb Dirt)", "Muestra Individual (1x1)"
+		),
+
+		# --- Grupo 2: Patrones de Baldosas y Losas de Piedra ---
 		_create_entry(
 			&"floor_stylized_stone",
 			&"floors",
-			"🔲 Suelos & Patrones Estocásticos",
+			"🔲 Suelos & Superficies Procedurales",
 			"Piedra Estilizada (STYLIZED_STONE)",
 			"src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd",
 			"Losas entrelazadas estilizadas tipo Zelda / Diablo con biseles perimetrales y variación tonal.",
 			&"floor_surface",
-			{"pattern": _FloorTileConfigScript.PatternType.STYLIZED_STONE},
-			&"floor_pattern", "Patrones de Baldosas de Suelo", "Piedra Estilizada"
+			{"pattern": _FloorTileConfigScript.PatternType.STYLIZED_STONE, "material_preset": 0, "grid_size": 3},
+			&"stone_floors", "Suelos de Piedra y Mortero (Stone Floors)", "Piedra Estilizada (3x3)"
 		),
 		_create_entry(
 			&"floor_cobblestone",
 			&"floors",
-			"🔲 Suelos & Patrones Estocásticos",
+			"🔲 Suelos & Superficies Procedurales",
 			"Adoquines de Piedra (COBBLESTONE)",
 			"src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd",
 			"Adoquines pequeños de piedra con micro-desplazamientos de textura estocástica.",
 			&"floor_surface",
-			{"pattern": _FloorTileConfigScript.PatternType.COBBLESTONE},
-			&"floor_pattern", "Patrones de Baldosas de Suelo", "Adoquines (Cobblestone)"
+			{"pattern": _FloorTileConfigScript.PatternType.COBBLESTONE, "material_preset": 0, "grid_size": 3},
+			&"stone_floors", "Suelos de Piedra y Mortero (Stone Floors)", "Adoquines Medievales (3x3)"
 		),
 		_create_entry(
 			&"floor_brick",
 			&"floors",
-			"🔲 Suelos & Patrones Estocásticos",
+			"🔲 Suelos & Superficies Procedurales",
 			"Ladrillo de Suelo (BRICK)",
 			"src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd",
 			"Disposición de ladrillos rectangulares entrelazados con separación de mortero.",
 			&"floor_surface",
-			{"pattern": _FloorTileConfigScript.PatternType.BRICK},
-			&"floor_pattern", "Patrones de Baldosas de Suelo", "Ladrillo de Suelo"
+			{"pattern": _FloorTileConfigScript.PatternType.BRICK, "material_preset": 0, "grid_size": 3},
+			&"stone_floors", "Suelos de Piedra y Mortero (Stone Floors)", "Ladrillo de Suelo (3x3)"
 		),
 		_create_entry(
 			&"floor_smooth_slabs",
 			&"floors",
-			"🔲 Suelos & Patrones Estocásticos",
+			"🔲 Suelos & Superficies Procedurales",
 			"Grandes Losas Suaves (SMOOTH_SLABS)",
 			"src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd",
 			"4 losas grandes con biselado suave y variación de altura por ruido perlin.",
 			&"floor_surface",
-			{"pattern": _FloorTileConfigScript.PatternType.SMOOTH_SLABS},
-			&"floor_pattern", "Patrones de Baldosas de Suelo", "Grandes Losas Suaves"
+			{"pattern": _FloorTileConfigScript.PatternType.SMOOTH_SLABS, "material_preset": 0, "grid_size": 3},
+			&"stone_floors", "Suelos de Piedra y Mortero (Stone Floors)", "Grandes Losas Suaves (3x3)"
 		),
 		_create_entry(
 			&"floor_ruined_tiles",
 			&"floors",
-			"🔲 Suelos & Patrones Estocásticos",
+			"🔲 Suelos & Superficies Procedurales",
 			"Suelo en Ruinas (RUINED_TILES)",
 			"src/floor_tile_generator/geometry/floor_surface_mesh_builder.gd",
 			"Suelo de mazmorra con losas rotas, huecos y micro-desplazamientos estocásticos.",
 			&"floor_surface",
-			{"pattern": _FloorTileConfigScript.PatternType.RUINED_TILES},
-			&"floor_pattern", "Patrones de Baldosas de Suelo", "Suelo en Ruinas"
+			{"pattern": _FloorTileConfigScript.PatternType.RUINED_TILES, "material_preset": 0, "grid_size": 3},
+			&"stone_floors", "Suelos de Piedra y Mortero (Stone Floors)", "Suelo en Ruinas (3x3)"
 		)
 	])
 
@@ -800,6 +847,8 @@ func _register_all_entries() -> void:
 			&"urn", "Urnas y Vasijas de Mazmorra (Urn)", "Frasco Canopo Compacto (Mesa / Superficie)"
 		)
 	])
+
+
 
 func _create_entry(
 	p_id: StringName,

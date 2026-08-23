@@ -251,22 +251,24 @@ func _register_crypt_purpose_profiles() -> void:
 	cata_template.support_rules.append(r_niches)
 	catacomb_profile.templates.append(cata_template)
 	catacomb_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"catacomb_wall_torches"),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1, _FixtureBudgetRuleScript.Affinity.FREE, [], &"catacomb_ambient_brazier")
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH], &"catacomb_wall_torches"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FREE, [_FixtureStyleScript.Type.BRAZIER], &"catacomb_ambient_braziers"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 2, _FixtureBudgetRuleScript.Affinity.FREE, [_FixtureStyleScript.Type.CANDLE_CLUSTER], &"catacomb_candle_clusters")
 	]
 	catacomb_profile.relationship_profile = _PropFixtureRelationshipProfileScript.new(&"catacomb_relations", [
 		_PropFixtureRelationScript.new(
 			&"tombstone_cross",
-			[_FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER],
+			[_FixtureStyleScript.Type.CANDLE_CLUSTER],
 			_PropFixtureRelationPlacementScript.Placement.NEAR,
-			0, 1, &"tombstone_candle", 1.0, 1.5
+			0, 1, &"tombstone_candle", 1.0, 1.5, 1.0,
+			[_FixtureStyleScript.Type.LANTERN, _FixtureStyleScript.Type.CANDLE_HOLDER]
 		),
 		_PropFixtureRelationScript.new(
 			&"wood_bench",
 			[],
 			_PropFixtureRelationPlacementScript.Placement.NEAR,
 			0, 0, &"bench_no_lights", 1.0, 2.0, 1.0,
-			[_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER]
+			[_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER, _FixtureStyleScript.Type.LANTERN]
 		)
 	])
 

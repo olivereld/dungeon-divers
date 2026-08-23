@@ -123,7 +123,7 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 			entries.append(_FixturePaletteEntryScript.new(candle_holder, 70.0))
 			return _FixturePaletteScript.new(&"crypt_entrance_palette", entries, 3, 0.65, 5, 0.25)
 
-		_RoomPurposeScript.Type.SACRISTY, _RoomPurposeScript.Type.CATACOMB:
+		_RoomPurposeScript.Type.SACRISTY:
 			entries.append(_FixturePaletteEntryScript.new(torch, 15.0))
 			entries.append(_FixturePaletteEntryScript.new(wall_lantern, 85.0))
 			entries.append(_FixturePaletteEntryScript.new(hanging_lantern, 35.0))
@@ -131,6 +131,13 @@ func _resolve_mausoleum_fixture_palette(room_purpose: int) -> _FixturePaletteScr
 			entries.append(_FixturePaletteEntryScript.new(candle_cluster, 95.0))
 			entries.append(_FixturePaletteEntryScript.new(candle_holder, 95.0))
 			return _FixturePaletteScript.new(&"crypt_sacristy_palette", entries, 3, 0.85, 3, 0.45)
+
+		_RoomPurposeScript.Type.CATACOMB:
+			# Para CATACOMB: solo antorchas de pared, braseros y clusters de velas (sin faroles ni candelabros)
+			entries.append(_FixturePaletteEntryScript.new(torch, 90.0))
+			entries.append(_FixturePaletteEntryScript.new(brazier, 80.0))
+			entries.append(_FixturePaletteEntryScript.new(candle_cluster, 70.0))
+			return _FixturePaletteScript.new(&"crypt_catacomb_palette", entries, 3, 0.70, 4, 0.35)
 
 		_: # CRYPT y genéricos
 			entries.append(_FixturePaletteEntryScript.new(torch, 65.0))

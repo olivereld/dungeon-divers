@@ -145,6 +145,26 @@ static func create_floor_mortar_material(preset: MaterialPreset = MaterialPreset
 
 	return mat
 
+static func create_floor_dirt_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.roughness = 0.98
+	mat.metallic = 0.0
+	mat.metallic_specular = 0.02
+	mat.vertex_color_use_as_albedo = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	match preset:
+		MaterialPreset.STYLIZED_SLATE:
+			mat.albedo_color = Color(0.30, 0.24, 0.20) # Tierra sepulcral neutra
+		MaterialPreset.DUNGEON_WARM_STONE:
+			mat.albedo_color = Color(0.42, 0.30, 0.22) # Tierra marrón cálida / arcillosa
+		MaterialPreset.DARK_CRYPT:
+			mat.albedo_color = Color(0.20, 0.16, 0.14) # Tierra de cripta muy oscura y húmeda
+		MaterialPreset.SANDSTONE_RUINS:
+			mat.albedo_color = Color(0.50, 0.40, 0.28) # Suelo terroso de ruinas áridas
+
+	return mat
+
 static func apply_materials_to_mesh_instance(
 	mesh_instance: MeshInstance3D,
 	preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE
@@ -159,6 +179,7 @@ static func apply_materials_to_mesh_instance(
 	var iron_mat := create_iron_material(preset)
 	var floor_slab_mat := create_floor_slab_material(preset)
 	var floor_mortar_mat := create_floor_mortar_material(preset)
+	var floor_dirt_mat := create_floor_dirt_material(preset)
 
 	var mesh: Mesh = mesh_instance.mesh
 	for s in range(mesh.get_surface_count()):
@@ -178,6 +199,8 @@ static func apply_materials_to_mesh_instance(
 				mesh_instance.set_surface_override_material(s, floor_slab_mat)
 			"FloorMortar":
 				mesh_instance.set_surface_override_material(s, floor_mortar_mat)
+			"FloorDirt":
+				mesh_instance.set_surface_override_material(s, floor_dirt_mat)
 			_:
 				if s == 0:
 					mesh_instance.set_surface_override_material(0, trim_mat)

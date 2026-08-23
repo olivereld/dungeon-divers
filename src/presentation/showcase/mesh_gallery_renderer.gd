@@ -279,7 +279,8 @@ func _render_modular_wall(params: Dictionary, seed: int) -> Node3D:
 func _render_floor_surface(params: Dictionary, seed: int) -> Node3D:
 	var cfg := _FloorTileConfigScript.new()
 	cfg.pattern = params.get("pattern", _FloorTileConfigScript.PatternType.STYLIZED_STONE)
-	cfg.tile_size = 2.0
+	cfg.material_preset = params.get("material_preset", 0)
+	cfg.tile_size = params.get("tile_size", 2.0)
 	cfg.margin = 0.04
 	cfg.use_noise_modulation = true
 	cfg.seed = seed
@@ -287,9 +288,10 @@ func _render_floor_surface(params: Dictionary, seed: int) -> Node3D:
 	var container := Node3D.new()
 	container.name = "FloorGroup"
 
-	var grid := _CellGridScript.new(3, 3)
-	for x in range(3):
-		for y in range(3):
+	var grid_size: int = params.get("grid_size", 3)
+	var grid := _CellGridScript.new(grid_size, grid_size)
+	for x in range(grid_size):
+		for y in range(grid_size):
 			grid.set_cell(Vector2i(x, y), _CellGridScript.CellType.FLOOR)
 
 	var floor_res = _mesh_facade.generate_floors(grid, cfg, seed)
@@ -298,13 +300,15 @@ func _render_floor_surface(params: Dictionary, seed: int) -> Node3D:
 	clusters_container.name = "Clusters"
 	container.add_child(clusters_container)
 
+	var center_off: float = -float(grid_size) * cfg.tile_size * 0.5
 	for i in range(floor_res.clusters.size()):
 		var cluster = floor_res.clusters[i]
 		if cluster.mesh != null:
 			var mi := MeshInstance3D.new()
 			mi.name = "FloorCluster_%02d" % i
 			mi.mesh = cluster.mesh
-			mi.position = Vector3(-3.0, 0.0, -3.0)
+			mi.position = Vector3(center_off, 0.0, center_off)
+			_WallMaterialFactoryScript.apply_materials_to_mesh_instance(mi, cfg.material_preset)
 			clusters_container.add_child(mi)
 
 	return container
@@ -452,6 +456,10 @@ func _render_brazier(params: Dictionary, seed: int) -> Node3D:
 	if brazier_asset != null:
 		var brazier_node = brazier_asset.to_node3d("BrazierFixture")
 		brazier_node.position = Vector3(0.0, 0.0, 0.0)
+		# Desactivar sombras en la propia geometría del brasero para que la luz escape libremente y bañe el entorno
+		for child in brazier_node.get_children():
+			if child is GeometryInstance3D:
+				child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		container.add_child(brazier_node)
 
 		# 3. Luz cálida y controlador de parpadeo realista (OmniLight3D)
@@ -459,10 +467,11 @@ func _render_brazier(params: Dictionary, seed: int) -> Node3D:
 		omni.name = "BrazierLight"
 		omni.light_color = Color(1.0, 0.65, 0.25, 1.0)
 		omni.light_energy = params.get("energy", 2.6)
-		omni.omni_range = 8.5
-		omni.omni_attenuation = 1.4
+		omni.omni_range = params.get("range", 9.0)
+		omni.omni_attenuation = 1.0
 		omni.shadow_enabled = true
-		omni.position = Vector3(0.0, 1.18, 0.0)
+		omni.shadow_bias = 0.12
+		omni.position = Vector3(0.0, 1.25, 0.0)
 		container.add_child(omni)
 
 		if params.get("flicker", true):

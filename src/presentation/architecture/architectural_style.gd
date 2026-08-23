@@ -10,7 +10,8 @@ enum FloorStyle {
 	BRICK = 3,
 	SMOOTH_SLABS = 4,
 	TEMPLE_TILES = 5,
-	MINE_ROCK = 6
+	MINE_ROCK = 6,
+	CATACOMB_DIRT = 7
 }
 
 enum WallStyle {

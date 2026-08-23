@@ -15,7 +15,8 @@ enum PatternType {
 	COBBLESTONE,     ## Adoquines de piedra pequeños con jitter
 	BRICK,           ## Ladrillos rectangulares entrelazados
 	SMOOTH_SLABS,    ## 4 losas amplias con bisel suave
-	RUINED_TILES     ## Suelo con losas rotas, huecos y micro-desplazamientos
+	RUINED_TILES,    ## Suelo con losas rotas, huecos y micro-desplazamientos
+	CATACOMB_DIRT    ## Suelo de tierra de cripta con relieve 3D ondulante y baldosas/guijarros incrustados
 }
 
 @export var tile_size: float = 2.0
