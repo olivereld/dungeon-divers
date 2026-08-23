@@ -15,6 +15,10 @@ const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/ar
 const _DecorationRoomZoneScript = preload("res://src/presentation/decoration/composition/decoration_room_zone.gd")
 const _PropPlacementModeScript = preload("res://src/presentation/props/prop_placement_mode.gd")
 const _FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
+const _FixtureStyleScript = preload("res://src/presentation/fixtures/fixture_style.gd")
+const _PropFixtureRelationshipProfileScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relationship_profile.gd")
+const _PropFixtureRelationScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relation.gd")
+const _PropFixtureRelationPlacementScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relation_placement.gd")
 
 var _profiles: Dictionary = {} # purpose_type (int) -> DecorationPurposeProfile
 
@@ -77,6 +81,27 @@ func _register_crypt_purpose_profiles() -> void:
 		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [], &"tomb_focal_braziers"),
 		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"tomb_perimeter_torches")
 	]
+	tomb_profile.relationship_profile = _PropFixtureRelationshipProfileScript.new(&"tomb_relations", [
+		_PropFixtureRelationScript.new(
+			&"sarcophagus_ornate",
+			[_FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER],
+			_PropFixtureRelationPlacementScript.Placement.NEAR,
+			1, 2, &"sarcophagus_candles", 1.0, 2.0
+		),
+		_PropFixtureRelationScript.new(
+			&"sarcophagus_ornate",
+			[_FixtureStyleScript.Type.LANTERN],
+			_PropFixtureRelationPlacementScript.Placement.ABOVE,
+			1, 1, &"sarcophagus_hanging_lantern"
+		),
+		_PropFixtureRelationScript.new(
+			&"wood_bench",
+			[],
+			_PropFixtureRelationPlacementScript.Placement.NEAR,
+			0, 0, &"bench_no_lights", 1.0, 2.0, 1.0,
+			[_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER]
+		)
+	])
 	_profiles[_RoomPurposeScript.Type.TOMB] = tomb_profile
 	_profiles[_RoomPurposeScript.Type.ROYAL_TOMB] = tomb_profile
 
@@ -174,6 +199,27 @@ func _register_crypt_purpose_profiles() -> void:
 		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [], &"altar_flanking_braziers"),
 		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"sacristy_perimeter_torches")
 	]
+	sacristy_profile.relationship_profile = _PropFixtureRelationshipProfileScript.new(&"sacristy_relations", [
+		_PropFixtureRelationScript.new(
+			&"altar_stone",
+			[_FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER],
+			_PropFixtureRelationPlacementScript.Placement.NEAR,
+			1, 2, &"altar_candles", 1.0, 2.0
+		),
+		_PropFixtureRelationScript.new(
+			&"altar_stone",
+			[_FixtureStyleScript.Type.BRAZIER],
+			_PropFixtureRelationPlacementScript.Placement.NEAR,
+			0, 2, &"altar_braziers", 1.5, 2.5
+		),
+		_PropFixtureRelationScript.new(
+			&"wood_bench",
+			[],
+			_PropFixtureRelationPlacementScript.Placement.NEAR,
+			0, 0, &"bench_no_lights", 1.0, 2.0, 1.0,
+			[_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER]
+		)
+	])
 	_profiles[_RoomPurposeScript.Type.SACRISTY] = sacristy_profile
 	_profiles[_RoomPurposeScript.Type.ALTAR_ROOM] = sacristy_profile
 
@@ -208,6 +254,21 @@ func _register_crypt_purpose_profiles() -> void:
 		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"catacomb_wall_torches"),
 		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1, _FixtureBudgetRuleScript.Affinity.FREE, [], &"catacomb_ambient_brazier")
 	]
+	catacomb_profile.relationship_profile = _PropFixtureRelationshipProfileScript.new(&"catacomb_relations", [
+		_PropFixtureRelationScript.new(
+			&"tombstone_cross",
+			[_FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER],
+			_PropFixtureRelationPlacementScript.Placement.NEAR,
+			0, 1, &"tombstone_candle", 1.0, 1.5
+		),
+		_PropFixtureRelationScript.new(
+			&"wood_bench",
+			[],
+			_PropFixtureRelationPlacementScript.Placement.NEAR,
+			0, 0, &"bench_no_lights", 1.0, 2.0, 1.0,
+			[_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER]
+		)
+	])
 
 	_profiles[_RoomPurposeScript.Type.CATACOMB] = catacomb_profile
 	_profiles[_RoomPurposeScript.Type.CRYPT] = catacomb_profile

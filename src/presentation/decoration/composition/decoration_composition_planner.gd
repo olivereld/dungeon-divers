@@ -15,6 +15,7 @@ const _DecorationRoomZoneScript = preload("res://src/presentation/decoration/com
 const _DecorationPurposeProfileRegistryScript = preload("res://src/presentation/decoration/composition/decoration_purpose_profile_registry.gd")
 const _DecorationRelationshipSolverScript = preload("res://src/presentation/decoration/composition/decoration_relationship_solver.gd")
 const _DecorationLightingPlannerScript = preload("res://src/presentation/decoration/composition/decoration_lighting_planner.gd")
+const _PropFixtureRelationshipResolverScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relationship_resolver.gd")
 const _PropAnchorResolverScript = preload("res://src/presentation/props/prop_anchor_resolver.gd")
 const _PropPlacementModeScript = preload("res://src/presentation/props/prop_placement_mode.gd")
 const _PropDirectiveScript = preload("res://src/presentation/props/prop_directive.gd")
@@ -29,6 +30,7 @@ var _orientation_resolver := _DecorationOrientationResolverScript.new()
 var _zone_partitioner := _DecorationRoomZoneScript.new()
 var _purpose_registry := _DecorationPurposeProfileRegistryScript.new()
 var _relationship_solver := _DecorationRelationshipSolverScript.new()
+var _relationship_resolver := _PropFixtureRelationshipResolverScript.new()
 var _lighting_planner := _DecorationLightingPlannerScript.new()
 var _constraint := _DecorationPlacementConstraintScript.new()
 
@@ -210,7 +212,23 @@ func plan_room_composition(
 						if rule.composition_role == _CompositionRoleScript.Role.PRIMARY:
 							primary_placed_cells.append_array(cand.occupied_cells)
 
-	# 5. Planificar iluminación inteligente por presupuesto y roles
+	# 5. Resolver relaciones espaciales semánticas (Prop -> Fixture)
+	if palette.fixtures != null and purpose_profile != null and purpose_profile.relationship_profile != null:
+		var fixture_seed_val: int = _extract_fixture_seed(seed_ctx)
+		var rel_dirs = _relationship_resolver.resolve_relationships(
+			comp.prop_directives,
+			purpose_profile.relationship_profile,
+			palette.fixtures,
+			room_geometry,
+			occupancy,
+			fixture_seed_val,
+			tile_size
+		)
+		for f_dir in rel_dirs:
+			if not comp.reserved_cells.has(f_dir.cell):
+				comp.add_fixture_directive(f_dir)
+
+	# 6. Planificar iluminación ambiental por presupuesto y roles
 	if palette.fixtures != null:
 		var budget: float = profile.lighting_budget if profile != null else (purpose_profile.default_lighting_budget if purpose_profile != null else 5.0)
 		var fixture_seed_val: int = _extract_fixture_seed(seed_ctx)
