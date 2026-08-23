@@ -12,6 +12,7 @@ const _DecorationTagScript = preload("res://src/presentation/decoration/composit
 const _DecorationOrientationModeScript = preload("res://src/presentation/decoration/composition/decoration_orientation_mode.gd")
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const _DecorationRoomZoneScript = preload("res://src/presentation/decoration/composition/decoration_room_zone.gd")
+const _PropPlacementModeScript = preload("res://src/presentation/props/prop_placement_mode.gd")
 
 var _profiles: Dictionary = {} # purpose_type (int) -> DecorationPurposeProfile
 
@@ -50,6 +51,7 @@ func _register_crypt_purpose_profiles() -> void:
 	var r_tomb_primary := _DecorationCompositionRuleScript.new()
 	r_tomb_primary.rule_id = &"primary_sarcophagus"
 	r_tomb_primary.composition_role = _CompositionRoleScript.Role.PRIMARY
+	r_tomb_primary.placement_mode = _PropPlacementModeScript.Mode.CENTER
 	r_tomb_primary.target_tags = [_DecorationTagScript.FOCAL, _DecorationTagScript.BURIAL]
 	r_tomb_primary.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
 	r_tomb_primary.min_count = 1
@@ -60,6 +62,7 @@ func _register_crypt_purpose_profiles() -> void:
 	var r_tomb_support := _DecorationCompositionRuleScript.new()
 	r_tomb_support.rule_id = &"support_urns_tombstones"
 	r_tomb_support.composition_role = _CompositionRoleScript.Role.SECONDARY
+	r_tomb_support.placement_mode = _PropPlacementModeScript.Mode.FLOOR
 	r_tomb_support.target_tags = [_DecorationTagScript.BURIAL]
 	r_tomb_support.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
 	r_tomb_support.min_count = 1
@@ -105,6 +108,7 @@ func _register_crypt_purpose_profiles() -> void:
 	var r_benches := _DecorationCompositionRuleScript.new()
 	r_benches.rule_id = &"wall_benches"
 	r_benches.composition_role = _CompositionRoleScript.Role.SECONDARY
+	r_benches.placement_mode = _PropPlacementModeScript.Mode.WALL
 	r_benches.target_tags = [_DecorationTagScript.SEATING]
 	r_benches.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
 	r_benches.min_count = 1
@@ -113,7 +117,48 @@ func _register_crypt_purpose_profiles() -> void:
 	ante_profile.templates.append(ante_template)
 	_profiles[_RoomPurposeScript.Type.ANTECHAMBER] = ante_profile
 
-	# 4. CATACOMB & BURIAL_HALL & MORTUARY
+	# 4. SACRISTY / ALTAR_ROOM
+	var sacristy_profile := _DecorationPurposeProfileScript.new()
+	sacristy_profile.purpose_type = _RoomPurposeScript.Type.SACRISTY
+	sacristy_profile.default_lighting_budget = 5.0
+
+	var sacristy_intent := _DecorationRoomIntentScript.new()
+	sacristy_intent.allowed_tags = [
+		_DecorationTagScript.CEREMONIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.SEATING,
+		_DecorationTagScript.LIGHTING, _DecorationTagScript.FURNITURE, _DecorationTagScript.WALL_DECOR,
+		_DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
+	]
+	sacristy_profile.intent = sacristy_intent
+
+	var sacristy_template := _DecorationCompositionTemplateScript.new()
+	sacristy_template.template_id = &"sacristy_altar_pews"
+
+	var r_altar_primary := _DecorationCompositionRuleScript.new()
+	r_altar_primary.rule_id = &"primary_altar"
+	r_altar_primary.composition_role = _CompositionRoleScript.Role.PRIMARY
+	r_altar_primary.placement_mode = _PropPlacementModeScript.Mode.CENTER
+	r_altar_primary.target_tags = [_DecorationTagScript.CEREMONIAL, _DecorationTagScript.FOCAL]
+	r_altar_primary.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
+	r_altar_primary.min_count = 1
+	r_altar_primary.max_count = 1
+	r_altar_primary.clearance = 1
+	sacristy_template.primary_rule = r_altar_primary
+
+	var r_sacristy_pews := _DecorationCompositionRuleScript.new()
+	r_sacristy_pews.rule_id = &"sacristy_pews"
+	r_sacristy_pews.composition_role = _CompositionRoleScript.Role.SECONDARY
+	r_sacristy_pews.placement_mode = _PropPlacementModeScript.Mode.WALL
+	r_sacristy_pews.target_tags = [_DecorationTagScript.SEATING]
+	r_sacristy_pews.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
+	r_sacristy_pews.min_count = 1
+	r_sacristy_pews.max_count = 2
+	sacristy_template.support_rules.append(r_sacristy_pews)
+
+	sacristy_profile.templates.append(sacristy_template)
+	_profiles[_RoomPurposeScript.Type.SACRISTY] = sacristy_profile
+	_profiles[_RoomPurposeScript.Type.ALTAR_ROOM] = sacristy_profile
+
+	# 5. CATACOMB & BURIAL_HALL & MORTUARY
 	var catacomb_profile := _DecorationPurposeProfileScript.new()
 	catacomb_profile.purpose_type = _RoomPurposeScript.Type.CATACOMB
 	catacomb_profile.default_lighting_budget = 4.0
@@ -133,6 +178,7 @@ func _register_crypt_purpose_profiles() -> void:
 	var r_niches := _DecorationCompositionRuleScript.new()
 	r_niches.rule_id = &"perimeter_burials"
 	r_niches.composition_role = _CompositionRoleScript.Role.SECONDARY
+	r_niches.placement_mode = _PropPlacementModeScript.Mode.FLOOR
 	r_niches.target_tags = [_DecorationTagScript.BURIAL]
 	r_niches.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
 	r_niches.min_count = 1

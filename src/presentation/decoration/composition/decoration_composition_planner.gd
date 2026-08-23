@@ -284,6 +284,22 @@ static func _find_matching_palette_entries(entries: Array, rule, intent) -> Arra
 	return result
 
 func _discover_anchors_for_rule(rule, room_geometry, tile_size: float) -> Array:
+	# Si la regla declara explícitamente placement_mode, usarlo directamente
+	if rule != null and "placement_mode" in rule and rule.placement_mode >= 0:
+		match rule.placement_mode:
+			_PropPlacementModeScript.Mode.WALL:
+				return _anchor_resolver.find_wall_anchors(room_geometry, tile_size)
+			_PropPlacementModeScript.Mode.CENTER:
+				var centers = _anchor_resolver.find_center_anchors(room_geometry, tile_size)
+				if not centers.is_empty():
+					return centers
+				return _anchor_resolver.find_floor_anchors(room_geometry, tile_size)
+			_PropPlacementModeScript.Mode.CORNER:
+				return _anchor_resolver.find_corner_anchors(room_geometry, tile_size)
+			_PropPlacementModeScript.Mode.FLOOR:
+				return _anchor_resolver.find_floor_anchors(room_geometry, tile_size)
+
+	# Fallback: usar composition_role para inferir tipo de anclaje
 	var combined: Array = []
 	match rule.composition_role:
 		_CompositionRoleScript.Role.PRIMARY:

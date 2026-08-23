@@ -10,7 +10,7 @@ const _DecorationOrientationModeScript = preload("res://src/presentation/decorat
 @export var composition_role: int = _CompositionRoleScript.Role.PRIMARY
 @export var target_tags: Array[StringName] = []
 @export var target_style_ids: Array[StringName] = []
-@export var placement_mode: int = 0
+@export var placement_mode: int = -1 ## -1 = auto (fall back to composition_role logic)
 @export var orientation_mode: int = _DecorationOrientationModeScript.Mode.FACE_ROOM
 @export var min_count: int = 1
 @export var max_count: int = 1
