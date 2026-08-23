@@ -110,7 +110,7 @@ func _try_place_prop_on_anchor(
 		return null
 
 	# Comprobar huella en celdas (Footprint)
-	var rot_deg: float = rad_to_deg(anchor.rotation_degrees_y)
+	var rot_deg: float = anchor.rotation_degrees_y
 	var needed_cells: Array[Vector2i] = []
 	if style.footprint != null:
 		needed_cells = style.footprint.get_occupied_cells(anchor.cell, rot_deg)

@@ -58,16 +58,16 @@ func find_wall_anchors(r_geom, tile_size: float = 2.0) -> Array[_WallPropAnchorS
 
 		if not floor_cells_map.has(f_pos + Vector2i(0, -1)): # Pared al Norte (-Y)
 			wall_dir = Vector2i(0, -1)
-			rot_y = 0.0 # Mirando hacia el Sur (+Z en 3D)
+			rot_y = 0.0 # Mirando hacia el Sur (+Z en 3D) -> 0°
 		elif not floor_cells_map.has(f_pos + Vector2i(0, 1)): # Pared al Sur (+Y)
 			wall_dir = Vector2i(0, 1)
-			rot_y = PI # Mirando hacia el Norte (-Z en 3D)
+			rot_y = 180.0 # Mirando hacia el Norte (-Z en 3D) -> 180°
 		elif not floor_cells_map.has(f_pos + Vector2i(-1, 0)): # Pared al Oeste (-X)
 			wall_dir = Vector2i(-1, 0)
-			rot_y = PI * 0.5 # Mirando hacia el Este (+X en 3D)
+			rot_y = 90.0 # Mirando hacia el Este (+X en 3D) -> 90°
 		elif not floor_cells_map.has(f_pos + Vector2i(1, 0)): # Pared al Este (+X)
 			wall_dir = Vector2i(1, 0)
-			rot_y = -PI * 0.5 # Mirando hacia el Oeste (-X en 3D)
+			rot_y = 270.0 # Mirando hacia el Oeste (-X en 3D) -> 270°
 
 		if wall_dir != Vector2i.ZERO:
 			var world_pos := Vector3(float(f_pos.x) * tile_size + tile_size * 0.5, 0.0, float(f_pos.y) * tile_size + tile_size * 0.5)
@@ -146,16 +146,16 @@ func find_corner_anchors(r_geom, tile_size: float = 2.0) -> Array[_CornerPropAnc
 
 		if has_north_wall and has_west_wall:
 			is_corner = true
-			rot_y = -PI * 0.25 # Esquina Noroeste mirando hacia SE (+X, +Z)
+			rot_y = 45.0 # Esquina Noroeste mirando hacia SE (+X, +Z) -> 45°
 		elif has_north_wall and has_east_wall:
 			is_corner = true
-			rot_y = PI * 0.25 # Esquina Noreste mirando hacia SO (-X, +Z)
+			rot_y = 315.0 # Esquina Noreste mirando hacia SO (-X, +Z) -> 315°
 		elif has_south_wall and has_west_wall:
 			is_corner = true
-			rot_y = -PI * 0.75 # Esquina Suroeste mirando hacia NE (+X, -Z)
+			rot_y = 135.0 # Esquina Suroeste mirando hacia NE (+X, -Z) -> 135°
 		elif has_south_wall and has_east_wall:
 			is_corner = true
-			rot_y = PI * 0.75 # Esquina Sureste mirando hacia NO (-X, -Z)
+			rot_y = 225.0 # Esquina Sureste mirando hacia NO (-X, -Z) -> 225°
 
 		if is_corner:
 			var world_pos := Vector3(float(f_pos.x) * tile_size + tile_size * 0.5, 0.0, float(f_pos.y) * tile_size + tile_size * 0.5)
