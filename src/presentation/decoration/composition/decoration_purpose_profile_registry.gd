@@ -7,12 +7,14 @@ const _DecorationPurposeProfileScript = preload("res://src/presentation/decorati
 const _DecorationRoomIntentScript = preload("res://src/presentation/decoration/composition/decoration_room_intent.gd")
 const _DecorationCompositionTemplateScript = preload("res://src/presentation/decoration/composition/decoration_composition_template.gd")
 const _DecorationCompositionRuleScript = preload("res://src/presentation/decoration/composition/decoration_composition_rule.gd")
+const _FixtureBudgetRuleScript = preload("res://src/presentation/decoration/composition/fixture_budget_rule.gd")
 const _CompositionRoleScript = preload("res://src/presentation/decoration/composition/composition_role.gd")
 const _DecorationTagScript = preload("res://src/presentation/decoration/composition/decoration_tag.gd")
 const _DecorationOrientationModeScript = preload("res://src/presentation/decoration/composition/decoration_orientation_mode.gd")
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const _DecorationRoomZoneScript = preload("res://src/presentation/decoration/composition/decoration_room_zone.gd")
 const _PropPlacementModeScript = preload("res://src/presentation/props/prop_placement_mode.gd")
+const _FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
 
 var _profiles: Dictionary = {} # purpose_type (int) -> DecorationPurposeProfile
 
@@ -70,6 +72,12 @@ func _register_crypt_purpose_profiles() -> void:
 	tomb_template.support_rules.append(r_tomb_support)
 
 	tomb_profile.templates.append(tomb_template)
+	tomb_profile.fixture_rules = [
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.SURFACE, 0, 2)
+	]
 	_profiles[_RoomPurposeScript.Type.TOMB] = tomb_profile
 	_profiles[_RoomPurposeScript.Type.ROYAL_TOMB] = tomb_profile
 
@@ -86,6 +94,11 @@ func _register_crypt_purpose_profiles() -> void:
 	]
 	entry_intent.forbidden_tags = [_DecorationTagScript.BURIAL]
 	entry_profile.intent = entry_intent
+	entry_profile.fixture_rules = [
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.SURFACE, 0, 1)
+	]
 	_profiles[_RoomPurposeScript.Type.ENTRANCE] = entry_profile
 
 	# 3. ANTECHAMBER
@@ -115,6 +128,11 @@ func _register_crypt_purpose_profiles() -> void:
 	r_benches.max_count = 2
 	ante_template.support_rules.append(r_benches)
 	ante_profile.templates.append(ante_template)
+	ante_profile.fixture_rules = [
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.SURFACE, 0, 1)
+	]
 	_profiles[_RoomPurposeScript.Type.ANTECHAMBER] = ante_profile
 
 	# 4. SACRISTY / ALTAR_ROOM
@@ -155,6 +173,12 @@ func _register_crypt_purpose_profiles() -> void:
 	sacristy_template.support_rules.append(r_sacristy_pews)
 
 	sacristy_profile.templates.append(sacristy_template)
+	sacristy_profile.fixture_rules = [
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.SURFACE, 0, 2)
+	]
 	_profiles[_RoomPurposeScript.Type.SACRISTY] = sacristy_profile
 	_profiles[_RoomPurposeScript.Type.ALTAR_ROOM] = sacristy_profile
 
@@ -185,6 +209,12 @@ func _register_crypt_purpose_profiles() -> void:
 	r_niches.max_count = 3
 	cata_template.support_rules.append(r_niches)
 	catacomb_profile.templates.append(cata_template)
+	catacomb_profile.fixture_rules = [
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.SURFACE, 0, 2)
+	]
 
 	_profiles[_RoomPurposeScript.Type.CATACOMB] = catacomb_profile
 	_profiles[_RoomPurposeScript.Type.CRYPT] = catacomb_profile
@@ -226,4 +256,8 @@ func _build_generic_profile(purpose_type: int) -> _DecorationPurposeProfileScrip
 	template.support_rules.append(r_support)
 
 	prof.templates.append(template)
+	prof.fixture_rules = [
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1)
+	]
 	return prof

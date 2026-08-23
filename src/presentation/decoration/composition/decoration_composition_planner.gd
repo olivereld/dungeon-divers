@@ -214,6 +214,7 @@ func plan_room_composition(
 	if palette.fixtures != null:
 		var budget: float = profile.lighting_budget if profile != null else (purpose_profile.default_lighting_budget if purpose_profile != null else 5.0)
 		var fixture_seed_val: int = _extract_fixture_seed(seed_ctx)
+		var fixture_rules: Array = purpose_profile.fixture_rules if purpose_profile != null and "fixture_rules" in purpose_profile else []
 		var light_dirs = _lighting_planner.plan_room_lighting(
 			budget,
 			intent,
@@ -222,7 +223,8 @@ func plan_room_composition(
 			room_geometry,
 			occupancy,
 			fixture_seed_val,
-			tile_size
+			tile_size,
+			fixture_rules
 		)
 		for f_dir in light_dirs:
 			if not comp.reserved_cells.has(f_dir.cell):
