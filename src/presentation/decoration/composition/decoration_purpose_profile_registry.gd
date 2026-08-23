@@ -44,7 +44,7 @@ func _register_crypt_purpose_profiles() -> void:
 	tomb_intent.lighting_budget = 4.0
 	tomb_intent.allowed_tags = [
 		_DecorationTagScript.BURIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.LIGHTING,
-		_DecorationTagScript.FURNITURE, _DecorationTagScript.WALL_DECOR, _DecorationTagScript.CORNER_DECOR,
+		_DecorationTagScript.WALL_DECOR, _DecorationTagScript.CORNER_DECOR,
 		_DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
 	]
 	tomb_intent.forbidden_tags = [_DecorationTagScript.STORAGE, _DecorationTagScript.SEATING]
@@ -77,9 +77,9 @@ func _register_crypt_purpose_profiles() -> void:
 
 	tomb_profile.templates.append(tomb_template)
 	tomb_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 1, 1, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [], &"tomb_focal_lantern"),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [], &"tomb_focal_braziers"),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"tomb_perimeter_torches")
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [_FixtureStyleScript.Type.LANTERN], &"tomb_focal_lantern"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [_FixtureStyleScript.Type.BRAZIER], &"tomb_focal_braziers"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH, _FixtureStyleScript.Type.LANTERN], &"tomb_perimeter_torches")
 	]
 	tomb_profile.relationship_profile = _PropFixtureRelationshipProfileScript.new(&"tomb_relations", [
 		_PropFixtureRelationScript.new(
@@ -92,74 +92,69 @@ func _register_crypt_purpose_profiles() -> void:
 			&"sarcophagus_ornate",
 			[_FixtureStyleScript.Type.LANTERN],
 			_PropFixtureRelationPlacementScript.Placement.ABOVE,
-			1, 1, &"sarcophagus_hanging_lantern"
-		),
-		_PropFixtureRelationScript.new(
-			&"wood_bench",
-			[],
-			_PropFixtureRelationPlacementScript.Placement.NEAR,
-			0, 0, &"bench_no_lights", 1.0, 2.0, 1.0,
-			[_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER]
+			0, 1, &"sarcophagus_hanging_lantern"
 		)
 	])
 	_profiles[_RoomPurposeScript.Type.TOMB] = tomb_profile
 	_profiles[_RoomPurposeScript.Type.ROYAL_TOMB] = tomb_profile
+	_profiles[_RoomPurposeScript.Type.SANCTUM] = tomb_profile
 
-	# 2. ENTRANCE
-	var entry_profile := _DecorationPurposeProfileScript.new()
-	entry_profile.purpose_type = _RoomPurposeScript.Type.ENTRANCE
-	entry_profile.default_lighting_budget = 3.0
+	# 2. MORTUARY
+	var mortuary_profile := _DecorationPurposeProfileScript.new()
+	mortuary_profile.purpose_type = _RoomPurposeScript.Type.MORTUARY
+	mortuary_profile.default_lighting_budget = 4.0
 
-	var entry_intent := _DecorationRoomIntentScript.new()
-	entry_intent.player_clearance_level = 2
-	entry_intent.allowed_tags = [
-		_DecorationTagScript.LIGHTING, _DecorationTagScript.WALL_DECOR,
-		_DecorationTagScript.SEATING, _DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
+	var mort_intent := _DecorationRoomIntentScript.new()
+	mort_intent.allowed_tags = [
+		_DecorationTagScript.CEREMONIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.BURIAL,
+		_DecorationTagScript.LIGHTING, _DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
 	]
-	entry_intent.forbidden_tags = [_DecorationTagScript.BURIAL]
-	entry_profile.intent = entry_intent
-	entry_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"entry_perimeter_torches")
+	mort_intent.forbidden_tags = [_DecorationTagScript.STORAGE]
+	mortuary_profile.intent = mort_intent
+
+	var mort_template := _DecorationCompositionTemplateScript.new()
+	mort_template.template_id = &"mortuary_embalming_table"
+
+	var r_mort_primary := _DecorationCompositionRuleScript.new()
+	r_mort_primary.rule_id = &"primary_embalming_altar"
+	r_mort_primary.composition_role = _CompositionRoleScript.Role.PRIMARY
+	r_mort_primary.placement_mode = _PropPlacementModeScript.Mode.CENTER
+	r_mort_primary.required_tags = [_DecorationTagScript.CEREMONIAL, _DecorationTagScript.FOCAL]
+	r_mort_primary.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
+	r_mort_primary.min_count = 1
+	r_mort_primary.max_count = 1
+	r_mort_primary.clearance = 1
+	mort_template.primary_rule = r_mort_primary
+
+	var r_mort_support := _DecorationCompositionRuleScript.new()
+	r_mort_support.rule_id = &"mortuary_canopic_urns"
+	r_mort_support.composition_role = _CompositionRoleScript.Role.SECONDARY
+	r_mort_support.placement_mode = _PropPlacementModeScript.Mode.FLOOR
+	r_mort_support.required_tags = [_DecorationTagScript.BURIAL]
+	r_mort_support.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
+	r_mort_support.min_count = 1
+	r_mort_support.max_count = 2
+	mort_template.support_rules.append(r_mort_support)
+
+	mortuary_profile.templates.append(mort_template)
+	mortuary_profile.fixture_rules = [
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH, _FixtureStyleScript.Type.LANTERN], &"mortuary_torches"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [_FixtureStyleScript.Type.BRAZIER], &"mortuary_braziers")
 	]
-	_profiles[_RoomPurposeScript.Type.ENTRANCE] = entry_profile
+	mortuary_profile.relationship_profile = _PropFixtureRelationshipProfileScript.new(&"mortuary_relations", [
+		_PropFixtureRelationScript.new(
+			&"stone_altar_center",
+			[_FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER],
+			_PropFixtureRelationPlacementScript.Placement.NEAR,
+			1, 2, &"altar_candles", 1.0, 1.8
+		)
+	])
+	_profiles[_RoomPurposeScript.Type.MORTUARY] = mortuary_profile
 
-	# 3. ANTECHAMBER
-	var ante_profile := _DecorationPurposeProfileScript.new()
-	ante_profile.purpose_type = _RoomPurposeScript.Type.ANTECHAMBER
-	ante_profile.default_lighting_budget = 4.5
-
-	var ante_intent := _DecorationRoomIntentScript.new()
-	ante_intent.player_clearance_level = 1
-	ante_intent.allowed_tags = [
-		_DecorationTagScript.SEATING, _DecorationTagScript.LIGHTING, _DecorationTagScript.WALL_DECOR,
-		_DecorationTagScript.FURNITURE, _DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
-	]
-	ante_intent.forbidden_tags = [_DecorationTagScript.STORAGE]
-	ante_profile.intent = ante_intent
-
-	var ante_template := _DecorationCompositionTemplateScript.new()
-	ante_template.template_id = &"antechamber_seating"
-
-	var r_benches := _DecorationCompositionRuleScript.new()
-	r_benches.rule_id = &"wall_benches"
-	r_benches.composition_role = _CompositionRoleScript.Role.SECONDARY
-	r_benches.placement_mode = _PropPlacementModeScript.Mode.WALL
-	r_benches.required_tags = [_DecorationTagScript.SEATING]
-	r_benches.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
-	r_benches.min_count = 1
-	r_benches.max_count = 2
-	ante_template.support_rules.append(r_benches)
-	ante_profile.templates.append(ante_template)
-	ante_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"ante_perimeter_torches"),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1, _FixtureBudgetRuleScript.Affinity.FREE, [], &"ante_ambient_hanging")
-	]
-	_profiles[_RoomPurposeScript.Type.ANTECHAMBER] = ante_profile
-
-	# 4. SACRISTY / ALTAR_ROOM
+	# 3. SACRISTY & ALTAR_ROOM / SHRINE
 	var sacristy_profile := _DecorationPurposeProfileScript.new()
 	sacristy_profile.purpose_type = _RoomPurposeScript.Type.SACRISTY
-	sacristy_profile.default_lighting_budget = 5.0
+	sacristy_profile.default_lighting_budget = 4.5
 
 	var sacristy_intent := _DecorationRoomIntentScript.new()
 	sacristy_intent.allowed_tags = [
@@ -195,46 +190,40 @@ func _register_crypt_purpose_profiles() -> void:
 
 	sacristy_profile.templates.append(sacristy_template)
 	sacristy_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 1, 1, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [], &"altar_hanging_lantern"),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [], &"altar_flanking_braziers"),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"sacristy_perimeter_torches")
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [_FixtureStyleScript.Type.LANTERN], &"altar_hanging_lantern"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [_FixtureStyleScript.Type.BRAZIER], &"altar_flanking_braziers"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH, _FixtureStyleScript.Type.LANTERN], &"sacristy_perimeter_torches")
 	]
 	sacristy_profile.relationship_profile = _PropFixtureRelationshipProfileScript.new(&"sacristy_relations", [
 		_PropFixtureRelationScript.new(
-			&"altar_stone",
+			&"stone_altar_center",
 			[_FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER],
 			_PropFixtureRelationPlacementScript.Placement.NEAR,
 			1, 2, &"altar_candles", 1.0, 2.0
 		),
 		_PropFixtureRelationScript.new(
-			&"altar_stone",
-			[_FixtureStyleScript.Type.BRAZIER],
-			_PropFixtureRelationPlacementScript.Placement.NEAR,
-			0, 2, &"altar_braziers", 1.5, 2.5
-		),
-		_PropFixtureRelationScript.new(
-			&"wood_bench",
+			&"church_pew_wall",
 			[],
 			_PropFixtureRelationPlacementScript.Placement.NEAR,
 			0, 0, &"bench_no_lights", 1.0, 2.0, 1.0,
-			[_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER]
+			[_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER, _FixtureStyleScript.Type.LANTERN]
 		)
 	])
 	_profiles[_RoomPurposeScript.Type.SACRISTY] = sacristy_profile
 	_profiles[_RoomPurposeScript.Type.ALTAR_ROOM] = sacristy_profile
+	_profiles[_RoomPurposeScript.Type.SHRINE] = sacristy_profile
 
-	# 5. CATACOMB & BURIAL_HALL & MORTUARY
+	# 4. CATACOMB & CRYPT
 	var catacomb_profile := _DecorationPurposeProfileScript.new()
 	catacomb_profile.purpose_type = _RoomPurposeScript.Type.CATACOMB
-	catacomb_profile.default_lighting_budget = 4.0
+	catacomb_profile.default_lighting_budget = 3.5
 
 	var cata_intent := _DecorationRoomIntentScript.new()
 	cata_intent.allowed_tags = [
-		_DecorationTagScript.BURIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.LIGHTING,
-		_DecorationTagScript.FURNITURE, _DecorationTagScript.WALL_DECOR, _DecorationTagScript.CORNER_DECOR,
-		_DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS, _DecorationTagScript.CEREMONIAL
+		_DecorationTagScript.BURIAL, _DecorationTagScript.WALL_DECOR, _DecorationTagScript.CORNER_DECOR,
+		_DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
 	]
-	cata_intent.forbidden_tags = [_DecorationTagScript.SEATING]
+	cata_intent.forbidden_tags = [_DecorationTagScript.SEATING, _DecorationTagScript.STORAGE]
 	catacomb_profile.intent = cata_intent
 
 	var cata_template := _DecorationCompositionTemplateScript.new()
@@ -257,29 +246,68 @@ func _register_crypt_purpose_profiles() -> void:
 	]
 	catacomb_profile.relationship_profile = _PropFixtureRelationshipProfileScript.new(&"catacomb_relations", [
 		_PropFixtureRelationScript.new(
-			&"tombstone_cross",
+			&"tombstone_cross_corner",
 			[_FixtureStyleScript.Type.CANDLE_CLUSTER],
 			_PropFixtureRelationPlacementScript.Placement.NEAR,
 			0, 1, &"tombstone_candle", 1.0, 1.5, 1.0,
 			[_FixtureStyleScript.Type.LANTERN, _FixtureStyleScript.Type.CANDLE_HOLDER]
-		),
-		_PropFixtureRelationScript.new(
-			&"wood_bench",
-			[],
-			_PropFixtureRelationPlacementScript.Placement.NEAR,
-			0, 0, &"bench_no_lights", 1.0, 2.0, 1.0,
-			[_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER, _FixtureStyleScript.Type.LANTERN]
 		)
 	])
-
 	_profiles[_RoomPurposeScript.Type.CATACOMB] = catacomb_profile
 	_profiles[_RoomPurposeScript.Type.CRYPT] = catacomb_profile
-	_profiles[_RoomPurposeScript.Type.MORTUARY] = catacomb_profile
 	_profiles[_RoomPurposeScript.Type.CHAMBER] = catacomb_profile
-	_profiles[_RoomPurposeScript.Type.HALL] = ante_profile
-	_profiles[_RoomPurposeScript.Type.SANCTUM] = tomb_profile
-	_profiles[_RoomPurposeScript.Type.SHRINE] = sacristy_profile
 	_profiles[_RoomPurposeScript.Type.STORAGE] = catacomb_profile
+
+	# 5. ANTECHAMBER & HALL
+	var ante_profile := _DecorationPurposeProfileScript.new()
+	ante_profile.purpose_type = _RoomPurposeScript.Type.ANTECHAMBER
+	ante_profile.default_lighting_budget = 3.5
+
+	var ante_intent := _DecorationRoomIntentScript.new()
+	ante_intent.player_clearance_level = 1
+	ante_intent.allowed_tags = [
+		_DecorationTagScript.SEATING, _DecorationTagScript.WALL_DECOR,
+		_DecorationTagScript.FURNITURE, _DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
+	]
+	ante_intent.forbidden_tags = [_DecorationTagScript.BURIAL, _DecorationTagScript.STORAGE]
+	ante_profile.intent = ante_intent
+
+	var ante_template := _DecorationCompositionTemplateScript.new()
+	ante_template.template_id = &"antechamber_seating"
+
+	var r_benches := _DecorationCompositionRuleScript.new()
+	r_benches.rule_id = &"wall_benches"
+	r_benches.composition_role = _CompositionRoleScript.Role.SECONDARY
+	r_benches.placement_mode = _PropPlacementModeScript.Mode.WALL
+	r_benches.required_tags = [_DecorationTagScript.SEATING]
+	r_benches.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
+	r_benches.min_count = 1
+	r_benches.max_count = 2
+	ante_template.support_rules.append(r_benches)
+	ante_profile.templates.append(ante_template)
+	ante_profile.fixture_rules = [
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH, _FixtureStyleScript.Type.LANTERN], &"ante_perimeter_torches"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1, _FixtureBudgetRuleScript.Affinity.FREE, [_FixtureStyleScript.Type.LANTERN], &"ante_ambient_hanging")
+	]
+	_profiles[_RoomPurposeScript.Type.ANTECHAMBER] = ante_profile
+	_profiles[_RoomPurposeScript.Type.HALL] = ante_profile
+
+	# 6. ENTRANCE
+	var entry_profile := _DecorationPurposeProfileScript.new()
+	entry_profile.purpose_type = _RoomPurposeScript.Type.ENTRANCE
+	entry_profile.default_lighting_budget = 2.5
+
+	var entry_intent := _DecorationRoomIntentScript.new()
+	entry_intent.player_clearance_level = 2
+	entry_intent.allowed_tags = [
+		_DecorationTagScript.WALL_DECOR, _DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
+	]
+	entry_intent.forbidden_tags = [_DecorationTagScript.BURIAL, _DecorationTagScript.SEATING, _DecorationTagScript.STORAGE]
+	entry_profile.intent = entry_intent
+	entry_profile.fixture_rules = [
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH], &"entry_perimeter_torches")
+	]
+	_profiles[_RoomPurposeScript.Type.ENTRANCE] = entry_profile
 
 func _build_generic_profile(purpose_type: int) -> _DecorationPurposeProfileScript:
 	var prof := _DecorationPurposeProfileScript.new()

@@ -338,81 +338,87 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 
 	match room_purpose:
 		_RoomPurposeScript.Type.TOMB:
-			entries.append(_PropPaletteEntryScript.new(sarc_closed, 80.0))
-			entries.append(_PropPaletteEntryScript.new(sarc_open, 30.0))
-			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 60.0))
+			entries.append(_PropPaletteEntryScript.new(sarc_closed, 85.0))
+			entries.append(_PropPaletteEntryScript.new(sarc_open, 25.0))
+			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 50.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 40.0))
-			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 55.0))
-			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 50.0))
-			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 35.0))
-			entries.append(_PropPaletteEntryScript.new(rubble_corner, 40.0))
+			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 60.0))
+			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 45.0))
+			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 30.0))
+			entries.append(_PropPaletteEntryScript.new(rubble_corner, 35.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_tomb", entries)
-			pal.density = 0.38
-			pal.max_props_per_room = 10
+			pal.density = 0.35
+			pal.max_props_per_room = 6
 			return pal
 
 		_RoomPurposeScript.Type.ROYAL_TOMB, _RoomPurposeScript.Type.SANCTUM:
 			entries.append(_PropPaletteEntryScript.new(sarc_closed, 90.0))
 			entries.append(_PropPaletteEntryScript.new(sarc_open, 20.0))
-			entries.append(_PropPaletteEntryScript.new(altar, 75.0))
-			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 60.0))
+			entries.append(_PropPaletteEntryScript.new(altar, 60.0))
+			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 50.0))
 			entries.append(_PropPaletteEntryScript.new(urn_pedestal_floor, 65.0))
 			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 50.0))
 			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 40.0))
-			entries.append(_PropPaletteEntryScript.new(bench_stone, 40.0))
-			entries.append(_PropPaletteEntryScript.new(bench_pew, 50.0))
+			entries.append(_PropPaletteEntryScript.new(rubble_corner, 30.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_royal_tomb", entries)
-			pal.density = 0.42
-			pal.max_props_per_room = 12
+			pal.density = 0.38
+			pal.max_props_per_room = 7
 			return pal
 
 		_RoomPurposeScript.Type.MORTUARY:
-			entries.append(_PropPaletteEntryScript.new(altar, 80.0))
-			entries.append(_PropPaletteEntryScript.new(sarc_open, 60.0))
-			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 50.0))
-			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 60.0))
-			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 45.0))
-			entries.append(_PropPaletteEntryScript.new(rubble_corner, 60.0))
+			entries.append(_PropPaletteEntryScript.new(altar, 90.0))
+			entries.append(_PropPaletteEntryScript.new(sarc_open, 30.0))
+			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 40.0))
+			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 70.0))
+			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 50.0))
+			entries.append(_PropPaletteEntryScript.new(rubble_corner, 40.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_mortuary", entries)
-			pal.density = 0.40
-			pal.max_props_per_room = 10
+			pal.density = 0.35
+			pal.max_props_per_room = 5
 			return pal
 
-		_RoomPurposeScript.Type.SACRISTY, _RoomPurposeScript.Type.ALTAR_ROOM:
-			entries.append(_PropPaletteEntryScript.new(altar, 90.0))
-			entries.append(_PropPaletteEntryScript.new(bench_pew, 70.0))
-			entries.append(_PropPaletteEntryScript.new(bench_stone, 40.0))
-			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 60.0))
+		_RoomPurposeScript.Type.SACRISTY, _RoomPurposeScript.Type.ALTAR_ROOM, _RoomPurposeScript.Type.SHRINE:
+			entries.append(_PropPaletteEntryScript.new(altar, 95.0))
+			entries.append(_PropPaletteEntryScript.new(bench_pew, 80.0))
+			entries.append(_PropPaletteEntryScript.new(bench_stone, 35.0))
+			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 50.0))
 			entries.append(_PropPaletteEntryScript.new(urn_pedestal_floor, 45.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 20.0))
-			entries.append(_PropPaletteEntryScript.new(rubble_corner, 20.0))
+			entries.append(_PropPaletteEntryScript.new(rubble_corner, 25.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_sacristy", entries)
 			pal.density = 0.35
-			pal.max_props_per_room = 8
+			pal.max_props_per_room = 6
 			return pal
 
-		_RoomPurposeScript.Type.CRYPT, _RoomPurposeScript.Type.CATACOMB:
-			entries.append(_PropPaletteEntryScript.new(sarc_open, 70.0))
-			entries.append(_PropPaletteEntryScript.new(sarc_closed, 50.0))
-			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 40.0))
-			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 75.0))
+		_RoomPurposeScript.Type.CRYPT, _RoomPurposeScript.Type.CATACOMB, _RoomPurposeScript.Type.CHAMBER:
+			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 70.0))
+			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 50.0))
+			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 80.0))
 			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 65.0))
-			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 40.0))
-			entries.append(_PropPaletteEntryScript.new(rubble_corner, 60.0))
+			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 45.0))
+			entries.append(_PropPaletteEntryScript.new(rubble_corner, 55.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_crypt", entries)
-			pal.density = 0.38
-			pal.max_props_per_room = 10
+			pal.density = 0.32
+			pal.max_props_per_room = 6
 			return pal
 
-		_: # ANTECHAMBER, ENTRANCE, HALL, etc.
-			entries.append(_PropPaletteEntryScript.new(bench_pew, 70.0))
-			entries.append(_PropPaletteEntryScript.new(bench_stone, 50.0))
+		_RoomPurposeScript.Type.ENTRANCE:
 			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 40.0))
+			entries.append(_PropPaletteEntryScript.new(rubble_corner, 30.0))
+			var pal := _PropPaletteScript.new(&"crypt_props_entrance", entries)
+			pal.density = 0.15
+			pal.max_props_per_room = 2
+			return pal
+
+		_: # ANTECHAMBER, HALL, etc.
+			entries.append(_PropPaletteEntryScript.new(bench_pew, 80.0))
+			entries.append(_PropPaletteEntryScript.new(bench_stone, 40.0))
+			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 50.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 30.0))
-			entries.append(_PropPaletteEntryScript.new(rubble_corner, 40.0))
+			entries.append(_PropPaletteEntryScript.new(rubble_corner, 35.0))
 			var pal := _PropPaletteScript.new(&"crypt_props_antechamber", entries)
-			pal.density = 0.30
-			pal.max_props_per_room = 7
+			pal.density = 0.28
+			pal.max_props_per_room = 5
 			return pal
 
 func _resolve_temple_prop_palette(room_purpose: int) -> _PropPaletteScript:

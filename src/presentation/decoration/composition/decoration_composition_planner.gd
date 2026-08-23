@@ -112,7 +112,12 @@ func plan_room_composition(
 		for t in purpose_profile.templates:
 			rules_to_execute.append_array(t.get_all_rules())
 
-	var max_allowed: int = profile.max_total_props if profile != null else 10
+	var max_allowed: int = 10
+	if palette != null and palette.props != null and palette.props.max_props_per_room > 0:
+		max_allowed = palette.props.max_props_per_room
+	if profile != null and profile.max_total_props > 0:
+		max_allowed = mini(max_allowed, profile.max_total_props)
+
 	var total_placed: int = 0
 	var primary_placed_cells: Array[Vector2i] = []
 
@@ -228,13 +233,20 @@ func plan_room_composition(
 			if not comp.reserved_cells.has(f_dir.cell):
 				comp.add_fixture_directive(f_dir)
 
-	# 6. Planificar iluminación ambiental por presupuesto y roles
+	# 6. Planificar iluminación ambiental por presupuesto reconciliado y roles
 	if palette.fixtures != null:
-		var budget: float = profile.lighting_budget if profile != null else (purpose_profile.default_lighting_budget if purpose_profile != null else 5.0)
+		var total_budget: float = profile.lighting_budget if profile != null else (purpose_profile.default_lighting_budget if purpose_profile != null else 5.0)
+		# Reconciliación: calcular el presupuesto ya consumido por las luminarias de relaciones semánticas
+		var consumed_budget: float = 0.0
+		for f_dir in comp.fixture_directives:
+			if f_dir.style != null and f_dir.style.has_light:
+				consumed_budget += f_dir.style.light_energy * 0.5
+		var remaining_budget: float = maxf(1.0, total_budget - consumed_budget)
+
 		var fixture_seed_val: int = _extract_fixture_seed(seed_ctx)
 		var fixture_rules: Array = purpose_profile.fixture_rules if purpose_profile != null and "fixture_rules" in purpose_profile else []
 		var light_dirs = _lighting_planner.plan_room_lighting(
-			budget,
+			remaining_budget,
 			intent,
 			palette.fixtures,
 			primary_placed_cells,
