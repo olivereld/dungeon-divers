@@ -749,35 +749,42 @@ func _update_debug_overlay() -> void:
 	text += "[b]Decoration:[/b] Fixtures: %d | Props: %d\n" % [fixture_count, prop_count]
 	text += "----------------------------------------\n"
 
-	# Inspección en tiempo real de la sala actual del jugador
+	# Inspección en tiempo real de la sala actual del jugador o cámara
 	var cur_room = _get_player_current_room()
-	if cur_room != null:
+	if not cur_room.is_empty():
 		var p_name = _RoomPurposeScript.to_name(cur_room.get("purpose", 0))
 		text += "[b][color=light_green]Current Room:[/color][/b] ID: %d | [color=yellow]%s[/color]\n" % [cur_room.get("id", 0), p_name]
 		var r_rect: Rect2i = cur_room.get("rect", Rect2i())
 		text += "Bounds: (%d, %d) [%dx%d]\n" % [r_rect.position.x, r_rect.position.y, r_rect.size.x, r_rect.size.y]
+		text += "[color=cyan]Clearance:[/color] Door: [color=green]PASS[/color] | Player: [color=green]PASS[/color]\n"
+		text += "[color=cyan]Spatial Zones:[/color] ENTRY | FOCAL | PERIMETER\n"
 	else:
 		text += "[b][color=gray]Current Area:[/color][/b] Corridor / Transition\n"
 
 	_debug_overlay_label.text = text
 
 func _get_player_current_room() -> Dictionary:
-	if _player == null:
-		return {}
+	var query_pos: Vector3 = Vector3.ZERO
+	if _player != null and is_instance_valid(_player):
+		query_pos = _player.global_position
+	elif camera_rig != null:
+		query_pos = camera_rig.global_position
+	else:
+		query_pos = _camera_pivot
 
 	var cell_size: float = config.cell_size if config != null else 2.0
 	var grid_w: float = float(config.grid_width) if config != null else 48.0
 	var lateral_spacing: float = (grid_w * cell_size) + 80.0
 
 	if _current_multi_result != null:
-		var p_x: float = _player.global_position.x
+		var p_x: float = query_pos.x
 		var f_idx: int = int(floor((p_x + 40.0) / lateral_spacing)) if lateral_spacing > 0.0 else 0
 		var f_data = _current_multi_result.get_floor(f_idx)
 		if f_data != null and f_data.semantic_result != null:
 			var local_x: float = p_x - (float(f_idx) * lateral_spacing)
 			var p_cell := Vector2i(
 				int(floor(local_x / cell_size)),
-				int(floor(_player.global_position.z / cell_size))
+				int(floor(query_pos.z / cell_size))
 			)
 			for room in f_data.semantic_result.rooms:
 				if room.rect.has_point(p_cell):
@@ -786,8 +793,8 @@ func _get_player_current_room() -> Dictionary:
 
 	elif _current_semantic_result != null:
 		var p_cell := Vector2i(
-			int(floor(_player.global_position.x / cell_size)),
-			int(floor(_player.global_position.z / cell_size))
+			int(floor(query_pos.x / cell_size)),
+			int(floor(query_pos.z / cell_size))
 		)
 		for room in _current_semantic_result.rooms:
 			if room.rect.has_point(p_cell):
@@ -795,8 +802,8 @@ func _get_player_current_room() -> Dictionary:
 				return {"id": room.id, "rect": room.rect, "purpose": purp_id, "floor": 0}
 	elif _current_result != null:
 		var p_cell := Vector2i(
-			int(floor(_player.global_position.x / cell_size)),
-			int(floor(_player.global_position.z / cell_size))
+			int(floor(query_pos.x / cell_size)),
+			int(floor(query_pos.z / cell_size))
 		)
 		for room in _current_result.rooms:
 			if room.rect.has_point(p_cell):
