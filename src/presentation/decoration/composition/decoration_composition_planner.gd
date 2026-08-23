@@ -139,7 +139,7 @@ func plan_room_composition(
 
 			var candidates: Array[_DecorationPlacementCandidateScript] = _build_scored_candidates(
 				anchors, target_entries, rule, zones, intent, floor_cells_map,
-				comp, occupancy, door_cells, stair_cells, room_center_cell, prop_seed_val
+				comp, occupancy, door_cells, stair_cells, room_center_cell, prop_seed_val, primary_placed_cells
 			)
 			candidates.sort_custom(func(a, b): return a.score > b.score)
 
@@ -191,7 +191,7 @@ func plan_room_composition(
 
 			var candidates: Array[_DecorationPlacementCandidateScript] = _build_scored_candidates(
 				anchors, target_entries, rule, zones, intent, floor_cells_map,
-				comp, occupancy, door_cells, stair_cells, room_center_cell, prop_seed_val
+				comp, occupancy, door_cells, stair_cells, room_center_cell, prop_seed_val, primary_placed_cells
 			)
 			candidates.sort_custom(func(a, b): return a.score > b.score)
 
@@ -236,12 +236,12 @@ func plan_room_composition(
 	# 6. Planificar iluminación ambiental por presupuesto reconciliado y roles
 	if palette.fixtures != null:
 		var total_budget: float = profile.lighting_budget if profile != null else (purpose_profile.default_lighting_budget if purpose_profile != null else 5.0)
-		# Reconciliación: calcular el presupuesto ya consumido por las luminarias de relaciones semánticas
+		# Reconciliación estricta: calcular el presupuesto ya consumido por las luminarias de relaciones semánticas
 		var consumed_budget: float = 0.0
 		for f_dir in comp.fixture_directives:
 			if f_dir.style != null and f_dir.style.has_light:
 				consumed_budget += f_dir.style.light_energy * 0.5
-		var remaining_budget: float = maxf(1.0, total_budget - consumed_budget)
+		var remaining_budget: float = maxf(0.0, total_budget - consumed_budget)
 
 		var fixture_seed_val: int = _extract_fixture_seed(seed_ctx)
 		var fixture_rules: Array = purpose_profile.fixture_rules if purpose_profile != null and "fixture_rules" in purpose_profile else []
@@ -274,7 +274,8 @@ func _build_scored_candidates(
 	door_cells: Array[Vector2i],
 	stair_cells: Array[Vector2i],
 	room_center_cell: Vector2i,
-	prop_seed_val: int
+	prop_seed_val: int,
+	primary_cells: Array[Vector2i] = []
 ) -> Array[_DecorationPlacementCandidateScript]:
 	var candidates: Array[_DecorationPlacementCandidateScript] = []
 
@@ -324,7 +325,8 @@ func _build_scored_candidates(
 					occupancy,
 					room_center_cell,
 					door_cells,
-					prop_seed_val
+					prop_seed_val,
+					primary_cells
 				)
 				candidates.append(cand)
 
@@ -374,10 +376,11 @@ static func _find_matching_palette_entries(entries: Array, rule, intent) -> Arra
 				continue
 
 		# 2. Rule-level forbidden tags
-		if "forbidden_tags" in rule and not rule.forbidden_tags.is_empty() and not style.tags.is_empty():
+		# 2. Check forbidden tags first (hard exclusion)
+		if "forbidden_tags" in rule and not rule.forbidden_tags.is_empty():
 			var has_forbidden: bool = false
 			for tag in rule.forbidden_tags:
-				if style.tags.has(tag):
+				if _style_has_tag(style, tag):
 					has_forbidden = true
 					break
 			if has_forbidden:

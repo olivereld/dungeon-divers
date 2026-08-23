@@ -70,6 +70,7 @@ func _register_crypt_purpose_profiles() -> void:
 	r_tomb_support.composition_role = _CompositionRoleScript.Role.SECONDARY
 	r_tomb_support.placement_mode = _PropPlacementModeScript.Mode.FLOOR
 	r_tomb_support.required_tags = [_DecorationTagScript.BURIAL]
+	r_tomb_support.forbidden_tags = [_DecorationTagScript.FOCAL]
 	r_tomb_support.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
 	r_tomb_support.min_count = 1
 	r_tomb_support.max_count = 2
@@ -131,6 +132,7 @@ func _register_crypt_purpose_profiles() -> void:
 	r_mort_support.composition_role = _CompositionRoleScript.Role.SECONDARY
 	r_mort_support.placement_mode = _PropPlacementModeScript.Mode.FLOOR
 	r_mort_support.required_tags = [_DecorationTagScript.BURIAL]
+	r_mort_support.forbidden_tags = [_DecorationTagScript.FOCAL]
 	r_mort_support.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
 	r_mort_support.min_count = 1
 	r_mort_support.max_count = 2
@@ -183,6 +185,7 @@ func _register_crypt_purpose_profiles() -> void:
 	r_sacristy_pews.composition_role = _CompositionRoleScript.Role.SECONDARY
 	r_sacristy_pews.placement_mode = _PropPlacementModeScript.Mode.WALL
 	r_sacristy_pews.required_tags = [_DecorationTagScript.SEATING]
+	r_sacristy_pews.forbidden_tags = [_DecorationTagScript.FOCAL]
 	r_sacristy_pews.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
 	r_sacristy_pews.min_count = 1
 	r_sacristy_pews.max_count = 2
@@ -234,6 +237,7 @@ func _register_crypt_purpose_profiles() -> void:
 	r_niches.composition_role = _CompositionRoleScript.Role.SECONDARY
 	r_niches.placement_mode = _PropPlacementModeScript.Mode.FLOOR
 	r_niches.required_tags = [_DecorationTagScript.BURIAL]
+	r_niches.forbidden_tags = [_DecorationTagScript.FOCAL]
 	r_niches.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
 	r_niches.min_count = 1
 	r_niches.max_count = 3

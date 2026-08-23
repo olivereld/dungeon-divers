@@ -12,7 +12,8 @@ func score_candidate(
 	occupancy,
 	room_center_cell: Vector2i,
 	door_cells: Array[Vector2i] = [],
-	seed_val: int = 1337
+	seed_val: int = 1337,
+	primary_cells: Array[Vector2i] = []
 ) -> float:
 	if candidate == null:
 		return -1000.0
@@ -20,19 +21,43 @@ func score_candidate(
 	var total_score: float = 100.0
 	var cell: Vector2i = candidate.cell
 
-	# 1. Idoneidad respecto al centro de la habitación
+	# 1. Idoneidad respecto al centro de la habitación y al PRIMARY spatial anchor
 	var dist_to_center: float = Vector2(cell).distance_to(Vector2(room_center_cell))
 
 	match comp_role:
 		_CompositionRoleScript.Role.PRIMARY:
 			# Bonificación por proximidad al centro (foco visual principal)
 			total_score += maxf(0.0, 50.0 - dist_to_center * 12.0)
+
 		_CompositionRoleScript.Role.SECONDARY, _CompositionRoleScript.Role.COMPANION:
-			# Preferencia por zonas intermedias o cercanas al primario
-			total_score += maxf(0.0, 20.0 - absf(dist_to_center - 2.0) * 8.0)
+			if not primary_cells.is_empty():
+				# Subordinación al Primary: calcular distancia mínima al objeto principal
+				var min_dist_primary: float = 999.0
+				for p_cell in primary_cells:
+					var d = Vector2(cell).distance_to(Vector2(p_cell))
+					if d < min_dist_primary:
+						min_dist_primary = d
+
+				if min_dist_primary < 1.5:
+					# Penalización severa por apelotonamiento sobre el objeto focal
+					total_score -= 50.0
+				elif min_dist_primary >= 1.8 and min_dist_primary <= 3.8:
+					# Bonificación óptima por flanqueo y acompañamiento armónico
+					total_score += 35.0 - absf(min_dist_primary - 2.5) * 6.0
+				else:
+					# Decaimiento progresivo si está demasiado disperso
+					total_score += maxf(0.0, 15.0 - min_dist_primary * 2.0)
+			else:
+				# Fallback sin primary: preferencia por zonas intermedias
+				total_score += maxf(0.0, 20.0 - absf(dist_to_center - 2.0) * 8.0)
+
 		_CompositionRoleScript.Role.DETAIL:
-			# Los detalles prefieren esquinas o zonas no centrales
+			# Los detalles prefieren esquinas o zonas perimetrales no focales
 			total_score += dist_to_center * 4.0
+			if not primary_cells.is_empty():
+				for p_cell in primary_cells:
+					if Vector2(cell).distance_to(Vector2(p_cell)) < 2.0:
+						total_score -= 20.0 # No ensuciar el foco con debris menor
 
 	# 2. Penalización por proximidad a puertas (evitar congestión de paso)
 	for d_cell in door_cells:
