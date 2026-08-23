@@ -73,10 +73,9 @@ func _register_crypt_purpose_profiles() -> void:
 
 	tomb_profile.templates.append(tomb_template)
 	tomb_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.SURFACE, 0, 2)
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 1, 1, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [], &"tomb_focal_lantern"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [], &"tomb_focal_braziers"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"tomb_perimeter_torches")
 	]
 	_profiles[_RoomPurposeScript.Type.TOMB] = tomb_profile
 	_profiles[_RoomPurposeScript.Type.ROYAL_TOMB] = tomb_profile
@@ -95,9 +94,7 @@ func _register_crypt_purpose_profiles() -> void:
 	entry_intent.forbidden_tags = [_DecorationTagScript.BURIAL]
 	entry_profile.intent = entry_intent
 	entry_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.SURFACE, 0, 1)
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"entry_perimeter_torches")
 	]
 	_profiles[_RoomPurposeScript.Type.ENTRANCE] = entry_profile
 
@@ -129,9 +126,8 @@ func _register_crypt_purpose_profiles() -> void:
 	ante_template.support_rules.append(r_benches)
 	ante_profile.templates.append(ante_template)
 	ante_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.SURFACE, 0, 1)
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"ante_perimeter_torches"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1, _FixtureBudgetRuleScript.Affinity.FREE, [], &"ante_ambient_hanging")
 	]
 	_profiles[_RoomPurposeScript.Type.ANTECHAMBER] = ante_profile
 
@@ -174,10 +170,9 @@ func _register_crypt_purpose_profiles() -> void:
 
 	sacristy_profile.templates.append(sacristy_template)
 	sacristy_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.SURFACE, 0, 2)
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 1, 1, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [], &"altar_hanging_lantern"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [], &"altar_flanking_braziers"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"sacristy_perimeter_torches")
 	]
 	_profiles[_RoomPurposeScript.Type.SACRISTY] = sacristy_profile
 	_profiles[_RoomPurposeScript.Type.ALTAR_ROOM] = sacristy_profile
@@ -210,10 +205,8 @@ func _register_crypt_purpose_profiles() -> void:
 	cata_template.support_rules.append(r_niches)
 	catacomb_profile.templates.append(cata_template)
 	catacomb_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.SURFACE, 0, 2)
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [], &"catacomb_wall_torches"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1, _FixtureBudgetRuleScript.Affinity.FREE, [], &"catacomb_ambient_brazier")
 	]
 
 	_profiles[_RoomPurposeScript.Type.CATACOMB] = catacomb_profile
