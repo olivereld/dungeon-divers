@@ -14,7 +14,7 @@ const RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/arc
 
 func _init() -> void:
 	print("==================================================================")
-	print("--- Running test_crypt_multi_seed_sweep (20 Seeds) ---")
+	print("--- Running test_crypt_multi_seed_sweep (50 Seeds) ---")
 	print("==================================================================")
 
 	var pipeline := DungeonPipelineScript.new()
@@ -26,7 +26,9 @@ func _init() -> void:
 	var total_props_tested: int = 0
 	var total_fixtures_tested: int = 0
 
-	for s in range(100, 121):
+	var purpose_prop_counts: Dictionary = {} # purpose_name -> Array[int]
+
+	for s in range(100, 151):
 		var config := DungeonConfigScript.new()
 		config.seed = s
 		config.use_fixed_seed = true
@@ -78,13 +80,39 @@ func _init() -> void:
 		if fixtures_container != null:
 			total_fixtures_tested += fixtures_container.get_child_count()
 
+		# 3. Track per-purpose props
+		for room in sem_res.rooms:
+			var purp_id: int = sem_res.room_purposes.get(room.id, 0)
+			var purp_name: String = RoomPurposeScript.to_name(purp_id)
+			if not purpose_prop_counts.has(purp_name):
+				purpose_prop_counts[purp_name] = []
+
+			var room_props: int = 0
+			for p in prop_nodes:
+				if p.has_meta("room_id") and p.get_meta("room_id") == room.id:
+					room_props += 1
+			purpose_prop_counts[purp_name].append(room_props)
+
 		total_rooms_tested += sem_res.rooms.size()
 		root_node.free()
 
-	print("  [OK] 20 Seeds verified successfully!")
+	print("  [OK] 50 Seeds verified successfully!")
 	print("  -> Rooms evaluated: %d" % total_rooms_tested)
 	print("  -> Props evaluated: %d (0 door/stair collisions)" % total_props_tested)
 	print("  -> Fixtures evaluated: %d" % total_fixtures_tested)
+
+	print("  --- Per-Purpose Prop Distribution ---")
+	for p_name in purpose_prop_counts.keys():
+		var arr: Array = purpose_prop_counts[p_name]
+		var sum_p: int = 0
+		var min_p: int = 999
+		var max_p: int = 0
+		for count in arr:
+			sum_p += count
+			min_p = mini(min_p, count)
+			max_p = maxi(max_p, count)
+		var avg_p: float = float(sum_p) / float(arr.size()) if not arr.is_empty() else 0.0
+		print("    * %s (N=%d): min=%d, max=%d, avg=%.2f" % [p_name, arr.size(), min_p, max_p, avg_p])
 
 	assert(total_props_tested > 0, "FAIL: Must have placed props across seeds")
 	assert(total_fixtures_tested > 0, "FAIL: Must have placed fixtures across seeds")
