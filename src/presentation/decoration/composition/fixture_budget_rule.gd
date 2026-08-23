@@ -1,7 +1,16 @@
 class_name FixtureBudgetRule
 extends Resource
 
-## Regla declarativa de colocación y presupuesto para fixtures arquitectónicos.
+## Regla declarativa de colocación, densidad y presupuesto para fixtures arquitectónicos.
+##
+## AUTORIDAD DE CANTIDAD Y DENSIDAD:
+## Esta clase es la única autoridad que gobierna cuántas luminarias se colocan en una habitación:
+## - `min_count`: Garantía mínima de colocación para este rol/tipo.
+## - `max_count`: Límite superior permitido dentro del presupuesto energético.
+## - `affinity`: Rol espacial (FOCAL_COMPANION acompañando props clave, PERIMETER en muros, FREE ambiental).
+##
+## Los pesos (`weight`) en `FixturePaletteEntry` solo resuelven QUÉ estilo elegir cuando hay múltiples opciones,
+## nunca CUÁNTOS se colocan.
 
 const _FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
 

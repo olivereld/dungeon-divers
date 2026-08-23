@@ -1,7 +1,14 @@
 class_name FixturePaletteEntry
 extends Resource
 
-## Entrada configurable de una paleta de fixtures con peso probabilístico y restricciones.
+## Entrada configurable de una paleta de fixtures con peso probabilístico relativo.
+##
+## NOTA DE DISEÑO:
+## - `weight` representa la probabilidad relativa de selección cuando se elige una variante dentro de un modo o tipo.
+## - `weight != density` (no define cuántas luminarias habrá en la habitación).
+## - `weight != min_count` (no garantiza presencia mínima).
+## - `weight != priority guarantee` (no altera el orden de ejecución de las reglas).
+## La cantidad y densidad son gobernadas exclusivamente por `FixtureBudgetRule` (min_count / max_count / affinity).
 
 const _FixtureStyleScript = preload("res://src/presentation/fixtures/fixture_style.gd")
 
