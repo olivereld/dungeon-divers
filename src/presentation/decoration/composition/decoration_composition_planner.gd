@@ -117,96 +117,27 @@ func plan_room_composition(
 	if not rules_to_execute.is_empty() and palette.props != null:
 		rules_to_execute.sort_custom(func(a, b): return a.composition_role < b.composition_role)
 
-		# Calcular la reserva total de min_count entre todas las reglas
-		var total_min_reserved: int = 0
-		for rule in rules_to_execute:
-			total_min_reserved += rule.min_count
+		var prop_seed_val: int = _extract_prop_seed(seed_ctx)
 
+		# === PASS 1: Guarantee min_count for each rule in priority order ===
 		for rule in rules_to_execute:
-			if total_placed >= max_allowed:
-				break
-
 			var target_entries: Array = _find_matching_palette_entries(palette.props.entries, rule, intent)
 			if target_entries.is_empty():
-				total_min_reserved -= rule.min_count
 				continue
 
-			# Permitir al menos min_count, limitando extras según el presupuesto restante reservado para otras reglas
-			var remaining_budget: int = max_allowed - total_placed
-			var other_rules_min: int = total_min_reserved - rule.min_count
-			var available_for_extras: int = maxi(0, remaining_budget - other_rules_min)
-			var target_count: int = mini(rule.max_count, rule.min_count + available_for_extras)
-			target_count = mini(target_count, remaining_budget)
 			var placed_for_rule: int = 0
-
-			# Descontar el min_count reservado de esta regla
-			total_min_reserved -= rule.min_count
-
-			# Descubrir anclajes según el modo
 			var anchors: Array = _discover_anchors_for_rule(rule, room_geometry, tile_size)
 			if anchors.is_empty():
 				continue
 
-			# Generar y evaluar candidatos
-			var candidates: Array[_DecorationPlacementCandidateScript] = []
-
-			for anchor in anchors:
-				# Validar zona funcional
-				var zone = zones.get(anchor.cell, _DecorationRoomZoneScript.ZoneType.SIDE)
-				if intent != null and not intent.can_place_in_zone(zone):
-					continue
-
-				for entry in target_entries:
-					var style = entry.style
-					if style == null:
-						continue
-
-					# Validar correspondencia entre el modo del anclaje y el modo requerido por el prop
-					if style.placement_mode == _PropPlacementModeScript.Mode.WALL and anchor.mode != _PropPlacementModeScript.Mode.WALL:
-						continue
-					if style.placement_mode == _PropPlacementModeScript.Mode.CORNER and anchor.mode != _PropPlacementModeScript.Mode.CORNER:
-						continue
-					if style.placement_mode == _PropPlacementModeScript.Mode.CENTER and (anchor.mode != _PropPlacementModeScript.Mode.CENTER and anchor.mode != _PropPlacementModeScript.Mode.FLOOR):
-						continue
-
-					var foot_cells: Array[Vector2i] = []
-					if style.footprint != null:
-						foot_cells = style.footprint.get_occupied_cells(anchor.cell, anchor.rotation_degrees_y)
-					else:
-						foot_cells = [anchor.cell]
-
-					var violations = _constraint.check_hard_constraints(
-						foot_cells,
-						floor_cells_map,
-						comp.reserved_cells,
-						occupancy.occupied_cells,
-						door_cells,
-						stair_cells
-					)
-
-					if violations.is_empty():
-						var cand := _DecorationPlacementCandidateScript.new()
-						cand.style_id = style.id
-						cand.style = style
-						cand.cell = anchor.cell
-						cand.world_position = anchor.world_position + style.offset
-						cand.rotation_y = _orientation_resolver.resolve_rotation(anchor, rule.orientation_mode)
-						cand.occupied_cells = foot_cells
-						cand.score = _scorer.score_candidate(
-							cand,
-							rule.composition_role,
-							occupancy,
-							room_center_cell,
-							door_cells,
-							seed_ctx.prop_seed if seed_ctx != null else 1337
-						)
-						candidates.append(cand)
-
-			# Ordenar candidatos por mejor puntaje
+			var candidates: Array[_DecorationPlacementCandidateScript] = _build_scored_candidates(
+				anchors, target_entries, rule, zones, intent, floor_cells_map,
+				comp, occupancy, door_cells, stair_cells, room_center_cell, prop_seed_val
+			)
 			candidates.sort_custom(func(a, b): return a.score > b.score)
 
 			for cand in candidates:
-				if placed_for_rule >= target_count or total_placed >= max_allowed:
+				if placed_for_rule >= rule.min_count:
 					break
 
 				if occupancy.add_footprint(cand.occupied_cells, cand.style_id, 0):
@@ -215,12 +146,8 @@ func plan_room_composition(
 						occupancy.add_clearance(clear_cells, cand.style_id)
 
 					var dir := _PropDirectiveScript.new(
-						cand.style_id,
-						room_id,
-						cand.style,
-						cand.world_position,
-						cand.rotation_y,
-						cand.occupied_cells,
+						cand.style_id, room_id, cand.style, cand.world_position,
+						cand.rotation_y, cand.occupied_cells,
 						cand.style.placement_mode if cand.style != null else _PropPlacementModeScript.Mode.FLOOR,
 						cand.style.collision_mode if cand.style != null else 0
 					)
@@ -230,9 +157,63 @@ func plan_room_composition(
 						if rule.composition_role == _CompositionRoleScript.Role.PRIMARY:
 							primary_placed_cells.append_array(cand.occupied_cells)
 
+		# === PASS 2: Fill extras up to max_count, capped by max_allowed ===
+		for rule in rules_to_execute:
+			if total_placed >= max_allowed:
+				break
+
+			var target_entries: Array = _find_matching_palette_entries(palette.props.entries, rule, intent)
+			if target_entries.is_empty():
+				continue
+
+			# Contar cuántos props de esta regla ya fueron colocados en Pass 1
+			var already_placed: int = 0
+			for dir in comp.prop_directives:
+				for me in target_entries:
+					if dir.prop_id == me.style.id:
+						already_placed += 1
+						break
+
+			var remaining_for_rule: int = rule.max_count - already_placed
+			if remaining_for_rule <= 0:
+				continue
+
+			var anchors: Array = _discover_anchors_for_rule(rule, room_geometry, tile_size)
+			if anchors.is_empty():
+				continue
+
+			var candidates: Array[_DecorationPlacementCandidateScript] = _build_scored_candidates(
+				anchors, target_entries, rule, zones, intent, floor_cells_map,
+				comp, occupancy, door_cells, stair_cells, room_center_cell, prop_seed_val
+			)
+			candidates.sort_custom(func(a, b): return a.score > b.score)
+
+			var extras_placed: int = 0
+			for cand in candidates:
+				if extras_placed >= remaining_for_rule or total_placed >= max_allowed:
+					break
+
+				if occupancy.add_footprint(cand.occupied_cells, cand.style_id, 0):
+					if rule.clearance > 0:
+						var clear_cells := _calculate_clearance_ring(cand.occupied_cells, rule.clearance)
+						occupancy.add_clearance(clear_cells, cand.style_id)
+
+					var dir := _PropDirectiveScript.new(
+						cand.style_id, room_id, cand.style, cand.world_position,
+						cand.rotation_y, cand.occupied_cells,
+						cand.style.placement_mode if cand.style != null else _PropPlacementModeScript.Mode.FLOOR,
+						cand.style.collision_mode if cand.style != null else 0
+					)
+					if comp.add_prop_directive(dir):
+						extras_placed += 1
+						total_placed += 1
+						if rule.composition_role == _CompositionRoleScript.Role.PRIMARY:
+							primary_placed_cells.append_array(cand.occupied_cells)
+
 	# 5. Planificar iluminación inteligente por presupuesto y roles
 	if palette.fixtures != null:
 		var budget: float = profile.lighting_budget if profile != null else (purpose_profile.default_lighting_budget if purpose_profile != null else 5.0)
+		var fixture_seed_val: int = _extract_fixture_seed(seed_ctx)
 		var light_dirs = _lighting_planner.plan_room_lighting(
 			budget,
 			intent,
@@ -240,7 +221,7 @@ func plan_room_composition(
 			primary_placed_cells,
 			room_geometry,
 			occupancy,
-			seed_ctx.fixture_seed if seed_ctx != null else 1337,
+			fixture_seed_val,
 			tile_size
 		)
 		for f_dir in light_dirs:
@@ -248,6 +229,98 @@ func plan_room_composition(
 				comp.add_fixture_directive(f_dir)
 
 	return comp
+
+func _build_scored_candidates(
+	anchors: Array,
+	target_entries: Array,
+	rule,
+	zones: Dictionary,
+	intent,
+	floor_cells_map: Dictionary,
+	comp,
+	occupancy,
+	door_cells: Array[Vector2i],
+	stair_cells: Array[Vector2i],
+	room_center_cell: Vector2i,
+	prop_seed_val: int
+) -> Array[_DecorationPlacementCandidateScript]:
+	var candidates: Array[_DecorationPlacementCandidateScript] = []
+
+	for anchor in anchors:
+		var zone = zones.get(anchor.cell, _DecorationRoomZoneScript.ZoneType.SIDE)
+		if intent != null and not intent.can_place_in_zone(zone):
+			continue
+
+		for entry in target_entries:
+			var style = entry.style
+			if style == null:
+				continue
+
+			if style.placement_mode == _PropPlacementModeScript.Mode.WALL and anchor.mode != _PropPlacementModeScript.Mode.WALL:
+				continue
+			if style.placement_mode == _PropPlacementModeScript.Mode.CORNER and anchor.mode != _PropPlacementModeScript.Mode.CORNER:
+				continue
+			if style.placement_mode == _PropPlacementModeScript.Mode.CENTER and (anchor.mode != _PropPlacementModeScript.Mode.CENTER and anchor.mode != _PropPlacementModeScript.Mode.FLOOR):
+				continue
+
+			var foot_cells: Array[Vector2i] = []
+			if style.footprint != null:
+				foot_cells = style.footprint.get_occupied_cells(anchor.cell, anchor.rotation_degrees_y)
+			else:
+				foot_cells = [anchor.cell]
+
+			var violations = _constraint.check_hard_constraints(
+				foot_cells,
+				floor_cells_map,
+				comp.reserved_cells,
+				occupancy.occupied_cells,
+				door_cells,
+				stair_cells
+			)
+
+			if violations.is_empty():
+				var cand := _DecorationPlacementCandidateScript.new()
+				cand.style_id = style.id
+				cand.style = style
+				cand.cell = anchor.cell
+				cand.world_position = anchor.world_position + style.offset
+				cand.rotation_y = _orientation_resolver.resolve_rotation(anchor, rule.orientation_mode)
+				cand.occupied_cells = foot_cells
+				cand.score = _scorer.score_candidate(
+					cand,
+					rule.composition_role,
+					occupancy,
+					room_center_cell,
+					door_cells,
+					prop_seed_val
+				)
+				candidates.append(cand)
+
+	return candidates
+
+static func _extract_prop_seed(seed_ctx) -> int:
+	if seed_ctx is int:
+		return seed_ctx
+	if seed_ctx is Dictionary:
+		return int(seed_ctx.get("prop_seed", 1337))
+	if seed_ctx != null:
+		if "prop_seed" in seed_ctx:
+			return int(seed_ctx.prop_seed)
+		if seed_ctx.has_meta("prop_seed"):
+			return int(seed_ctx.get_meta("prop_seed"))
+	return 1337
+
+static func _extract_fixture_seed(seed_ctx) -> int:
+	if seed_ctx is int:
+		return seed_ctx
+	if seed_ctx is Dictionary:
+		return int(seed_ctx.get("fixture_seed", 1337))
+	if seed_ctx != null:
+		if "fixture_seed" in seed_ctx:
+			return int(seed_ctx.fixture_seed)
+		if seed_ctx.has_meta("fixture_seed"):
+			return int(seed_ctx.get_meta("fixture_seed"))
+	return 1337
 
 static func _find_matching_palette_entries(entries: Array, rule, intent) -> Array:
 	var result: Array = []
