@@ -251,12 +251,14 @@ func plan_room_composition(
 
 static func _find_matching_palette_entries(entries: Array, rule, intent) -> Array:
 	var result: Array = []
+	var use_new_tags: bool = ("required_tags" in rule and not rule.required_tags.is_empty()) or ("forbidden_tags" in rule and not rule.forbidden_tags.is_empty())
+
 	for entry in entries:
 		var style = entry.style
 		if style == null:
 			continue
 
-		# 1. Filtrar por etiquetas prohibidas de la intención de sala
+		# 1. Intent-level forbidden tags (room-wide exclusion)
 		if intent != null and not style.tags.is_empty():
 			var has_forbidden: bool = false
 			for tag in style.tags:
@@ -266,36 +268,65 @@ static func _find_matching_palette_entries(entries: Array, rule, intent) -> Arra
 			if has_forbidden:
 				continue
 
-		# 2. Si la regla especifica target_style_ids, verificar coincidencia directa
+		# 2. Rule-level forbidden tags
+		if "forbidden_tags" in rule and not rule.forbidden_tags.is_empty() and not style.tags.is_empty():
+			var has_forbidden: bool = false
+			for tag in rule.forbidden_tags:
+				if style.tags.has(tag):
+					has_forbidden = true
+					break
+			if has_forbidden:
+				continue
+
+		# 3. Direct style_id match (highest priority)
 		if not rule.target_style_ids.is_empty():
 			if rule.target_style_ids.has(style.id):
 				result.append(entry)
 			continue
 
-		# 3. Si la regla especifica target_tags, verificar si comparte algún tag o rol
+		# 4. New strict tag system: required_tags use AND logic
+		if use_new_tags:
+			if "required_tags" in rule and not rule.required_tags.is_empty():
+				var all_required_met: bool = true
+				for req_tag in rule.required_tags:
+					if not _style_has_tag(style, req_tag):
+						all_required_met = false
+						break
+				if not all_required_met:
+					continue
+			result.append(entry)
+			continue
+
+		# 5. Legacy: target_tags use OR logic (backward compat)
 		if not rule.target_tags.is_empty():
 			var matched_tag: bool = false
 			for tag in rule.target_tags:
-				if style.tags.has(tag):
-					matched_tag = true
-					break
-				if tag == _DecorationTagScript.BURIAL and (style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.TOMBSTONE or style.prop_type == _PropStyleScript.Type.URN):
-					matched_tag = true
-					break
-				if tag == _DecorationTagScript.FOCAL and (style.role == _DecorationRoleScript.Role.FOCAL or style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.ALTAR):
-					matched_tag = true
-					break
-				if tag == _DecorationTagScript.SEATING and style.prop_type == _PropStyleScript.Type.BENCH:
+				if _style_has_tag(style, tag):
 					matched_tag = true
 					break
 			if matched_tag:
 				result.append(entry)
+			# NO FALLBACK — if tags don't match, entry is excluded
 			continue
 
-		# 4. Fallback: aceptar entry
+		# 6. Unconstrained rule (no tags at all) — accept entry
 		result.append(entry)
 
 	return result
+
+static func _style_has_tag(style, tag: StringName) -> bool:
+	if style.tags.has(tag):
+		return true
+	# Implicit type-based tag mappings for backward compat
+	if tag == _DecorationTagScript.BURIAL and (style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.TOMBSTONE or style.prop_type == _PropStyleScript.Type.URN):
+		return true
+	if tag == _DecorationTagScript.FOCAL and (style.role == _DecorationRoleScript.Role.FOCAL or style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.ALTAR):
+		return true
+	if tag == _DecorationTagScript.SEATING and style.prop_type == _PropStyleScript.Type.BENCH:
+		return true
+	if tag == _DecorationTagScript.CEREMONIAL and style.prop_type == _PropStyleScript.Type.ALTAR:
+		return true
+	return false
 
 func _discover_anchors_for_rule(rule, room_geometry, tile_size: float) -> Array:
 	# Si la regla declara explícitamente placement_mode, usarlo directamente

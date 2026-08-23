@@ -9,6 +9,9 @@ const _DecorationOrientationModeScript = preload("res://src/presentation/decorat
 @export var rule_id: StringName = &""
 @export var composition_role: int = _CompositionRoleScript.Role.PRIMARY
 @export var target_tags: Array[StringName] = []
+@export var required_tags: Array[StringName] = []   ## ALL must be present on the style (AND logic)
+@export var preferred_tags: Array[StringName] = []  ## Bonus affinity, not required
+@export var forbidden_tags: Array[StringName] = []  ## ANY present on style -> exclude
 @export var target_style_ids: Array[StringName] = []
 @export var placement_mode: int = -1 ## -1 = auto (fall back to composition_role logic)
 @export var orientation_mode: int = _DecorationOrientationModeScript.Mode.FACE_ROOM
