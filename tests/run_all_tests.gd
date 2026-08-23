@@ -80,7 +80,16 @@ const TEST_SUITES: Array[String] = [
 	"res://tests/presentation/decoration/composition/test_candidate_and_orientation.gd",
 	"res://tests/presentation/decoration/composition/test_placement_scorer.gd",
 	"res://tests/presentation/decoration/composition/test_composition_profile_rules.gd",
-	"res://tests/presentation/decoration/composition/test_composition_planner_e2e.gd"
+	"res://tests/presentation/decoration/composition/test_composition_planner_e2e.gd",
+
+	# 9. Semantic Spatial Composition Engine (Fases 10.1 - 10.18)
+	"res://tests/presentation/decoration/composition/test_decoration_room_zone.gd",
+	"res://tests/presentation/decoration/composition/test_decoration_room_intent.gd",
+	"res://tests/presentation/decoration/composition/test_decoration_relationship_solver.gd",
+	"res://tests/presentation/decoration/composition/test_composition_template.gd",
+	"res://tests/presentation/decoration/composition/test_decoration_lighting_planner.gd",
+	"res://tests/presentation/decoration/composition/test_purpose_profile_registry.gd",
+	"res://tests/presentation/decoration/composition/test_crypt_vertical_slice_e2e.gd"
 ]
 
 func _init() -> void:

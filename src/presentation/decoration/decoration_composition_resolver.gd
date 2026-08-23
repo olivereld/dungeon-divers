@@ -44,17 +44,16 @@ func resolve_room_composition(
 
 	var seed_ctx := _PresentationSeedContextScript.for_room(base_seed, room_id)
 
-	# Delegar al planificador inteligente si se suministra un perfil de composición
-	if composition_profile != null:
-		return _planner.plan_room_composition(
-			composition_profile,
-			palette,
-			room_geometry,
-			room_context,
-			partition,
-			seed_ctx,
-			tile_size
-		)
+	# Delegar la composición espacial al planificador inteligente
+	return _planner.plan_room_composition(
+		composition_profile,
+		palette,
+		room_geometry,
+		room_context,
+		partition,
+		seed_ctx,
+		tile_size
+	)
 
 	var floor_cells_map: Dictionary = {}
 	for fc in room_geometry.floor_cells:

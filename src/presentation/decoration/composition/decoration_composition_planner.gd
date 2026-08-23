@@ -1,14 +1,9 @@
 class_name DecorationCompositionPlanner
 extends RefCounted
 
-## Planificador inteligente y determinista de composición espacial para habitaciones de mazmorra.
-## Ejecuta la composición por perfiles y reglas declarativas (Generic Intelligent Decoration System):
-## 1. Reservas estructurales y despejes (puertas, escaleras).
-## 2. Evaluación de reglas por orden de rol (PRIMARY -> SECONDARY -> COMPANION -> LIGHTING -> DETAIL).
-## 3. Generación y filtrado estricto de candidatos (Hard Constraints).
-## 4. Puntuación heurística determinista (Scoring) y selección del mejor candidato.
-## 5. Registro unificado en DecorationOccupancyMap (Huellas y Despejes).
-## 6. Emisión de DecorationComposition sin modificar CellGrid.
+## Planificador inteligente y determinista de composición espacial semántica (Semantic Spatial Composition Engine).
+## Orquesta perfiles de propósito, intenciones de sala, zonificación espacial, plantillas compositivas,
+## resolución de relaciones/simetría, mapa unificado de ocupación y presupuesto de iluminación.
 
 const _DecorationCompositionScript = preload("res://src/presentation/decoration/decoration_composition.gd")
 const _DecorationOccupancyMapScript = preload("res://src/presentation/decoration/composition/decoration_occupancy_map.gd")
@@ -16,22 +11,28 @@ const _DecorationPlacementConstraintScript = preload("res://src/presentation/dec
 const _DecorationPlacementCandidateScript = preload("res://src/presentation/decoration/composition/decoration_placement_candidate.gd")
 const _DecorationPlacementScorerScript = preload("res://src/presentation/decoration/composition/decoration_placement_scorer.gd")
 const _DecorationOrientationResolverScript = preload("res://src/presentation/decoration/composition/decoration_orientation_resolver.gd")
+const _DecorationRoomZoneScript = preload("res://src/presentation/decoration/composition/decoration_room_zone.gd")
+const _DecorationPurposeProfileRegistryScript = preload("res://src/presentation/decoration/composition/decoration_purpose_profile_registry.gd")
+const _DecorationRelationshipSolverScript = preload("res://src/presentation/decoration/composition/decoration_relationship_solver.gd")
+const _DecorationLightingPlannerScript = preload("res://src/presentation/decoration/composition/decoration_lighting_planner.gd")
 const _PropAnchorResolverScript = preload("res://src/presentation/props/prop_anchor_resolver.gd")
 const _PropPlacementModeScript = preload("res://src/presentation/props/prop_placement_mode.gd")
 const _PropDirectiveScript = preload("res://src/presentation/props/prop_directive.gd")
-const _FixtureResolverScript = preload("res://src/presentation/fixtures/fixture_resolver.gd")
 const _CompositionRoleScript = preload("res://src/presentation/decoration/composition/composition_role.gd")
 
 var _anchor_resolver := _PropAnchorResolverScript.new()
 var _scorer := _DecorationPlacementScorerScript.new()
 var _orientation_resolver := _DecorationOrientationResolverScript.new()
-var _fixture_resolver := _FixtureResolverScript.new()
+var _zone_partitioner := _DecorationRoomZoneScript.new()
+var _purpose_registry := _DecorationPurposeProfileRegistryScript.new()
+var _relationship_solver := _DecorationRelationshipSolverScript.new()
+var _lighting_planner := _DecorationLightingPlannerScript.new()
 var _constraint := _DecorationPlacementConstraintScript.new()
 
 func plan_room_composition(
-	profile, # DecorationCompositionProfile
-	palette, # DecorationPalette
-	room_geometry,
+	profile = null, # DecorationCompositionProfile (opcional, si es null se resolverá de purpose_registry)
+	palette = null, # DecorationPalette
+	room_geometry = null,
 	room_context = null,
 	partition = null,
 	seed_ctx = null,
@@ -47,6 +48,19 @@ func plan_room_composition(
 	var floor_cells_map: Dictionary = {}
 	for fc in room_geometry.floor_cells:
 		floor_cells_map[fc] = true
+
+	# 1. Zonificación espacial de la sala
+	var zones: Dictionary = _zone_partitioner.partition_room(room_geometry, tile_size)
+
+	# 2. Extraer o resolver el perfil de propósito
+	var purpose_type: int = 0
+	if room_context != null and "purpose" in room_context:
+		purpose_type = int(room_context.purpose)
+	elif room_context != null and "room_purpose" in room_context:
+		purpose_type = int(room_context.room_purpose)
+
+	var purpose_profile = _purpose_registry.get_profile_for_purpose(purpose_type)
+	var intent = purpose_profile.intent if purpose_profile != null else null
 
 	var door_cells: Array[Vector2i] = []
 	if "door_positions" in room_geometry and room_geometry.door_positions is Array:
@@ -64,7 +78,7 @@ func plan_room_composition(
 		for s in room_geometry.stair_cells:
 			stair_cells.append(s as Vector2i)
 
-	# 1. Aplicar reservas estructurales en el mapa de ocupación
+	# 3. Aplicar reservas estructurales en el mapa de ocupación
 	for d_pos in door_cells:
 		occupancy.add_clearance([d_pos], &"door_approach")
 		comp.reserve_cell(d_pos, &"door_approach")
@@ -83,19 +97,26 @@ func plan_room_composition(
 			sum_y += c.y
 		room_center_cell = Vector2i(sum_x / room_geometry.floor_cells.size(), sum_y / room_geometry.floor_cells.size())
 
-	# 2. Ejecutar reglas de composición de props si existe perfil
-	if profile != null and not profile.rules.is_empty() and palette.props != null:
-		var sorted_rules: Array = profile.rules.duplicate()
-		sorted_rules.sort_custom(func(a, b): return a.composition_role < b.composition_role)
+	# 4. Extraer reglas (desde profile, templates de purpose_profile, o fallback)
+	var rules_to_execute: Array = []
+	if profile != null and not profile.rules.is_empty():
+		rules_to_execute = profile.rules.duplicate()
+	elif purpose_profile != null and not purpose_profile.templates.is_empty():
+		for t in purpose_profile.templates:
+			rules_to_execute.append_array(t.get_all_rules())
 
-		var total_placed: int = 0
-		var max_allowed: int = profile.max_total_props
+	var max_allowed: int = profile.max_total_props if profile != null else 8
+	var total_placed: int = 0
+	var primary_placed_cells: Array[Vector2i] = []
 
-		for rule in sorted_rules:
+	if not rules_to_execute.is_empty() and palette.props != null:
+		rules_to_execute.sort_custom(func(a, b): return a.composition_role < b.composition_role)
+
+		for rule in rules_to_execute:
 			if total_placed >= max_allowed:
 				break
 
-			var target_entries: Array = _find_matching_palette_entries(palette.props.entries, rule)
+			var target_entries: Array = _find_matching_palette_entries(palette.props.entries, rule, intent)
 			if target_entries.is_empty():
 				continue
 
@@ -111,6 +132,11 @@ func plan_room_composition(
 			var candidates: Array[_DecorationPlacementCandidateScript] = []
 
 			for anchor in anchors:
+				# Validar zona funcional
+				var zone = zones.get(anchor.cell, _DecorationRoomZoneScript.ZoneType.SIDE)
+				if intent != null and not intent.can_place_in_zone(zone):
+					continue
+
 				for entry in target_entries:
 					var style = entry.style
 					var foot_cells: Array[Vector2i] = []
@@ -118,6 +144,7 @@ func plan_room_composition(
 						foot_cells = style.footprint.get_occupied_cells(anchor.cell, anchor.rotation_degrees_y)
 					else:
 						foot_cells = [anchor.cell]
+
 					var violations = _constraint.check_hard_constraints(
 						foot_cells,
 						floor_cells_map,
@@ -153,7 +180,6 @@ func plan_room_composition(
 					break
 
 				if occupancy.add_footprint(cand.occupied_cells, cand.style_id, 0):
-					# Añadir despeje si la regla lo exige
 					if rule.clearance > 0:
 						var clear_cells := _calculate_clearance_ring(cand.occupied_cells, rule.clearance)
 						occupancy.add_clearance(clear_cells, cand.style_id)
@@ -171,30 +197,45 @@ func plan_room_composition(
 					if comp.add_prop_directive(dir):
 						placed_for_rule += 1
 						total_placed += 1
+						if rule.composition_role == _CompositionRoleScript.Role.PRIMARY:
+							primary_placed_cells.append_array(cand.occupied_cells)
 
-	# 3. Resolver fixtures arquitectónicos respetando el mapa de ocupación
-	if palette.fixtures != null and partition != null and room_context != null:
-		var fix_dirs = _fixture_resolver.resolve_room_fixtures(
-			room_context,
-			partition,
+	# 5. Planificar iluminación inteligente por presupuesto y roles
+	if palette.fixtures != null:
+		var budget: float = profile.lighting_budget if profile != null else (purpose_profile.default_lighting_budget if purpose_profile != null else 5.0)
+		var light_dirs = _lighting_planner.plan_room_lighting(
+			budget,
+			intent,
 			palette.fixtures,
+			primary_placed_cells,
+			room_geometry,
+			occupancy,
 			seed_ctx.fixture_seed if seed_ctx != null else 1337,
 			tile_size
 		)
-		if fix_dirs != null:
-			for f_dir in fix_dirs:
-				# Evitar colocar antorchas o faroles sobre celdas bloqueadas por despeje de puertas
-				if not comp.reserved_cells.has(f_dir.cell):
-					comp.add_fixture_directive(f_dir)
+		for f_dir in light_dirs:
+			if not comp.reserved_cells.has(f_dir.cell):
+				comp.add_fixture_directive(f_dir)
 
 	return comp
 
-static func _find_matching_palette_entries(entries: Array, rule) -> Array:
+static func _find_matching_palette_entries(entries: Array, rule, intent) -> Array:
 	var result: Array = []
 	for entry in entries:
 		var style = entry.style
 		if style == null:
 			continue
+
+		# Filtrar por etiquetas prohibidas de la intención de sala
+		if intent != null:
+			var is_allowed = true
+			if not rule.target_tags.is_empty():
+				for tag in rule.target_tags:
+					if not intent.is_tag_allowed(tag):
+						is_allowed = false
+						break
+			if not is_allowed:
+				continue
 
 		if not rule.target_style_ids.is_empty():
 			if rule.target_style_ids.has(style.id):
