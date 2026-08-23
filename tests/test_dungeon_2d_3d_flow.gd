@@ -11,6 +11,7 @@ func _init() -> void:
 	var controller = ControllerScript.new()
 
 	controller.visualizer = visualizer
+	controller._connect_visualizer_signals()
 
 	var pipeline := DungeonPipeline.new()
 	var config := DungeonConfig.new()
@@ -44,10 +45,14 @@ func _init() -> void:
 	assert(visualizer.is_2d_preview_mode == false, "Changing floor in 3D must stay in 3D mode")
 	print("  [OK] Floor isolation in 3D preserves 3D navigation mode")
 
-	# 5. Probar toggle de paredes
+	# 5. Probar toggle de paredes y puertas
 	visualizer.walls_visibility_toggled.emit(false)
 	assert(controller._are_walls_visible == false, "Walls visibility signal must toggle controller state")
 	print("  [OK] Walls visibility toggle verified")
+
+	visualizer.doors_visibility_toggled.emit(false)
+	assert(controller._are_doors_visible == false, "Doors visibility signal must toggle controller state")
+	print("  [OK] Doors visibility toggle verified")
 
 	print("[PASS] test_dungeon_2d_3d_flow completed successfully!")
 	quit(0)

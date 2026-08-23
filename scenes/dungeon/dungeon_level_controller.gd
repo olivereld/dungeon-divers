@@ -52,6 +52,7 @@ var _is_orbiting: bool = false
 var _is_top_down: bool = false
 var _current_isolated_floor: int = -1
 var _are_walls_visible: bool = true
+var _are_doors_visible: bool = true
 var _is_player_active: bool = true
 
 func _ready() -> void:
@@ -91,6 +92,8 @@ func _connect_visualizer_signals() -> void:
 			visualizer.corridor_width_changed.connect(_on_corridor_width_changed)
 		if not visualizer.walls_visibility_toggled.is_connected(_on_walls_visibility_toggled):
 			visualizer.walls_visibility_toggled.connect(_on_walls_visibility_toggled)
+		if not visualizer.doors_visibility_toggled.is_connected(_on_doors_visibility_toggled):
+			visualizer.doors_visibility_toggled.connect(_on_doors_visibility_toggled)
 		if not visualizer.camera_view_toggled.is_connected(_on_camera_view_toggled):
 			visualizer.camera_view_toggled.connect(_on_camera_view_toggled)
 		if not visualizer.player_follow_toggled.is_connected(_on_player_follow_toggled):
@@ -159,6 +162,26 @@ func _apply_walls_visibility() -> void:
 			var floor_walls = child.get_node_or_null("ContinuousWalls")
 			if floor_walls != null:
 				floor_walls.visible = _are_walls_visible
+
+func _on_doors_visibility_toggled(p_visible: bool) -> void:
+	_are_doors_visible = p_visible
+	_apply_doors_visibility()
+
+func _apply_doors_visibility() -> void:
+	if _current_presentation_root == null:
+		return
+
+	# Mono-piso:
+	var single_doors = _current_presentation_root.get_node_or_null("Doors")
+	if single_doors != null:
+		single_doors.visible = _are_doors_visible
+
+	# Multi-piso:
+	for child in _current_presentation_root.get_children():
+		if child.name.begins_with("Floor_"):
+			var floor_doors = child.get_node_or_null("Doors")
+			if floor_doors != null:
+				floor_doors.visible = _are_doors_visible
 
 func _on_preset_changed(idx: int) -> void:
 	if config != null:
@@ -263,6 +286,7 @@ func _apply_floor_visibility() -> void:
 			else:
 				child.visible = (child.name == "Floor_%d" % _current_isolated_floor)
 	_apply_walls_visibility()
+	_apply_doors_visibility()
 
 func _on_player_follow_toggled(is_following: bool) -> void:
 	_is_player_active = is_following
@@ -500,6 +524,8 @@ func build_3d_presentation() -> void:
 		_generation_state = "READY_3D"
 		_current_presentation_root = pres_res.presentation_root
 		_current_presentation_root.visible = true
+		_apply_walls_visibility()
+		_apply_doors_visibility()
 
 		# Loguear diagnóstico runtime de materialización
 		var arch_lbl: String = "CRYPT" if config.dungeon_archetype == _DungeonArchetypeScript.Type.MAUSOLEUM else _DungeonArchetypeScript.to_name(config.dungeon_archetype)

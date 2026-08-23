@@ -16,6 +16,7 @@ signal floor_view_mode_changed(floor_index: int)
 signal generate_3d_requested()
 signal toggle_2d_view_requested()
 signal walls_visibility_toggled(visible: bool)
+signal doors_visibility_toggled(visible: bool)
 signal camera_view_toggled()
 signal player_follow_toggled(is_following: bool)
 
@@ -138,9 +139,11 @@ var _check_floor_noise: CheckBox = null
 var _hud_3d_panel: PanelContainer = null
 var _opt_3d_floor_view: OptionButton = null
 var _btn_3d_toggle_walls: Button = null
+var _btn_3d_toggle_doors: Button = null
 var _btn_3d_toggle_cam: Button = null
 var _btn_3d_toggle_player: Button = null
 var _walls_visible: bool = true
+var _doors_visible: bool = true
 var _player_follow_active: bool = true
 
 var is_2d_preview_mode: bool = true
@@ -873,7 +876,7 @@ func _setup_3d_hud() -> void:
 	_hud_3d_panel.anchors_preset = Control.PRESET_TOP_RIGHT
 	_hud_3d_panel.anchor_left = 1.0
 	_hud_3d_panel.anchor_right = 1.0
-	_hud_3d_panel.offset_left = -690.0
+	_hud_3d_panel.offset_left = -820.0
 	_hud_3d_panel.offset_right = -18.0
 	_hud_3d_panel.offset_top = 16.0
 	_hud_3d_panel.offset_bottom = 66.0
@@ -917,6 +920,17 @@ func _setup_3d_hud() -> void:
 		walls_visibility_toggled.emit(_walls_visible)
 	)
 	hbox.add_child(_btn_3d_toggle_walls)
+
+	# 2.5 Toggle de Visibilidad de Puertas
+	_btn_3d_toggle_doors = Button.new()
+	_btn_3d_toggle_doors.text = "🚪 Puertas: ON"
+	_btn_3d_toggle_doors.tooltip_text = "Ocultar o mostrar las puertas de la mazmorra 3D"
+	_btn_3d_toggle_doors.pressed.connect(func():
+		_doors_visible = not _doors_visible
+		_btn_3d_toggle_doors.text = "🚪 Puertas: ON" if _doors_visible else "🚪 Puertas: OFF"
+		doors_visibility_toggled.emit(_doors_visible)
+	)
+	hbox.add_child(_btn_3d_toggle_doors)
 
 	# 3. Toggle de Modo de Jugador / Cámara Libre
 	_btn_3d_toggle_player = Button.new()
