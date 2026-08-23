@@ -190,15 +190,14 @@ func plan_room_lighting(
 					if not door_map.has(wa.cell) and not occupied_cells_map.has(wa.cell):
 						valid_wall_anchors.append(wa)
 
-				var spacing: int = 3
-				for i in range(0, valid_wall_anchors.size(), spacing):
+				var chosen_anchors = _select_balanced_wall_anchors(valid_wall_anchors, rule.max_count, seed_val)
+				for anchor in chosen_anchors:
 					if placed_for_rule >= rule.max_count:
 						break
 					if placed_for_rule >= rule.min_count and m_cost >= m_budget:
 						break
 
-					var anchor = valid_wall_anchors[i]
-					var entry = matching_entries[(i + seed_val) % matching_entries.size()]
+					var entry = matching_entries[(placed_for_rule + seed_val) % matching_entries.size()]
 					var style: _FixtureStyleScript = entry.style
 					var cost: float = _get_style_cost(style)
 
@@ -356,6 +355,77 @@ static func _filter_entries_for_rule(palette, rule) -> Array:
 
 static func _create_default_rule(mode: int, p_min: int, p_max: int) -> _FixtureBudgetRuleScript:
 	return _FixtureBudgetRuleScript.new(mode, p_min, p_max)
+
+static func _select_balanced_wall_anchors(valid_wall_anchors: Array, target_count: int, seed_val: int) -> Array:
+	if valid_wall_anchors.is_empty() or target_count <= 0:
+		return []
+
+	# Agrupar anclajes por lado de muro (0=NORTH, 1=EAST, 2=SOUTH, 3=WEST)
+	var by_side: Dictionary = {
+		0: [],
+		1: [],
+		2: [],
+		3: []
+	}
+
+	for wa in valid_wall_anchors:
+		var side: int = wa.wall_side if "wall_side" in wa else -1
+		if by_side.has(side):
+			by_side[side].append(wa)
+		else:
+			by_side[0].append(wa)
+
+	# Ordenar anclajes a lo largo de cada línea de muro
+	by_side[0].sort_custom(func(a, b): return a.cell.x < b.cell.x)
+	by_side[2].sort_custom(func(a, b): return a.cell.x < b.cell.x)
+	by_side[1].sort_custom(func(a, b): return a.cell.y < b.cell.y)
+	by_side[3].sort_custom(func(a, b): return a.cell.y < b.cell.y)
+
+	var active_sides: Array = []
+	# Prioridad de lados: pares opuestos primero [NORTH, SOUTH, EAST, WEST] rotados con la semilla
+	var side_order: Array = [0, 2, 1, 3]
+	var rot: int = seed_val % 4
+	for k in range(4):
+		var s: int = side_order[(k + rot) % 4]
+		if not by_side[s].is_empty():
+			active_sides.append(s)
+
+	if active_sides.is_empty():
+		return valid_wall_anchors.slice(0, target_count)
+
+	var selected: Array = []
+
+	# Pase 1: Un anclaje central por cada lado disponible
+	for s in active_sides:
+		if selected.size() >= target_count:
+			break
+		var arr: Array = by_side[s]
+		var mid_idx: int = arr.size() / 2
+		selected.append(arr[mid_idx])
+		arr.remove_at(mid_idx)
+
+	# Pase 2: Distribuir anclajes adicionales entre los lados que aún tengan espacio
+	var round_idx: int = 0
+	var attempts: int = 0
+	while selected.size() < target_count and attempts < 100:
+		attempts += 1
+		var s: int = active_sides[round_idx % active_sides.size()]
+		var arr: Array = by_side[s]
+		if not arr.is_empty():
+			var pick_idx: int = arr.size() / 2
+			selected.append(arr[pick_idx])
+			arr.remove_at(pick_idx)
+		round_idx += 1
+
+		var any_left: bool = false
+		for sid in active_sides:
+			if not by_side[sid].is_empty():
+				any_left = true
+				break
+		if not any_left:
+			break
+
+	return selected
 
 func _get_style_cost(style: _FixtureStyleScript) -> float:
 	if style == null:
