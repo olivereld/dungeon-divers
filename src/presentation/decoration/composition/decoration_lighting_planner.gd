@@ -53,22 +53,45 @@ func plan_room_lighting(
 	var hanging_entries = fixture_palette.get_entries_for_placement(_FixturePlacementModeScript.Mode.HANGING)
 	var surface_entries = fixture_palette.get_entries_for_placement(_FixturePlacementModeScript.Mode.SURFACE)
 
-	var has_other_modes: bool = not floor_entries.is_empty() or not hanging_entries.is_empty() or not surface_entries.is_empty()
-	var wall_budget_limit: float = budget * 0.65 if has_other_modes else budget
+	var has_wall: bool = not wall_entries.is_empty()
+	var has_floor: bool = not floor_entries.is_empty()
+	var has_hanging: bool = not hanging_entries.is_empty()
+	var has_surface: bool = not surface_entries.is_empty()
+
+	var wall_ratio: float = 0.45 if has_wall else 0.0
+	var hanging_ratio: float = 0.20 if has_hanging else 0.0
+	var floor_ratio: float = 0.20 if has_floor else 0.0
+	var surface_ratio: float = 0.15 if has_surface else 0.0
+
+	var total_ratio: float = wall_ratio + hanging_ratio + floor_ratio + surface_ratio
+	if total_ratio > 0.0:
+		var scale_factor: float = 1.0 / total_ratio
+		wall_ratio *= scale_factor
+		hanging_ratio *= scale_factor
+		floor_ratio *= scale_factor
+		surface_ratio *= scale_factor
+
+	var wall_budget: float = budget * wall_ratio
+	var hanging_budget: float = budget * hanging_ratio
+	var floor_budget: float = budget * floor_ratio
+	var surface_budget: float = budget * surface_ratio
+
+	var current_wall_cost: float = 0.0
+	var current_floor_cost: float = 0.0
+	var current_hanging_cost: float = 0.0
+	var current_surface_cost: float = 0.0
 
 	# 1. Resolver luminarias de pared (WALL)
-	if not wall_entries.is_empty() and current_cost < wall_budget_limit:
+	if not wall_entries.is_empty() and current_wall_cost < wall_budget:
 		var wall_anchors = _anchor_resolver.find_wall_anchors(room_geom, tile_size)
-		# Filtrar puertas
 		var valid_wall_anchors: Array = []
 		for wa in wall_anchors:
 			if not door_map.has(wa.cell):
 				valid_wall_anchors.append(wa)
 
-		# Espaciado regular y selección determinista
 		var spacing: int = 3
 		for i in range(0, valid_wall_anchors.size(), spacing):
-			if current_cost >= wall_budget_limit:
+			if current_wall_cost >= wall_budget:
 				break
 
 			var anchor = valid_wall_anchors[i]
@@ -76,7 +99,7 @@ func plan_room_lighting(
 			var style: _FixtureStyleScript = entry.style
 			var cost: float = _get_style_cost(style)
 
-			if current_cost + cost <= budget:
+			if current_wall_cost + cost <= wall_budget or current_wall_cost == 0.0:
 				var a_pos: Vector3 = anchor.position if "position" in anchor else (anchor.world_position if "world_position" in anchor else Vector3.ZERO)
 				var pl := _FixturePlacementScript.new(
 					_FixturePlacementModeScript.Mode.WALL,
@@ -94,14 +117,14 @@ func plan_room_lighting(
 					style.scale
 				)
 				result.append(f_dir)
-				current_cost += cost
+				current_wall_cost += cost
 
 	# 2. Resolver luminarias de suelo (FLOOR / Ceremoniales)
-	if not floor_entries.is_empty() and current_cost < budget:
+	if not floor_entries.is_empty() and current_floor_cost < floor_budget:
 		var floor_anchors = _anchor_resolver.find_floor_anchors(room_geom, tile_size)
 		var floor_spacing: int = 4
 		for i in range(0, floor_anchors.size(), floor_spacing):
-			if current_cost >= budget:
+			if current_floor_cost >= floor_budget:
 				break
 			var fa = floor_anchors[i]
 			if door_map.has(fa.cell):
@@ -113,7 +136,7 @@ func plan_room_lighting(
 			var style: _FixtureStyleScript = entry.style
 			var cost: float = _get_style_cost(style)
 
-			if current_cost + cost <= budget:
+			if current_floor_cost + cost <= floor_budget or current_floor_cost == 0.0:
 				var fa_pos: Vector3 = fa.position if "position" in fa else (fa.world_position if "world_position" in fa else Vector3.ZERO)
 				var pl := _FixturePlacementScript.new(
 					_FixturePlacementModeScript.Mode.FLOOR,
@@ -131,14 +154,14 @@ func plan_room_lighting(
 					style.scale
 				)
 				result.append(f_dir)
-				current_cost += cost
+				current_floor_cost += cost
 
 	# 3. Resolver luminarias colgantes (HANGING)
-	if not hanging_entries.is_empty() and current_cost < budget:
+	if not hanging_entries.is_empty() and current_hanging_cost < hanging_budget:
 		var hanging_anchors = _anchor_resolver.find_hanging_anchors(room_geom, tile_size)
 		var hanging_spacing: int = 4
 		for i in range(0, hanging_anchors.size(), hanging_spacing):
-			if current_cost >= budget:
+			if current_hanging_cost >= hanging_budget:
 				break
 			var ha = hanging_anchors[i]
 			if door_map.has(ha.cell):
@@ -150,7 +173,7 @@ func plan_room_lighting(
 			var style: _FixtureStyleScript = entry.style
 			var cost: float = _get_style_cost(style)
 
-			if current_cost + cost <= budget:
+			if current_hanging_cost + cost <= hanging_budget or current_hanging_cost == 0.0:
 				var ha_pos: Vector3 = ha.position if "position" in ha else (ha.world_position if "world_position" in ha else Vector3.ZERO)
 				var pl := _FixturePlacementScript.new(
 					_FixturePlacementModeScript.Mode.HANGING,
@@ -168,14 +191,14 @@ func plan_room_lighting(
 					style.scale
 				)
 				result.append(f_dir)
-				current_cost += cost
+				current_hanging_cost += cost
 
 	# 4. Resolver luminarias de superficie (SURFACE)
-	if not surface_entries.is_empty() and current_cost < budget:
+	if not surface_entries.is_empty() and current_surface_cost < surface_budget:
 		var surface_anchors = _anchor_resolver.find_surface_anchors(room_geom, tile_size)
 		var surface_spacing: int = 5
 		for i in range(0, surface_anchors.size(), surface_spacing):
-			if current_cost >= budget:
+			if current_surface_cost >= surface_budget:
 				break
 			var sa = surface_anchors[i]
 			if door_map.has(sa.cell):
@@ -187,7 +210,7 @@ func plan_room_lighting(
 			var style: _FixtureStyleScript = entry.style
 			var cost: float = _get_style_cost(style)
 
-			if current_cost + cost <= budget:
+			if current_surface_cost + cost <= surface_budget or current_surface_cost == 0.0:
 				var sa_pos: Vector3 = sa.position if "position" in sa else (sa.world_position if "world_position" in sa else Vector3.ZERO)
 				var pl := _FixturePlacementScript.new(
 					_FixturePlacementModeScript.Mode.SURFACE,
@@ -205,7 +228,7 @@ func plan_room_lighting(
 					style.scale
 				)
 				result.append(f_dir)
-				current_cost += cost
+				current_surface_cost += cost
 
 	return result
 
