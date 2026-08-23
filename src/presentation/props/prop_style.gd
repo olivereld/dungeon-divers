@@ -31,6 +31,7 @@ enum Type {
 @export var placement_mode: int = _PropPlacementModeScript.Mode.FLOOR
 @export var collision_mode: int = _PropCollisionModeScript.Mode.BLOCKING
 @export var role: int = _DecorationRoleScript.Role.SUPPORT
+@export var tags: Array[StringName] = []
 @export var footprint: _PropFootprintScript = null
 @export var scale: float = 1.0
 @export var offset: Vector3 = Vector3.ZERO
@@ -46,7 +47,8 @@ func _init(
 	p_footprint: _PropFootprintScript = null,
 	p_generator_id: StringName = &"",
 	p_params: Dictionary = {},
-	p_role: int = _DecorationRoleScript.Role.SUPPORT
+	p_role: int = _DecorationRoleScript.Role.SUPPORT,
+	p_tags: Array[StringName] = []
 ) -> void:
 	id = p_id
 	prop_type = p_type
@@ -56,4 +58,5 @@ func _init(
 	generator_id = p_generator_id
 	generator_params = p_params
 	role = p_role
+	tags = p_tags
 

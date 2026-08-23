@@ -17,7 +17,7 @@ const SIDE_SOUTH: int = 2
 const SIDE_WEST: int = 3
 
 ## Descubre todos los anclajes de pared válidos para la habitación provista.
-func find_wall_anchors(r_geom, tile_size: float = 2.0) -> Array[_WallAnchorScript]:
+func find_wall_anchors(r_geom, tile_size: float = 2.0, wall_mount_height: float = 1.65) -> Array[_WallAnchorScript]:
 	var anchors: Array[_WallAnchorScript] = []
 	if r_geom == null or r_geom.wall_cells.is_empty():
 		return anchors
@@ -63,7 +63,7 @@ func find_wall_anchors(r_geom, tile_size: float = 2.0) -> Array[_WallAnchorScrip
 
 		var center_x: float = (float(w_pos.x) + 0.5) * tile_size
 		var center_z: float = (float(w_pos.y) + 0.5) * tile_size
-		var world_pos := Vector3(center_x, 0.0, center_z) + (facing_normal * (tile_size * 0.50))
+		var world_pos := Vector3(center_x, wall_mount_height, center_z) + (facing_normal * (tile_size * 0.50))
 
 		var anchor := _WallAnchorScript.new(
 			w_pos,

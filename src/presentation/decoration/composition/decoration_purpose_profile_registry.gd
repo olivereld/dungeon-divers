@@ -35,7 +35,11 @@ func _register_crypt_purpose_profiles() -> void:
 	tomb_intent.symmetry_required = true
 	tomb_intent.player_clearance_level = 2
 	tomb_intent.lighting_budget = 4.0
-	tomb_intent.allowed_tags = [_DecorationTagScript.BURIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.LIGHTING]
+	tomb_intent.allowed_tags = [
+		_DecorationTagScript.BURIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.LIGHTING,
+		_DecorationTagScript.FURNITURE, _DecorationTagScript.WALL_DECOR, _DecorationTagScript.CORNER_DECOR,
+		_DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
+	]
 	tomb_intent.forbidden_tags = [_DecorationTagScript.STORAGE, _DecorationTagScript.SEATING]
 	tomb_profile.intent = tomb_intent
 
@@ -73,7 +77,10 @@ func _register_crypt_purpose_profiles() -> void:
 
 	var entry_intent := _DecorationRoomIntentScript.new()
 	entry_intent.player_clearance_level = 2
-	entry_intent.allowed_tags = [_DecorationTagScript.LIGHTING, _DecorationTagScript.WALL_DECOR]
+	entry_intent.allowed_tags = [
+		_DecorationTagScript.LIGHTING, _DecorationTagScript.WALL_DECOR,
+		_DecorationTagScript.SEATING, _DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
+	]
 	entry_intent.forbidden_tags = [_DecorationTagScript.BURIAL]
 	entry_profile.intent = entry_intent
 	_profiles[_RoomPurposeScript.Type.ENTRANCE] = entry_profile
@@ -85,7 +92,10 @@ func _register_crypt_purpose_profiles() -> void:
 
 	var ante_intent := _DecorationRoomIntentScript.new()
 	ante_intent.player_clearance_level = 1
-	ante_intent.allowed_tags = [_DecorationTagScript.SEATING, _DecorationTagScript.LIGHTING, _DecorationTagScript.WALL_DECOR]
+	ante_intent.allowed_tags = [
+		_DecorationTagScript.SEATING, _DecorationTagScript.LIGHTING, _DecorationTagScript.WALL_DECOR,
+		_DecorationTagScript.FURNITURE, _DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
+	]
 	ante_intent.forbidden_tags = [_DecorationTagScript.STORAGE]
 	ante_profile.intent = ante_intent
 
@@ -109,7 +119,11 @@ func _register_crypt_purpose_profiles() -> void:
 	catacomb_profile.default_lighting_budget = 4.0
 
 	var cata_intent := _DecorationRoomIntentScript.new()
-	cata_intent.allowed_tags = [_DecorationTagScript.BURIAL, _DecorationTagScript.LIGHTING, _DecorationTagScript.WALL_DECOR]
+	cata_intent.allowed_tags = [
+		_DecorationTagScript.BURIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.LIGHTING,
+		_DecorationTagScript.FURNITURE, _DecorationTagScript.WALL_DECOR, _DecorationTagScript.CORNER_DECOR,
+		_DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS, _DecorationTagScript.CEREMONIAL
+	]
 	cata_intent.forbidden_tags = [_DecorationTagScript.SEATING]
 	catacomb_profile.intent = cata_intent
 

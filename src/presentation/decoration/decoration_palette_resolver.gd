@@ -20,6 +20,7 @@ const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semant
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
 const _DecorationRoleScript = preload("res://src/presentation/decoration/decoration_role.gd")
+const _DecorationTagScript = preload("res://src/presentation/decoration/composition/decoration_tag.gd")
 
 ## Resuelve la paleta de decoración completa (fixtures + props) para una sala.
 func resolve_palette(
@@ -247,73 +248,85 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 		&"sarcophagus_stone_closed", _PropStyleScript.Type.SARCOPHAGUS,
 		_PropPlacementModeScript.Mode.CENTER, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(2, 1)), &"sarcophagus_prop", {"style": 0, "is_open": false},
-		_DecorationRoleScript.Role.FOCAL
+		_DecorationRoleScript.Role.FOCAL,
+		[_DecorationTagScript.BURIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.FURNITURE]
 	)
 	var sarc_open = _PropStyleScript.new(
 		&"sarcophagus_stone_open", _PropStyleScript.Type.SARCOPHAGUS,
 		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(2, 1)), &"sarcophagus_prop", {"style": 0, "is_open": true},
-		_DecorationRoleScript.Role.FOCAL
+		_DecorationRoleScript.Role.FOCAL,
+		[_DecorationTagScript.BURIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.FURNITURE]
 	)
 	var tombstone_wall = _PropStyleScript.new(
 		&"tombstone_classic_wall", _PropStyleScript.Type.TOMBSTONE,
 		_PropPlacementModeScript.Mode.WALL, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(1, 1)), &"tombstone_prop", {"style": 0},
-		_DecorationRoleScript.Role.SUPPORT
+		_DecorationRoleScript.Role.SUPPORT,
+		[_DecorationTagScript.BURIAL, _DecorationTagScript.WALL_DECOR]
 	)
 	var tombstone_corner = _PropStyleScript.new(
 		&"tombstone_cross_corner", _PropStyleScript.Type.TOMBSTONE,
 		_PropPlacementModeScript.Mode.CORNER, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(1, 1)), &"tombstone_prop", {"style": 1},
-		_DecorationRoleScript.Role.SUPPORT
+		_DecorationRoleScript.Role.SUPPORT,
+		[_DecorationTagScript.BURIAL, _DecorationTagScript.CORNER_DECOR]
 	)
 	var altar = _PropStyleScript.new(
 		&"stone_altar_center", _PropStyleScript.Type.ALTAR,
 		_PropPlacementModeScript.Mode.CENTER, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(2, 1)), &"altar_prop", {"style": 1},
-		_DecorationRoleScript.Role.FOCAL
+		_DecorationRoleScript.Role.FOCAL,
+		[_DecorationTagScript.CEREMONIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.FURNITURE]
 	)
 	var bench_pew = _PropStyleScript.new(
 		&"church_pew_wall", _PropStyleScript.Type.BENCH,
 		_PropPlacementModeScript.Mode.WALL, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 0},
-		_DecorationRoleScript.Role.SUPPORT
+		_DecorationRoleScript.Role.SUPPORT,
+		[_DecorationTagScript.SEATING, _DecorationTagScript.WALL_DECOR, _DecorationTagScript.FURNITURE]
 	)
 	var bench_stone = _PropStyleScript.new(
 		&"stone_orior_floor", _PropStyleScript.Type.BENCH,
 		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(2, 1)), &"bench_prop", {"style": 1},
-		_DecorationRoleScript.Role.SUPPORT
+		_DecorationRoleScript.Role.SUPPORT,
+		[_DecorationTagScript.SEATING, _DecorationTagScript.FURNITURE]
 	)
 	var rubble_corner = _PropStyleScript.new(
 		&"crypt_rubble_corner", _PropStyleScript.Type.RUBBLE,
 		_PropPlacementModeScript.Mode.CORNER, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(1, 1)), &"rubble_prop", {},
-		_DecorationRoleScript.Role.AMBIENT
+		_DecorationRoleScript.Role.AMBIENT,
+		[_DecorationTagScript.DEBRIS, _DecorationTagScript.CORNER_DECOR]
 	)
 	var urn_banded_floor = _PropStyleScript.new(
 		&"crypt_urn_banded_floor", _PropStyleScript.Type.URN,
 		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(1, 1)), &"urn_prop", {"style": 0, "scale": 1.0, "has_lid": true},
-		_DecorationRoleScript.Role.SUPPORT
+		_DecorationRoleScript.Role.SUPPORT,
+		[_DecorationTagScript.BURIAL, _DecorationTagScript.DETAIL]
 	)
 	var urn_relic_floor = _PropStyleScript.new(
 		&"crypt_urn_relic_floor", _PropStyleScript.Type.URN,
 		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(1, 1)), &"urn_prop", {"style": 1, "scale": 1.0, "has_lid": true},
-		_DecorationRoleScript.Role.SUPPORT
+		_DecorationRoleScript.Role.SUPPORT,
+		[_DecorationTagScript.BURIAL, _DecorationTagScript.DETAIL]
 	)
 	var urn_pedestal_floor = _PropStyleScript.new(
 		&"temple_urn_pedestal_floor", _PropStyleScript.Type.URN,
 		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(1, 1)), &"urn_prop", {"style": 2, "scale": 1.0, "has_lid": true},
-		_DecorationRoleScript.Role.SUPPORT
+		_DecorationRoleScript.Role.SUPPORT,
+		[_DecorationTagScript.BURIAL, _DecorationTagScript.DETAIL]
 	)
 	var urn_canopic_surface = _PropStyleScript.new(
 		&"crypt_urn_canopic_surface", _PropStyleScript.Type.URN,
 		_PropPlacementModeScript.Mode.CORNER, _PropCollisionModeScript.Mode.BLOCKING,
 		_PropFootprintScript.new(Vector2i(1, 1)), &"urn_prop", {"style": 3, "scale": 0.65, "has_lid": true},
-		_DecorationRoleScript.Role.AMBIENT
+		_DecorationRoleScript.Role.AMBIENT,
+		[_DecorationTagScript.BURIAL, _DecorationTagScript.DETAIL]
 	)
 
 	match room_purpose:

@@ -18,7 +18,10 @@ const _DecorationLightingPlannerScript = preload("res://src/presentation/decorat
 const _PropAnchorResolverScript = preload("res://src/presentation/props/prop_anchor_resolver.gd")
 const _PropPlacementModeScript = preload("res://src/presentation/props/prop_placement_mode.gd")
 const _PropDirectiveScript = preload("res://src/presentation/props/prop_directive.gd")
+const _PropStyleScript = preload("res://src/presentation/props/prop_style.gd")
 const _CompositionRoleScript = preload("res://src/presentation/decoration/composition/composition_role.gd")
+const _DecorationRoleScript = preload("res://src/presentation/decoration/decoration_role.gd")
+const _DecorationTagScript = preload("res://src/presentation/decoration/composition/decoration_tag.gd")
 
 var _anchor_resolver := _PropAnchorResolverScript.new()
 var _scorer := _DecorationPlacementScorerScript.new()
@@ -54,7 +57,9 @@ func plan_room_composition(
 
 	# 2. Extraer o resolver el perfil de propósito
 	var purpose_type: int = 0
-	if room_context != null and "purpose" in room_context:
+	if room_context is Dictionary:
+		purpose_type = int(room_context.get("purpose", room_context.get("room_purpose", 0)))
+	elif room_context != null and "purpose" in room_context:
 		purpose_type = int(room_context.purpose)
 	elif room_context != null and "room_purpose" in room_context:
 		purpose_type = int(room_context.room_purpose)
@@ -139,6 +144,17 @@ func plan_room_composition(
 
 				for entry in target_entries:
 					var style = entry.style
+					if style == null:
+						continue
+
+					# Validar correspondencia entre el modo del anclaje y el modo requerido por el prop
+					if style.placement_mode == _PropPlacementModeScript.Mode.WALL and anchor.mode != _PropPlacementModeScript.Mode.WALL:
+						continue
+					if style.placement_mode == _PropPlacementModeScript.Mode.CORNER and anchor.mode != _PropPlacementModeScript.Mode.CORNER:
+						continue
+					if style.placement_mode == _PropPlacementModeScript.Mode.CENTER and (anchor.mode != _PropPlacementModeScript.Mode.CENTER and anchor.mode != _PropPlacementModeScript.Mode.FLOOR):
+						continue
+
 					var foot_cells: Array[Vector2i] = []
 					if style.footprint != null:
 						foot_cells = style.footprint.get_occupied_cells(anchor.cell, anchor.rotation_degrees_y)
@@ -159,7 +175,7 @@ func plan_room_composition(
 						cand.style_id = style.id
 						cand.style = style
 						cand.cell = anchor.cell
-						cand.world_position = anchor.world_position
+						cand.world_position = anchor.world_position + style.offset
 						cand.rotation_y = _orientation_resolver.resolve_rotation(anchor, rule.orientation_mode)
 						cand.occupied_cells = foot_cells
 						cand.score = _scorer.score_candidate(
@@ -226,42 +242,65 @@ static func _find_matching_palette_entries(entries: Array, rule, intent) -> Arra
 		if style == null:
 			continue
 
-		# Filtrar por etiquetas prohibidas de la intención de sala
-		if intent != null:
-			var is_allowed = true
-			if not rule.target_tags.is_empty():
-				for tag in rule.target_tags:
-					if not intent.is_tag_allowed(tag):
-						is_allowed = false
-						break
-			if not is_allowed:
+		# 1. Filtrar por etiquetas prohibidas de la intención de sala
+		if intent != null and not style.tags.is_empty():
+			var has_forbidden: bool = false
+			for tag in style.tags:
+				if intent.forbidden_tags.has(tag):
+					has_forbidden = true
+					break
+			if has_forbidden:
 				continue
 
+		# 2. Si la regla especifica target_style_ids, verificar coincidencia directa
 		if not rule.target_style_ids.is_empty():
 			if rule.target_style_ids.has(style.id):
 				result.append(entry)
-		elif not rule.target_tags.is_empty():
-			result.append(entry)
-		else:
-			result.append(entry)
+			continue
+
+		# 3. Si la regla especifica target_tags, verificar si comparte algún tag o rol
+		if not rule.target_tags.is_empty():
+			var matched_tag: bool = false
+			for tag in rule.target_tags:
+				if style.tags.has(tag):
+					matched_tag = true
+					break
+				if tag == _DecorationTagScript.BURIAL and (style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.TOMBSTONE or style.prop_type == _PropStyleScript.Type.URN):
+					matched_tag = true
+					break
+				if tag == _DecorationTagScript.FOCAL and (style.role == _DecorationRoleScript.Role.FOCAL or style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.ALTAR):
+					matched_tag = true
+					break
+				if tag == _DecorationTagScript.SEATING and style.prop_type == _PropStyleScript.Type.BENCH:
+					matched_tag = true
+					break
+			if matched_tag:
+				result.append(entry)
+			continue
+
+		# 4. Fallback: aceptar entry
+		result.append(entry)
+
 	return result
 
 func _discover_anchors_for_rule(rule, room_geometry, tile_size: float) -> Array:
+	var combined: Array = []
 	match rule.composition_role:
 		_CompositionRoleScript.Role.PRIMARY:
 			var centers = _anchor_resolver.find_center_anchors(room_geometry, tile_size)
 			if not centers.is_empty():
 				return centers
 			return _anchor_resolver.find_floor_anchors(room_geometry, tile_size)
-		_CompositionRoleScript.Role.SECONDARY, _CompositionRoleScript.Role.COMPANION:
+		_CompositionRoleScript.Role.SECONDARY, _CompositionRoleScript.Role.COMPANION, _CompositionRoleScript.Role.DETAIL:
 			var walls = _anchor_resolver.find_wall_anchors(room_geometry, tile_size)
 			var corners = _anchor_resolver.find_corner_anchors(room_geometry, tile_size)
-			var combined: Array = []
+			var floors = _anchor_resolver.find_floor_anchors(room_geometry, tile_size)
 			combined.append_array(walls)
 			combined.append_array(corners)
+			combined.append_array(floors)
 			return combined
 		_:
-			return _anchor_resolver.find_corner_anchors(room_geometry, tile_size)
+			return _anchor_resolver.find_floor_anchors(room_geometry, tile_size)
 
 static func _calculate_clearance_ring(occupied: Array[Vector2i], clearance_radius: int) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []

@@ -66,6 +66,7 @@ func _init() -> void:
 		var prop_nodes = pres_root.find_children("Prop_*", "Node3D", false, false)
 		for p in prop_nodes:
 			total_props_tested += 1
+			assert(p.get_child_count() > 0, "FAIL [Seed %d]: Prop %s must have 3D mesh children materialized" % [s, p.name])
 			if p.has_meta("occupied_cells"):
 				var occ: Array = p.get_meta("occupied_cells")
 				for c in occ:
@@ -84,6 +85,9 @@ func _init() -> void:
 	print("  -> Rooms evaluated: %d" % total_rooms_tested)
 	print("  -> Props evaluated: %d (0 door/stair collisions)" % total_props_tested)
 	print("  -> Fixtures evaluated: %d" % total_fixtures_tested)
+
+	assert(total_props_tested > 0, "FAIL: Must have placed props across seeds")
+	assert(total_fixtures_tested > 0, "FAIL: Must have placed fixtures across seeds")
 
 	print("==================================================================")
 	print("[PASS] test_crypt_multi_seed_sweep completado con 100% éxito!")
