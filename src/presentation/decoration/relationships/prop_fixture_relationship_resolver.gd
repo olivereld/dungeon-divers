@@ -13,6 +13,8 @@ const _FixturePlacementScript = preload("res://src/presentation/fixtures/fixture
 const _FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
 const _FixtureStyleScript = preload("res://src/presentation/fixtures/fixture_style.gd")
 
+const _PropFixtureRelationshipResultScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relationship_result.gd")
+
 func resolve_relationships(
 	placed_props: Array,
 	relation_profile, # PropFixtureRelationshipProfile
@@ -22,9 +24,31 @@ func resolve_relationships(
 	seed_val: int,
 	tile_size: float = 2.0
 ) -> Array[_FixtureDirectiveScript]:
+	var result_obj = resolve_relationships_with_diagnostics(
+		placed_props,
+		relation_profile,
+		fixture_palette,
+		room_geom,
+		occupancy,
+		seed_val,
+		tile_size
+	)
+	return result_obj.directives
+
+func resolve_relationships_with_diagnostics(
+	placed_props: Array,
+	relation_profile, # PropFixtureRelationshipProfile
+	fixture_palette, # FixturePalette
+	room_geom, # PresentationRoomGeometry
+	occupancy, # DecorationOccupancyMap
+	seed_val: int,
+	tile_size: float = 2.0
+) -> _PropFixtureRelationshipResultScript:
 	var result: Array[_FixtureDirectiveScript] = []
+	var diagnostics: Array[Dictionary] = []
+
 	if placed_props.is_empty() or relation_profile == null or fixture_palette == null or room_geom == null:
-		return result
+		return _PropFixtureRelationshipResultScript.new(result, diagnostics)
 
 	var room_id: int = room_geom.room_id if "room_id" in room_geom else 0
 
@@ -79,6 +103,16 @@ func resolve_relationships(
 		for rel in relations:
 			var matching_entries = _filter_entries(fixture_palette, rel)
 			if matching_entries.is_empty():
+				diagnostics.append({
+					"relation_id": rel.relation_id,
+					"source_prop": style_id,
+					"requested_min": rel.min_count,
+					"requested_max": rel.max_count,
+					"actual_count": 0,
+					"satisfied": rel.min_count == 0,
+					"failure_reason": &"NO_MATCHING_STYLES" if rel.min_count > 0 else &"OK",
+					"candidates_evaluated": 0
+				})
 				continue
 
 			var candidates: Array[_PropFixtureRelationshipCandidateScript] = _generate_candidates(
@@ -96,12 +130,24 @@ func resolve_relationships(
 			)
 
 			if candidates.is_empty():
+				diagnostics.append({
+					"relation_id": rel.relation_id,
+					"source_prop": style_id,
+					"requested_min": rel.min_count,
+					"requested_max": rel.max_count,
+					"actual_count": 0,
+					"satisfied": rel.min_count == 0,
+					"failure_reason": &"NO_VALID_ANCHORS" if rel.min_count > 0 else &"OK",
+					"candidates_evaluated": 0
+				})
 				continue
 
 			# Ordenar por puntuación total descendente
 			candidates.sort_custom(func(a, b): return a.total_score > b.total_score)
 
 			var placed_count: int = 0
+			var evaluated_count: int = candidates.size()
+
 			for cand in candidates:
 				if placed_count >= rel.max_count:
 					break
@@ -140,7 +186,11 @@ func resolve_relationships(
 					room_id,
 					cand.fixture_style,
 					pl,
-					cand.fixture_style.scale
+					cand.fixture_style.scale,
+					_FixtureDirectiveScript.SourceType.PROP_RELATION,
+					style_id,
+					rel.relation_id,
+					rel.relation_type
 				)
 
 				result.append(f_dir)
@@ -150,9 +200,21 @@ func resolve_relationships(
 					occupied_cells_map[c] = true
 				placed_count += 1
 
+			var is_sat: bool = placed_count >= rel.min_count
+			diagnostics.append({
+				"relation_id": rel.relation_id,
+				"source_prop": style_id,
+				"requested_min": rel.min_count,
+				"requested_max": rel.max_count,
+				"actual_count": placed_count,
+				"satisfied": is_sat,
+				"failure_reason": &"OK" if is_sat else &"INSUFFICIENT_VALID_ANCHORS",
+				"candidates_evaluated": evaluated_count
+			})
+
 		prop_idx += 1
 
-	return result
+	return _PropFixtureRelationshipResultScript.new(result, diagnostics)
 
 func _generate_candidates(
 	prop_style_id: StringName,
@@ -182,112 +244,115 @@ func _generate_candidates(
 	var center_z: float = (sum_y / count_f + 0.5) * tile_size
 	var center_cell := Vector2i(int(floor(sum_x / count_f)), int(floor(sum_y / count_f)))
 
-	var entry = matching_entries[seed_val % matching_entries.size()]
-	var style = entry.style
+	for entry in matching_entries:
+		if entry == null or entry.style == null:
+			continue
+		var style: _FixtureStyleScript = entry.style
+		var weight_bonus: float = log(maxf(0.1, entry.weight)) * 3.0
 
-	match rel.placement:
-		_PropFixtureRelationPlacementScript.Placement.ABOVE:
-			var h_pos := Vector3(center_x, 2.4, center_z)
-			var cand := _PropFixtureRelationshipCandidateScript.new(
-				prop_style_id,
-				center_cell,
-				center_cell,
-				style,
-				_FixturePlacementModeScript.Mode.HANGING,
-				h_pos,
-				0.0,
-				Vector3.DOWN
-			)
-			cand.total_score = 100.0
-			candidates.append(cand)
-
-		_PropFixtureRelationPlacementScript.Placement.SURFACE:
-			for c in prop_foot_cells:
-				var s_x: float = (float(c.x) + 0.5) * tile_size
-				var s_z: float = (float(c.y) + 0.5) * tile_size
-				var s_pos := Vector3(s_x, 0.85, s_z)
+		match rel.placement:
+			_PropFixtureRelationPlacementScript.Placement.ABOVE:
+				var h_pos := Vector3(center_x, 2.4, center_z)
 				var cand := _PropFixtureRelationshipCandidateScript.new(
 					prop_style_id,
-					c,
-					c,
+					center_cell,
+					center_cell,
 					style,
-					_FixturePlacementModeScript.Mode.SURFACE,
-					s_pos,
-					prop_rot_y,
-					Vector3.UP
+					_FixturePlacementModeScript.Mode.HANGING,
+					h_pos,
+					0.0,
+					Vector3.DOWN
 				)
-				cand.total_score = 100.0
+				cand.total_score = 100.0 + weight_bonus
 				candidates.append(cand)
 
-		_: # NEAR, LEFT, RIGHT, FRONT, BACK
-			# Vectores locales de dirección relativos a la rotación del prop
-			var forward_v := Vector2(sin(prop_rot_y), -cos(prop_rot_y))
-			var right_v := Vector2(cos(prop_rot_y), sin(prop_rot_y))
+			_PropFixtureRelationPlacementScript.Placement.SURFACE:
+				for c in prop_foot_cells:
+					var s_x: float = (float(c.x) + 0.5) * tile_size
+					var s_z: float = (float(c.y) + 0.5) * tile_size
+					var s_pos := Vector3(s_x, 0.85, s_z)
+					var cand := _PropFixtureRelationshipCandidateScript.new(
+						prop_style_id,
+						c,
+						c,
+						style,
+						_FixturePlacementModeScript.Mode.SURFACE,
+						s_pos,
+						prop_rot_y,
+						Vector3.UP
+					)
+					cand.total_score = 100.0 + weight_bonus
+					candidates.append(cand)
 
-			var search_radius: int = int(ceil(rel.max_distance))
-			var tested_cells: Dictionary = {}
+			_: # NEAR, LEFT, RIGHT, FRONT, BACK
+				# Vectores locales de dirección relativos a la rotación del prop
+				var forward_v := Vector2(sin(prop_rot_y), -cos(prop_rot_y))
+				var right_v := Vector2(cos(prop_rot_y), sin(prop_rot_y))
 
-			for base_c in prop_foot_cells:
-				for dx in range(-search_radius, search_radius + 1):
-					for dy in range(-search_radius, search_radius + 1):
-						var n_cell := base_c + Vector2i(dx, dy)
-						if tested_cells.has(n_cell) or prop_set.has(n_cell):
-							continue
-						tested_cells[n_cell] = true
+				var search_radius: int = int(ceil(rel.max_distance))
+				var tested_cells: Dictionary = {}
 
-						if not floor_cells_map.has(n_cell) or door_map.has(n_cell):
-							continue
-						if occupied_cells_map.has(n_cell) or (occupancy != null and occupancy.is_cell_occupied(n_cell)):
-							continue
+				for base_c in prop_foot_cells:
+					for dx in range(-search_radius, search_radius + 1):
+						for dy in range(-search_radius, search_radius + 1):
+							var n_cell := base_c + Vector2i(dx, dy)
+							if tested_cells.has(n_cell) or prop_set.has(n_cell):
+								continue
+							tested_cells[n_cell] = true
 
-						var cand_world_x: float = (float(n_cell.x) + 0.5) * tile_size
-						var cand_world_z: float = (float(n_cell.y) + 0.5) * tile_size
-						var dist_to_center: float = Vector2(cand_world_x - center_x, cand_world_z - center_z).length() / tile_size
+							if not floor_cells_map.has(n_cell) or door_map.has(n_cell):
+								continue
+							if occupied_cells_map.has(n_cell) or (occupancy != null and occupancy.is_cell_occupied(n_cell)):
+								continue
 
-						if dist_to_center > rel.max_distance:
-							continue
+							var cand_world_x: float = (float(n_cell.x) + 0.5) * tile_size
+							var cand_world_z: float = (float(n_cell.y) + 0.5) * tile_size
+							var dist_to_center: float = Vector2(cand_world_x - center_x, cand_world_z - center_z).length() / tile_size
 
-						# Puntuación espacial multidimensional
-						var score_dist: float = maxf(0.0, 100.0 - absf(dist_to_center - rel.preferred_distance) * 35.0)
+							if dist_to_center > rel.max_distance:
+								continue
 
-						var delta_vec := Vector2(float(n_cell.x) - (sum_x / count_f), float(n_cell.y) - (sum_y / count_f)).normalized()
-						var score_dir: float = 50.0
+							# Puntuación espacial multidimensional
+							var score_dist: float = maxf(0.0, 100.0 - absf(dist_to_center - rel.preferred_distance) * 35.0)
 
-						match rel.placement:
-							_PropFixtureRelationPlacementScript.Placement.LEFT:
-								var dot_r: float = delta_vec.dot(right_v)
-								score_dir = maxf(0.0, (-dot_r) * 100.0)
-							_PropFixtureRelationPlacementScript.Placement.RIGHT:
-								var dot_r: float = delta_vec.dot(right_v)
-								score_dir = maxf(0.0, dot_r * 100.0)
-							_PropFixtureRelationPlacementScript.Placement.FRONT:
-								var dot_f: float = delta_vec.dot(forward_v)
-								score_dir = maxf(0.0, dot_f * 100.0)
-							_PropFixtureRelationPlacementScript.Placement.BACK:
-								var dot_f: float = delta_vec.dot(forward_v)
-								score_dir = maxf(0.0, (-dot_f) * 100.0)
-							_: # NEAR
-								score_dir = 80.0
+							var delta_vec := Vector2(float(n_cell.x) - (sum_x / count_f), float(n_cell.y) - (sum_y / count_f)).normalized()
+							var score_dir: float = 50.0
 
-						if score_dir <= 0.0 and rel.placement != _PropFixtureRelationPlacementScript.Placement.NEAR:
-							continue
+							match rel.placement:
+								_PropFixtureRelationPlacementScript.Placement.LEFT:
+									var dot_r: float = delta_vec.dot(right_v)
+									score_dir = maxf(0.0, (-dot_r) * 100.0)
+								_PropFixtureRelationPlacementScript.Placement.RIGHT:
+									var dot_r: float = delta_vec.dot(right_v)
+									score_dir = maxf(0.0, dot_r * 100.0)
+								_PropFixtureRelationPlacementScript.Placement.FRONT:
+									var dot_f: float = delta_vec.dot(forward_v)
+									score_dir = maxf(0.0, dot_f * 100.0)
+								_PropFixtureRelationPlacementScript.Placement.BACK:
+									var dot_f: float = delta_vec.dot(forward_v)
+									score_dir = maxf(0.0, (-dot_f) * 100.0)
+								_: # NEAR
+									score_dir = 80.0
 
-						var total: float = score_dist * 0.6 + score_dir * 0.4
+							if score_dir <= 0.0 and rel.placement != _PropFixtureRelationPlacementScript.Placement.NEAR:
+								continue
 
-						var cand := _PropFixtureRelationshipCandidateScript.new(
-							prop_style_id,
-							base_c,
-							n_cell,
-							style,
-							_FixturePlacementModeScript.Mode.FLOOR,
-							Vector3(cand_world_x, 0.0, cand_world_z),
-							0.0,
-							Vector3.UP
-						)
-						cand.distance_score = score_dist
-						cand.direction_score = score_dir
-						cand.total_score = total
-						candidates.append(cand)
+							var total: float = score_dist * 0.6 + score_dir * 0.4 + weight_bonus
+
+							var cand := _PropFixtureRelationshipCandidateScript.new(
+								prop_style_id,
+								base_c,
+								n_cell,
+								style,
+								_FixturePlacementModeScript.Mode.FLOOR,
+								Vector3(cand_world_x, 0.0, cand_world_z),
+								0.0,
+								Vector3.UP
+							)
+							cand.distance_score = score_dist
+							cand.direction_score = score_dir
+							cand.total_score = total
+							candidates.append(cand)
 
 	return candidates
 
