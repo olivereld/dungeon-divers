@@ -1,0 +1,234 @@
+{
+    "schema_version": 1,
+    "props": {
+        "sarcophagus_stone_closed": {
+            "scene": "res://assets/props/crypt/sarcophagus.tscn",
+            "tags": [
+                "burial",
+                "focal",
+                "furniture"
+            ],
+            "placement_modes": [
+                "center",
+                "floor"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": "blocking",
+            "anchors": [
+                "floor"
+            ]
+        },
+        "sarcophagus_stone_open": {
+            "scene": "res://assets/props/crypt/sarcophagus_open.tscn",
+            "tags": [
+                "burial",
+                "focal",
+                "furniture"
+            ],
+            "placement_modes": [
+                "floor"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": "blocking",
+            "anchors": [
+                "floor"
+            ]
+        },
+        "tombstone_classic_wall": {
+            "scene": "res://assets/props/crypt/tombstone_wall.tscn",
+            "tags": [
+                "burial",
+                "wall_decor"
+            ],
+            "placement_modes": [
+                "wall"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": "blocking",
+            "anchors": [
+                "floor",
+                "wall"
+            ]
+        },
+        "tombstone_cross_corner": {
+            "scene": "res://assets/props/crypt/tombstone_corner.tscn",
+            "tags": [
+                "burial",
+                "corner_decor"
+            ],
+            "placement_modes": [
+                "corner"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": "blocking",
+            "anchors": [
+                "floor",
+                "wall"
+            ]
+        },
+        "stone_altar_center": {
+            "scene": "res://assets/props/crypt/altar.tscn",
+            "tags": [
+                "ceremonial",
+                "focal",
+                "furniture"
+            ],
+            "placement_modes": [
+                "center",
+                "floor"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": "blocking",
+            "anchors": [
+                "floor"
+            ]
+        },
+        "church_pew_wall": {
+            "scene": "res://assets/props/common/bench.tscn",
+            "tags": [
+                "seating",
+                "wall_decor",
+                "furniture"
+            ],
+            "placement_modes": [
+                "wall"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": "blocking",
+            "anchors": [
+                "floor",
+                "wall"
+            ]
+        },
+        "stone_orior_floor": {
+            "scene": "res://assets/props/common/bench_stone.tscn",
+            "tags": [
+                "seating",
+                "furniture"
+            ],
+            "placement_modes": [
+                "floor"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": "blocking",
+            "anchors": [
+                "floor"
+            ]
+        },
+        "crypt_rubble_corner": {
+            "scene": "res://assets/props/crypt/rubble.tscn",
+            "tags": [
+                "debris",
+                "corner_decor"
+            ],
+            "placement_modes": [
+                "corner",
+                "floor"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": "blocking",
+            "anchors": [
+                "floor",
+                "wall"
+            ]
+        },
+        "crypt_urn_banded_floor": {
+            "scene": "res://assets/props/crypt/urn.tscn",
+            "tags": [
+                "burial",
+                "detail"
+            ],
+            "placement_modes": [
+                "floor"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": "footprint",
+            "anchors": [
+                "floor"
+            ]
+        },
+        "crypt_urn_relic_floor": {
+            "scene": "res://assets/props/crypt/urn_relic.tscn",
+            "tags": [
+                "burial",
+                "detail"
+            ],
+            "placement_modes": [
+                "floor"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": "footprint",
+            "anchors": [
+                "floor"
+            ]
+        },
+        "temple_urn_pedestal_floor": {
+            "scene": "res://assets/props/crypt/urn_pedestal.tscn",
+            "tags": [
+                "burial",
+                "detail"
+            ],
+            "placement_modes": [
+                "floor"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": "footprint",
+            "anchors": [
+                "floor"
+            ]
+        },
+        "crypt_urn_canopic_surface": {
+            "scene": "res://assets/props/crypt/urn_canopic.tscn",
+            "tags": [
+                "burial",
+                "detail"
+            ],
+            "placement_modes": [
+                "corner",
+                "floor"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": "footprint",
+            "anchors": [
+                "floor",
+                "wall"
+            ]
+        }
+    }
+}

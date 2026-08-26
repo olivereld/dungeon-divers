@@ -1,0 +1,91 @@
+{
+    "schema_version": 1,
+    "fixtures": {
+        "wall_torch": {
+            "scene": "res://assets/fixtures/wall_torch.tscn",
+            "style": "torch",
+            "placement_modes": [
+                "wall"
+            ],
+            "anchors": [
+                "wall"
+            ],
+            "tags": [
+                "lighting",
+                "wall_fixture"
+            ]
+        },
+        "wall_lantern": {
+            "scene": "res://assets/fixtures/wall_lantern.tscn",
+            "style": "lantern",
+            "placement_modes": [
+                "wall"
+            ],
+            "anchors": [
+                "wall"
+            ],
+            "tags": [
+                "lighting",
+                "wall_fixture"
+            ]
+        },
+        "hanging_lantern": {
+            "scene": "res://assets/fixtures/hanging_lantern.tscn",
+            "style": "lantern",
+            "placement_modes": [
+                "hanging"
+            ],
+            "anchors": [
+                "ceiling"
+            ],
+            "tags": [
+                "lighting",
+                "architectural"
+            ]
+        },
+        "brazier": {
+            "scene": "res://assets/fixtures/brazier.tscn",
+            "style": "brazier",
+            "placement_modes": [
+                "floor"
+            ],
+            "anchors": [
+                "floor"
+            ],
+            "tags": [
+                "lighting",
+                "floor_fixture"
+            ]
+        },
+        "candle_holder": {
+            "scene": "res://assets/fixtures/candle_holder.tscn",
+            "style": "candle_holder",
+            "placement_modes": [
+                "surface",
+                "floor"
+            ],
+            "anchors": [
+                "surface",
+                "floor"
+            ],
+            "tags": [
+                "lighting",
+                "detail"
+            ]
+        },
+        "candle_cluster": {
+            "scene": "res://assets/fixtures/candle_cluster.tscn",
+            "style": "candle_cluster",
+            "placement_modes": [
+                "floor"
+            ],
+            "anchors": [
+                "floor"
+            ],
+            "tags": [
+                "lighting",
+                "floor_fixture"
+            ]
+        }
+    }
+}

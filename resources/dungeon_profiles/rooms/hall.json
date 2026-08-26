@@ -1,0 +1,65 @@
+{
+    "schema_version": 1,
+    "id": "hall",
+    "display_name": "Hall",
+    "intent": {
+        "type": "transition",
+        "focal": false,
+        "symmetry": true,
+        "player_clearance_level": 1,
+        "allowed_tags": [
+            "seating",
+            "wall_decor",
+            "furniture",
+            "detail",
+            "debris"
+        ],
+        "forbidden_tags": [
+            "burial",
+            "storage"
+        ]
+    },
+    "composition": {
+        "primary": null,
+        "secondary": [
+            {
+                "rule_id": "wall_benches",
+                "asset_tags": [
+                    "seating"
+                ],
+                "placement": {
+                    "mode": "wall",
+                    "orientation": "face_room",
+                    "min_count": 1,
+                    "max_count": 2
+                }
+            }
+        ]
+    },
+    "lighting": {
+        "budget": 3.5,
+        "fixtures": {
+            "wall": {
+                "min": 1,
+                "max": 2,
+                "allowed": [
+                    "wall_torch",
+                    "wall_lantern"
+                ]
+            },
+            "hanging": {
+                "min": 0,
+                "max": 1,
+                "allowed": [
+                    "hanging_lantern"
+                ]
+            },
+            "floor": {
+                "min": 0,
+                "max": 0,
+                "allowed": []
+            }
+        }
+    },
+    "relationships": []
+}

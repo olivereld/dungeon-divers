@@ -1,0 +1,116 @@
+{
+    "schema_version": 1,
+    "id": "royal_tomb",
+    "display_name": "Royal Tomb",
+    "intent": {
+        "type": "ceremonial_burial",
+        "focal": true,
+        "symmetry": true,
+        "player_clearance_level": 2,
+        "allowed_tags": [
+            "burial",
+            "ceremonial",
+            "focal",
+            "lighting",
+            "wall_decor",
+            "corner_decor",
+            "detail",
+            "debris"
+        ],
+        "forbidden_tags": [
+            "storage",
+            "seating"
+        ]
+    },
+    "composition": {
+        "primary": {
+            "rule_id": "primary_sarcophagus",
+            "asset_tags": [
+                "burial",
+                "focal"
+            ],
+            "placement": {
+                "mode": "center",
+                "orientation": "face_room",
+                "min_count": 1,
+                "max_count": 1,
+                "clearance": 2
+            }
+        },
+        "secondary": [
+            {
+                "rule_id": "support_urns_altars",
+                "asset_tags": [
+                    "burial"
+                ],
+                "forbidden_tags": [
+                    "focal"
+                ],
+                "placement": {
+                    "mode": "floor",
+                    "orientation": "face_room",
+                    "min_count": 1,
+                    "max_count": 3
+                }
+            }
+        ]
+    },
+    "lighting": {
+        "budget": 5.0,
+        "fixtures": {
+            "hanging": {
+                "min": 0,
+                "max": 1,
+                "allowed": [
+                    "hanging_lantern"
+                ]
+            },
+            "floor": {
+                "min": 1,
+                "max": 2,
+                "allowed": [
+                    "brazier"
+                ]
+            },
+            "wall": {
+                "min": 2,
+                "max": 4,
+                "allowed": [
+                    "wall_torch",
+                    "wall_lantern"
+                ]
+            }
+        }
+    },
+    "relationships": [
+        {
+            "id": "sarcophagus_candles",
+            "source": [
+                "sarcophagus_stone_closed",
+                "sarcophagus_stone_open"
+            ],
+            "targets": [
+                "candle_cluster",
+                "candle_holder"
+            ],
+            "placement": "near",
+            "min_count": 1,
+            "max_count": 2,
+            "min_distance": 1.0,
+            "max_distance": 2.0
+        },
+        {
+            "id": "sarcophagus_hanging_lantern",
+            "source": [
+                "sarcophagus_stone_closed",
+                "sarcophagus_stone_open"
+            ],
+            "targets": [
+                "hanging_lantern"
+            ],
+            "placement": "above",
+            "min_count": 0,
+            "max_count": 1
+        }
+    ]
+}

@@ -1,0 +1,87 @@
+{
+    "schema_version": 1,
+    "id": "catacomb",
+    "display_name": "Catacomb",
+    "intent": {
+        "type": "burial",
+        "focal": false,
+        "symmetry": false,
+        "allowed_tags": [
+            "burial",
+            "wall_decor",
+            "corner_decor",
+            "detail",
+            "debris"
+        ],
+        "forbidden_tags": [
+            "seating",
+            "storage"
+        ]
+    },
+    "composition": {
+        "primary": null,
+        "secondary": [
+            {
+                "rule_id": "perimeter_burials",
+                "asset_tags": [
+                    "burial"
+                ],
+                "forbidden_tags": [
+                    "focal"
+                ],
+                "placement": {
+                    "mode": "floor",
+                    "orientation": "face_room",
+                    "min_count": 1,
+                    "max_count": 3
+                }
+            }
+        ]
+    },
+    "lighting": {
+        "budget": 3.5,
+        "fixtures": {
+            "wall": {
+                "min": 1,
+                "max": 3,
+                "allowed": [
+                    "wall_torch"
+                ]
+            },
+            "floor": {
+                "min": 1,
+                "max": 2,
+                "allowed": [
+                    "brazier",
+                    "candle_cluster"
+                ]
+            },
+            "hanging": {
+                "min": 0,
+                "max": 0,
+                "allowed": []
+            }
+        }
+    },
+    "relationships": [
+        {
+            "id": "tombstone_candle",
+            "source": [
+                "tombstone_cross_corner"
+            ],
+            "targets": [
+                "candle_cluster"
+            ],
+            "forbidden_targets": [
+                "wall_lantern",
+                "hanging_lantern",
+                "candle_holder"
+            ],
+            "placement": "near",
+            "min_count": 0,
+            "max_count": 1,
+            "min_distance": 1.0,
+            "max_distance": 1.5
+        }
+    ]
+}

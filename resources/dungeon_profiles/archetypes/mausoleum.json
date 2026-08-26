@@ -1,0 +1,82 @@
+{
+    "schema_version": 1,
+    "id": "mausoleum",
+    "display_name": "Mausoleum",
+    "purpose_weights": {
+        "crypt": 4.0,
+        "tomb": 3.0,
+        "catacomb": 3.0,
+        "sacristy": 1.5,
+        "hall": 1.0
+    },
+    "gameplay_purpose_map": {
+        "START": [
+            "entrance",
+            "sacristy"
+        ],
+        "BOSS": [
+            "royal_tomb",
+            "sanctum"
+        ],
+        "TREASURE": [
+            "tomb",
+            "sacristy"
+        ],
+        "COMBAT": [
+            "crypt",
+            "catacomb"
+        ],
+        "EXPLORE": [
+            "catacomb",
+            "hall",
+            "chamber"
+        ]
+    },
+    "room_purpose_distribution": {
+        "entrance": 0.10,
+        "hall": 0.10,
+        "chamber": 0.15,
+        "crypt": 0.25,
+        "catacomb": 0.15,
+        "tomb": 0.15,
+        "royal_tomb": 0.05,
+        "mortuary": 0.025,
+        "sacristy": 0.025
+    },
+    "global_settings": {
+        "min_rooms": 8,
+        "max_rooms": 20,
+        "decoration_density": 0.65,
+        "lighting_density": 0.55,
+        "prop_density": 0.60,
+        "fixture_density": 0.55
+    },
+    "architectural_style": {
+        "floor_style": "mausoleum",
+        "wall_style": "mausoleum",
+        "door_style": "mausoleum",
+        "stairs_style": "mausoleum",
+        "material_profile": "mausoleum_stone"
+    },
+    "room_rules": {
+        "allow_duplicate_purposes": true,
+        "max_same_purpose_consecutive": 2,
+        "guaranteed": [
+            "entrance"
+        ],
+        "rare": [
+            "royal_tomb"
+        ]
+    },
+    "rooms": {
+        "entrance": "entrance.json",
+        "hall": "hall.json",
+        "chamber": "chamber.json",
+        "crypt": "crypt.json",
+        "catacomb": "catacomb.json",
+        "tomb": "tomb.json",
+        "royal_tomb": "royal_tomb.json",
+        "mortuary": "mortuary.json",
+        "sacristy": "sacristy.json"
+    }
+}

@@ -1,0 +1,48 @@
+{
+    "schema_version": 1,
+    "id": "entrance",
+    "display_name": "Entrance",
+    "intent": {
+        "type": "transition",
+        "focal": false,
+        "symmetry": false,
+        "player_clearance_level": 2,
+        "allowed_tags": [
+            "wall_decor",
+            "detail",
+            "debris"
+        ],
+        "forbidden_tags": [
+            "burial",
+            "seating",
+            "storage"
+        ]
+    },
+    "composition": {
+        "primary": null,
+        "secondary": []
+    },
+    "lighting": {
+        "budget": 2.5,
+        "fixtures": {
+            "wall": {
+                "min": 1,
+                "max": 2,
+                "allowed": [
+                    "wall_torch"
+                ]
+            },
+            "floor": {
+                "min": 0,
+                "max": 0,
+                "allowed": []
+            },
+            "hanging": {
+                "min": 0,
+                "max": 0,
+                "allowed": []
+            }
+        }
+    },
+    "relationships": []
+}
