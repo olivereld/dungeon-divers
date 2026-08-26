@@ -10,8 +10,12 @@ const _PresentationRoomContextScript = preload("res://src/presentation/architect
 const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
 const _PresentationRoomRoleScript = preload("res://src/presentation/architecture/presentation_room_role.gd")
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
+const _RoomProfileResolverScript = preload("res://src/dungeon_generator/profiles/room_profile_resolver.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 
 var _resolver := _PresentationProfileResolverScript.new()
+var _profile_loader := _ProfileLoaderScript.new()
+var _room_resolvers: Dictionary = {}
 
 func build_contexts(semantic_result: DungeonSemanticResult) -> Array:
 	var contexts: Array = []
@@ -19,11 +23,14 @@ func build_contexts(semantic_result: DungeonSemanticResult) -> Array:
 		return contexts
 
 	var archetype: int = semantic_result.dungeon_archetype
+	var arch_name: String = _DungeonArchetypeScript.to_name(archetype as _DungeonArchetypeScript.Type).to_lower()
+	var room_resolver := _get_room_resolver(arch_name)
 
 	for room in semantic_result.rooms:
 		var r_id: int = room.id
 		var purpose: int = semantic_result.get_room_purpose(r_id)
 		var prof: _ArchitecturalPresentationProfileScript = _resolver.resolve(archetype, purpose)
+		var room_prof = room_resolver.resolve(purpose) if room_resolver != null else null
 
 		var role_type := _PresentationRoomRoleScript.Role.EXPLORE
 		if r_id == semantic_result.start_room_id:
@@ -36,10 +43,23 @@ func build_contexts(semantic_result: DungeonSemanticResult) -> Array:
 					role_type = _PresentationRoomRoleScript.Role.TREASURE if obj.type == 0 else _PresentationRoomRoleScript.Role.COMBAT
 					break
 
-		var ctx := _PresentationRoomContextScript.new(r_id, room.rect, purpose, prof, role_type)
+		var ctx := _PresentationRoomContextScript.new(r_id, room.rect, purpose, prof, role_type, room_prof)
 		contexts.append(ctx)
 
 	return contexts
+
+func _get_room_resolver(arch_name: String) -> _RoomProfileResolverScript:
+	if _room_resolvers.has(arch_name):
+		return _room_resolvers[arch_name]
+
+	var bundle = _profile_loader.load_full_archetype_bundle(arch_name)
+	if bundle != null and bundle.archetype != null:
+		var r := _RoomProfileResolverScript.new(bundle)
+		_room_resolvers[arch_name] = r
+		return r
+
+	return null
+
 
 func get_dominant_profile(contexts: Array, fallback_archetype: int = 0) -> _ArchitecturalPresentationProfileScript:
 	if contexts.is_empty():

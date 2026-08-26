@@ -14,6 +14,7 @@ var rect: Rect2i = Rect2i()
 var purpose: int = 0
 var profile: _ArchitecturalPresentationProfileScript = null
 var role: _PresentationRoomRoleScript.Role = _PresentationRoomRoleScript.Role.EXPLORE
+var room_profile: RefCounted = null # ProfileRoom
 
 var role_name: String:
 	get:
@@ -24,16 +25,20 @@ func _init(
 	p_rect: Rect2i = Rect2i(),
 	p_purpose: int = 0,
 	p_profile: _ArchitecturalPresentationProfileScript = null,
-	p_role: _PresentationRoomRoleScript.Role = _PresentationRoomRoleScript.Role.EXPLORE
+	p_role: _PresentationRoomRoleScript.Role = _PresentationRoomRoleScript.Role.EXPLORE,
+	p_room_profile: RefCounted = null
 ) -> void:
 	room_id = p_room_id
 	rect = p_rect
 	purpose = p_purpose
 	profile = p_profile
 	role = p_role
+	room_profile = p_room_profile
 
 func to_debug_string() -> String:
 	var prof_str := profile.to_debug_string() if profile != null else "None"
-	return "RoomContext(ID: %d, Role: %s, Purpose: %d, Profile: %s)" % [
-		room_id, role_name, purpose, prof_str
+	var r_prof_str := str(room_profile.id) if room_profile != null and "id" in room_profile else "None"
+	return "RoomContext(ID: %d, Role: %s, Purpose: %d, Profile: %s, RoomProfile: %s)" % [
+		room_id, role_name, purpose, prof_str, r_prof_str
 	]
+

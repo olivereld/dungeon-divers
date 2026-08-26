@@ -20,12 +20,16 @@ const _RoomPurposeAssignerScript = preload("res://src/dungeon_generator/core/sem
 const _ArchetypeProfileFactoryScript = preload("res://src/dungeon_generator/core/semantic/archetype/archetype_profile_factory.gd")
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
+
 var _start_boss_solver := _StartBossSolverScript.new()
 var _critical_path_solver := _CriticalPathSolverScript.new()
 var _key_lock_planner := _KeyLockPlannerScript.new()
 var _objective_assigner := _ObjectiveAssignerScript.new()
 var _gameplay_validator := _GameplayValidatorScript.new()
 var _room_purpose_assigner := _RoomPurposeAssignerScript.new()
+var _profile_loader := _ProfileLoaderScript.new()
+
 
 func generate_semantics(dungeon_result: DungeonResult, config: DungeonConfig = null) -> DungeonSemanticResult:
 	if dungeon_result == null or dungeon_result.grid == null:
@@ -129,7 +133,19 @@ func generate_semantics(dungeon_result: DungeonResult, config: DungeonConfig = n
 	seed_trace.append({ "stage": "archetype_purposes", "seed": arch_seed })
 
 	var arch_type: int = int(config.dungeon_archetype)
-	var arch_profile = _ArchetypeProfileFactoryScript.get_profile(arch_type as _DungeonArchetypeScript.Type)
+	var arch_name: String = _DungeonArchetypeScript.to_name(arch_type as _DungeonArchetypeScript.Type).to_lower()
+	var arch_profile = null
+
+	# Intentar cargar ProfileBundle desde loader si existe el archivo
+	if _profile_loader != null and arch_name != "generic":
+		var bundle = _profile_loader.load_full_archetype_bundle(arch_name)
+		if bundle != null and bundle.archetype != null:
+			arch_profile = bundle
+
+	# Fallback a fábrica legacy si no hay bundle
+	if arch_profile == null:
+		arch_profile = _ArchetypeProfileFactoryScript.get_profile(arch_type as _DungeonArchetypeScript.Type)
+
 	var room_purposes := _room_purpose_assigner.assign_purposes(
 		start_id,
 		boss_id,
@@ -142,6 +158,7 @@ func generate_semantics(dungeon_result: DungeonResult, config: DungeonConfig = n
 	semantic_result.dungeon_archetype_name = _DungeonArchetypeScript.to_name(arch_type as _DungeonArchetypeScript.Type)
 	semantic_result.room_purposes = room_purposes
 	semantic_result.seed_trace = seed_trace
+
 
 	# 6. Final Gameplay Validator
 	var final_val := _gameplay_validator.validate_gameplay(
