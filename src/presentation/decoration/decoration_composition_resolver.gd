@@ -29,9 +29,14 @@ func resolve_room_composition(
 
 	var seed_ctx := _PresentationSeedContextScript.for_room(base_seed, room_id)
 
+	# Si no se pasó un composition_profile explícito, usar room_context.room_profile si existe
+	var active_profile = composition_profile
+	if active_profile == null and room_context != null and "room_profile" in room_context:
+		active_profile = room_context.room_profile
+
 	# Delegar la composición espacial al planificador inteligente
 	return _planner.plan_room_composition(
-		composition_profile,
+		active_profile,
 		palette,
 		room_geometry,
 		room_context,
@@ -39,3 +44,4 @@ func resolve_room_composition(
 		seed_ctx,
 		tile_size
 	)
+

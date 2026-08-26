@@ -247,7 +247,15 @@ func load_room(filename: String) -> _ProfileRoomScript:
 			if s is Dictionary:
 				secondary_rules.append(_parse_composition_rule(s))
 
-	var composition := _ProfileCompositionScript.new(primary_rule, secondary_rules)
+	var support_rules: Array[_ProfileCompositionRuleScript] = []
+	var sup_raw = comp_raw.get("support", [])
+	if sup_raw is Array:
+		for s in sup_raw:
+			if s is Dictionary:
+				support_rules.append(_parse_composition_rule(s))
+
+	var composition := _ProfileCompositionScript.new(primary_rule, secondary_rules, support_rules)
+
 
 	# Lighting
 	var light_raw = dict.get("lighting", {})

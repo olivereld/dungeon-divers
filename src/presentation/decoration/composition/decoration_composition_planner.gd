@@ -24,6 +24,17 @@ const _CompositionRoleScript = preload("res://src/presentation/decoration/compos
 const _DecorationRoleScript = preload("res://src/presentation/decoration/decoration_role.gd")
 const _DecorationTagScript = preload("res://src/presentation/decoration/composition/decoration_tag.gd")
 
+const _ProfileRoomScript = preload("res://src/dungeon_generator/profiles/profile_room.gd")
+const _DecorationCompositionRuleScript = preload("res://src/presentation/decoration/composition/decoration_composition_rule.gd")
+const _DecorationRoomIntentScript = preload("res://src/presentation/decoration/composition/decoration_room_intent.gd")
+const _FixtureBudgetRuleScript = preload("res://src/presentation/decoration/composition/fixture_budget_rule.gd")
+const _FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
+const _FixtureStyleScript = preload("res://src/presentation/fixtures/fixture_style.gd")
+const _PropFixtureRelationScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relation.gd")
+const _PropFixtureRelationPlacementScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relation_placement.gd")
+const _PropFixtureRelationshipProfileScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relationship_profile.gd")
+const _DecorationOrientationModeScript = preload("res://src/presentation/decoration/composition/decoration_orientation_mode.gd")
+
 var _anchor_resolver := _PropAnchorResolverScript.new()
 var _scorer := _DecorationPlacementScorerScript.new()
 var _orientation_resolver := _DecorationOrientationResolverScript.new()
@@ -35,7 +46,7 @@ var _lighting_planner := _DecorationLightingPlannerScript.new()
 var _constraint := _DecorationPlacementConstraintScript.new()
 
 func plan_room_composition(
-	profile = null, # DecorationCompositionProfile (opcional, si es null se resolverá de purpose_registry)
+	profile = null, # ProfileRoom or DecorationCompositionProfile
 	palette = null, # DecorationPalette
 	room_geometry = null,
 	room_context = null,
@@ -57,7 +68,13 @@ func plan_room_composition(
 	# 1. Zonificación espacial de la sala
 	var zones: Dictionary = _zone_partitioner.partition_room(room_geometry, tile_size)
 
-	# 2. Extraer o resolver el perfil de propósito
+	# 2. Extraer o resolver el perfil de propósito / ProfileRoom
+	var profile_room = null
+	if profile is _ProfileRoomScript:
+		profile_room = profile
+	elif room_context != null and "room_profile" in room_context and room_context.room_profile is _ProfileRoomScript:
+		profile_room = room_context.room_profile
+
 	var purpose_type: int = 0
 	if room_context is Dictionary:
 		purpose_type = int(room_context.get("purpose", room_context.get("room_purpose", 0)))
@@ -67,7 +84,31 @@ func plan_room_composition(
 		purpose_type = int(room_context.room_purpose)
 
 	var purpose_profile = _purpose_registry.get_profile_for_purpose(purpose_type)
-	var intent = purpose_profile.intent if purpose_profile != null else null
+	var intent = null
+	var relationship_profile = null
+	var fixture_rules: Array = []
+	var total_budget: float = 5.0
+	var rules_to_execute: Array = []
+
+	if profile_room != null:
+		# Adaptar directamente desde ProfileRoom (fuente de verdad JSON)
+		intent = _build_intent_from_profile_room(profile_room)
+		rules_to_execute = _build_rules_from_profile_room(profile_room)
+		relationship_profile = _build_relationship_profile_from_profile_room(profile_room)
+		fixture_rules = _build_fixture_rules_from_profile_room(profile_room)
+		total_budget = profile_room.lighting.budget if profile_room.lighting != null else 4.0
+	else:
+		# Fallback legacy a purpose_profile de registry
+		intent = purpose_profile.intent if purpose_profile != null else null
+		relationship_profile = purpose_profile.relationship_profile if purpose_profile != null else null
+		fixture_rules = purpose_profile.fixture_rules if purpose_profile != null and "fixture_rules" in purpose_profile else []
+		total_budget = profile.lighting_budget if (profile != null and "lighting_budget" in profile) else (purpose_profile.default_lighting_budget if purpose_profile != null else 5.0)
+
+		if profile != null and "rules" in profile and not profile.rules.is_empty():
+			rules_to_execute = profile.rules.duplicate()
+		elif purpose_profile != null and not purpose_profile.templates.is_empty():
+			for t in purpose_profile.templates:
+				rules_to_execute.append_array(t.get_all_rules())
 
 	var door_cells: Array[Vector2i] = []
 	if "door_positions" in room_geometry and room_geometry.door_positions is Array:
@@ -104,18 +145,10 @@ func plan_room_composition(
 			sum_y += c.y
 		room_center_cell = Vector2i(sum_x / room_geometry.floor_cells.size(), sum_y / room_geometry.floor_cells.size())
 
-	# 4. Extraer reglas (desde profile, templates de purpose_profile, o fallback)
-	var rules_to_execute: Array = []
-	if profile != null and not profile.rules.is_empty():
-		rules_to_execute = profile.rules.duplicate()
-	elif purpose_profile != null and not purpose_profile.templates.is_empty():
-		for t in purpose_profile.templates:
-			rules_to_execute.append_array(t.get_all_rules())
-
 	var max_allowed: int = 10
 	if palette != null and palette.props != null and palette.props.max_props_per_room > 0:
 		max_allowed = palette.props.max_props_per_room
-	if profile != null and profile.max_total_props > 0:
+	if profile != null and "max_total_props" in profile and profile.max_total_props > 0:
 		max_allowed = mini(max_allowed, profile.max_total_props)
 
 	var total_placed: int = 0
@@ -218,11 +251,11 @@ func plan_room_composition(
 							primary_placed_cells.append_array(cand.occupied_cells)
 
 	# 5. Resolver relaciones espaciales semánticas (Prop -> Fixture)
-	if palette.fixtures != null and purpose_profile != null and purpose_profile.relationship_profile != null:
+	if palette.fixtures != null and relationship_profile != null:
 		var fixture_seed_val: int = _extract_fixture_seed(seed_ctx)
 		var rel_dirs = _relationship_resolver.resolve_relationships(
 			comp.prop_directives,
-			purpose_profile.relationship_profile,
+			relationship_profile,
 			palette.fixtures,
 			room_geometry,
 			occupancy,
@@ -235,7 +268,6 @@ func plan_room_composition(
 
 	# 6. Planificar iluminación ambiental por presupuesto reconciliado y roles
 	if palette.fixtures != null:
-		var total_budget: float = profile.lighting_budget if profile != null else (purpose_profile.default_lighting_budget if purpose_profile != null else 5.0)
 		# Reconciliación estricta: calcular el presupuesto ya consumido por las luminarias de relaciones semánticas
 		var consumed_budget: float = 0.0
 		for f_dir in comp.fixture_directives:
@@ -244,7 +276,6 @@ func plan_room_composition(
 		var remaining_budget: float = maxf(0.0, total_budget - consumed_budget)
 
 		var fixture_seed_val: int = _extract_fixture_seed(seed_ctx)
-		var fixture_rules: Array = purpose_profile.fixture_rules if purpose_profile != null and "fixture_rules" in purpose_profile else []
 		var light_dirs = _lighting_planner.plan_room_lighting(
 			remaining_budget,
 			intent,
@@ -261,6 +292,206 @@ func plan_room_composition(
 				comp.add_fixture_directive(f_dir)
 
 	return comp
+
+func _build_intent_from_profile_room(p_room: _ProfileRoomScript) -> _DecorationRoomIntentScript:
+	var intent := _DecorationRoomIntentScript.new()
+	if p_room.intent != null:
+		intent.player_clearance_level = p_room.intent.player_clearance_level
+		intent.symmetry_required = p_room.intent.symmetry
+		intent.allowed_tags = p_room.intent.allowed_tags.duplicate()
+		intent.forbidden_tags = p_room.intent.forbidden_tags.duplicate()
+	return intent
+
+func _build_rules_from_profile_room(p_room: _ProfileRoomScript) -> Array:
+	var result: Array = []
+	if p_room.composition == null:
+		return result
+
+	# Primary
+	if p_room.composition.primary != null:
+		result.append(_convert_profile_rule(p_room.composition.primary, _CompositionRoleScript.Role.PRIMARY))
+
+	# Secondary
+	for sec in p_room.composition.secondary:
+		result.append(_convert_profile_rule(sec, _CompositionRoleScript.Role.SECONDARY))
+
+	# Support
+	for sup in p_room.composition.support:
+		result.append(_convert_profile_rule(sup, _CompositionRoleScript.Role.COMPANION))
+
+	return result
+
+func _convert_profile_rule(p_rule, role: int) -> _DecorationCompositionRuleScript:
+	var rule := _DecorationCompositionRuleScript.new()
+	rule.rule_id = p_rule.rule_id
+	rule.composition_role = role
+	rule.min_count = p_rule.min_count
+	rule.max_count = p_rule.max_count
+	rule.clearance = p_rule.clearance
+	rule.required_tags = p_rule.asset_tags.duplicate()
+	rule.forbidden_tags = p_rule.forbidden_tags.duplicate()
+
+	match str(p_rule.placement_mode).to_lower():
+		"wall", "perimeter":
+			rule.placement_mode = _PropPlacementModeScript.Mode.WALL
+		"corner":
+			rule.placement_mode = _PropPlacementModeScript.Mode.CORNER
+		"center":
+			rule.placement_mode = _PropPlacementModeScript.Mode.CENTER
+		_: # floor
+			rule.placement_mode = _PropPlacementModeScript.Mode.FLOOR
+
+	match str(p_rule.orientation).to_lower():
+		"face_wall":
+			rule.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_WALL
+		"face_center":
+			rule.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_CENTER
+		"align_wall":
+			rule.orientation_mode = _DecorationOrientationModeScript.Mode.ALIGN_WALL
+		"free", "random":
+			rule.orientation_mode = _DecorationOrientationModeScript.Mode.FREE
+		_: # face_room, fixed
+			rule.orientation_mode = _DecorationOrientationModeScript.Mode.FACE_ROOM
+
+	return rule
+
+func _build_relationship_profile_from_profile_room(p_room: _ProfileRoomScript):
+	if p_room.relationships.is_empty():
+		return null
+
+	var relations_arr: Array[_PropFixtureRelationScript] = []
+	for rel in p_room.relationships:
+		var target_types: Array[int] = []
+		for t_str in rel.targets:
+			var f_type = _fixture_style_from_name(str(t_str))
+			if f_type >= 0 and not target_types.has(f_type):
+				target_types.append(f_type)
+
+		var forbidden_types: Array[int] = []
+		for f_str in rel.forbidden_targets:
+			var f_type = _fixture_style_from_name(str(f_str))
+			if f_type >= 0 and not forbidden_types.has(f_type):
+				forbidden_types.append(f_type)
+
+		var placement_enum = _PropFixtureRelationPlacementScript.Placement.NEAR
+		match str(rel.placement).to_lower():
+			"above":
+				placement_enum = _PropFixtureRelationPlacementScript.Placement.ABOVE
+			"left":
+				placement_enum = _PropFixtureRelationPlacementScript.Placement.LEFT
+			"right":
+				placement_enum = _PropFixtureRelationPlacementScript.Placement.RIGHT
+			"front":
+				placement_enum = _PropFixtureRelationPlacementScript.Placement.FRONT
+			"back":
+				placement_enum = _PropFixtureRelationPlacementScript.Placement.BACK
+			"surface":
+				placement_enum = _PropFixtureRelationPlacementScript.Placement.SURFACE
+			_: # near, flanking
+				placement_enum = _PropFixtureRelationPlacementScript.Placement.NEAR
+
+		for src_name in rel.source:
+			var r := _PropFixtureRelationScript.new(
+				src_name,
+				target_types,
+				placement_enum,
+				rel.min_count,
+				rel.max_count,
+				rel.id,
+				rel.min_distance,
+				rel.max_distance,
+				1.0,
+				forbidden_types
+			)
+			relations_arr.append(r)
+
+	return _PropFixtureRelationshipProfileScript.new(StringName(str(p_room.id) + "_profile_relations"), relations_arr)
+
+
+
+func _build_fixture_rules_from_profile_room(p_room: _ProfileRoomScript) -> Array:
+	var result: Array = []
+	if p_room.lighting == null:
+		return result
+
+	var l = p_room.lighting
+	if l.wall != null and (l.wall.min_count > 0 or l.wall.max_count > 0):
+		var styles: Array[int] = []
+		for a in l.wall.allowed:
+			var st = _fixture_style_from_name(str(a))
+			if st >= 0 and not styles.has(st):
+				styles.append(st)
+		result.append(_FixtureBudgetRuleScript.new(
+			_FixturePlacementModeScript.Mode.WALL,
+			l.wall.min_count,
+			l.wall.max_count,
+			_FixtureBudgetRuleScript.Affinity.PERIMETER,
+			styles,
+			&"wall_slot"
+		))
+
+	if l.floor != null and (l.floor.min_count > 0 or l.floor.max_count > 0):
+		var styles: Array[int] = []
+		for a in l.floor.allowed:
+			var st = _fixture_style_from_name(str(a))
+			if st >= 0 and not styles.has(st):
+				styles.append(st)
+		result.append(_FixtureBudgetRuleScript.new(
+			_FixturePlacementModeScript.Mode.FLOOR,
+			l.floor.min_count,
+			l.floor.max_count,
+			_FixtureBudgetRuleScript.Affinity.FREE,
+			styles,
+			&"floor_slot"
+		))
+
+	if l.hanging != null and (l.hanging.min_count > 0 or l.hanging.max_count > 0):
+		var styles: Array[int] = []
+		for a in l.hanging.allowed:
+			var st = _fixture_style_from_name(str(a))
+			if st >= 0 and not styles.has(st):
+				styles.append(st)
+		result.append(_FixtureBudgetRuleScript.new(
+			_FixturePlacementModeScript.Mode.HANGING,
+			l.hanging.min_count,
+			l.hanging.max_count,
+			_FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION,
+			styles,
+			&"hanging_slot"
+		))
+
+	return result
+
+static func _fixture_style_from_name(name_str: String) -> int:
+	match name_str.to_lower():
+		"wall_torch", "torch":
+			return _FixtureStyleScript.Type.TORCH
+		"wall_lantern", "hanging_lantern", "lantern":
+			return _FixtureStyleScript.Type.LANTERN
+		"brazier":
+			return _FixtureStyleScript.Type.BRAZIER
+		"candle_holder":
+			return _FixtureStyleScript.Type.CANDLE_HOLDER
+		"candle_cluster":
+			return _FixtureStyleScript.Type.CANDLE_CLUSTER
+	return -1
+
+static func _style_has_tag(style, tag: StringName) -> bool:
+	for t in style.tags:
+		if str(t).to_lower() == str(tag).to_lower():
+			return true
+	# Implicit type-based tag mappings for backward compat
+	if str(tag).to_lower() == "burial" and (style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.TOMBSTONE or style.prop_type == _PropStyleScript.Type.URN):
+		return true
+	if str(tag).to_lower() == "focal" and (style.role == _DecorationRoleScript.Role.FOCAL or style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.ALTAR):
+		return true
+	if str(tag).to_lower() == "seating" and style.prop_type == _PropStyleScript.Type.BENCH:
+		return true
+	if str(tag).to_lower() == "ceremonial" and style.prop_type == _PropStyleScript.Type.ALTAR:
+		return true
+	return false
+
+
 
 func _build_scored_candidates(
 	anchors: Array,
@@ -422,21 +653,8 @@ static func _find_matching_palette_entries(entries: Array, rule, intent) -> Arra
 
 	return result
 
-static func _style_has_tag(style, tag: StringName) -> bool:
-	if style.tags.has(tag):
-		return true
-	# Implicit type-based tag mappings for backward compat
-	if tag == _DecorationTagScript.BURIAL and (style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.TOMBSTONE or style.prop_type == _PropStyleScript.Type.URN):
-		return true
-	if tag == _DecorationTagScript.FOCAL and (style.role == _DecorationRoleScript.Role.FOCAL or style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.ALTAR):
-		return true
-	if tag == _DecorationTagScript.SEATING and style.prop_type == _PropStyleScript.Type.BENCH:
-		return true
-	if tag == _DecorationTagScript.CEREMONIAL and style.prop_type == _PropStyleScript.Type.ALTAR:
-		return true
-	return false
-
 func _discover_anchors_for_rule(rule, room_geometry, tile_size: float) -> Array:
+
 	# Si la regla declara explícitamente placement_mode, usarlo directamente
 	if rule != null and "placement_mode" in rule and rule.placement_mode >= 0:
 		match rule.placement_mode:
