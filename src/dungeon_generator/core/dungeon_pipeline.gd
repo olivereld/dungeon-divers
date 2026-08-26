@@ -46,9 +46,25 @@ const _DungeonValidationStageScript = preload(
 	"res://src/dungeon_generator/core/stages/dungeon_validation_stage.gd"
 )
 
+const _ProfileLoaderScript = preload(
+	"res://src/dungeon_generator/profiles/profile_loader.gd"
+)
+const _ProfileValidatorScript = preload(
+	"res://src/dungeon_generator/profiles/profile_validator.gd"
+)
+const _ProfileBundleScript = preload(
+	"res://src/dungeon_generator/profiles/profile_bundle.gd"
+)
+const _ProfileValidationResultScript = preload(
+	"res://src/dungeon_generator/profiles/profile_validation_result.gd"
+)
+
 const MAX_ATTEMPTS: int = 5
 
 var _seed_registry: DungeonSeedRegistry = DungeonSeedRegistry.new()
+var _profile_loader := _ProfileLoaderScript.new()
+var _profile_validator := _ProfileValidatorScript.new()
+var _profile_bundle: _ProfileBundleScript = null
 
 var _mission_stage := _DungeonMissionStageScript.new()
 var _room_stage := _DungeonRoomStageScript.new()
@@ -65,9 +81,27 @@ var last_failure_reason: String = ""
 var last_failure_stage: String = ""
 var last_failure_seed: int = 0
 
-
 func get_seed_registry() -> DungeonSeedRegistry:
 	return _seed_registry
+
+## Carga y valida el ProfileBundle para un arquetipo específico.
+## Retorna el ProfileValidationResult con el estado de validación.
+func load_profiles(archetype_id: String) -> _ProfileValidationResultScript:
+	var bundle = _profile_loader.load_full_archetype_bundle(archetype_id)
+	var val_res: _ProfileValidationResultScript = _profile_validator.validate(bundle)
+	if val_res.is_valid:
+		_profile_bundle = bundle
+	else:
+		_profile_bundle = null
+		generation_failed.emit("Profile validation failed:\n" + val_res.to_summary_string())
+	return val_res
+
+func get_profile_bundle() -> _ProfileBundleScript:
+	return _profile_bundle
+
+func set_profile_bundle(bundle: _ProfileBundleScript) -> void:
+	_profile_bundle = bundle
+
 
 
 ## Ejecuta la generación completa.
