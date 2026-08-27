@@ -42,16 +42,34 @@ func perform_occlusion_check(camera: Camera3D, target: Node3D, space_state: Phys
 
 	for offset in sample_offsets:
 		var target_point: Vector3 = target_base + offset
-		var query := PhysicsRayQueryParameters3D.create(cam_pos, target_point, collision_mask)
+		var ray_exclude: Array[RID] = []
 		if target is CollisionObject3D:
-			query.exclude = [target.get_rid()]
+			ray_exclude.append(target.get_rid())
 
-		var result := space_state.intersect_ray(query)
-		if not result.is_empty():
-			hits += 1
+		var ray_hit_anything: bool = false
+		var max_pierce_iterations: int = 16
+
+		for _i in range(max_pierce_iterations):
+			var query := PhysicsRayQueryParameters3D.create(cam_pos, target_point, collision_mask)
+			query.exclude = ray_exclude
+
+			var result := space_state.intersect_ray(query)
+			if result.is_empty():
+				break
+
+			ray_hit_anything = true
 			var collider = result.get("collider")
+			var collider_rid: RID = result.get("rid", RID())
+			if collider_rid.is_valid():
+				ray_exclude.append(collider_rid)
+			elif collider is CollisionObject3D:
+				ray_exclude.append(collider.get_rid())
+
 			if collider is Node3D and not raw_colliders.has(collider):
 				raw_colliders.append(collider)
+
+		if ray_hit_anything:
+			hits += 1
 
 	var hit_ratio: float = float(hits) / float(maxi(1, sample_offsets.size()))
 	if hit_ratio >= occlusion_threshold and not raw_colliders.is_empty():
