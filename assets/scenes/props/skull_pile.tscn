@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://c3m7vqx5k8fap"]
+
+[ext_resource type="PackedScene" uid="uid://qswxd17o6jjw" path="res://assets/models/props/skull_pile.glb" id="1_mesh"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_skull_pile"]
+height = 0.9
+radius = 0.65
+
+[node name="SkullPile" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_mesh")]
+transform = Transform3D(0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01, 0, -0.03, 0)
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+shape = SubResource("CylinderShape3D_skull_pile")

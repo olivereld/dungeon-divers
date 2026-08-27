@@ -13,10 +13,14 @@
             "wall_decor",
             "corner_decor",
             "detail",
-            "debris"
+            "debris",
+            "chest",
+            "treasure",
+            "skull",
+            "bone",
+            "remains"
         ],
         "forbidden_tags": [
-            "storage",
             "seating"
         ]
     },
@@ -72,6 +76,40 @@
                 "placement": {
                     "mode": "corner",
                     "orientation": "face_room",
+                    "min_count": 0,
+                    "max_count": 2
+                }
+            },
+            {
+                "rule_id": "tomb_offerings_chest",
+                "asset_tags": [
+                    "chest",
+                    "treasure"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating"
+                ],
+                "placement": {
+                    "mode": "wall",
+                    "orientation": "face_room",
+                    "min_count": 0,
+                    "max_count": 1
+                }
+            },
+            {
+                "rule_id": "tomb_remains_and_debris",
+                "asset_tags": [
+                    "remains",
+                    "debris"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating"
+                ],
+                "placement": {
+                    "mode": "floor",
+                    "orientation": "free",
                     "min_count": 0,
                     "max_count": 2
                 }

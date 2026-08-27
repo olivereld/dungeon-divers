@@ -19,10 +19,15 @@
             "pillar",
             "stone",
             "structural",
-            "architecture"
+            "architecture",
+            "chest",
+            "treasure",
+            "storage",
+            "skull",
+            "bone",
+            "remains"
         ],
         "forbidden_tags": [
-            "storage",
             "seating"
         ]
     },
@@ -84,6 +89,24 @@
                     "orientation": "free",
                     "min_count": 4,
                     "max_count": 4
+                }
+            },
+            {
+                "rule_id": "royal_treasure_chests",
+                "asset_tags": [
+                    "chest",
+                    "treasure"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "pillar",
+                    "seating"
+                ],
+                "placement": {
+                    "mode": "corner",
+                    "orientation": "face_room",
+                    "min_count": 1,
+                    "max_count": 2
                 }
             },
             {

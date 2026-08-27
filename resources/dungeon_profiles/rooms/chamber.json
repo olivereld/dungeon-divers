@@ -11,11 +11,15 @@
             "wall_decor",
             "corner_decor",
             "detail",
-            "debris"
+            "debris",
+            "chest",
+            "treasure",
+            "skull",
+            "bone",
+            "remains"
         ],
         "forbidden_tags": [
-            "seating",
-            "storage"
+            "seating"
         ]
     },
     "architecture": {
@@ -40,6 +44,23 @@
                     "orientation": "face_room",
                     "min_count": 1,
                     "max_count": 3
+                }
+            },
+            {
+                "rule_id": "chamber_loot_chests",
+                "asset_tags": [
+                    "chest",
+                    "treasure"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating"
+                ],
+                "placement": {
+                    "mode": "corner",
+                    "orientation": "face_room",
+                    "min_count": 1,
+                    "max_count": 2
                 }
             }
         ]

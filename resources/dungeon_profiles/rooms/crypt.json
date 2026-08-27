@@ -15,11 +15,15 @@
             "pillar",
             "stone",
             "structural",
-            "architecture"
+            "architecture",
+            "chest",
+            "treasure",
+            "skull",
+            "bone",
+            "remains"
         ],
         "forbidden_tags": [
-            "seating",
-            "storage"
+            "seating"
         ]
     },
     "architecture": {
@@ -30,10 +34,6 @@
                 {
                     "style": "ruined_stone",
                     "weight": 20.0
-                },
-                {
-                    "style": "cobblestone",
-                    "weight": 5.0
                 }
             ]
         },
@@ -71,6 +71,24 @@
                     "orientation": "free",
                     "min_count": 0,
                     "max_count": 4
+                }
+            },
+            {
+                "rule_id": "crypt_corner_chests",
+                "asset_tags": [
+                    "chest",
+                    "treasure"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating",
+                    "pillar"
+                ],
+                "placement": {
+                    "mode": "wall",
+                    "orientation": "face_room",
+                    "min_count": 0,
+                    "max_count": 1
                 }
             },
             {

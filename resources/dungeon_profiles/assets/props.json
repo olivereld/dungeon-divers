@@ -727,6 +727,75 @@
                 "max": 1.0
             }
         },
+        "chest_wooden": {
+            "id": "chest_wooden",
+            "source": {
+                "type": "packed_scene",
+                "scene": "res://assets/scenes/props/chest.tscn"
+            },
+            "tags": [
+                "chest",
+                "treasure",
+                "storage",
+                "furniture",
+                "corner_decor"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "solid"
+            },
+            "placement": {
+                "allowed": [
+                    "corner",
+                    "wall",
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 0.8,
+                "max": 1.2
+            }
+        },
+        "skull_pile": {
+            "id": "skull_pile",
+            "source": {
+                "type": "packed_scene",
+                "scene": "res://assets/scenes/props/skull_pile.tscn"
+            },
+            "tags": [
+                "burial",
+                "remains",
+                "skull",
+                "bone",
+                "detail",
+                "debris",
+                "corner_decor",
+                "wall_decor"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "solid"
+            },
+            "placement": {
+                "allowed": [
+                    "corner",
+                    "wall",
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 0.8,
+                "min": 0.6,
+                "max": 1.0
+            }
+        },
         "mine_crate_corner": {
             "id": "mine_crate_corner",
             "source": {

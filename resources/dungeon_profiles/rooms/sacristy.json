@@ -14,11 +14,12 @@
             "furniture",
             "wall_decor",
             "detail",
-            "debris"
-        ],
-        "forbidden_tags": [
+            "debris",
+            "chest",
+            "treasure",
             "storage"
-        ]
+        ],
+        "forbidden_tags": []
     },
     "architecture": {
         "floor": "smooth_slabs",
@@ -55,6 +56,23 @@
                     "orientation": "face_room",
                     "min_count": 1,
                     "max_count": 2
+                }
+            },
+            {
+                "rule_id": "sacristy_relic_chest",
+                "asset_tags": [
+                    "chest",
+                    "storage"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating"
+                ],
+                "placement": {
+                    "mode": "corner",
+                    "orientation": "face_room",
+                    "min_count": 1,
+                    "max_count": 1
                 }
             }
         ]
