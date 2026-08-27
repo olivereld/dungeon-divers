@@ -63,7 +63,9 @@ static func is_cell_valid_for_corridor(
 	room_map: Dictionary,
 	room_a_id: int,
 	room_b_id: int,
-	cell: Vector2i
+	cell: Vector2i,
+	start_pos: Vector2i = Vector2i(-999999, -999999),
+	goal_pos: Vector2i = Vector2i(-999999, -999999)
 ) -> bool:
 	if not grid.is_in_bounds(cell):
 		return false
@@ -73,15 +75,24 @@ static func is_cell_valid_for_corridor(
 	if ctype == CellGrid.CellType.VOID or ctype == CellGrid.CellType.COLUMN or ctype == CellGrid.CellType.OBSTACLE:
 		return false
 
+	# Permitir los puntos de entrada/salida designados
+	if cell == start_pos or cell == goal_pos:
+		return true
+
+	# Permitir corredor existente
+	if ctype == CellGrid.CellType.CORRIDOR:
+		return true
+
 	# Rechazar penetración en el interior de CUALQUIER sala
 	var owner: int = grid.get_room_owner(cell)
 	if owner != -1:
 		return false
 
+	# Rechazar penetración en el perímetro prohibido (distancia 1) de CUALQUIER sala
 	for rid in room_map:
 		var r = room_map[rid]
 		if r != null and "rect" in r:
-			if r.rect.has_point(cell):
+			if r.rect.grow(1).has_point(cell):
 				return false
 
 	return true
@@ -119,12 +130,14 @@ static func _is_path_valid(
 	room_map: Dictionary,
 	room_a_id: int,
 	room_b_id: int,
-	path: Array[Vector2i]
+	path: Array[Vector2i],
+	start_pos: Vector2i = Vector2i(-999999, -999999),
+	goal_pos: Vector2i = Vector2i(-999999, -999999)
 ) -> bool:
 	if path.is_empty():
 		return false
 	for cell in path:
-		if not is_cell_valid_for_corridor(grid, room_map, room_a_id, room_b_id, cell):
+		if not is_cell_valid_for_corridor(grid, room_map, room_a_id, room_b_id, cell, start_pos, goal_pos):
 			return false
 	return true
 
@@ -139,7 +152,7 @@ static func _try_straight(
 ) -> Array[Vector2i]:
 	var line: Array[Vector2i] = _build_straight_segment(start, goal)
 	for cell in line:
-		if not is_cell_valid_for_corridor(grid, room_map, room_a_id, room_b_id, cell):
+		if not is_cell_valid_for_corridor(grid, room_map, room_a_id, room_b_id, cell, start, goal):
 			return []
 	return line
 
@@ -155,12 +168,12 @@ static func _try_l_routes(
 	# Opción A: H -> V (Esquina en goal.x, start.y)
 	var corner_hv: Vector2i = Vector2i(goal.x, start.y)
 	var path_hv: Array[Vector2i] = _combine_waypoints([start, corner_hv, goal])
-	var valid_hv: bool = _is_path_valid(grid, room_map, room_a_id, room_b_id, path_hv)
+	var valid_hv: bool = _is_path_valid(grid, room_map, room_a_id, room_b_id, path_hv, start, goal)
 
 	# Opción B: V -> H (Esquina en start.x, goal.y)
 	var corner_vh: Vector2i = Vector2i(start.x, goal.y)
 	var path_vh: Array[Vector2i] = _combine_waypoints([start, corner_vh, goal])
-	var valid_vh: bool = _is_path_valid(grid, room_map, room_a_id, room_b_id, path_vh)
+	var valid_vh: bool = _is_path_valid(grid, room_map, room_a_id, room_b_id, path_vh, start, goal)
 
 	if valid_hv and not valid_vh:
 		return {
@@ -244,7 +257,7 @@ static func _try_multi_turn_routes(
 			var p1 := Vector2i(x, start.y)
 			var p2 := Vector2i(x, goal.y)
 			var candidate_z := _combine_waypoints([start, p1, p2, goal])
-			if _is_path_valid(grid, room_map, room_a_id, room_b_id, candidate_z):
+			if _is_path_valid(grid, room_map, room_a_id, room_b_id, candidate_z, start, goal):
 				var cost: float = _score_path(grid, candidate_z, 2, config)
 				if cost < best_cost:
 					best_cost = cost
@@ -263,7 +276,7 @@ static func _try_multi_turn_routes(
 			var p1 := Vector2i(start.x, y)
 			var p2 := Vector2i(goal.x, y)
 			var candidate_z := _combine_waypoints([start, p1, p2, goal])
-			if _is_path_valid(grid, room_map, room_a_id, room_b_id, candidate_z):
+			if _is_path_valid(grid, room_map, room_a_id, room_b_id, candidate_z, start, goal):
 				var cost: float = _score_path(grid, candidate_z, 2, config)
 				if cost < best_cost:
 					best_cost = cost
@@ -281,7 +294,7 @@ static func _try_multi_turn_routes(
 			var p1 := Vector2i(start.x, test_y)
 			var p2 := Vector2i(goal.x, test_y)
 			var candidate_u := _combine_waypoints([start, p1, p2, goal])
-			if _is_path_valid(grid, room_map, room_a_id, room_b_id, candidate_u):
+			if _is_path_valid(grid, room_map, room_a_id, room_b_id, candidate_u, start, goal):
 				var cost: float = _score_path(grid, candidate_u, 2, config)
 				if cost < best_cost:
 					best_cost = cost
@@ -298,7 +311,7 @@ static func _try_multi_turn_routes(
 			var p1 := Vector2i(test_x, start.y)
 			var p2 := Vector2i(test_x, goal.y)
 			var candidate_u := _combine_waypoints([start, p1, p2, goal])
-			if _is_path_valid(grid, room_map, room_a_id, room_b_id, candidate_u):
+			if _is_path_valid(grid, room_map, room_a_id, room_b_id, candidate_u, start, goal):
 				var cost: float = _score_path(grid, candidate_u, 2, config)
 				if cost < best_cost:
 					best_cost = cost

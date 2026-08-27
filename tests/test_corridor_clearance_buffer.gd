@@ -11,8 +11,8 @@ func _init() -> void:
 	var grid := CellGrid.new(30, 30, CellGrid.CellType.WALL)
 	var room_a := RoomData.new(0, Rect2i(2, 10, 6, 6), &"roomA")
 	var room_b := RoomData.new(1, Rect2i(22, 10, 6, 6), &"roomB")
-	# Sala ajena intermedia en (10, 10, 8, 6)
-	var room_other := RoomData.new(2, Rect2i(10, 10, 8, 6), &"roomOther")
+	# Sala ajena intermedia en (11, 10, 8, 6)
+	var room_other := RoomData.new(2, Rect2i(11, 10, 8, 6), &"roomOther")
 
 	grid.fill_rect(room_a.rect, CellGrid.CellType.FLOOR)
 	grid.fill_rect(room_b.rect, CellGrid.CellType.FLOOR)
@@ -25,9 +25,9 @@ func _init() -> void:
 
 	var req = CorridorRequestScript.new(
 		0, 0, 1,
-		Vector2i(8, 13), Vector2i(22, 13),
-		Vector2i(7, 13), Vector2i(23, 13),
-		Vector2i(1, 0), Vector2i(1, 0),
+		Vector2i(8, 13), Vector2i(21, 13),
+		Vector2i(7, 13), Vector2i(22, 13),
+		Vector2i(1, 0), Vector2i(-1, 0),
 		true
 	)
 

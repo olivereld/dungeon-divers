@@ -399,13 +399,24 @@ static func _find_direction_aware_path(
 			elif ctype == CellGrid.CellType.FLOOR or ctype == CellGrid.CellType.DOOR:
 				step_cost = cost_floor
 
-			# Prohibición de invasión de salas (Fase 6 & Fase 9: Cualquier sala es territorio prohibido para centerline)
-			var owner_id: int = grid.get_room_owner(next_pos)
-			if owner_id == -1:
-				owner_id = _get_room_id_at(next_pos, rooms)
-			if owner_id != -1:
-				continue
-			elif owner_id == -1:
+			# Prohibición de invasión de salas y perímetro prohibido de distancia 1
+			if next_pos != goal_pos and next_pos != start_pos:
+				var owner_id: int = grid.get_room_owner(next_pos)
+				if owner_id == -1:
+					owner_id = _get_room_id_at(next_pos, rooms)
+				if owner_id != -1:
+					continue
+
+				# Si no es corredor previo, no puede penetrar en el perímetro de 1 de distancia
+				if ctype != CellGrid.CellType.CORRIDOR:
+					var in_buffer := false
+					for r in rooms:
+						if r != null and r.rect.grow(1).has_point(next_pos):
+							in_buffer = true
+							break
+					if in_buffer:
+						continue
+
 				# 1. Proteger jambas laterales de las puertas del inicio y final de la conexión
 				var is_jamb := false
 				if req.start_direction.y != 0:
@@ -424,13 +435,6 @@ static func _find_direction_aware_path(
 
 				if is_jamb:
 					step_cost += 50.0
-
-				# 2. Penalizar el raspado inmediato contra paredes de salas ajenas
-				for r in rooms:
-					if r != null and r.id != req.room_a_id and r.id != req.room_b_id:
-						if r.rect.grow(1).has_point(next_pos):
-							step_cost += 20.0
-							break
 
 			# Penalización de giro si cambia de dirección respecto a curr_dir
 			var turn_cost: float = 0.0
@@ -549,12 +553,19 @@ static func _validate_centerline(
 			if manhattan != 1:
 				return "NON_CARDINAL_STEP"
 
-		# Comprobar que no atraviese el interior de ninguna habitación
-		var owner_id: int = grid.get_room_owner(p)
-		if owner_id == -1:
-			owner_id = _get_room_id_at(p, rooms)
-		if owner_id != -1:
-			return "FORBIDDEN_ROOM"
+		# Comprobar que no atraviese el interior ni el perímetro prohibido de ninguna habitación
+		if p != expected_start and p != expected_goal:
+			var owner_id: int = grid.get_room_owner(p)
+			if owner_id == -1:
+				owner_id = _get_room_id_at(p, rooms)
+			if owner_id != -1:
+				return "FORBIDDEN_ROOM"
+
+			# Comprobar que no penetre en el perímetro prohibido (distancia 1)
+			if grid.get_cell(p) != CellGrid.CellType.CORRIDOR:
+				for r in rooms:
+					if r != null and r.rect.grow(1).has_point(p):
+						return "FORBIDDEN_ROOM_BUFFER"
 
 	return ""
 
@@ -635,10 +646,13 @@ static func _is_safe_widening_cell(
 	if cell_type == CellGrid.CellType.COLUMN or cell_type == CellGrid.CellType.OBSTACLE or cell_type == CellGrid.CellType.VOID:
 		return false
 
-	# No ensanchar dentro de ninguna habitación para preservar su perímetro y geometría
-	var owner_id: int = _get_room_id_at(pos, rooms)
-	if owner_id != -1:
-		return false
+	if cell_type == CellGrid.CellType.CORRIDOR:
+		return true
+
+	# No ensanchar dentro del perímetro prohibido de distancia 1 de ninguna habitación
+	for r in rooms:
+		if r != null and r.rect.grow(1).has_point(pos):
+			return false
 
 	return true
 
@@ -655,27 +669,25 @@ static func _build_base_astar_graph(grid: CellGrid, config: DungeonConfig) -> AS
 
 	var cost_corridor: float = config.corridor_cost_corridor if ("corridor_cost_corridor" in config) else 1.0
 	var cost_wall: float = config.corridor_cost_wall if ("corridor_cost_wall" in config) else 15.0
-	var cost_floor: float = config.corridor_cost_room_floor if ("corridor_cost_room_floor" in config) else 35.0
+	var cost_floor: float = config.corridor_cost_floor if ("corridor_cost_floor" in config) else 30.0
 
-	# 1. Añadir puntos con pesos según el CellType
+	# 1. Agregar nodos
 	for y in range(height):
 		for x in range(width):
 			var pos := Vector2i(x, y)
 			var id: int = _get_cell_id(pos, width)
-			astar.add_point(id, Vector2(x, y))
+			var ctype: int = grid.get_cell(pos)
 
-			var cell_type: CellGrid.CellType = grid.get_cell(pos)
-			match cell_type:
-				CellGrid.CellType.CORRIDOR:
-					astar.set_point_weight_scale(id, cost_corridor)
-				CellGrid.CellType.FLOOR, CellGrid.CellType.DOOR:
-					astar.set_point_weight_scale(id, cost_floor)
-				CellGrid.CellType.COLUMN, CellGrid.CellType.OBSTACLE, CellGrid.CellType.VOID:
-					astar.set_point_weight_scale(id, 99999.0)
-					astar.set_point_disabled(id, true)
-				_:
-					# WALL
-					astar.set_point_weight_scale(id, cost_wall)
+			astar.add_point(id, Vector2(pos.x, pos.y))
+
+			if ctype == CellGrid.CellType.VOID or ctype == CellGrid.CellType.COLUMN or ctype == CellGrid.CellType.OBSTACLE:
+				astar.set_point_disabled(id, true)
+			elif ctype == CellGrid.CellType.CORRIDOR:
+				astar.set_point_weight_scale(id, cost_corridor)
+			elif ctype == CellGrid.CellType.FLOOR or ctype == CellGrid.CellType.DOOR:
+				astar.set_point_weight_scale(id, cost_floor)
+			else:
+				astar.set_point_weight_scale(id, cost_wall)
 
 	# 2. Conectar vecinos cardinales (4 direcciones)
 	for y in range(height):
@@ -701,8 +713,9 @@ static func _apply_room_isolation_weights(
 		if r == null or r.id == room_a_id or r.id == room_b_id:
 			continue
 
-		for y in range(r.rect.position.y, r.rect.end.y):
-			for x in range(r.rect.position.x, r.rect.end.x):
+		var grown: Rect2i = r.rect.grow(1)
+		for y in range(grown.position.y, grown.end.y):
+			for x in range(grown.position.x, grown.end.x):
 				var cid: int = _get_cell_id(Vector2i(x, y), grid_width)
 				if astar.has_point(cid):
 					if not modified_nodes.has(cid):
