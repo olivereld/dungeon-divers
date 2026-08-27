@@ -10,8 +10,14 @@ const _ProfileArchetypeRoomRulesScript = preload("res://src/dungeon_generator/pr
 var id: StringName = &""
 var display_name: String = ""
 var schema_version: int = 1
+
+## purpose_weights: Peso relativo consumido contextualmente por RoomPurposeAssigner para resolver roles de gameplay (COMBAT, TREASURE, EXPLORE).
 var purpose_weights: Dictionary = {} # StringName -> float (contextual weight)
+
+## gameplay_purpose_map: Mapeo que restringe qué propósitos de sala pueden asignarse a cada rol de gameplay ("START", "BOSS", "TREASURE", "COMBAT", "EXPLORE").
 var gameplay_purpose_map: Dictionary = {} # StringName ("START", "BOSS", etc.) -> Array[StringName]
+
+## room_purpose_distribution: Distribución macro objetivo porcentual en el dungeon (ej. {"crypt": 0.25, "tomb": 0.15}).
 var room_purpose_distribution: Dictionary = {} # StringName -> float (macro frequency, sum == 1.0)
 var global_settings: _ProfileArchetypeGlobalSettingsScript = null
 var architectural_style: _ProfileArchetypeStyleScript = null

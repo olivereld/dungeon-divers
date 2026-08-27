@@ -28,7 +28,8 @@ func plan_room_lighting(
 	occupancy, # DecorationOccupancyMap
 	seed_val: int,
 	tile_size: float = 2.0,
-	fixture_rules: Array = []
+	fixture_rules: Array = [],
+	profile_lighting = null
 ) -> Array:
 	var result: Array = []
 
@@ -49,28 +50,34 @@ func plan_room_lighting(
 	for d in door_cells:
 		door_map[d] = true
 
-	var floor_cells_map: Dictionary = {}
-	if "floor_cells" in room_geom and room_geom.floor_cells != null:
-		for fc in room_geom.floor_cells:
-			floor_cells_map[fc] = true
-
 	var occupied_cells_map: Dictionary = {}
-	for f_dir in result:
-		occupied_cells_map[f_dir.placement.cell] = true
+	if occupancy != null and "cells" in occupancy and occupancy.cells is Dictionary:
+		for c in occupancy.cells:
+			occupied_cells_map[c] = true
 
-	# Base allocation ratios por modo
-	var wall_entries = fixture_palette.get_entries_for_placement(_FixturePlacementModeScript.Mode.WALL)
-	var floor_entries = fixture_palette.get_entries_for_placement(_FixturePlacementModeScript.Mode.FLOOR)
-	var hanging_entries = fixture_palette.get_entries_for_placement(_FixturePlacementModeScript.Mode.HANGING)
-	var surface_entries = fixture_palette.get_entries_for_placement(_FixturePlacementModeScript.Mode.SURFACE)
+	var floor_cells_map: Dictionary = {}
+	for fc in room_geom.floor_cells:
+		floor_cells_map[fc] = true
 
-	var has_wall: bool = not wall_entries.is_empty()
-	var has_floor: bool = not floor_entries.is_empty()
-	var has_hanging: bool = not hanging_entries.is_empty()
-	var has_surface: bool = not surface_entries.is_empty()
+	# Identificar modos presentes en la paleta
+	var has_wall: bool = false
+	var has_hanging: bool = false
+	var has_floor: bool = false
+	var has_surface: bool = false
+	for entry in fixture_palette.entries:
+		match entry.style.placement_mode:
+			_FixturePlacementModeScript.Mode.WALL:
+				has_wall = true
+			_FixturePlacementModeScript.Mode.HANGING:
+				has_hanging = true
+			_FixturePlacementModeScript.Mode.FLOOR:
+				has_floor = true
+			_FixturePlacementModeScript.Mode.SURFACE:
+				has_surface = true
 
-	var wall_ratio: float = 0.45 if has_wall else 0.0
-	var hanging_ratio: float = 0.20 if has_hanging else 0.0
+	# Sub-presupuestos por modo
+	var wall_ratio: float = 0.40 if has_wall else 0.0
+	var hanging_ratio: float = 0.25 if has_hanging else 0.0
 	var floor_ratio: float = 0.20 if has_floor else 0.0
 	var surface_ratio: float = 0.15 if has_surface else 0.0
 
@@ -104,26 +111,24 @@ func plan_room_lighting(
 	}
 
 	# === FASE 1: Ejecutar reglas con afinidad FOCAL_COMPANION ===
-	if not primary_props.is_empty() and not fixture_rules.is_empty():
-		for rule in fixture_rules:
-			if rule == null or rule.affinity != 1: # Affinity.FOCAL_COMPANION = 1
-				continue
+	for rule in fixture_rules:
+		if rule == null or rule.affinity != 1:
+			continue
 
-			var matching_entries = _filter_entries_for_rule(fixture_palette, rule)
-			if matching_entries.is_empty():
-				continue
+		var matching_entries := _filter_entries_for_rule(fixture_palette, rule)
+		if matching_entries.is_empty():
+			continue
 
-			var focal_anchors = _anchor_resolver.find_focal_companion_anchors(
-				primary_props,
-				room_geom,
-				rule.placement_mode,
-				tile_size
-			)
-
-			var placed_for_rule: int = 0
-			for anchor in focal_anchors:
-				if placed_for_rule >= rule.max_count:
-					break
+		var focal_anchors: Array = _anchor_resolver.find_focal_companion_anchors(
+			primary_props,
+			room_geom,
+			rule.placement_mode,
+			tile_size
+		)
+		var placed_for_rule: int = 0
+		for anchor in focal_anchors:
+			if placed_for_rule >= rule.max_count:
+				break
 
 				var entry = matching_entries[(placed_for_rule + seed_val) % matching_entries.size()]
 				var style: _FixtureStyleScript = entry.style
@@ -142,7 +147,7 @@ func plan_room_lighting(
 						continue
 					foot_cells = [anchor.cell]
 
-				if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget) or m_cost == 0.0:
+				if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget):
 					var a_pos: Vector3 = anchor.position if "position" in anchor else (anchor.world_position if "world_position" in anchor else Vector3.ZERO)
 					var normal := Vector3.DOWN if mode == _FixturePlacementModeScript.Mode.HANGING else Vector3.UP
 					var pl := _FixturePlacementScript.new(
@@ -160,6 +165,7 @@ func plan_room_lighting(
 						pl,
 						style.scale
 					)
+					_apply_profile_lighting(f_dir, _mode_to_name(mode), style, profile_lighting)
 					result.append(f_dir)
 					if occupancy != null and (mode == _FixturePlacementModeScript.Mode.FLOOR or mode == _FixturePlacementModeScript.Mode.SURFACE):
 						occupancy.add_footprint(foot_cells, style.id, 0)
@@ -178,20 +184,20 @@ func plan_room_lighting(
 	# Si no hay reglas declaradas, generar reglas por defecto por modo
 	if non_focal_rules.is_empty():
 		if has_wall:
-			non_focal_rules.append(_create_default_rule(_FixturePlacementModeScript.Mode.WALL, 1, 999))
-		if has_floor:
-			non_focal_rules.append(_create_default_rule(_FixturePlacementModeScript.Mode.FLOOR, 0, 999))
+			non_focal_rules.append(_create_default_rule(_FixturePlacementModeScript.Mode.WALL, 1, 3))
 		if has_hanging:
-			non_focal_rules.append(_create_default_rule(_FixturePlacementModeScript.Mode.HANGING, 0, 999))
+			non_focal_rules.append(_create_default_rule(_FixturePlacementModeScript.Mode.HANGING, 0, 2))
+		if has_floor:
+			non_focal_rules.append(_create_default_rule(_FixturePlacementModeScript.Mode.FLOOR, 0, 2))
 		if has_surface:
-			non_focal_rules.append(_create_default_rule(_FixturePlacementModeScript.Mode.SURFACE, 0, 999))
+			non_focal_rules.append(_create_default_rule(_FixturePlacementModeScript.Mode.SURFACE, 0, 2))
 
 	for rule in non_focal_rules:
-		var mode: int = rule.placement_mode
-		var matching_entries = _filter_entries_for_rule(fixture_palette, rule)
+		var matching_entries := _filter_entries_for_rule(fixture_palette, rule)
 		if matching_entries.is_empty():
 			continue
 
+		var mode: int = rule.placement_mode
 		var m_budget: float = mode_budgets.get(mode, budget)
 		var m_cost: float = mode_costs.get(mode, 0.0)
 		var placed_for_rule: int = 0
@@ -215,7 +221,7 @@ func plan_room_lighting(
 					var style: _FixtureStyleScript = entry.style
 					var cost: float = _get_style_cost(style)
 
-					if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget) or m_cost == 0.0:
+					if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget):
 						var a_pos: Vector3 = anchor.position if "position" in anchor else (anchor.world_position if "world_position" in anchor else Vector3.ZERO)
 						var pl := _FixturePlacementScript.new(
 							_FixturePlacementModeScript.Mode.WALL,
@@ -226,6 +232,7 @@ func plan_room_lighting(
 							Vector3.UP
 						)
 						var f_dir := _FixtureDirectiveScript.new(style.id, room_id, style, pl, style.scale)
+						_apply_profile_lighting(f_dir, &"wall", style, profile_lighting)
 						result.append(f_dir)
 						occupied_cells_map[anchor.cell] = true
 						m_cost += cost
@@ -251,7 +258,7 @@ func plan_room_lighting(
 					if not _is_footprint_valid(foot_cells, floor_cells_map, door_map, occupied_cells_map, occupancy):
 						continue
 
-					if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget) or m_cost == 0.0:
+					if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget):
 						var fa_pos: Vector3 = fa.position if "position" in fa else (fa.world_position if "world_position" in fa else Vector3.ZERO)
 						var pl := _FixturePlacementScript.new(
 							_FixturePlacementModeScript.Mode.FLOOR,
@@ -262,6 +269,7 @@ func plan_room_lighting(
 							Vector3.UP
 						)
 						var f_dir := _FixtureDirectiveScript.new(style.id, room_id, style, pl, style.scale)
+						_apply_profile_lighting(f_dir, &"floor", style, profile_lighting)
 						result.append(f_dir)
 						if occupancy != null:
 							occupancy.add_footprint(foot_cells, style.id, 0)
@@ -288,7 +296,7 @@ func plan_room_lighting(
 					var style: _FixtureStyleScript = entry.style
 					var cost: float = _get_style_cost(style)
 
-					if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget) or m_cost == 0.0:
+					if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget):
 						var ha_pos: Vector3 = ha.position if "position" in ha else (ha.world_position if "world_position" in ha else Vector3.ZERO)
 						var pl := _FixturePlacementScript.new(
 							_FixturePlacementModeScript.Mode.HANGING,
@@ -299,6 +307,7 @@ func plan_room_lighting(
 							Vector3.DOWN
 						)
 						var f_dir := _FixtureDirectiveScript.new(style.id, room_id, style, pl, style.scale)
+						_apply_profile_lighting(f_dir, &"hanging", style, profile_lighting)
 						result.append(f_dir)
 						occupied_cells_map[ha.cell] = true
 						m_cost += cost
@@ -324,7 +333,7 @@ func plan_room_lighting(
 					if not _is_footprint_valid(foot_cells, floor_cells_map, door_map, occupied_cells_map, occupancy):
 						continue
 
-					if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget) or m_cost == 0.0:
+					if placed_for_rule < rule.min_count or (m_cost + cost <= m_budget):
 						var sa_pos: Vector3 = sa.position if "position" in sa else (sa.world_position if "world_position" in sa else Vector3.ZERO)
 						var pl := _FixturePlacementScript.new(
 							_FixturePlacementModeScript.Mode.SURFACE,
@@ -335,6 +344,7 @@ func plan_room_lighting(
 							Vector3.UP
 						)
 						var f_dir := _FixtureDirectiveScript.new(style.id, room_id, style, pl, style.scale)
+						_apply_profile_lighting(f_dir, &"surface", style, profile_lighting)
 						result.append(f_dir)
 						if occupancy != null:
 							occupancy.add_footprint(foot_cells, style.id, 0)
@@ -346,6 +356,30 @@ func plan_room_lighting(
 						mode_placed_counts[mode] = mode_placed_counts.get(mode, 0) + 1
 
 	return result
+
+func _apply_profile_lighting(f_dir: _FixtureDirectiveScript, mode_name: StringName, style: _FixtureStyleScript, prof_light) -> void:
+	if prof_light != null and prof_light.has_method("resolve_settings_for_fixture"):
+		var l_set = prof_light.resolve_settings_for_fixture(
+			mode_name,
+			style.id if style != null else &"",
+			style.light_color if style != null else Color.WHITE,
+			style.light_energy if style != null else 1.0,
+			style.light_range if style != null else 4.0
+		)
+		f_dir.set_custom_lighting(l_set.color, l_set.energy, l_set.light_range)
+
+func _mode_to_name(mode: int) -> StringName:
+	match mode:
+		_FixturePlacementModeScript.Mode.WALL:
+			return &"wall"
+		_FixturePlacementModeScript.Mode.FLOOR:
+			return &"floor"
+		_FixturePlacementModeScript.Mode.HANGING:
+			return &"hanging"
+		_FixturePlacementModeScript.Mode.SURFACE:
+			return &"surface"
+		_:
+			return &"floor"
 
 static func _filter_entries_for_rule(palette, rule) -> Array:
 	var mode: int = rule.placement_mode if rule != null else _FixturePlacementModeScript.Mode.WALL

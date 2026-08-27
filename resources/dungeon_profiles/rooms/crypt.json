@@ -80,6 +80,9 @@
     },
     "lighting": {
         "budget": 3.5,
+        "color": "#8A9A7B",
+        "energy": 0.8,
+        "range": 3.5,
         "fixtures": {
             "wall": {
                 "min": 1,

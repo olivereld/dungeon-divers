@@ -83,6 +83,10 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 	var forward_mount_offset: float = 0.0
 	var light_offset := Vector3(0.0, 0.22 * scale_mult, 0.12 * scale_mult)
 
+	var eff_color: Color = directive.get_effective_color()
+	var eff_energy: float = directive.get_effective_energy()
+	var eff_range: float = directive.get_effective_range()
+
 	match style.fixture_type:
 		_FixtureStyleScript.Type.TORCH:
 			generated_asset = _torch_builder.build_torch_fixture(scale_mult, scale_mult)
@@ -94,7 +98,7 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 			l_cfg.scale_mult = scale_mult
 			l_cfg.is_wall_mounted = style.is_wall_mounted
 			if style.has_light:
-				l_cfg.glass_color = style.light_color
+				l_cfg.glass_color = eff_color
 			generated_asset = _lantern_builder.build_lantern_fixture(l_cfg)
 			if style.is_wall_mounted:
 				forward_mount_offset = 0.42 * scale_mult
@@ -111,7 +115,7 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 			var ch_cfg = _CandleHolderGeometryConfigScript.new()
 			ch_cfg.scale_mult = scale_mult
 			if style.has_light:
-				ch_cfg.flame_color = style.light_color
+				ch_cfg.flame_color = eff_color
 			generated_asset = _candle_holder_builder.build_candle_holder_fixture(ch_cfg)
 			light_offset = Vector3(0.0, 0.78 * scale_mult, 0.0)
 
@@ -119,7 +123,7 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 			var cc_cfg = _CandleClusterGeometryConfigScript.new()
 			cc_cfg.scale_mult = scale_mult
 			if style.has_light:
-				cc_cfg.flame_color = style.light_color
+				cc_cfg.flame_color = eff_color
 			generated_asset = _candle_cluster_builder.build_candle_cluster_fixture(cc_cfg)
 			light_offset = Vector3(0.0, 0.38 * scale_mult, 0.0)
 
@@ -156,9 +160,9 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 		var light := OmniLight3D.new()
 		light.name = "FixtureLight"
 		light.position = light_offset
-		light.light_color = style.light_color
-		light.light_energy = style.light_energy
-		light.omni_range = style.light_range
+		light.light_color = eff_color
+		light.light_energy = eff_energy
+		light.omni_range = eff_range
 		light.omni_attenuation = 1.0
 		light.shadow_enabled = true
 		light.shadow_bias = 0.08
@@ -168,7 +172,7 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 		var flicker := _TorchLightControllerScript.new()
 		flicker.name = "FixtureFlicker"
 		flicker.target_light = light
-		flicker.base_energy = style.light_energy
+		flicker.base_energy = eff_energy
 
 		match style.fixture_type:
 			_FixtureStyleScript.Type.CANDLE_HOLDER:

@@ -99,6 +99,9 @@
     },
     "lighting": {
         "budget": 4,
+        "color": "#9A6B3F",
+        "energy": 1.0,
+        "range": 4.0,
         "fixtures": {
             "hanging": {
                 "min": 0,

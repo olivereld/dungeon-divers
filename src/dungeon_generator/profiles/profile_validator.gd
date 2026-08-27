@@ -159,6 +159,19 @@ func _validate_single_room(room: _ProfileRoomScript, assets, result: _ProfileVal
 		if room.lighting.budget < 0.0:
 			result.add_error("Room '%s' lighting budget cannot be negative (%f)." % [str(room.id), room.lighting.budget])
 
+		if room.lighting.defaults != null:
+			_validate_light_settings("Room '%s' lighting defaults" % str(room.id), room.lighting.defaults, result)
+
+		var slots = [room.lighting.wall, room.lighting.floor, room.lighting.hanging]
+		var slot_names = ["wall", "floor", "hanging"]
+		for idx in range(slots.size()):
+			var s = slots[idx]
+			if s != null:
+				if s.lighting_override != null:
+					_validate_light_settings("Room '%s' %s slot override" % [str(room.id), slot_names[idx]], s.lighting_override, result)
+				for aid in s.asset_overrides:
+					_validate_light_settings("Room '%s' %s asset '%s' override" % [str(room.id), slot_names[idx], str(aid)], s.asset_overrides[aid], result)
+
 		var all_fixtures = room.lighting.get_all_allowed_fixture_ids()
 		for fid in all_fixtures:
 			if not assets.has_fixture(fid):
@@ -195,3 +208,11 @@ func _validate_single_room(room: _ProfileRoomScript, assets, result: _ProfileVal
 			result.add_error("Room '%s' relationship '%s' invalid distance range [%f, %f]." % [
 				str(room.id), str(rel.id), rel.min_distance, rel.max_distance
 			])
+
+func _validate_light_settings(context_name: String, settings, result: _ProfileValidationResultScript) -> void:
+	if settings == null:
+		return
+	if settings.has_energy() and settings.energy < 0.0:
+		result.add_error("%s energy cannot be negative (%f)." % [context_name, settings.energy])
+	if settings.has_range() and settings.light_range <= 0.0:
+		result.add_error("%s range must be strictly positive (%f)." % [context_name, settings.light_range])

@@ -23,6 +23,38 @@ var source_prop_id: StringName = &""
 var relation_id: StringName = &""
 var relation_type: int = 0
 
+var light_color: Color = Color(-1, -1, -1, -1)
+var light_energy: float = -1.0
+var light_range: float = -1.0
+var has_custom_lighting: bool = false
+
+func set_custom_lighting(p_color: Color = Color(-1, -1, -1, -1), p_energy: float = -1.0, p_range: float = -1.0) -> void:
+	has_custom_lighting = true
+	light_color = p_color
+	light_energy = p_energy
+	light_range = p_range
+
+func get_effective_color() -> Color:
+	if has_custom_lighting and light_color.a >= 0.0:
+		return light_color
+	if style != null:
+		return style.light_color
+	return Color.WHITE
+
+func get_effective_energy() -> float:
+	if has_custom_lighting and light_energy >= 0.0:
+		return light_energy
+	if style != null:
+		return style.light_energy
+	return 1.0
+
+func get_effective_range() -> float:
+	if has_custom_lighting and light_range > 0.0:
+		return light_range
+	if style != null:
+		return style.light_range
+	return 4.0
+
 # Propiedades de conveniencia delegadas a placement
 var cell: Vector2i:
 	get:

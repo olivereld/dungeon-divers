@@ -264,6 +264,15 @@ func plan_room_composition(
 		)
 		for f_dir in rel_dirs:
 			if not comp.reserved_cells.has(f_dir.cell):
+				if profile_room != null and profile_room.lighting != null:
+					var l_set = profile_room.lighting.resolve_settings_for_fixture(
+						&"floor",
+						f_dir.fixture_id,
+						f_dir.style.light_color if f_dir.style != null else Color.WHITE,
+						f_dir.style.light_energy if f_dir.style != null else 1.0,
+						f_dir.style.light_range if f_dir.style != null else 4.0
+					)
+					f_dir.set_custom_lighting(l_set.color, l_set.energy, l_set.light_range)
 				comp.add_fixture_directive(f_dir)
 
 	# 6. Planificar iluminación ambiental por presupuesto reconciliado y roles
@@ -285,7 +294,8 @@ func plan_room_composition(
 			occupancy,
 			fixture_seed_val,
 			tile_size,
-			fixture_rules
+			fixture_rules,
+			profile_room.lighting if profile_room != null else null
 		)
 		for f_dir in light_dirs:
 			if not comp.reserved_cells.has(f_dir.cell):

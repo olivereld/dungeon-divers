@@ -16,6 +16,7 @@ const _ProfileCompositionScript = preload("res://src/dungeon_generator/profiles/
 const _ProfileCompositionRuleScript = preload("res://src/dungeon_generator/profiles/profile_composition_rule.gd")
 const _ProfileLightingScript = preload("res://src/dungeon_generator/profiles/profile_lighting.gd")
 const _ProfileLightingSlotScript = preload("res://src/dungeon_generator/profiles/profile_lighting_slot.gd")
+const _ProfileLightSettingsScript = preload("res://src/dungeon_generator/profiles/profile_light_settings.gd")
 const _ProfileRelationshipScript = preload("res://src/dungeon_generator/profiles/profile_relationship.gd")
 const _ProfileBundleScript = preload("res://src/dungeon_generator/profiles/profile_bundle.gd")
 const _AssetRegistryScript = preload("res://src/dungeon_generator/profiles/asset_registry.gd")
@@ -290,13 +291,21 @@ func load_room(filename: String) -> _ProfileRoomScript:
 	# Lighting
 	var light_raw = dict.get("lighting", {})
 	var budget := float(light_raw.get("budget", 4.0))
-	var fix_slots = light_raw.get("fixtures", {})
 
+	# Room defaults can be in "defaults" sub-dictionary or shorthand at lighting root level
+	var defs_raw = light_raw.get("defaults", {})
+	var room_defaults: _ProfileLightSettingsScript = null
+	if defs_raw is Dictionary and not defs_raw.is_empty():
+		room_defaults = _parse_light_settings(defs_raw)
+	else:
+		room_defaults = _parse_light_settings(light_raw)
+
+	var fix_slots = light_raw.get("fixtures", {})
 	var wall_slot := _parse_lighting_slot(fix_slots.get("wall", {}))
 	var floor_slot := _parse_lighting_slot(fix_slots.get("floor", {}))
 	var hanging_slot := _parse_lighting_slot(fix_slots.get("hanging", {}))
 
-	var lighting := _ProfileLightingScript.new(budget, wall_slot, floor_slot, hanging_slot)
+	var lighting := _ProfileLightingScript.new(budget, room_defaults, wall_slot, floor_slot, hanging_slot)
 
 	# Relationships
 	var rels_raw = dict.get("relationships", [])
@@ -349,13 +358,65 @@ func _parse_composition_rule(raw: Dictionary) -> _ProfileCompositionRuleScript:
 		rule_id, tags_arr, forb_arr, mode, orientation, min_c, max_c, clearance
 	)
 
+func _parse_light_settings(raw: Dictionary) -> _ProfileLightSettingsScript:
+	if raw.is_empty():
+		return _ProfileLightSettingsScript.new()
+
+	var col: Color = Color(-1.0, -1.0, -1.0, -1.0)
+	var nrg: float = -1.0
+	var rng: float = -1.0
+
+	var has_col: bool = false
+	var has_nrg: bool = false
+	var has_rng: bool = false
+
+	if raw.has("color"):
+		var c_val = raw.get("color")
+		if c_val is String and not c_val.is_empty():
+			col = Color.from_string(c_val, Color(-1.0, -1.0, -1.0, -1.0))
+			has_col = true
+		elif c_val is Color:
+			col = c_val
+			has_col = true
+
+	if raw.has("energy"):
+		nrg = float(raw.get("energy", -1.0))
+		has_nrg = true
+
+	if raw.has("range"):
+		rng = float(raw.get("range", -1.0))
+		has_rng = true
+
+	var res := _ProfileLightSettingsScript.new(col, nrg, rng)
+	res.has_color_override = has_col
+	res.has_energy_override = has_nrg
+	res.has_range_override = has_rng
+	return res
+
 func _parse_lighting_slot(raw: Dictionary) -> _ProfileLightingSlotScript:
 	var min_c := int(raw.get("min", 0))
 	var max_c := int(raw.get("max", 0))
 	var allowed: Array[StringName] = []
 	for a in raw.get("allowed", []):
 		allowed.append(StringName(a))
-	return _ProfileLightingSlotScript.new(min_c, max_c, allowed)
+
+	# Slot override
+	var override: _ProfileLightSettingsScript = null
+	var ov_raw = raw.get("lighting_override", {})
+	if ov_raw is Dictionary and not ov_raw.is_empty():
+		override = _parse_light_settings(ov_raw)
+	elif raw.has("color") or raw.has("energy") or raw.has("range"):
+		override = _parse_light_settings(raw)
+
+	# Asset-specific overrides
+	var asset_overrides: Dictionary = {}
+	var a_ov_raw = raw.get("lighting_overrides", {})
+	if a_ov_raw is Dictionary:
+		for aid in a_ov_raw:
+			if a_ov_raw[aid] is Dictionary:
+				asset_overrides[StringName(aid)] = _parse_light_settings(a_ov_raw[aid])
+
+	return _ProfileLightingSlotScript.new(min_c, max_c, allowed, override, asset_overrides)
 
 func _read_json_file(path: String):
 	var file := FileAccess.open(path, FileAccess.READ)
