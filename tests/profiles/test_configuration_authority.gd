@@ -137,6 +137,15 @@ func _run_test() -> void:
 	var dynamic_crypt = bundle.get_room(&"crypt")
 	var crypt_ctx = _PresentationRoomContextScript.new(1, Rect2i(2, 2, 8, 8), int(_RoomPurposeScript.Type.CRYPT), arch_baseline, 0, dynamic_crypt)
 
+	# Backup original secondary and support
+	var orig_secondary = dynamic_crypt.composition.secondary.duplicate()
+	var orig_support = dynamic_crypt.composition.support.duplicate()
+
+	# Keep only secondary[0] for isolation test
+	dynamic_crypt.composition.support.clear()
+	dynamic_crypt.composition.secondary.clear()
+	dynamic_crypt.composition.secondary.append(orig_secondary[0])
+
 	# Prueba A: min_count = 1, max_count = 1 en secundarias de crypt
 	dynamic_crypt.composition.secondary[0].min_count = 1
 	dynamic_crypt.composition.secondary[0].max_count = 1
@@ -150,15 +159,16 @@ func _run_test() -> void:
 	var comp_result_3 = comp_resolver.resolve_room_composition(crypt_ctx, crypt_palette, test_geom, null, 2026, 2.0)
 	assert(comp_result_3.prop_directives.size() == 3, "FAIL: max_count: 3 in JSON must produce 3 props, got %d" % comp_result_3.prop_directives.size())
 
-	# Prueba C: forbidden_tags excluye completamente los props de entierro
-	dynamic_crypt.composition.secondary[0].forbidden_tags.append(&"burial")
+	# Prueba C: forbidden_tags excluye completamente los props
+	dynamic_crypt.composition.secondary[0].forbidden_tags.append_array(dynamic_crypt.composition.secondary[0].asset_tags)
 	var comp_result_forbidden = comp_resolver.resolve_room_composition(crypt_ctx, crypt_palette, test_geom, null, 2026, 2.0)
-	assert(comp_result_forbidden.prop_directives.size() == 0, "FAIL: Adding burial to forbidden_tags in JSON must completely forbid props")
+	assert(comp_result_forbidden.prop_directives.size() == 0, "FAIL: Adding asset tags to forbidden_tags in JSON must completely forbid props")
 
 	# Restaurar
-	dynamic_crypt.composition.secondary[0].forbidden_tags.erase(&"burial")
-	dynamic_crypt.composition.secondary[0].min_count = 0
-	dynamic_crypt.composition.secondary[0].max_count = 4
+	dynamic_crypt.composition.secondary.clear()
+	dynamic_crypt.composition.secondary.append_array(orig_secondary)
+	dynamic_crypt.composition.support.clear()
+	dynamic_crypt.composition.support.append_array(orig_support)
 	print("  [OK] 3. Composition authority validated (counts, asset_tags and forbidden_tags strictly enforced).")
 
 	# ==================================================================

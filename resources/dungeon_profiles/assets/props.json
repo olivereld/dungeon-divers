@@ -98,6 +98,40 @@
                 "floor"
             ]
         },
+        "pillar_stone": {
+            "id": "pillar_stone",
+            "source": {
+                "type": "packed_scene",
+                "scene": "res://assets/scenes/props/pillar_stone.tscn"
+            },
+            "tags": [
+                "architecture",
+                "structural",
+                "pillar",
+                "stone",
+                "crypt",
+                "tomb"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "solid"
+            },
+            "placement": {
+                "allowed": [
+                    "corner",
+                    "perimeter",
+                    "side"
+                ]
+            },
+            "scale": {
+                "default": 3,
+                "min": 3,
+                "max": 3
+            }
+        },
         "church_pew_wall": {
             "scene": "res://assets/props/common/bench.tscn",
             "tags": [

@@ -31,12 +31,15 @@ func spawn_prop(directive: _PropDirectiveScript, parent: Node3D = null) -> Node3
 	node.name = "Prop_%s_Room%d" % [String(directive.prop_id), directive.room_id]
 	node.position = directive.world_position
 	node.rotation.y = deg_to_rad(directive.rotation_degrees_y)
-	node.scale = Vector3.ONE * directive.style.scale
+	
+	var base_scale: Vector3 = node.scale
+	var style_scale: float = directive.style.scale if directive.style.scale > 0.0 else 1.0
+	node.scale = base_scale * style_scale
 
 	node.set_meta("prop_directive", directive)
 	node.set_meta("room_id", directive.room_id)
 
 	if parent != null:
-		parent.add_child(node)
+		parent.add_child(node, true)
 
 	return node

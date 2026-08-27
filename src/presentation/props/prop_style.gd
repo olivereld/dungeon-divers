@@ -23,7 +23,8 @@ enum Type {
 	CRATE = 9,
 	BARREL = 10,
 	RUBBLE = 11,
-	SACK = 12
+	SACK = 12,
+	PILLAR = 13
 }
 
 @export var id: StringName = &""

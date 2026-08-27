@@ -335,6 +335,13 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 		_DecorationRoleScript.Role.AMBIENT,
 		[_DecorationTagScript.BURIAL, _DecorationTagScript.DETAIL]
 	)
+	var pillar_stone = _PropStyleScript.new(
+		&"pillar_stone", _PropStyleScript.Type.PILLAR,
+		_PropPlacementModeScript.Mode.FLOOR, _PropCollisionModeScript.Mode.BLOCKING,
+		_PropFootprintScript.new(Vector2i(1, 1)), &"pillar_stone", {},
+		_DecorationRoleScript.Role.SUPPORT,
+		[StringName("pillar"), StringName("stone"), StringName("architecture"), StringName("structural"), _DecorationTagScript.CORNER_DECOR]
+	)
 
 	match room_purpose:
 		_RoomPurposeScript.Type.TOMB:
@@ -342,6 +349,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(sarc_open, 25.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 50.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 40.0))
+			entries.append(_PropPaletteEntryScript.new(pillar_stone, 60.0))
 			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 60.0))
 			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 45.0))
 			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 30.0))
@@ -356,6 +364,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(sarc_open, 20.0))
 			entries.append(_PropPaletteEntryScript.new(altar, 60.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 50.0))
+			entries.append(_PropPaletteEntryScript.new(pillar_stone, 70.0))
 			entries.append(_PropPaletteEntryScript.new(urn_pedestal_floor, 65.0))
 			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 50.0))
 			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 40.0))
@@ -369,6 +378,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(altar, 90.0))
 			entries.append(_PropPaletteEntryScript.new(sarc_open, 30.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 40.0))
+			entries.append(_PropPaletteEntryScript.new(pillar_stone, 50.0))
 			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 70.0))
 			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 50.0))
 			entries.append(_PropPaletteEntryScript.new(rubble_corner, 40.0))
@@ -381,6 +391,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 			entries.append(_PropPaletteEntryScript.new(altar, 95.0))
 			entries.append(_PropPaletteEntryScript.new(bench_pew, 80.0))
 			entries.append(_PropPaletteEntryScript.new(bench_stone, 35.0))
+			entries.append(_PropPaletteEntryScript.new(pillar_stone, 60.0))
 			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 50.0))
 			entries.append(_PropPaletteEntryScript.new(urn_pedestal_floor, 45.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 20.0))
@@ -393,6 +404,7 @@ func _resolve_mausoleum_prop_palette(room_purpose: int) -> _PropPaletteScript:
 		_RoomPurposeScript.Type.CRYPT, _RoomPurposeScript.Type.CATACOMB, _RoomPurposeScript.Type.CHAMBER:
 			entries.append(_PropPaletteEntryScript.new(tombstone_wall, 70.0))
 			entries.append(_PropPaletteEntryScript.new(tombstone_corner, 50.0))
+			entries.append(_PropPaletteEntryScript.new(pillar_stone, 65.0))
 			entries.append(_PropPaletteEntryScript.new(urn_banded_floor, 80.0))
 			entries.append(_PropPaletteEntryScript.new(urn_relic_floor, 65.0))
 			entries.append(_PropPaletteEntryScript.new(urn_canopic_surface, 45.0))

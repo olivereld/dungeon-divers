@@ -37,10 +37,13 @@ func instantiate(definition: _PropAssetDefinitionScript) -> Node3D:
 
 	match definition.source_type:
 		_PropAssetSourceScript.SourceType.PACKED_SCENE:
-			if definition.scene == null:
+			var sc = definition.get_packed_scene() if definition.has_method("get_packed_scene") else definition.scene
+			if sc == null:
 				push_warning("[PropAssetProvider] PackedScene nula para prop_id: %s" % str(definition.id))
 				return null
-			node = definition.scene.instantiate() as Node3D
+			node = sc.instantiate() as Node3D
+			if node != null:
+				node.scale = definition.default_scale
 
 		_PropAssetSourceScript.SourceType.PROCEDURAL:
 			if definition.procedural_builder_id == &"":

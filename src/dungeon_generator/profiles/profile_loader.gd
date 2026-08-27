@@ -26,6 +26,8 @@ const _AssetPropEntryScript = preload("res://src/dungeon_generator/profiles/asse
 const _AssetFixtureEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_fixture_entry.gd")
 const _AssetMaterialEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_material_entry.gd")
 const _AssetArchitectureEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_architecture_entry.gd")
+const _PropAssetDefinitionScript = preload("res://src/presentation/decoration/assets/prop_asset_definition.gd")
+const _PropAssetSourceScript = preload("res://src/presentation/decoration/assets/prop_asset_source.gd")
 
 var base_path: String = "res://resources/dungeon_profiles/"
 
@@ -72,13 +74,20 @@ func load_asset_registry() -> _AssetRegistryScript:
 			var fp_dict = pdata.get("footprint", {})
 			var fp := Vector2i(int(fp_dict.get("width", 1)), int(fp_dict.get("depth", 1)))
 
+			var coll_str: String = "blocking"
+			var c_val = pdata.get("collision", "blocking")
+			if c_val is Dictionary:
+				coll_str = str(c_val.get("mode", "blocking"))
+			elif c_val is String:
+				coll_str = str(c_val)
+
 			var prop_entry := _AssetPropEntryScript.new(
 				StringName(pid),
 				str(pdata.get("scene", "")),
 				tags_arr,
 				modes_arr,
 				fp,
-				StringName(pdata.get("collision", "blocking")),
+				StringName(coll_str),
 				anchors_arr
 			)
 			registry.register_prop(prop_entry)
@@ -143,6 +152,72 @@ func load_asset_registry() -> _AssetRegistryScript:
 					registry.register_architecture(arch_entry)
 
 	return registry
+
+## Popula un PropAssetRegistry con definiciones deserializadas de assets/props.json
+func populate_prop_asset_registry(registry) -> void:
+	if registry == null:
+		return
+	var props_json = _read_json_file(base_path + "assets/props.json")
+	if not (props_json is Dictionary and props_json.has("props")):
+		return
+
+	var p_dict = props_json["props"]
+	for pid in p_dict:
+		var pdata = p_dict[pid]
+		if not (pdata is Dictionary):
+			continue
+		var prop_id := StringName(pid)
+		var source_type: int = _PropAssetSourceScript.SourceType.PROCEDURAL
+		var scene_path: String = ""
+		var builder_id: StringName = &""
+		var params: Dictionary = {}
+		var scale_vec := Vector3.ONE
+
+		if pdata.has("scale"):
+			var sc = pdata["scale"]
+			if sc is float or sc is int:
+				scale_vec = Vector3.ONE * float(sc)
+			elif sc is Dictionary:
+				var def_s = float(sc.get("default", 1.0))
+				scale_vec = Vector3.ONE * def_s
+
+		if pdata.has("source") and pdata["source"] is Dictionary:
+			var s_dict = pdata["source"]
+			var st_str = str(s_dict.get("type", "procedural")).to_lower()
+			if st_str == "packed_scene" or st_str == "scene":
+				source_type = _PropAssetSourceScript.SourceType.PACKED_SCENE
+				scene_path = str(s_dict.get("scene", ""))
+			else:
+				source_type = _PropAssetSourceScript.SourceType.PROCEDURAL
+				builder_id = StringName(s_dict.get("builder_id", ""))
+				params = s_dict.get("params", {})
+		elif pdata.has("scene") and str(pdata["scene"]) != "":
+			source_type = _PropAssetSourceScript.SourceType.PACKED_SCENE
+			scene_path = str(pdata["scene"])
+
+		if source_type == _PropAssetSourceScript.SourceType.PACKED_SCENE and scene_path != "":
+			if ResourceLoader.exists(scene_path):
+				var def = _PropAssetDefinitionScript.new(
+					prop_id,
+					_PropAssetSourceScript.SourceType.PACKED_SCENE,
+					&"",
+					{},
+					null,
+					scale_vec,
+					0.0,
+					scene_path
+				)
+				registry.register_definition(def)
+		elif source_type == _PropAssetSourceScript.SourceType.PROCEDURAL and builder_id != &"":
+			var def = _PropAssetDefinitionScript.new(
+				prop_id,
+				_PropAssetSourceScript.SourceType.PROCEDURAL,
+				builder_id,
+				params,
+				null,
+				scale_vec
+			)
+			registry.register_definition(def)
 
 ## Carga un archivo de arquetipo por ID (ej. "mausoleum").
 func load_archetype(archetype_id: String) -> _ProfileArchetypeScript:

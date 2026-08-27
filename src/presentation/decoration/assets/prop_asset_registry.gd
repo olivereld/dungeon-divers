@@ -5,11 +5,15 @@ extends RefCounted
 ## Mapea de forma transparente prop_id -> PropAssetDefinition sin instanciar nodos ni acoplarse al spawner.
 
 const _PropAssetDefinitionScript = preload("res://src/presentation/decoration/assets/prop_asset_definition.gd")
+const _PropAssetSourceScript = preload("res://src/presentation/decoration/assets/prop_asset_source.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 
 var _definitions: Dictionary = {} # StringName -> PropAssetDefinition
 
 func _init() -> void:
 	_register_default_definitions()
+	var loader := _ProfileLoaderScript.new()
+	loader.populate_prop_asset_registry(self)
 
 func register_definition(def: _PropAssetDefinitionScript) -> void:
 	if def != null and def.id != &"":
@@ -23,6 +27,16 @@ func get_definition(prop_id: StringName) -> _PropAssetDefinitionScript:
 
 func _register_default_definitions() -> void:
 	# 1. Crypt / Mausoleum Props
+	register_definition(_PropAssetDefinitionScript.new(
+		&"pillar_stone",
+		_PropAssetSourceScript.SourceType.PACKED_SCENE,
+		&"",
+		{},
+		null,
+		Vector3.ONE,
+		0.0,
+		"res://assets/scenes/props/pillar_stone.tscn"
+	))
 	register_definition(_PropAssetDefinitionScript.create_procedural_definition(
 		&"sarcophagus_stone_closed", &"sarcophagus_prop", {"style": 0, "is_open": false}
 	))

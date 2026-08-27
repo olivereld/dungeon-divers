@@ -35,19 +35,6 @@ static func apply_room_shape(
 
 		ShapeType.PILLARED_HALL:
 			grid.fill_rect(rect, CellGrid.CellType.FLOOR)
-			# Colocar 2 o 4 columnas simétricas si la sala es suficientemente grande
-			if w >= 7 and h >= 7:
-				var offset_x: int = 2
-				var offset_y: int = 2
-				var c1 := rect.position + Vector2i(offset_x, offset_y)
-				var c2 := rect.position + Vector2i(w - 1 - offset_x, offset_y)
-				var c3 := rect.position + Vector2i(offset_x, h - 1 - offset_y)
-				var c4 := rect.position + Vector2i(w - 1 - offset_x, h - 1 - offset_y)
-
-				grid.set_cell(c1, CellGrid.CellType.WALL)
-				grid.set_cell(c2, CellGrid.CellType.WALL)
-				grid.set_cell(c3, CellGrid.CellType.WALL)
-				grid.set_cell(c4, CellGrid.CellType.WALL)
 
 		ShapeType.OCTAGONAL_CHAMBER:
 			grid.fill_rect(rect, CellGrid.CellType.FLOOR)

@@ -15,7 +15,11 @@
             "wall_decor",
             "corner_decor",
             "detail",
-            "debris"
+            "debris",
+            "pillar",
+            "stone",
+            "structural",
+            "architecture"
         ],
         "forbidden_tags": [
             "storage",
@@ -65,12 +69,31 @@
         },
         "secondary": [
             {
+                "rule_id": "royal_tomb_pillars",
+                "asset_tags": [
+                    "pillar",
+                    "stone"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating",
+                    "storage"
+                ],
+                "placement": {
+                    "mode": "floor",
+                    "orientation": "free",
+                    "min_count": 4,
+                    "max_count": 4
+                }
+            },
+            {
                 "rule_id": "support_urns_altars",
                 "asset_tags": [
                     "burial"
                 ],
                 "forbidden_tags": [
-                    "focal"
+                    "focal",
+                    "pillar"
                 ],
                 "placement": {
                     "mode": "floor",

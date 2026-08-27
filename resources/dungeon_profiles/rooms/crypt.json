@@ -11,7 +11,11 @@
             "wall_decor",
             "corner_decor",
             "detail",
-            "debris"
+            "debris",
+            "pillar",
+            "stone",
+            "structural",
+            "architecture"
         ],
         "forbidden_tags": [
             "seating",
@@ -51,6 +55,24 @@
     "composition": {
         "primary": null,
         "secondary": [
+            {
+                "rule_id": "crypt_pillars",
+                "asset_tags": [
+                    "pillar",
+                    "stone"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating",
+                    "storage"
+                ],
+                "placement": {
+                    "mode": "corner",
+                    "orientation": "free",
+                    "min_count": 0,
+                    "max_count": 4
+                }
+            },
             {
                 "rule_id": "perimeter_burials",
                 "asset_tags": [
