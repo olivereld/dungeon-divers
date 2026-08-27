@@ -34,8 +34,12 @@ const _DecorationPaletteResolverScript = preload("res://src/presentation/decorat
 const _DecorationCompositionResolverScript = preload("res://src/presentation/decoration/decoration_composition_resolver.gd")
 const _PropResolverScript = preload("res://src/presentation/props/prop_resolver.gd")
 const _PropSpawnerScript = preload("res://src/presentation/props/prop_spawner.gd")
-const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 const _ArchitecturalStyleConfigResolverScript = preload("res://src/presentation/architecture/architectural_style_config_resolver.gd")
+const _FixtureAnchorResolverScript = preload("res://src/presentation/fixtures/fixture_anchor_resolver.gd")
+const _FixtureDirectiveScript = preload("res://src/presentation/fixtures/fixture_directive.gd")
+const _FixturePlacementScript = preload("res://src/presentation/fixtures/fixture_placement.gd")
+const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 
 const CAMERA_OCCLUDER_GROUP: StringName = &"camera_occluder"
 
@@ -58,6 +62,8 @@ var _prop_resolver := _PropResolverScript.new()
 var _prop_spawner := _PropSpawnerScript.new()
 var _style_config_resolver := _ArchitecturalStyleConfigResolverScript.new()
 var _structural_renderer := _PresentationStructuralRendererScript.new()
+var _fixture_anchor_resolver := _FixtureAnchorResolverScript.new()
+var _profile_loader := _ProfileLoaderScript.new()
 
 ## Construye la presentación 3D de un piso semántico individual.
 func build_presentation(
@@ -181,6 +187,94 @@ func build_presentation(
 		)
 		all_fixture_directives.append_array(comp.fixture_directives)
 		all_prop_directives.append_array(comp.prop_directives)
+
+	# 5.5 Iluminación y Antorchas de Pared en Corredores / Pasillos
+	if not geometry_partition.corridor_wall_cells.is_empty():
+		var corr_anchors = _fixture_anchor_resolver.find_corridor_wall_anchors(geometry_partition, tile_size)
+		if not corr_anchors.is_empty():
+			var corr_palette = _decoration_palette_resolver.resolve_palette(arch_type, 0, null)
+			
+			var corr_lighting_profile = null
+			var arch_name: String = "mausoleum"
+			if semantic_result != null and "dungeon_archetype" in semantic_result:
+				var arch_enum = semantic_result.dungeon_archetype
+				arch_name = _DungeonArchetypeScript.to_name(arch_enum as _DungeonArchetypeScript.Type).to_lower()
+
+			var bundle = _profile_loader.load_full_archetype_bundle(arch_name)
+			if bundle != null:
+				if bundle.archetype != null and bundle.archetype.corridor_lighting != null:
+					corr_lighting_profile = bundle.archetype.corridor_lighting
+				elif bundle.rooms.has(&"corridor") and bundle.rooms[&"corridor"].lighting != null:
+					corr_lighting_profile = bundle.rooms[&"corridor"].lighting
+
+			if corr_lighting_profile == null:
+				var corr_room_prof = _profile_loader.load_room("corridor.json")
+				if corr_room_prof != null:
+					corr_lighting_profile = corr_room_prof.lighting
+
+			var allowed_fixture_ids: Array = []
+			if corr_lighting_profile != null and corr_lighting_profile.wall != null:
+				allowed_fixture_ids = corr_lighting_profile.wall.allowed
+
+			var corr_spacing: int = 4
+			var placed_corr_count: int = 0
+			var max_corr_fixtures: int = 24
+			if corr_lighting_profile != null and corr_lighting_profile.wall != null and corr_lighting_profile.wall.max_count > 0:
+				max_corr_fixtures = corr_lighting_profile.wall.max_count
+
+			if corr_palette.fixtures != null:
+				var raw_wall_entries = corr_palette.fixtures.get_entries_for_placement(0) # Mode.WALL
+				var matching_entries: Array = []
+				for entry in raw_wall_entries:
+					var style = entry.style
+					if style == null:
+						continue
+					if allowed_fixture_ids.is_empty():
+						matching_entries.append(entry)
+					else:
+						var matched := false
+						for allowed_id in allowed_fixture_ids:
+							var a_str := str(allowed_id).to_lower()
+							var s_str := str(style.id).to_lower()
+							if a_str == s_str or s_str.contains(a_str) or a_str.contains(s_str):
+								matched = true
+								break
+							for keyword in ["torch", "lantern", "brazier", "candle"]:
+								if a_str.contains(keyword) and s_str.contains(keyword):
+									matched = true
+									break
+							if matched:
+								break
+						if matched:
+							matching_entries.append(entry)
+
+				if not matching_entries.is_empty():
+					for i in range(0, corr_anchors.size(), corr_spacing):
+						if placed_corr_count >= max_corr_fixtures:
+							break
+						var anchor = corr_anchors[i]
+						var entry = matching_entries[(placed_corr_count + (config.seed if config != null else 1337)) % matching_entries.size()]
+						var style = entry.style
+						var pl := _FixturePlacementScript.new(
+							0, # Mode.WALL
+							anchor.cell,
+							anchor.wall_side,
+							anchor.position,
+							anchor.rotation_y,
+							Vector3.UP
+						)
+						var f_dir := _FixtureDirectiveScript.new(style.id, 9999, style, pl, style.scale)
+						if corr_lighting_profile != null:
+							var l_set = corr_lighting_profile.resolve_settings_for_fixture(
+								&"wall",
+								style.id,
+								style.light_color,
+								style.light_energy,
+								style.light_range
+							)
+							f_dir.set_custom_lighting(l_set.color, l_set.energy, l_set.light_range)
+						all_fixture_directives.append(f_dir)
+						placed_corr_count += 1
 
 	var fix_res: Dictionary = _fixture_spawner.spawn_fixtures(all_fixture_directives, staging_root, biome, tile_size)
 	for fix_node in fix_res.get("spawned_fixtures", []):

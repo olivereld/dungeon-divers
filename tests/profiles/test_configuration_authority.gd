@@ -81,12 +81,13 @@ func _run_test() -> void:
 	var crypt_room = bundle.get_room(&"crypt")
 	assert(crypt_room != null and crypt_room.architecture != null, "FAIL: Crypt room profile must exist")
 
-	# Baseline Crypt: floor=ruined_stone, walls=dark_stone, door=stone_arch, stairs=stone
+	# Baseline Crypt: floor=catacomb_dirt, walls=dark_stone, door=stone_arch, stairs=stone
 	var arch_baseline = pres_resolver.resolve_from_room_profile(crypt_room)
-	assert(arch_baseline.floor_style == _ArchitecturalStyleScript.FloorStyle.RUINED_STONE, "FAIL: Baseline floor must be RUINED_STONE")
+	assert(arch_baseline.floor_style == _ArchitecturalStyleScript.FloorStyle.CATACOMB_DIRT, "FAIL: Baseline floor must be CATACOMB_DIRT")
 	assert(arch_baseline.wall_style == _ArchitecturalStyleScript.WallStyle.DARK_STONE, "FAIL: Baseline wall must be DARK_STONE")
 	assert(arch_baseline.door_style == _ArchitecturalStyleScript.DoorStyle.STONE_ARCH, "FAIL: Baseline door must be STONE_ARCH")
 	assert(arch_baseline.stairs_style == _ArchitecturalStyleScript.StairsStyle.STONE, "FAIL: Baseline stairs must be STONE")
+	assert(arch_baseline.floor_variants != null and arch_baseline.floor_variants.enabled, "FAIL: Baseline floor_variants must be enabled")
 
 	# Mutación JSON 1: Suelo a smooth_slabs, Muros a fortress_stone, Puerta a iron_gate, Escaleras a wood
 	crypt_room.architecture.floor = &"smooth_slabs"
@@ -100,13 +101,13 @@ func _run_test() -> void:
 	assert(arch_mutated_1.door_style == _ArchitecturalStyleScript.DoorStyle.HEAVY_IRON, "FAIL: JSON mutation must yield HEAVY_IRON door")
 	assert(arch_mutated_1.stairs_style == _ArchitecturalStyleScript.StairsStyle.WOOD, "FAIL: JSON mutation must yield WOOD stairs")
 
-	# Mutación JSON 2: Suelo a catacomb_dirt
-	crypt_room.architecture.floor = &"catacomb_dirt"
+	# Mutación JSON 2: Suelo a ruined_stone
+	crypt_room.architecture.floor = &"ruined_stone"
 	var arch_mutated_2 = pres_resolver.resolve_from_room_profile(crypt_room)
-	assert(arch_mutated_2.floor_style == _ArchitecturalStyleScript.FloorStyle.CATACOMB_DIRT, "FAIL: JSON mutation must yield CATACOMB_DIRT floor")
+	assert(arch_mutated_2.floor_style == _ArchitecturalStyleScript.FloorStyle.RUINED_STONE, "FAIL: JSON mutation must yield RUINED_STONE floor")
 
 	# Restaurar valores originales
-	crypt_room.architecture.floor = &"ruined_stone"
+	crypt_room.architecture.floor = &"catacomb_dirt"
 	crypt_room.architecture.walls = &"dark_stone"
 	crypt_room.architecture.door = &"stone_arch"
 	crypt_room.architecture.stairs = &"stone"

@@ -114,7 +114,7 @@ func _build_banded_urn(asset: _GeneratedAssetScript, config: _UrnGeometryConfigS
 		_build_ngon_frustum(st_trim, b_y + band_h * 0.7, b_y + band_h, r_b_out, r_at_y, angles)
 
 	# Finalizar mallas y colisión
-	_commit_and_attach_meshes(asset, g_body, st_body, g_trim, st_trim, "BandedUrn", r_belly_mid, y_rim + 0.06 * s)
+	_commit_and_attach_meshes(asset, g_body, st_body, g_trim, st_trim, "BandedUrn", r_belly_mid, y_rim + 0.06 * s, config)
 
 # ==============================================================================
 # ESTILO 2: URNA DE CRIPTA CON RELIEVE DE CALAVERA Y TAPA BISELADA (SKULL RELIC URN)
@@ -189,7 +189,7 @@ func _build_skull_relic_urn(asset: _GeneratedAssetScript, config: _UrnGeometryCo
 	_add_triangle_direct(st_trim, p_cranium_l, p_jaw_l, p_cranium_c)
 	_add_triangle_direct(st_trim, p_cranium_r, p_cranium_c, p_jaw_r)
 
-	_commit_and_attach_meshes(asset, g_body, st_body, g_trim, st_trim, "SkullUrn", r_mid, y_lid_top)
+	_commit_and_attach_meshes(asset, g_body, st_body, g_trim, st_trim, "SkullUrn", r_mid, y_lid_top, config)
 
 # ==============================================================================
 # ESTILO 3: COPA Y URNA MONUMENTAL CON PEDESTAL (CEREMONIAL PEDESTAL URN)
@@ -263,7 +263,7 @@ func _build_ceremonial_pedestal_urn(asset: _GeneratedAssetScript, config: _UrnGe
 	else:
 		_build_ngon_cap(st_body, y_rim_lip, r_bowl_rim * 0.9, angles, false)
 
-	_commit_and_attach_meshes(asset, g_body, st_body, g_trim, st_trim, "PedestalUrn", r_bowl_rim, y_bowl_rim + 0.24 * s)
+	_commit_and_attach_meshes(asset, g_body, st_body, g_trim, st_trim, "PedestalUrn", r_bowl_rim, y_bowl_rim + 0.24 * s, config)
 
 # ==============================================================================
 # ESTILO 4: FRASCO CANOPO COMPACTO DE MESA (CANOPIC JAR)
@@ -307,7 +307,7 @@ func _build_canopic_jar(asset: _GeneratedAssetScript, config: _UrnGeometryConfig
 	_build_ngon_frustum(st_trim, y_rim, y_lid_top, r_rim, 0.06 * s, angles)
 	_build_ngon_cap(st_trim, y_lid_top, 0.06 * s, angles, true)
 
-	_commit_and_attach_meshes(asset, g_body, st_body, g_trim, st_trim, "CanopicJar", r_body_mid, y_lid_top)
+	_commit_and_attach_meshes(asset, g_body, st_body, g_trim, st_trim, "CanopicJar", r_body_mid, y_lid_top, config)
 
 # ==============================================================================
 # HELPERS DE GEOMETRÍA Y MATERIALES
@@ -317,14 +317,18 @@ func _commit_and_attach_meshes(
 	asset: _GeneratedAssetScript,
 	g_body: _GeneratedMeshScript, st_body: SurfaceTool,
 	g_trim: _GeneratedMeshScript, st_trim: SurfaceTool,
-	asset_name: String, max_radius: float, total_height: float
+	asset_name: String, max_radius: float, total_height: float,
+	config: _UrnGeometryConfigScript = null
 ) -> void:
+	var preset: int = config.material_preset if config != null else 0
+	var style_idx: int = int(config.style) if config != null else 0
+
 	st_body.generate_tangents()
 	var mesh_body := ArrayMesh.new()
 	mesh_body = st_body.commit(mesh_body)
 	mesh_body.surface_set_name(0, "%s_Body" % asset_name)
 	g_body.mesh = mesh_body
-	g_body.material_slots[0] = _WallMaterialFactoryScript.create_panel_material()
+	g_body.material_slots[0] = _WallMaterialFactoryScript.create_urn_body_material(preset, style_idx)
 	asset.add_mesh(&"urn_body", g_body)
 
 	st_trim.generate_tangents()
@@ -332,7 +336,7 @@ func _commit_and_attach_meshes(
 	mesh_trim = st_trim.commit(mesh_trim)
 	mesh_trim.surface_set_name(0, "%s_Trim" % asset_name)
 	g_trim.mesh = mesh_trim
-	g_trim.material_slots[0] = _WallMaterialFactoryScript.create_trim_material()
+	g_trim.material_slots[0] = _WallMaterialFactoryScript.create_urn_trim_material(preset, style_idx)
 	asset.add_mesh(&"urn_trim", g_trim)
 
 	# Colisión física

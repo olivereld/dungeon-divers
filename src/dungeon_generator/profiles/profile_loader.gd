@@ -13,6 +13,7 @@ const _ProfileRoomScript = preload("res://src/dungeon_generator/profiles/profile
 const _ProfileRoomIntentScript = preload("res://src/dungeon_generator/profiles/profile_room_intent.gd")
 const _ProfileRoomArchitectureScript = preload("res://src/dungeon_generator/profiles/profile_room_architecture.gd")
 const _ProfileWallVariantPolicyScript = preload("res://src/dungeon_generator/profiles/profile_wall_variant_policy.gd")
+const _ProfileFloorVariantPolicyScript = preload("res://src/dungeon_generator/profiles/profile_floor_variant_policy.gd")
 const _ProfileCompositionScript = preload("res://src/dungeon_generator/profiles/profile_composition.gd")
 const _ProfileCompositionRuleScript = preload("res://src/dungeon_generator/profiles/profile_composition_rule.gd")
 const _ProfileLightingScript = preload("res://src/dungeon_generator/profiles/profile_lighting.gd")
@@ -220,10 +221,25 @@ func load_archetype(archetype_id: String) -> _ProfileArchetypeScript:
 		for k in rooms_raw:
 			rooms_dict[StringName(k)] = StringName(rooms_raw[k])
 
+	# Corridor lighting
+	var corr_raw = dict.get("corridor", {})
+	var corr_light_raw = corr_raw.get("lighting", {})
+	var corr_lighting: _ProfileLightingScript = null
+	if corr_light_raw is Dictionary and not corr_light_raw.is_empty():
+		corr_lighting = _parse_lighting(corr_light_raw)
+
 	return _ProfileArchetypeScript.new(
 		id, display_name, version, weights, gameplay_map, dist,
-		global_settings, arch_style, room_rules, rooms_dict
+		global_settings, arch_style, room_rules, rooms_dict, corr_lighting
 	)
+
+## Parsea un perfil de sala desde un string JSON
+func parse_room_from_json_string(json_str: String) -> _ProfileRoomScript:
+	var json = JSON.new()
+	var err = json.parse(json_str)
+	if err != OK or not (json.data is Dictionary):
+		return null
+	return parse_room_dict(json.data as Dictionary)
 
 ## Carga un perfil de sala desde su filename (ej. "tomb.json" o "tomb").
 func load_room(filename: String) -> _ProfileRoomScript:
@@ -232,8 +248,10 @@ func load_room(filename: String) -> _ProfileRoomScript:
 	var json_data = _read_json_file(path)
 	if not (json_data is Dictionary):
 		return null
+	return parse_room_dict(json_data as Dictionary)
 
-	var dict: Dictionary = json_data
+## Parsea un perfil de sala desde un diccionario deserializado
+func parse_room_dict(dict: Dictionary) -> _ProfileRoomScript:
 	var id := StringName(dict.get("id", ""))
 	var display_name := str(dict.get("display_name", ""))
 	var version := int(dict.get("schema_version", 1))
@@ -274,12 +292,53 @@ func load_room(filename: String) -> _ProfileRoomScript:
 				wv_weights[StringName(k)] = float(raw_w[k])
 		wall_variant_policy = _ProfileWallVariantPolicyScript.new(wv_enabled, wv_allowed, wv_weights)
 
+	# Floor & Floor Variants parsing (polimórfico: string o diccionario)
+	var floor_raw = arch_raw.get("floor", "")
+	var floor_name: StringName = &""
+	var floor_variant_policy: _ProfileFloorVariantPolicyScript = null
+
+	if floor_raw is Dictionary:
+		var base_data = floor_raw.get("base", "")
+		var base_name: StringName = &""
+		var base_w: float = 100.0
+		if base_data is Dictionary:
+			base_name = StringName(str(base_data.get("style", "")))
+			base_w = float(base_data.get("weight", 100.0))
+		else:
+			base_name = StringName(str(base_data))
+			base_w = float(floor_raw.get("base_weight", 100.0))
+
+		floor_name = base_name
+		var vars_arr: Array[Dictionary] = []
+		for v in floor_raw.get("variants", []):
+			if v is Dictionary:
+				vars_arr.append({
+					"style": StringName(str(v.get("style", ""))),
+					"weight": float(v.get("weight", 0.0))
+				})
+		floor_variant_policy = _ProfileFloorVariantPolicyScript.new(
+			true,
+			base_name,
+			base_w,
+			vars_arr,
+			StringName(str(floor_raw.get("distribution_mode", "weighted")))
+		)
+	else:
+		floor_name = StringName(str(floor_raw))
+		floor_variant_policy = _ProfileFloorVariantPolicyScript.new(
+			false,
+			floor_name,
+			100.0,
+			[]
+		)
+
 	var architecture := _ProfileRoomArchitectureScript.new(
-		StringName(arch_raw.get("floor", "")),
+		floor_name,
 		StringName(arch_raw.get("walls", arch_raw.get("wall", ""))),
 		StringName(arch_raw.get("door", arch_raw.get("doors", ""))),
 		StringName(arch_raw.get("stairs", "")),
-		wall_variant_policy
+		wall_variant_policy,
+		floor_variant_policy
 	)
 
 	# Composition
@@ -308,22 +367,7 @@ func load_room(filename: String) -> _ProfileRoomScript:
 
 	# Lighting
 	var light_raw = dict.get("lighting", {})
-	var budget := float(light_raw.get("budget", 4.0))
-
-	# Room defaults can be in "defaults" sub-dictionary or shorthand at lighting root level
-	var defs_raw = light_raw.get("defaults", {})
-	var room_defaults: _ProfileLightSettingsScript = null
-	if defs_raw is Dictionary and not defs_raw.is_empty():
-		room_defaults = _parse_light_settings(defs_raw)
-	else:
-		room_defaults = _parse_light_settings(light_raw)
-
-	var fix_slots = light_raw.get("fixtures", {})
-	var wall_slot := _parse_lighting_slot(fix_slots.get("wall", {}))
-	var floor_slot := _parse_lighting_slot(fix_slots.get("floor", {}))
-	var hanging_slot := _parse_lighting_slot(fix_slots.get("hanging", {}))
-
-	var lighting := _ProfileLightingScript.new(budget, room_defaults, wall_slot, floor_slot, hanging_slot)
+	var lighting := _parse_lighting(light_raw)
 
 	# Relationships
 	var rels_raw = dict.get("relationships", [])
@@ -410,6 +454,24 @@ func _parse_light_settings(raw: Dictionary) -> _ProfileLightSettingsScript:
 	res.has_energy_override = has_nrg
 	res.has_range_override = has_rng
 	return res
+
+func _parse_lighting(light_raw: Dictionary) -> _ProfileLightingScript:
+	var budget := float(light_raw.get("budget", 4.0))
+
+	# Room defaults can be in "defaults" sub-dictionary or shorthand at lighting root level
+	var defs_raw = light_raw.get("defaults", {})
+	var room_defaults: _ProfileLightSettingsScript = null
+	if defs_raw is Dictionary and not defs_raw.is_empty():
+		room_defaults = _parse_light_settings(defs_raw)
+	elif light_raw.has("color") or light_raw.has("energy") or light_raw.has("range"):
+		room_defaults = _parse_light_settings(light_raw)
+
+	var fix_slots = light_raw.get("fixtures", {})
+	var wall_slot := _parse_lighting_slot(fix_slots.get("wall", {}))
+	var floor_slot := _parse_lighting_slot(fix_slots.get("floor", {}))
+	var hanging_slot := _parse_lighting_slot(fix_slots.get("hanging", {}))
+
+	return _ProfileLightingScript.new(budget, room_defaults, wall_slot, floor_slot, hanging_slot)
 
 func _parse_lighting_slot(raw: Dictionary) -> _ProfileLightingSlotScript:
 	var min_c := int(raw.get("min", 0))

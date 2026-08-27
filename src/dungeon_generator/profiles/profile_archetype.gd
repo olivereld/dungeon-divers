@@ -23,6 +23,7 @@ var global_settings: _ProfileArchetypeGlobalSettingsScript = null
 var architectural_style: _ProfileArchetypeStyleScript = null
 var room_rules: _ProfileArchetypeRoomRulesScript = null
 var rooms: Dictionary = {} # StringName -> StringName (purpose_id -> filename)
+var corridor_lighting = null # ProfileLighting
 
 func _init(
 	p_id: StringName = &"",
@@ -34,7 +35,8 @@ func _init(
 	p_global: _ProfileArchetypeGlobalSettingsScript = null,
 	p_style: _ProfileArchetypeStyleScript = null,
 	p_rules: _ProfileArchetypeRoomRulesScript = null,
-	p_rooms: Dictionary = {}
+	p_rooms: Dictionary = {},
+	p_corridor_lighting = null
 ) -> void:
 	id = p_id
 	display_name = p_name
@@ -46,6 +48,7 @@ func _init(
 	architectural_style = p_style if p_style != null else _ProfileArchetypeStyleScript.new()
 	room_rules = p_rules if p_rules != null else _ProfileArchetypeRoomRulesScript.new()
 	rooms = p_rooms
+	corridor_lighting = p_corridor_lighting
 
 func get_allowed_purposes_for_gameplay(role: StringName) -> Array[StringName]:
 	if gameplay_purpose_map.has(role):

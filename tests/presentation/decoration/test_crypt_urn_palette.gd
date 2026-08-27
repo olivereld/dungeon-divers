@@ -17,7 +17,7 @@ func _init() -> void:
 	var provider := PropAssetProvider.new()
 
 	# 1. Validar Catacumbas / Criptas (Mausoleum Archetype)
-	var crypt_palette = resolver.resolve_prop_palette(1, RoomPurpose.Type.CATACOMB)
+	var crypt_palette = resolver.resolve_palette(1, RoomPurpose.Type.CATACOMB).props
 	assert(crypt_palette != null, "FAIL: Crypt palette is null")
 	var has_floor_urn: bool = false
 	var has_corner_urn: bool = false
@@ -35,7 +35,7 @@ func _init() -> void:
 	print("  [OK] Catacomb & Crypt palette includes FLOOR and CORNER urns.")
 
 	# 2. Validar Tumbas y Tumbas Reales
-	var tomb_palette = resolver.resolve_prop_palette(1, RoomPurpose.Type.TOMB)
+	var tomb_palette = resolver.resolve_palette(1, RoomPurpose.Type.TOMB).props
 	assert(tomb_palette != null, "FAIL: Tomb palette is null")
 	var tomb_has_urn = false
 	for entry in tomb_palette.entries:

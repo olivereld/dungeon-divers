@@ -14,6 +14,7 @@ var stairs_style: _ArchitecturalStyleScript.StairsStyle = _ArchitecturalStyleScr
 var fixture_style: _ArchitecturalStyleScript.FixtureStyle = _ArchitecturalStyleScript.FixtureStyle.TORCH
 var decoration_palette: int = _ArchitecturalStyleScript.DecorationPalette.GENERIC
 var wall_variants = null # ProfileWallVariantPolicy o WallVariantPolicy
+var floor_variants = null # ProfileFloorVariantPolicy
 
 func _init(
 	p_floor: _ArchitecturalStyleScript.FloorStyle = _ArchitecturalStyleScript.FloorStyle.GENERIC_STONE,

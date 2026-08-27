@@ -31,6 +31,9 @@ func get_mesh_transform(slot: StringName) -> Transform3D:
 func has_slot(slot: StringName) -> bool:
 	return meshes.has(slot)
 
+func has_mesh(slot: StringName) -> bool:
+	return meshes.has(slot)
+
 func to_node3d(prefix: String = "Asset") -> Node3D:
 	var root := Node3D.new()
 	root.name = "%s_%s" % [prefix, String(asset_id)]

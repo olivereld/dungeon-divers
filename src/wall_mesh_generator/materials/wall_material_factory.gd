@@ -106,6 +106,46 @@ static func create_iron_material(preset: MaterialPreset = MaterialPreset.STYLIZE
 
 	return mat
 
+static func create_urn_body_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE, style_idx: int = 0) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.roughness = 0.48 # Cerámica estilizada semi-lisa para reflejos cálidos
+	mat.metallic = 0.04
+	mat.metallic_specular = 0.45
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	match style_idx:
+		1: # SKULL_RELIC_URN: Ocre arcilloso sepulcral / Cerámica de Cripta
+			mat.albedo_color = Color(0.76, 0.58, 0.40)
+		2: # CEREMONIAL_PEDESTAL: Terracota ceremonial fina
+			mat.albedo_color = Color(0.82, 0.54, 0.32)
+		3: # CANOPIC_JAR: Cerámica vidriada ámbar
+			mat.albedo_color = Color(0.85, 0.60, 0.34)
+		_: # BANDED_STONE_URN / Default: Terracota clásica cálida y vibrante (Ánfora)
+			mat.albedo_color = Color(0.80, 0.46, 0.26)
+
+	match preset:
+		MaterialPreset.DUNGEON_WARM_STONE:
+			mat.albedo_color = mat.albedo_color.lightened(0.06)
+		MaterialPreset.SANDSTONE_RUINS:
+			mat.albedo_color = Color(0.86, 0.64, 0.38)
+		MaterialPreset.DARK_CRYPT:
+			# Resaltar vivamente incluso en criptas oscuras
+			mat.albedo_color = mat.albedo_color.lerp(Color(0.84, 0.50, 0.28), 0.5)
+
+	return mat
+
+static func create_urn_trim_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE, style_idx: int = 0) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.roughness = 0.32 # Acabado pulido para latón / oro antiguo
+	mat.metallic = 0.82
+	mat.metallic_specular = 0.68
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	# Bandas horizontales y brocales en bronce / oro antiguo brillante que contrastan fuertemente
+	mat.albedo_color = Color(0.92, 0.74, 0.36)
+
+	return mat
+
 static func create_floor_slab_material(preset: MaterialPreset = MaterialPreset.STYLIZED_SLATE) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.roughness = 0.65

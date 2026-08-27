@@ -1,20 +1,17 @@
 {
     "schema_version": 1,
-    "id": "entrance",
-    "display_name": "Entrance",
+    "id": "corridor",
+    "display_name": "Corridor",
     "intent": {
         "type": "transition",
         "focal": false,
         "symmetry": false,
-        "player_clearance_level": 2,
         "allowed_tags": [
-            "wall_decor",
-            "detail",
-            "debris"
+            "lighting",
+            "wall_decor"
         ],
         "forbidden_tags": [
             "burial",
-            "seating",
             "storage"
         ]
     },
@@ -24,29 +21,24 @@
         "door": "stone_arch",
         "stairs": "stone"
     },
-    "composition": {
-        "primary": null,
-        "secondary": []
-    },
     "lighting": {
-        "budget": 2.5,
-        "color": "#C8B27A",
-        "energy": 1.0,
-        "range": 4.0,
+        "budget": 20.0,
+        "spacing": 4,
+        "color": "#D6B36A",
+        "energy": 0.90,
+        "range": 4.5,
         "fixtures": {
             "wall": {
-                "min": 2,
-                "max": 4,
+                "min": 4,
+                "max": 16,
                 "allowed": [
                     "wall_torch"
                 ]
             },
             "floor": {
-                "min": 4,
-                "max": 8,
-                "allowed": [
-                    "candle_cluster"
-                ]
+                "min": 0,
+                "max": 0,
+                "allowed": []
             },
             "hanging": {
                 "min": 0,
@@ -54,6 +46,5 @@
                 "allowed": []
             }
         }
-    },
-    "relationships": []
+    }
 }

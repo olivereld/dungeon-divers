@@ -387,28 +387,40 @@ static func _filter_entries_for_rule(palette, rule) -> Array:
 	if rule == null:
 		return mode_entries
 
+	var has_id_filter: bool = ("target_fixture_ids" in rule and not rule.target_fixture_ids.is_empty())
+	var has_type_filter: bool = ("target_fixture_types" in rule and not rule.target_fixture_types.is_empty())
+
+	if not has_id_filter and not has_type_filter:
+		return mode_entries
+
 	var result: Array = []
 	for entry in mode_entries:
 		var style: _FixtureStyleScript = entry.style
 		if style == null:
 			continue
 
-		if "target_fixture_ids" in rule and not rule.target_fixture_ids.is_empty():
-			var matched_id: bool = false
+		var matched: bool = false
+		if has_id_filter:
 			for fid in rule.target_fixture_ids:
-				if style.id == fid or str(style.id).to_lower().contains(str(fid).to_lower()):
-					matched_id = true
+				var fid_str := str(fid).to_lower()
+				var style_str := str(style.id).to_lower()
+				if style.id == fid or style_str.contains(fid_str) or fid_str.contains(style_str):
+					matched = true
 					break
-			if matched_id:
-				result.append(entry)
-			continue
+				# También comprobar si ambos contienen el tipo base ("torch", "lantern", "brazier", "candle")
+				for keyword in ["torch", "lantern", "brazier", "candle"]:
+					if fid_str.contains(keyword) and style_str.contains(keyword):
+						matched = true
+						break
+				if matched:
+					break
 
-		if "target_fixture_types" in rule and not rule.target_fixture_types.is_empty():
+		if not matched and has_type_filter:
 			if rule.target_fixture_types.has(style.fixture_type):
-				result.append(entry)
-			continue
+				matched = true
 
-		result.append(entry)
+		if matched:
+			result.append(entry)
 
 	return result
 

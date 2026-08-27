@@ -76,6 +76,61 @@ func find_wall_anchors(r_geom, tile_size: float = 2.0, wall_mount_height: float 
 
 	return anchors
 
+## Descubre todos los anclajes de pared válidos para los corredores/pasillos del dungeon.
+func find_corridor_wall_anchors(partition, tile_size: float = 2.0, wall_mount_height: float = 1.65) -> Array[_WallAnchorScript]:
+	var anchors: Array[_WallAnchorScript] = []
+	if partition == null or partition.corridor_wall_cells.is_empty() or partition.corridor_floor_cells.is_empty():
+		return anchors
+
+	var floor_cells_map: Dictionary = {}
+	for fc in partition.corridor_floor_cells:
+		floor_cells_map[fc] = true
+
+	var sorted_walls: Array = partition.corridor_wall_cells.duplicate()
+	sorted_walls.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return a.y < b.y if a.y != b.y else a.x < b.x
+	)
+
+	for w_pos in sorted_walls:
+		var valid_side: int = -1
+		var facing_normal := Vector3.ZERO
+		var rot_y: float = 0.0
+
+		if floor_cells_map.has(w_pos + Vector2i(0, 1)):
+			valid_side = SIDE_NORTH
+			facing_normal = Vector3(0.0, 0.0, 1.0)
+			rot_y = 0.0
+		elif floor_cells_map.has(w_pos + Vector2i(0, -1)):
+			valid_side = SIDE_SOUTH
+			facing_normal = Vector3(0.0, 0.0, -1.0)
+			rot_y = PI
+		elif floor_cells_map.has(w_pos + Vector2i(1, 0)):
+			valid_side = SIDE_WEST
+			facing_normal = Vector3(1.0, 0.0, 0.0)
+			rot_y = PI * 0.5
+		elif floor_cells_map.has(w_pos + Vector2i(-1, 0)):
+			valid_side = SIDE_EAST
+			facing_normal = Vector3(-1.0, 0.0, 0.0)
+			rot_y = -PI * 0.5
+
+		if valid_side == -1:
+			continue
+
+		var center_x: float = (float(w_pos.x) + 0.5) * tile_size
+		var center_z: float = (float(w_pos.y) + 0.5) * tile_size
+		var world_pos := Vector3(center_x, wall_mount_height, center_z) + (facing_normal * (tile_size * 0.50))
+
+		var anchor := _WallAnchorScript.new(
+			w_pos,
+			valid_side,
+			world_pos,
+			rot_y,
+			facing_normal
+		)
+		anchors.append(anchor)
+
+	return anchors
+
 ## Descubre todos los anclajes de suelo válidos para la habitación provista.
 func find_floor_anchors(r_geom, tile_size: float = 2.0) -> Array[_FloorAnchorScript]:
 	var anchors: Array[_FloorAnchorScript] = []

@@ -19,7 +19,20 @@
         ]
     },
     "architecture": {
-        "floor": "ruined_stone",
+        "floor": {
+            "base": "catacomb_dirt",
+            "base_weight": 75.0,
+            "variants": [
+                {
+                    "style": "ruined_stone",
+                    "weight": 20.0
+                },
+                {
+                    "style": "cobblestone",
+                    "weight": 5.0
+                }
+            ]
+        },
         "walls": "dark_stone",
         "door": "stone_arch",
         "stairs": "stone",

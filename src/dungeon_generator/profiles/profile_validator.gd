@@ -107,6 +107,11 @@ func _validate_archetype(bundle: _ProfileBundleScript, result: _ProfileValidatio
 		if not bundle.rooms.has(p_key):
 			result.add_error("Archetype references room '%s' (%s) but it failed to load." % [str(p_key), str(arch.rooms[p_key])])
 
+func validate_room(room: _ProfileRoomScript, assets = null) -> _ProfileValidationResultScript:
+	var res := _ProfileValidationResultScript.new()
+	_validate_single_room(room, assets, res)
+	return res
+
 func _validate_rooms(bundle: _ProfileBundleScript, result: _ProfileValidationResultScript) -> void:
 	for r_id in bundle.rooms:
 		var room = bundle.rooms[r_id]
@@ -117,8 +122,8 @@ func _validate_single_room(room: _ProfileRoomScript, assets, result: _ProfileVal
 		result.add_error("Null room found in bundle.")
 		return
 
-	if room.schema_version != 1:
-		result.add_error("Room '%s' schema_version must be 1 (found %d)." % [str(room.id), room.schema_version])
+	if room.schema_version < 1:
+		result.add_error("Room '%s' schema_version must be >= 1 (found %d)." % [str(room.id), room.schema_version])
 	if room.id == &"":
 		result.add_error("Room ID cannot be empty.")
 
@@ -128,14 +133,16 @@ func _validate_single_room(room: _ProfileRoomScript, assets, result: _ProfileVal
 
 	# Architecture
 	if room.architecture != null:
-		if room.architecture.floor != &"" and not assets.has_architecture(room.architecture.floor):
-			result.add_error("Room '%s' references unknown architecture floor '%s'." % [str(room.id), str(room.architecture.floor)])
-		if room.architecture.walls != &"" and not assets.has_architecture(room.architecture.walls):
-			result.add_error("Room '%s' references unknown architecture walls '%s'." % [str(room.id), str(room.architecture.walls)])
-		if room.architecture.door != &"" and not assets.has_architecture(room.architecture.door):
-			result.add_error("Room '%s' references unknown architecture door '%s'." % [str(room.id), str(room.architecture.door)])
-		if room.architecture.stairs != &"" and not assets.has_architecture(room.architecture.stairs):
-			result.add_error("Room '%s' references unknown architecture stairs '%s'." % [str(room.id), str(room.architecture.stairs)])
+		if assets != null:
+			if room.architecture.floor != &"" and not assets.has_architecture(room.architecture.floor):
+				result.add_error("Room '%s' references unknown architecture floor '%s'." % [str(room.id), str(room.architecture.floor)])
+			if room.architecture.walls != &"" and not assets.has_architecture(room.architecture.walls):
+				result.add_error("Room '%s' references unknown architecture walls '%s'." % [str(room.id), str(room.architecture.walls)])
+			if room.architecture.door != &"" and not assets.has_architecture(room.architecture.door):
+				result.add_error("Room '%s' references unknown architecture door '%s'." % [str(room.id), str(room.architecture.door)])
+			if room.architecture.stairs != &"" and not assets.has_architecture(room.architecture.stairs):
+				result.add_error("Room '%s' references unknown architecture stairs '%s'." % [str(room.id), str(room.architecture.stairs)])
+
 		if room.architecture.wall_variants != null and room.architecture.wall_variants.enabled:
 			var wv = room.architecture.wall_variants
 			if wv.allowed.is_empty():
@@ -148,6 +155,22 @@ func _validate_single_room(room: _ProfileRoomScript, assets, result: _ProfileVal
 				total_w += w
 			if total_w <= 0.0:
 				result.add_error("Room '%s' wall_variants total weight must be > 0." % str(room.id))
+
+		if room.architecture.floor_variants != null and room.architecture.floor_variants.enabled:
+			var fv = room.architecture.floor_variants
+			if fv.base_weight < 0.0:
+				result.add_error("Room '%s' floor base_weight cannot be negative." % str(room.id))
+			var total_fw: float = fv.base_weight
+			for v_dict in fv.variants:
+				var v_st = v_dict.get("style", &"")
+				var v_w = float(v_dict.get("weight", 0.0))
+				if v_w < 0.0:
+					result.add_error("Room '%s' floor variant '%s' has negative weight %f." % [str(room.id), str(v_st), v_w])
+				if assets != null and v_st != &"" and not assets.has_architecture(v_st):
+					result.add_error("Room '%s' floor variant references unknown architecture '%s'." % [str(room.id), str(v_st)])
+				total_fw += v_w
+			if total_fw <= 0.0:
+				result.add_error("Room '%s' floor_variants total weight must be > 0." % str(room.id))
 
 	# Composition
 	if room.composition != null:

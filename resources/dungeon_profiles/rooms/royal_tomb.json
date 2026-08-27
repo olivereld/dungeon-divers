@@ -23,7 +23,16 @@
         ]
     },
     "architecture": {
-        "floor": "smooth_slabs",
+        "floor": {
+            "base": "smooth_slabs",
+            "base_weight": 80.0,
+            "variants": [
+                {
+                    "style": "ruined_stone",
+                    "weight": 20.0
+                }
+            ]
+        },
         "walls": "dark_stone",
         "door": "stone_arch",
         "stairs": "stone",
@@ -113,7 +122,7 @@
             ],
             "placement": "near",
             "min_count": 3,
-            "max_count": 7,
+            "max_count": 6,
             "min_distance": 1.0,
             "max_distance": 2.0
         },

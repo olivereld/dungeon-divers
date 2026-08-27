@@ -13,12 +13,15 @@ const _FloorCollisionBuilderScript = preload("res://src/floor_tile_generator/col
 const _FloorSurfaceClusterScript = preload("res://src/floor_tile_generator/data/floor_surface_cluster.gd")
 const _FloorSurfaceResultScript = preload("res://src/floor_tile_generator/data/floor_surface_result.gd")
 const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
+const _FloorVariantResolverScript = preload("res://src/floor_tile_generator/variants/floor_variant_resolver.gd")
+const _ArchPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
 const _SeedDerivationScript = preload("res://src/dungeon_generator/core/seed_derivation.gd")
 
 var _region_extractor := _FloorRegionExtractorScript.new()
 var _pattern_gen := _FloorTilePatternScript.new()
 var _mesh_builder := _FloorSurfaceMeshBuilderScript.new()
 var _collision_builder := _FloorCollisionBuilderScript.new()
+var _variant_resolver := _FloorVariantResolverScript.new()
 
 ## Genera la superficie de suelo respetando los estilos arquitectónicos individuales de cada sala y corredores
 func generate_floor_for_partition(
@@ -52,9 +55,40 @@ func generate_floor_for_partition(
 		var cluster = _FloorSurfaceClusterScript.new(cluster_id)
 		cluster.cells = r_geom.floor_cells
 
+		# Resolver variantes de suelo declarativas por celda
+		var floor_policy = null
+		if r_geom.profile != null:
+			if "floor_variants" in r_geom.profile and r_geom.profile.floor_variants != null:
+				floor_policy = r_geom.profile.floor_variants
+			elif "architecture" in r_geom.profile and r_geom.profile.architecture != null and "floor_variants" in r_geom.profile.architecture:
+				floor_policy = r_geom.profile.architecture.floor_variants
+
+		var base_floor_style: int = r_geom.profile.floor_style if (r_geom.profile != null and "floor_style" in r_geom.profile) else 0
+		var style_config_cache: Dictionary = {}
+		style_config_cache[base_floor_style] = room_cfg
+
 		for cell_pos in r_geom.floor_cells:
+			var cell_cfg = room_cfg
+			if floor_policy != null and floor_policy.enabled and not floor_policy.variants.is_empty():
+				var cell_style: int = _variant_resolver.resolve_cell_floor_style(
+					cell_pos, room_seed, floor_policy, base_floor_style
+				)
+				if style_config_cache.has(cell_style):
+					cell_cfg = style_config_cache[cell_style]
+				elif config_resolver != null and r_geom.profile != null:
+					var proxy_prof := _ArchPresentationProfileScript.new(
+						cell_style,
+						r_geom.profile.wall_style,
+						r_geom.profile.door_style,
+						r_geom.profile.stairs_style,
+						r_geom.profile.fixture_style,
+						r_geom.profile.decoration_palette
+					)
+					cell_cfg = config_resolver.resolve_floor_config(proxy_prof, base_config)
+					style_config_cache[cell_style] = cell_cfg
+
 			var descs: Array = _pattern_gen.generate_descriptors_for_cell(
-				cell_pos, room_cfg, room_seed, noise_field
+				cell_pos, cell_cfg, room_seed, noise_field
 			)
 			cluster.descriptors.append_array(descs)
 

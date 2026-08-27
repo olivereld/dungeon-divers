@@ -64,6 +64,8 @@ func resolve_from_room_profile(
 	)
 	if arch.wall_variants != null:
 		res_prof.wall_variants = arch.wall_variants
+	if arch.floor_variants != null:
+		res_prof.floor_variants = arch.floor_variants
 	return res_prof
 
 func _resolve_mausoleum(purpose: int) -> _ArchitecturalPresentationProfileScript:

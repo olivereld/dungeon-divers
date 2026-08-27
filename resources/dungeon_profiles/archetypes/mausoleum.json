@@ -77,5 +77,23 @@
         "royal_tomb": "royal_tomb.json",
         "mortuary": "mortuary.json",
         "sacristy": "sacristy.json"
+    },
+    "corridor": {
+        "lighting": {
+            "budget": 20.0,
+            "spacing": 4,
+            "color": "#D6B36A",
+            "energy": 0.90,
+            "range": 4.5,
+            "fixtures": {
+                "wall": {
+                    "min": 4,
+                    "max": 16,
+                    "allowed": [
+                        "wall_torch"
+                    ]
+                }
+            }
+        }
     }
 }
