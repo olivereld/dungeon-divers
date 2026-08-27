@@ -2,101 +2,234 @@
     "schema_version": 1,
     "props": {
         "sarcophagus_stone_closed": {
-            "scene": "res://assets/props/crypt/sarcophagus.tscn",
+            "id": "sarcophagus_stone_closed",
+            "source": {
+                "type": "procedural",
+                "builder_id": "sarcophagus_prop",
+                "params": {
+                    "style": 0,
+                    "is_open": false
+                }
+            },
             "tags": [
                 "burial",
                 "focal",
                 "furniture"
             ],
-            "placement_modes": [
-                "center",
-                "floor"
-            ],
             "footprint": {
                 "width": 2,
                 "depth": 1
             },
-            "collision": "blocking",
-            "anchors": [
-                "floor"
-            ]
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "center",
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
         },
         "sarcophagus_stone_open": {
-            "scene": "res://assets/props/crypt/sarcophagus_open.tscn",
+            "id": "sarcophagus_stone_open",
+            "source": {
+                "type": "procedural",
+                "builder_id": "sarcophagus_prop",
+                "params": {
+                    "style": 0,
+                    "is_open": true
+                }
+            },
             "tags": [
                 "burial",
                 "focal",
                 "furniture"
             ],
-            "placement_modes": [
-                "floor"
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "floor",
+                    "center"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "sarcophagus_wood_closed": {
+            "id": "sarcophagus_wood_closed",
+            "source": {
+                "type": "procedural",
+                "builder_id": "sarcophagus_prop",
+                "params": {
+                    "style": 1,
+                    "is_open": false
+                }
+            },
+            "tags": [
+                "burial",
+                "focal",
+                "furniture"
             ],
             "footprint": {
                 "width": 2,
                 "depth": 1
             },
-            "collision": "blocking",
-            "anchors": [
-                "floor"
-            ]
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "center",
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "sarcophagus_wood_open": {
+            "id": "sarcophagus_wood_open",
+            "source": {
+                "type": "procedural",
+                "builder_id": "sarcophagus_prop",
+                "params": {
+                    "style": 1,
+                    "is_open": true
+                }
+            },
+            "tags": [
+                "burial",
+                "focal",
+                "furniture"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
         },
         "tombstone_classic_wall": {
-            "scene": "res://assets/props/crypt/tombstone_wall.tscn",
+            "id": "tombstone_classic_wall",
+            "source": {
+                "type": "procedural",
+                "builder_id": "tombstone_prop",
+                "params": {
+                    "style": 0
+                }
+            },
             "tags": [
                 "burial",
                 "wall_decor"
             ],
-            "placement_modes": [
-                "wall"
-            ],
             "footprint": {
                 "width": 1,
                 "depth": 1
             },
-            "collision": "blocking",
-            "anchors": [
-                "floor",
-                "wall"
-            ]
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "wall"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
         },
         "tombstone_cross_corner": {
-            "scene": "res://assets/props/crypt/tombstone_corner.tscn",
+            "id": "tombstone_cross_corner",
+            "source": {
+                "type": "procedural",
+                "builder_id": "tombstone_prop",
+                "params": {
+                    "style": 1
+                }
+            },
             "tags": [
                 "burial",
                 "corner_decor"
             ],
-            "placement_modes": [
-                "corner"
-            ],
             "footprint": {
                 "width": 1,
                 "depth": 1
             },
-            "collision": "blocking",
-            "anchors": [
-                "floor",
-                "wall"
-            ]
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "corner"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
         },
         "stone_altar_center": {
-            "scene": "res://assets/props/crypt/altar.tscn",
+            "id": "stone_altar_center",
+            "source": {
+                "type": "procedural",
+                "builder_id": "altar_prop",
+                "params": {
+                    "style": 1
+                }
+            },
             "tags": [
                 "ceremonial",
                 "focal",
                 "furniture"
             ],
-            "placement_modes": [
-                "center",
-                "floor"
-            ],
             "footprint": {
                 "width": 2,
                 "depth": 1
             },
-            "collision": "blocking",
-            "anchors": [
-                "floor"
-            ]
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "center",
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
         },
         "pillar_stone": {
             "id": "pillar_stone",
@@ -104,6 +237,18 @@
                 "type": "packed_scene",
                 "scene": "res://assets/scenes/props/pillar_stone.tscn"
             },
+            "variants": [
+                {
+                    "id": "pillar_stone_intact",
+                    "scene": "res://assets/scenes/props/pillar_stone.tscn",
+                    "weight": 70.0
+                },
+                {
+                    "id": "pillar_stone_cracked",
+                    "scene": "res://assets/scenes/props/pillar_stone_cracked.tscn",
+                    "weight": 30.0
+                }
+            ],
             "tags": [
                 "architecture",
                 "structural",
@@ -121,148 +266,496 @@
             },
             "placement": {
                 "allowed": [
+                    "floor",
                     "corner",
                     "perimeter",
                     "side"
                 ]
             },
             "scale": {
-                "default": 3,
-                "min": 3,
-                "max": 3
+                "default": 3.0,
+                "min": 2.5,
+                "max": 3.2
             }
         },
         "church_pew_wall": {
-            "scene": "res://assets/props/common/bench.tscn",
+            "id": "church_pew_wall",
+            "source": {
+                "type": "procedural",
+                "builder_id": "bench_prop",
+                "params": {
+                    "style": 0
+                }
+            },
             "tags": [
                 "seating",
                 "wall_decor",
                 "furniture"
             ],
-            "placement_modes": [
-                "wall"
-            ],
             "footprint": {
                 "width": 2,
                 "depth": 1
             },
-            "collision": "blocking",
-            "anchors": [
-                "floor",
-                "wall"
-            ]
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "wall"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
         },
         "stone_orior_floor": {
-            "scene": "res://assets/props/common/bench_stone.tscn",
+            "id": "stone_orior_floor",
+            "source": {
+                "type": "procedural",
+                "builder_id": "bench_prop",
+                "params": {
+                    "style": 1
+                }
+            },
             "tags": [
                 "seating",
                 "furniture"
             ],
-            "placement_modes": [
-                "floor"
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "crypt_rubble_corner": {
+            "id": "crypt_rubble_corner",
+            "source": {
+                "type": "procedural",
+                "builder_id": "rubble_prop",
+                "params": {}
+            },
+            "tags": [
+                "debris",
+                "corner_decor"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "corner",
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "crypt_urn_banded_floor": {
+            "id": "crypt_urn_banded_floor",
+            "source": {
+                "type": "procedural",
+                "builder_id": "urn_prop",
+                "params": {
+                    "style": 0,
+                    "scale": 1.0,
+                    "has_lid": true
+                }
+            },
+            "tags": [
+                "burial",
+                "detail"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "footprint"
+            },
+            "placement": {
+                "allowed": [
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "crypt_urn_relic_floor": {
+            "id": "crypt_urn_relic_floor",
+            "source": {
+                "type": "procedural",
+                "builder_id": "urn_prop",
+                "params": {
+                    "style": 1,
+                    "scale": 1.0,
+                    "has_lid": true
+                }
+            },
+            "tags": [
+                "burial",
+                "detail"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "footprint"
+            },
+            "placement": {
+                "allowed": [
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "temple_urn_pedestal_floor": {
+            "id": "temple_urn_pedestal_floor",
+            "source": {
+                "type": "procedural",
+                "builder_id": "urn_prop",
+                "params": {
+                    "style": 2,
+                    "scale": 1.0,
+                    "has_lid": true
+                }
+            },
+            "tags": [
+                "burial",
+                "detail"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "footprint"
+            },
+            "placement": {
+                "allowed": [
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "crypt_urn_canopic_surface": {
+            "id": "crypt_urn_canopic_surface",
+            "source": {
+                "type": "procedural",
+                "builder_id": "urn_prop",
+                "params": {
+                    "style": 3,
+                    "scale": 0.65,
+                    "has_lid": true
+                }
+            },
+            "tags": [
+                "burial",
+                "detail"
+            ],
+            "footprint": {
+                "width": 1,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "footprint"
+            },
+            "placement": {
+                "allowed": [
+                    "corner",
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 0.65,
+                "min": 0.6,
+                "max": 0.7
+            }
+        },
+        "temple_altar_center": {
+            "id": "temple_altar_center",
+            "source": {
+                "type": "procedural",
+                "builder_id": "altar_prop",
+                "params": {
+                    "style": 2
+                }
+            },
+            "tags": [
+                "ceremonial",
+                "focal",
+                "furniture"
             ],
             "footprint": {
                 "width": 2,
                 "depth": 1
             },
-            "collision": "blocking",
-            "anchors": [
-                "floor"
-            ]
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "center",
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
         },
-        "crypt_rubble_corner": {
-            "scene": "res://assets/props/crypt/rubble.tscn",
+        "temple_pew_floor": {
+            "id": "temple_pew_floor",
+            "source": {
+                "type": "procedural",
+                "builder_id": "bench_prop",
+                "params": {
+                    "style": 0
+                }
+            },
             "tags": [
-                "debris",
+                "seating",
+                "furniture"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "temple_pew_wall": {
+            "id": "temple_pew_wall",
+            "source": {
+                "type": "procedural",
+                "builder_id": "bench_prop",
+                "params": {
+                    "style": 0
+                }
+            },
+            "tags": [
+                "seating",
+                "wall_decor",
+                "furniture"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "wall"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "fortress_table_center": {
+            "id": "fortress_table_center",
+            "source": {
+                "type": "procedural",
+                "builder_id": "table_prop",
+                "params": {
+                    "style": 0
+                }
+            },
+            "tags": [
+                "furniture",
+                "focal"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 2
+            },
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "center",
+                    "floor"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "fortress_bench_wall": {
+            "id": "fortress_bench_wall",
+            "source": {
+                "type": "procedural",
+                "builder_id": "bench_prop",
+                "params": {
+                    "style": 3
+                }
+            },
+            "tags": [
+                "seating",
+                "wall_decor",
+                "furniture"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "wall"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "fortress_bookshelf_wall": {
+            "id": "fortress_bookshelf_wall",
+            "source": {
+                "type": "procedural",
+                "builder_id": "bookshelf_prop",
+                "params": {
+                    "style": 0
+                }
+            },
+            "tags": [
+                "storage",
+                "wall_decor",
+                "furniture"
+            ],
+            "footprint": {
+                "width": 2,
+                "depth": 1
+            },
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "wall"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
+        },
+        "fortress_chest_corner": {
+            "id": "fortress_chest_corner",
+            "source": {
+                "type": "procedural",
+                "builder_id": "chest_prop",
+                "params": {
+                    "is_open": false
+                }
+            },
+            "tags": [
+                "storage",
                 "corner_decor"
             ],
-            "placement_modes": [
-                "corner",
-                "floor"
-            ],
             "footprint": {
                 "width": 1,
                 "depth": 1
             },
-            "collision": "blocking",
-            "anchors": [
-                "floor",
-                "wall"
-            ]
+            "collision": {
+                "mode": "blocking"
+            },
+            "placement": {
+                "allowed": [
+                    "corner"
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
         },
-        "crypt_urn_banded_floor": {
-            "scene": "res://assets/props/crypt/urn.tscn",
+        "mine_crate_corner": {
+            "id": "mine_crate_corner",
+            "source": {
+                "type": "procedural",
+                "builder_id": "crate_prop",
+                "params": {}
+            },
             "tags": [
-                "burial",
-                "detail"
-            ],
-            "placement_modes": [
-                "floor"
+                "storage",
+                "corner_decor"
             ],
             "footprint": {
                 "width": 1,
                 "depth": 1
             },
-            "collision": "footprint",
-            "anchors": [
-                "floor"
-            ]
-        },
-        "crypt_urn_relic_floor": {
-            "scene": "res://assets/props/crypt/urn_relic.tscn",
-            "tags": [
-                "burial",
-                "detail"
-            ],
-            "placement_modes": [
-                "floor"
-            ],
-            "footprint": {
-                "width": 1,
-                "depth": 1
+            "collision": {
+                "mode": "blocking"
             },
-            "collision": "footprint",
-            "anchors": [
-                "floor"
-            ]
-        },
-        "temple_urn_pedestal_floor": {
-            "scene": "res://assets/props/crypt/urn_pedestal.tscn",
-            "tags": [
-                "burial",
-                "detail"
-            ],
-            "placement_modes": [
-                "floor"
-            ],
-            "footprint": {
-                "width": 1,
-                "depth": 1
+            "placement": {
+                "allowed": [
+                    "corner",
+                    "floor"
+                ]
             },
-            "collision": "footprint",
-            "anchors": [
-                "floor"
-            ]
-        },
-        "crypt_urn_canopic_surface": {
-            "scene": "res://assets/props/crypt/urn_canopic.tscn",
-            "tags": [
-                "burial",
-                "detail"
-            ],
-            "placement_modes": [
-                "corner",
-                "floor"
-            ],
-            "footprint": {
-                "width": 1,
-                "depth": 1
-            },
-            "collision": "footprint",
-            "anchors": [
-                "floor",
-                "wall"
-            ]
+            "scale": {
+                "default": 1.0,
+                "min": 1.0,
+                "max": 1.0
+            }
         }
     }
 }

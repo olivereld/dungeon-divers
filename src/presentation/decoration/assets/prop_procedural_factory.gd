@@ -25,6 +25,15 @@ var _mesh_facade: RefCounted = null
 func _init() -> void:
 	_mesh_facade = _DungeonMeshGeneratorScript.new()
 
+func has_builder(builder_id: StringName) -> bool:
+	match builder_id:
+		&"sarcophagus_prop", &"bench_prop", &"altar_prop", &"tombstone_prop", \
+		&"table_prop", &"chair_prop", &"bookshelf_prop", &"chest_prop", \
+		&"crate_prop", &"barrel_prop", &"rubble_prop", &"sack_prop", &"urn_prop":
+			return true
+		_:
+			return false
+
 func build_procedural_prop(builder_id: StringName, params: Dictionary) -> Node3D:
 	match builder_id:
 		&"sarcophagus_prop":

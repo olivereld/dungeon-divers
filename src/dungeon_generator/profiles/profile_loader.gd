@@ -195,8 +195,18 @@ func populate_prop_asset_registry(registry) -> void:
 			source_type = _PropAssetSourceScript.SourceType.PACKED_SCENE
 			scene_path = str(pdata["scene"])
 
-		if source_type == _PropAssetSourceScript.SourceType.PACKED_SCENE and scene_path != "":
-			if ResourceLoader.exists(scene_path):
+		var variants_arr: Array[Dictionary] = []
+		if pdata.has("variants") and pdata["variants"] is Array:
+			for v in pdata["variants"]:
+				if v is Dictionary:
+					variants_arr.append(v)
+		elif pdata.has("source") and pdata["source"] is Dictionary and pdata["source"].has("variants"):
+			for v in pdata["source"]["variants"]:
+				if v is Dictionary:
+					variants_arr.append(v)
+
+		if source_type == _PropAssetSourceScript.SourceType.PACKED_SCENE and (scene_path != "" or not variants_arr.is_empty()):
+			if scene_path == "" or ResourceLoader.exists(scene_path):
 				var def = _PropAssetDefinitionScript.new(
 					prop_id,
 					_PropAssetSourceScript.SourceType.PACKED_SCENE,
@@ -205,7 +215,8 @@ func populate_prop_asset_registry(registry) -> void:
 					null,
 					scale_vec,
 					0.0,
-					scene_path
+					scene_path,
+					variants_arr
 				)
 				registry.register_definition(def)
 		elif source_type == _PropAssetSourceScript.SourceType.PROCEDURAL and builder_id != &"":

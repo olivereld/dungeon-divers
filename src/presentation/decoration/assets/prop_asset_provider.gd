@@ -20,15 +20,18 @@ func set_registry(reg: _PropAssetRegistryScript) -> void:
 	if reg != null:
 		_registry = reg
 
-func materialize_by_id(prop_id: StringName) -> Node3D:
+func materialize_by_id(prop_id: StringName, seed_val: int = 0) -> Node3D:
 	if not _registry.has_definition(prop_id):
 		push_warning("[PropAssetProvider] ID de prop no registrado: %s. Saltando materialización." % str(prop_id))
 		return null
 
 	var def = _registry.get_definition(prop_id)
-	return instantiate(def)
+	return instantiate_with_seed(def, seed_val)
 
 func instantiate(definition: _PropAssetDefinitionScript) -> Node3D:
+	return instantiate_with_seed(definition, 0)
+
+func instantiate_with_seed(definition: _PropAssetDefinitionScript, seed_val: int = 0) -> Node3D:
 	if definition == null:
 		push_warning("[PropAssetProvider] PropAssetDefinition nulo.")
 		return null
@@ -37,13 +40,18 @@ func instantiate(definition: _PropAssetDefinitionScript) -> Node3D:
 
 	match definition.source_type:
 		_PropAssetSourceScript.SourceType.PACKED_SCENE:
-			var sc = definition.get_packed_scene() if definition.has_method("get_packed_scene") else definition.scene
+			var res_data: Dictionary = definition.resolve_scene(seed_val) if definition.has_method("resolve_scene") else {"scene": definition.get_packed_scene(), "variant_id": String(definition.id)}
+			var sc: PackedScene = res_data.get("scene", null)
+			if sc == null:
+				sc = definition.get_packed_scene() if definition.has_method("get_packed_scene") else definition.scene
 			if sc == null:
 				push_warning("[PropAssetProvider] PackedScene nula para prop_id: %s" % str(definition.id))
 				return null
 			node = sc.instantiate() as Node3D
 			if node != null:
 				node.scale = definition.default_scale
+				if res_data.has("variant_id"):
+					node.set_meta("variant_id", res_data["variant_id"])
 
 		_PropAssetSourceScript.SourceType.PROCEDURAL:
 			if definition.procedural_builder_id == &"":

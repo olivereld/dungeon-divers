@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://ddylv6n57f6a8"]
+
+[ext_resource type="PackedScene" uid="uid://dnubgssknx7wx" path="res://assets/models/architecture/pillars/pillar_stone.glb" id="1_mesh"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_pillar_cracked"]
+height = 2.4
+radius = 0.38
+
+[node name="PillarStoneCracked" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_mesh")]
+transform = Transform3D(0.999848, 0, 0.0174524, 0, 1, 0, -0.0174524, 0, 0.999848, 0, 0, 0)
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+shape = SubResource("CylinderShape3D_pillar_cracked")

@@ -24,7 +24,8 @@ func spawn_prop(directive: _PropDirectiveScript, parent: Node3D = null) -> Node3
 	if directive == null or directive.style == null:
 		return null
 
-	var node: Node3D = _asset_provider.materialize_by_id(directive.prop_id)
+	var seed_val: int = int(directive.world_position.x * 73.0 + directive.world_position.z * 37.0 + directive.room_id * 101.0)
+	var node: Node3D = _asset_provider.materialize_by_id(directive.prop_id, seed_val)
 	if node == null:
 		node = Node3D.new()
 
