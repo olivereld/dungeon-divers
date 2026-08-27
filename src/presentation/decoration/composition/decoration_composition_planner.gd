@@ -362,13 +362,17 @@ func _build_relationship_profile_from_profile_room(p_room: _ProfileRoomScript):
 	var relations_arr: Array[_PropFixtureRelationScript] = []
 	for rel in p_room.relationships:
 		var target_types: Array[int] = []
+		var target_ids: Array[StringName] = []
 		for t_str in rel.targets:
+			target_ids.append(StringName(str(t_str)))
 			var f_type = _fixture_style_from_name(str(t_str))
 			if f_type >= 0 and not target_types.has(f_type):
 				target_types.append(f_type)
 
 		var forbidden_types: Array[int] = []
+		var forbidden_ids: Array[StringName] = []
 		for f_str in rel.forbidden_targets:
+			forbidden_ids.append(StringName(str(f_str)))
 			var f_type = _fixture_style_from_name(str(f_str))
 			if f_type >= 0 and not forbidden_types.has(f_type):
 				forbidden_types.append(f_type)
@@ -403,11 +407,11 @@ func _build_relationship_profile_from_profile_room(p_room: _ProfileRoomScript):
 				1.0,
 				forbidden_types
 			)
+			r.target_fixture_ids = target_ids
+			r.forbidden_fixture_ids = forbidden_ids
 			relations_arr.append(r)
 
 	return _PropFixtureRelationshipProfileScript.new(StringName(str(p_room.id) + "_profile_relations"), relations_arr)
-
-
 
 func _build_fixture_rules_from_profile_room(p_room: _ProfileRoomScript) -> Array:
 	var result: Array = []
@@ -417,50 +421,63 @@ func _build_fixture_rules_from_profile_room(p_room: _ProfileRoomScript) -> Array
 	var l = p_room.lighting
 	if l.wall != null and (l.wall.min_count > 0 or l.wall.max_count > 0):
 		var styles: Array[int] = []
+		var f_ids: Array[StringName] = []
 		for a in l.wall.allowed:
+			f_ids.append(StringName(str(a)))
 			var st = _fixture_style_from_name(str(a))
 			if st >= 0 and not styles.has(st):
 				styles.append(st)
-		result.append(_FixtureBudgetRuleScript.new(
+		var r = _FixtureBudgetRuleScript.new(
 			_FixturePlacementModeScript.Mode.WALL,
 			l.wall.min_count,
 			l.wall.max_count,
 			_FixtureBudgetRuleScript.Affinity.PERIMETER,
 			styles,
 			&"wall_slot"
-		))
+		)
+		r.target_fixture_ids = f_ids
+		result.append(r)
 
 	if l.floor != null and (l.floor.min_count > 0 or l.floor.max_count > 0):
 		var styles: Array[int] = []
+		var f_ids: Array[StringName] = []
 		for a in l.floor.allowed:
+			f_ids.append(StringName(str(a)))
 			var st = _fixture_style_from_name(str(a))
 			if st >= 0 and not styles.has(st):
 				styles.append(st)
-		result.append(_FixtureBudgetRuleScript.new(
+		var r = _FixtureBudgetRuleScript.new(
 			_FixturePlacementModeScript.Mode.FLOOR,
 			l.floor.min_count,
 			l.floor.max_count,
 			_FixtureBudgetRuleScript.Affinity.FREE,
 			styles,
 			&"floor_slot"
-		))
+		)
+		r.target_fixture_ids = f_ids
+		result.append(r)
 
 	if l.hanging != null and (l.hanging.min_count > 0 or l.hanging.max_count > 0):
 		var styles: Array[int] = []
+		var f_ids: Array[StringName] = []
 		for a in l.hanging.allowed:
+			f_ids.append(StringName(str(a)))
 			var st = _fixture_style_from_name(str(a))
 			if st >= 0 and not styles.has(st):
 				styles.append(st)
-		result.append(_FixtureBudgetRuleScript.new(
+		var r = _FixtureBudgetRuleScript.new(
 			_FixturePlacementModeScript.Mode.HANGING,
 			l.hanging.min_count,
 			l.hanging.max_count,
 			_FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION,
 			styles,
 			&"hanging_slot"
-		))
+		)
+		r.target_fixture_ids = f_ids
+		result.append(r)
 
 	return result
+
 
 static func _fixture_style_from_name(name_str: String) -> int:
 	match name_str.to_lower():

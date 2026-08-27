@@ -7,10 +7,12 @@ extends RefCounted
 const _AssetPropEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_prop_entry.gd")
 const _AssetFixtureEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_fixture_entry.gd")
 const _AssetMaterialEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_material_entry.gd")
+const _AssetArchitectureEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_architecture_entry.gd")
 
 var props: Dictionary = {} # StringName -> AssetPropEntry
 var fixtures: Dictionary = {} # StringName -> AssetFixtureEntry
 var materials: Dictionary = {} # StringName -> AssetMaterialEntry
+var architecture: Dictionary = {} # StringName -> AssetArchitectureEntry
 
 func register_prop(entry: _AssetPropEntryScript) -> void:
 	if entry != null and entry.id != &"":
@@ -24,6 +26,10 @@ func register_material(entry: _AssetMaterialEntryScript) -> void:
 	if entry != null and entry.id != &"":
 		materials[entry.id] = entry
 
+func register_architecture(entry: _AssetArchitectureEntryScript) -> void:
+	if entry != null and entry.id != &"":
+		architecture[entry.id] = entry
+
 func get_prop(p_id: StringName) -> _AssetPropEntryScript:
 	return props.get(p_id, null)
 
@@ -33,6 +39,9 @@ func get_fixture(p_id: StringName) -> _AssetFixtureEntryScript:
 func get_material(p_id: StringName) -> _AssetMaterialEntryScript:
 	return materials.get(p_id, null)
 
+func get_architecture(p_id: StringName) -> _AssetArchitectureEntryScript:
+	return architecture.get(p_id, null)
+
 func has_prop(p_id: StringName) -> bool:
 	return props.has(p_id)
 
@@ -41,6 +50,9 @@ func has_fixture(p_id: StringName) -> bool:
 
 func has_material(p_id: StringName) -> bool:
 	return materials.has(p_id)
+
+func has_architecture(p_id: StringName) -> bool:
+	return architecture.has(p_id)
 
 func get_props_by_tag(tag: StringName) -> Array[_AssetPropEntryScript]:
 	var result: Array[_AssetPropEntryScript] = []

@@ -36,7 +36,12 @@ const _EntryScript = preload("res://src/presentation/showcase/mesh_gallery_entry
 @onready var ui_clusters_container: VBoxContainer = $UI/PanelContainer/Margin/HBox/InfoPanel/ClusterSection/ClusterList
 @onready var ui_clusters_header: Label = $UI/PanelContainer/Margin/HBox/InfoPanel/ClusterSection/ClusterHeader
 
+@onready var ui_export_button: Button = $UI/PanelContainer/Margin/HBox/InfoPanel/ExportSection/ExportButtonsHBox/ExportButton
+@onready var ui_open_folder_button: Button = $UI/PanelContainer/Margin/HBox/InfoPanel/ExportSection/ExportButtonsHBox/OpenFolderButton
+@onready var ui_export_status_label: Label = $UI/PanelContainer/Margin/HBox/InfoPanel/ExportSection/ExportStatusLabel
+
 var _catalog: MeshGalleryCatalog = null
+
 var _renderer: MeshGalleryRenderer = null
 var _current_category_idx: int = 0
 var _current_group_idx: int = 0
@@ -289,3 +294,74 @@ func _setup_controls() -> void:
 			_current_seed = int(val)
 			_regenerate_active_preview()
 		)
+
+	if ui_export_button != null:
+		ui_export_button.pressed.connect(_on_export_glb_pressed)
+	if ui_open_folder_button != null:
+		ui_open_folder_button.pressed.connect(_on_open_folder_pressed)
+
+# ==============================================================================
+# EXPORTACIÓN GLB
+# ==============================================================================
+
+func _on_export_glb_pressed() -> void:
+	export_current_model_to_glb()
+
+func _on_open_folder_pressed() -> void:
+	var export_dir = _get_export_directory()
+	var global_dir = ProjectSettings.globalize_path(export_dir)
+	DirAccess.make_dir_recursive_absolute(global_dir)
+	OS.shell_open(global_dir)
+
+func _get_export_directory() -> String:
+	return "user://exports/glb"
+
+func export_current_model_to_glb() -> String:
+	if _current_entry == null or prop_anchor == null:
+		_set_export_status("❌ No hay modelo seleccionado.", Color(1.0, 0.4, 0.4))
+		return ""
+
+	if prop_anchor.get_child_count() == 0:
+		_set_export_status("❌ El ancla de previsualización está vacía.", Color(1.0, 0.4, 0.4))
+		return ""
+
+	var model_node = prop_anchor.get_child(0)
+	if model_node == null:
+		_set_export_status("❌ Error al obtener el modelo 3D.", Color(1.0, 0.4, 0.4))
+		return ""
+
+	var export_dir = _get_export_directory()
+	var global_dir = ProjectSettings.globalize_path(export_dir)
+	var dir_err = DirAccess.make_dir_recursive_absolute(global_dir)
+	if dir_err != OK and not DirAccess.dir_exists_absolute(global_dir):
+		_set_export_status("❌ Error al crear carpeta de exportación.", Color(1.0, 0.4, 0.4))
+		return ""
+
+	# Sanitizar nombre de archivo
+	var safe_name = str(_current_entry.id).validate_node_name()
+	var safe_var = str(_current_entry.variant_name).validate_node_name().replace(" ", "_").to_lower()
+	var filename = "%s_%s_seed_%d.glb" % [safe_name, safe_var, _current_seed]
+	var full_export_path = global_dir.path_join(filename)
+
+	# Exportar mediante GLTFDocument
+	var gltf_doc := GLTFDocument.new()
+	var gltf_state := GLTFState.new()
+
+	var append_err = gltf_doc.append_from_scene(model_node, gltf_state)
+	if append_err != OK:
+		_set_export_status("❌ Error al preparar GLTF (código %d)" % append_err, Color(1.0, 0.4, 0.4))
+		return ""
+
+	var write_err = gltf_doc.write_to_filesystem(gltf_state, full_export_path)
+	if write_err != OK:
+		_set_export_status("❌ Error al escribir archivo GLB (código %d)" % write_err, Color(1.0, 0.4, 0.4))
+		return ""
+
+	_set_export_status("✓ Guardado: %s" % filename, Color(0.4, 0.9, 0.5))
+	print("[MeshGalleryShowcase] Modelo exportado exitosamente a: %s" % full_export_path)
+	return full_export_path
+
+func _set_export_status(msg: String, color: Color) -> void:
+	if ui_export_status_label != null:
+		ui_export_status_label.text = msg
+		ui_export_status_label.set("theme_override_colors/font_color", color)

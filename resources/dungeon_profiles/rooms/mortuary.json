@@ -18,6 +18,12 @@
             "storage"
         ]
     },
+    "architecture": {
+        "floor": "ruined_stone",
+        "walls": "dark_stone",
+        "door": "stone_arch",
+        "stairs": "stone"
+    },
     "composition": {
         "primary": {
             "rule_id": "primary_embalming_altar",

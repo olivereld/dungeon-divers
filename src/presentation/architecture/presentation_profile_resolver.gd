@@ -9,8 +9,12 @@ const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semant
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
+const _ProfileRoomScript = preload("res://src/dungeon_generator/profiles/profile_room.gd")
 
-func resolve(archetype: int, purpose: int) -> _ArchitecturalPresentationProfileScript:
+func resolve(archetype: int, purpose: int, room_profile = null) -> _ArchitecturalPresentationProfileScript:
+	if room_profile is _ProfileRoomScript and room_profile.architecture != null:
+		return resolve_from_room_profile(room_profile, archetype, purpose)
+
 	match archetype:
 		_DungeonArchetypeScript.Type.MAUSOLEUM:
 			return _resolve_mausoleum(purpose)
@@ -22,6 +26,42 @@ func resolve(archetype: int, purpose: int) -> _ArchitecturalPresentationProfileS
 			return _resolve_mine(purpose)
 		_:
 			return _resolve_generic(purpose)
+
+func resolve_from_room_profile(
+	p_room_profile: _ProfileRoomScript,
+	fallback_archetype: int = 0,
+	fallback_purpose: int = 0
+) -> _ArchitecturalPresentationProfileScript:
+	if p_room_profile == null or p_room_profile.architecture == null:
+		return resolve(fallback_archetype, fallback_purpose)
+
+	var arch = p_room_profile.architecture
+	var fallback_prof: _ArchitecturalPresentationProfileScript = null
+	match fallback_archetype:
+		_DungeonArchetypeScript.Type.MAUSOLEUM:
+			fallback_prof = _resolve_mausoleum(fallback_purpose)
+		_DungeonArchetypeScript.Type.FORTRESS:
+			fallback_prof = _resolve_fortress(fallback_purpose)
+		_DungeonArchetypeScript.Type.TEMPLE:
+			fallback_prof = _resolve_temple(fallback_purpose)
+		_DungeonArchetypeScript.Type.MINE:
+			fallback_prof = _resolve_mine(fallback_purpose)
+		_:
+			fallback_prof = _resolve_generic(fallback_purpose)
+
+	var floor_st = _ArchitecturalStyleScript.floor_from_name(str(arch.floor), fallback_prof.floor_style)
+	var wall_st = _ArchitecturalStyleScript.wall_from_name(str(arch.walls), fallback_prof.wall_style)
+	var door_st = _ArchitecturalStyleScript.door_from_name(str(arch.door), fallback_prof.door_style)
+	var stairs_st = _ArchitecturalStyleScript.stairs_from_name(str(arch.stairs), fallback_prof.stairs_style)
+
+	return _ArchitecturalPresentationProfileScript.new(
+		floor_st,
+		wall_st,
+		door_st,
+		stairs_st,
+		fallback_prof.fixture_style,
+		fallback_prof.decoration_palette
+	)
 
 func _resolve_mausoleum(purpose: int) -> _ArchitecturalPresentationProfileScript:
 	match purpose:
@@ -45,7 +85,7 @@ func _resolve_mausoleum(purpose: int) -> _ArchitecturalPresentationProfileScript
 			)
 		_RoomPurposeScript.Type.TOMB:
 			return _ArchitecturalPresentationProfileScript.new(
-				_ArchitecturalStyleScript.FloorStyle.RUINED_STONE,
+				_ArchitecturalStyleScript.FloorStyle.CATACOMB_DIRT,
 				_ArchitecturalStyleScript.WallStyle.DARK_STONE,
 				_ArchitecturalStyleScript.DoorStyle.STONE_ARCH,
 				_ArchitecturalStyleScript.StairsStyle.STONE,

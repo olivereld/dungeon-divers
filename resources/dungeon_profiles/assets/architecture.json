@@ -1,0 +1,116 @@
+{
+    "schema_version": 1,
+    "floors": {
+        "catacomb_dirt": {
+            "category": "floor",
+            "style": "catacomb_dirt",
+            "generator": "procedural"
+        },
+        "ruined_stone": {
+            "category": "floor",
+            "style": "ruined_stone",
+            "generator": "procedural"
+        },
+        "smooth_slabs": {
+            "category": "floor",
+            "style": "smooth_slabs",
+            "generator": "procedural"
+        },
+        "cobblestone": {
+            "category": "floor",
+            "style": "cobblestone",
+            "generator": "procedural"
+        },
+        "brick": {
+            "category": "floor",
+            "style": "brick",
+            "generator": "procedural"
+        },
+        "temple_tiles": {
+            "category": "floor",
+            "style": "temple_tiles",
+            "generator": "procedural"
+        },
+        "mine_rock": {
+            "category": "floor",
+            "style": "mine_rock",
+            "generator": "procedural"
+        },
+        "generic_stone": {
+            "category": "floor",
+            "style": "generic_stone",
+            "generator": "procedural"
+        }
+    },
+    "walls": {
+        "dark_stone": {
+            "category": "wall",
+            "style": "dark_stone",
+            "generator": "procedural"
+        },
+        "fortress_stone": {
+            "category": "wall",
+            "style": "fortress_stone",
+            "generator": "procedural"
+        },
+        "ancient_temple": {
+            "category": "wall",
+            "style": "ancient_temple",
+            "generator": "procedural"
+        },
+        "rough_rock": {
+            "category": "wall",
+            "style": "rough_rock",
+            "generator": "procedural"
+        },
+        "generic_stone": {
+            "category": "wall",
+            "style": "generic_stone",
+            "generator": "procedural"
+        }
+    },
+    "doors": {
+        "stone_arch": {
+            "category": "door",
+            "style": "stone_arch",
+            "generator": "procedural"
+        },
+        "iron_gate": {
+            "category": "door",
+            "style": "iron_gate",
+            "generator": "procedural"
+        },
+        "temple_portal": {
+            "category": "door",
+            "style": "temple_portal",
+            "generator": "procedural"
+        },
+        "wood_beam": {
+            "category": "door",
+            "style": "wood_beam",
+            "generator": "procedural"
+        },
+        "generic_wood": {
+            "category": "door",
+            "style": "generic_wood",
+            "generator": "procedural"
+        }
+    },
+    "stairs": {
+        "stone": {
+            "category": "stairs",
+            "style": "stone",
+            "generator": "procedural"
+        },
+        "wood": {
+            "category": "stairs",
+            "style": "wood",
+            "generator": "procedural"
+        },
+        "rough_rock": {
+            "category": "stairs",
+            "style": "rough_rock",
+            "generator": "procedural"
+        }
+    }
+}

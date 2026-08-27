@@ -18,6 +18,12 @@
             "storage"
         ]
     },
+    "architecture": {
+        "floor": "ruined_stone",
+        "walls": "dark_stone",
+        "door": "stone_arch",
+        "stairs": "stone"
+    },
     "composition": {
         "primary": null,
         "secondary": [
@@ -27,13 +33,47 @@
                     "burial"
                 ],
                 "forbidden_tags": [
-                    "focal"
+                    "focal",
+                    "seating",
+                    "storage"
                 ],
                 "placement": {
                     "mode": "floor",
                     "orientation": "face_room",
                     "min_count": 1,
                     "max_count": 3
+                }
+            },
+            {
+                "rule_id": "perimeter_tombstones",
+                "asset_tags": [
+                    "tombstone"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating",
+                    "storage"
+                ],
+                "placement": {
+                    "mode": "wall",
+                    "orientation": "face_room",
+                    "min_count": 0,
+                    "max_count": 4
+                }
+            }
+        ],
+        "support": [
+            {
+                "rule_id": "crypt_detail",
+                "asset_tags": [
+                    "detail",
+                    "debris"
+                ],
+                "placement": {
+                    "mode": "floor",
+                    "orientation": "free",
+                    "min_count": 0,
+                    "max_count": 2
                 }
             }
         ]
@@ -49,8 +89,8 @@
                 ]
             },
             "floor": {
-                "min": 1,
-                "max": 2,
+                "min": 5,
+                "max": 8,
                 "allowed": [
                     "brazier",
                     "candle_cluster"

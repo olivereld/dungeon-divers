@@ -8,7 +8,9 @@ const _DecorationPaletteResolverScript = preload("res://src/presentation/decorat
 const _PresentationRoomGeometryScript = preload("res://src/presentation/geometry/presentation_room_geometry.gd")
 const _PresentationRoomContextScript = preload("res://src/presentation/architecture/presentation_room_context.gd")
 const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
+const _FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
+
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 
 func _init() -> void:
@@ -144,6 +146,48 @@ func _run_test() -> void:
 	assert(not sacristy_has_sarcophagus, "FAIL: Sacristy must NOT place sarcophagus")
 	print("  [OK] Task 2 (Sacristy): Altar and pews placed, sarcophagus excluded.")
 
+	# Test C: ROYAL TOMB — Sarcophagus + Hanging lantern above + No wall lantern in center
+	var royal_tomb_profile = bundle.get_room(&"royal_tomb")
+	assert(royal_tomb_profile != null, "FAIL: Royal tomb profile must exist")
+	var royal_tomb_palette = palette_resolver.resolve_palette(
+		_DungeonArchetypeScript.Type.MAUSOLEUM,
+		_RoomPurposeScript.Type.ROYAL_TOMB
+	)
+
+	var royal_tomb_context := _PresentationRoomContextScript.new(
+		4,
+		Rect2i(2, 2, 8, 8),
+		int(_RoomPurposeScript.Type.ROYAL_TOMB),
+		arch_prof,
+		0,
+		royal_tomb_profile
+	)
+
+	var royal_tomb_comp = resolver.resolve_room_composition(
+		royal_tomb_context,
+		royal_tomb_palette,
+		room_geom,
+		null,
+		777,
+		2.0
+	)
+	assert(royal_tomb_comp != null, "FAIL: Royal tomb composition must be generated")
+
+	var royal_has_hanging_lantern: bool = false
+	var royal_has_floating_wall_lantern: bool = false
+	for f_dir in royal_tomb_comp.fixture_directives:
+		if f_dir.placement.mode == _FixturePlacementModeScript.Mode.HANGING:
+			royal_has_hanging_lantern = true
+		if f_dir.placement.mode == _FixturePlacementModeScript.Mode.WALL:
+			# Must be adjacent to a wall cell, not in the room center (e.g. x=5, y=5)
+			if f_dir.placement.cell.x > 2 and f_dir.placement.cell.x < 9 and f_dir.placement.cell.y > 2 and f_dir.placement.cell.y < 9:
+				royal_has_floating_wall_lantern = true
+
+	assert(royal_has_hanging_lantern, "FAIL: Royal tomb must place hanging lantern above sarcophagus")
+	assert(not royal_has_floating_wall_lantern, "FAIL: Royal tomb must NOT place floating wall lantern in center")
+	print("  [OK] Task 2 (Royal Tomb): Hanging lantern placed above sarcophagus, no floating wall lantern.")
+
+
 	# --- Task 3: Profile-driven Relational Lighting ---
 
 	# Verify Tomb generated fixtures near sarcophagus (candle_cluster or candle_holder)
@@ -155,6 +199,7 @@ func _run_test() -> void:
 			break
 	assert(tomb_has_relational_candles, "FAIL: Tomb must generate candles via sarcophagus relationship")
 	print("  [OK] Task 3: Relational lighting resolved according to ProfileRelationship.")
+
 
 	# --- Task 4: Data-Driven Proof (modifying max_count dynamically) ---
 	var dynamic_crypt = bundle.get_room(&"crypt")

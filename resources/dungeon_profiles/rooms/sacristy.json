@@ -20,6 +20,12 @@
             "storage"
         ]
     },
+    "architecture": {
+        "floor": "smooth_slabs",
+        "walls": "dark_stone",
+        "door": "stone_arch",
+        "stairs": "stone"
+    },
     "composition": {
         "primary": {
             "rule_id": "primary_altar",

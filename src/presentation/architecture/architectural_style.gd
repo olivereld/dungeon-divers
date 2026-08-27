@@ -90,3 +90,99 @@ static func palette_to_name(palette: int) -> String:
 		if DecorationPalette[k] == palette:
 			return k
 	return "UNKNOWN"
+
+static func floor_from_name(name_str: String, default_style: FloorStyle = FloorStyle.GENERIC_STONE) -> FloorStyle:
+	match name_str.to_lower():
+		"catacomb_dirt":
+			return FloorStyle.CATACOMB_DIRT
+		"ruined_stone", "ruined_tiles":
+			return FloorStyle.RUINED_STONE
+		"smooth_slabs":
+			return FloorStyle.SMOOTH_SLABS
+		"cobblestone":
+			return FloorStyle.COBBLESTONE
+		"brick":
+			return FloorStyle.BRICK
+		"temple_tiles":
+			return FloorStyle.TEMPLE_TILES
+		"mine_rock":
+			return FloorStyle.MINE_ROCK
+		"generic_stone":
+			return FloorStyle.GENERIC_STONE
+		_:
+			return default_style
+
+static func wall_from_name(name_str: String, default_style: WallStyle = WallStyle.GENERIC_STONE) -> WallStyle:
+	match name_str.to_lower():
+		"dark_stone":
+			return WallStyle.DARK_STONE
+		"fortress_stone":
+			return WallStyle.FORTRESS_STONE
+		"ancient_temple", "temple_stone":
+			return WallStyle.TEMPLE_STONE
+		"rough_rock", "mine_rock":
+			return WallStyle.MINE_ROCK
+		"generic_stone":
+			return WallStyle.GENERIC_STONE
+		_:
+			return default_style
+
+static func door_from_name(name_str: String, default_style: DoorStyle = DoorStyle.STONE_ARCH) -> DoorStyle:
+	match name_str.to_lower():
+		"stone_arch":
+			return DoorStyle.STONE_ARCH
+		"iron_gate", "heavy_iron":
+			return DoorStyle.HEAVY_IRON
+		"wood_beam", "wood_leaf", "wood":
+			return DoorStyle.WOOD_LEAF
+		"mine_frame":
+			return DoorStyle.MINE_FRAME
+		"assembled_closed":
+			return DoorStyle.ASSEMBLED_CLOSED
+		"assembled_locked":
+			return DoorStyle.ASSEMBLED_LOCKED
+		_:
+			return default_style
+
+static func stairs_from_name(name_str: String, default_style: StairsStyle = StairsStyle.STONE) -> StairsStyle:
+	match name_str.to_lower():
+		"stone":
+			return StairsStyle.STONE
+		"wood":
+			return StairsStyle.WOOD
+		_:
+			return default_style
+
+static func fixture_from_name(name_str: String, default_style: int = 0) -> int:
+	match name_str.to_lower():
+		"torch", "wall_torch":
+			return FixtureStyle.TORCH
+		"brazier":
+			return FixtureStyle.BRAZIER
+		"lantern", "wall_lantern", "hanging_lantern":
+			return FixtureStyle.LANTERN
+		"candle_holder":
+			return FixtureStyle.CANDLE_HOLDER
+		"candle_cluster":
+			return FixtureStyle.CANDLE_CLUSTER
+		_:
+			return default_style
+
+static func palette_from_name(name_str: String, default_palette: int = 0) -> int:
+	match name_str.to_lower():
+		"crypt", "mausoleum":
+			return DecorationPalette.CRYPT
+		"armory", "fortress":
+			return DecorationPalette.ARMORY
+		"sanctum", "temple":
+			return DecorationPalette.SANCTUM
+		"mine":
+			return DecorationPalette.MINE
+		"treasury":
+			return DecorationPalette.TREASURY
+		"library":
+			return DecorationPalette.LIBRARY
+		"barracks":
+			return DecorationPalette.BARRACKS
+		_:
+			return default_palette

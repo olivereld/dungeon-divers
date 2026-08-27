@@ -366,19 +366,50 @@ func _filter_entries(palette, rel) -> Array:
 			continue
 		var style: _FixtureStyleScript = entry.style
 
-		# Descartar si está prohibido explícitamente
-		if rel.forbidden_fixture_types.has(style.fixture_type) or rel.forbidden_fixture_ids.has(style.id):
+		# 1. Descartar si está prohibido explícitamente por tipo o por ID
+		if rel.forbidden_fixture_types.has(style.fixture_type):
+			continue
+		var is_forbidden_id: bool = false
+		for fid in rel.forbidden_fixture_ids:
+			if style.id == fid or str(style.id).to_lower().contains(str(fid).to_lower()):
+				is_forbidden_id = true
+				break
+		if is_forbidden_id:
 			continue
 
-		if not rel.target_fixture_ids.is_empty() and rel.target_fixture_ids.has(style.id):
-			result.append(entry)
+		# 2. Validación estricta de placement_mode según el tipo de relación espacial
+		match rel.placement:
+			_PropFixtureRelationPlacementScript.Placement.ABOVE:
+				if style.placement_mode != _FixturePlacementModeScript.Mode.HANGING:
+					continue
+			_PropFixtureRelationPlacementScript.Placement.SURFACE:
+				if style.placement_mode != _FixturePlacementModeScript.Mode.SURFACE and style.placement_mode != _FixturePlacementModeScript.Mode.FLOOR:
+					continue
+			_: # NEAR, LEFT, RIGHT, FRONT, BACK
+				if style.placement_mode == _FixturePlacementModeScript.Mode.HANGING:
+					continue
+				if style.placement_mode == _FixturePlacementModeScript.Mode.WALL:
+					continue
+
+		# 3. Filtrar por target_fixture_ids si fue especificado
+		if not rel.target_fixture_ids.is_empty():
+			var matched_id: bool = false
+			for fid in rel.target_fixture_ids:
+				if style.id == fid or str(style.id).to_lower().contains(str(fid).to_lower()):
+					matched_id = true
+					break
+			if matched_id:
+				result.append(entry)
 			continue
 
-		if not rel.target_fixture_types.is_empty() and rel.target_fixture_types.has(style.fixture_type):
-			result.append(entry)
+		# 4. Filtrar por target_fixture_types
+		if not rel.target_fixture_types.is_empty():
+			if rel.target_fixture_types.has(style.fixture_type):
+				result.append(entry)
 			continue
 
-		if rel.target_fixture_ids.is_empty() and rel.target_fixture_types.is_empty():
-			result.append(entry)
+		# 5. Sin restricciones específicas
+		result.append(entry)
 
 	return result
+

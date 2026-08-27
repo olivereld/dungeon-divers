@@ -247,3 +247,38 @@ text = "CLUSTERS DE GEOMETRÍA"
 [node name="ClusterList" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ClusterSection" unique_id=1019527258]
 layout_mode = 2
 theme_override_constants/separation = 2
+
+[node name="HSeparator3" type="HSeparator" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=1726730350]
+layout_mode = 2
+
+[node name="ExportSection" type="VBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel" unique_id=1988223350]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ExportHeader" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ExportSection" unique_id=1988223351]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 13
+text = "EXPORTACIÓN 3D"
+
+[node name="ExportButtonsHBox" type="HBoxContainer" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ExportSection" unique_id=1988223352]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ExportButton" type="Button" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ExportSection/ExportButtonsHBox" unique_id=1988223353]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "📦 Exportar GLB"
+
+[node name="OpenFolderButton" type="Button" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ExportSection/ExportButtonsHBox" unique_id=1988223354]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "📂 Carpeta"
+
+[node name="ExportStatusLabel" type="Label" parent="UI/PanelContainer/Margin/HBox/InfoPanel/ExportSection" unique_id=1988223355]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.9, 0.5, 1)
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 2
+

@@ -40,6 +40,8 @@ func _validate_assets(assets, result: _ProfileValidationResultScript) -> void:
 		result.add_warning("AssetRegistry contains 0 fixtures.")
 	if assets.materials.is_empty():
 		result.add_warning("AssetRegistry contains 0 materials.")
+	if assets.architecture.is_empty():
+		result.add_warning("AssetRegistry contains 0 architecture entries.")
 
 	for pid in assets.props:
 		var p = assets.props[pid]
@@ -123,6 +125,17 @@ func _validate_single_room(room: _ProfileRoomScript, assets, result: _ProfileVal
 	# Intent
 	if room.intent == null:
 		result.add_error("Room '%s' missing intent." % str(room.id))
+
+	# Architecture
+	if room.architecture != null:
+		if room.architecture.floor != &"" and not assets.has_architecture(room.architecture.floor):
+			result.add_error("Room '%s' references unknown architecture floor '%s'." % [str(room.id), str(room.architecture.floor)])
+		if room.architecture.walls != &"" and not assets.has_architecture(room.architecture.walls):
+			result.add_error("Room '%s' references unknown architecture walls '%s'." % [str(room.id), str(room.architecture.walls)])
+		if room.architecture.door != &"" and not assets.has_architecture(room.architecture.door):
+			result.add_error("Room '%s' references unknown architecture door '%s'." % [str(room.id), str(room.architecture.door)])
+		if room.architecture.stairs != &"" and not assets.has_architecture(room.architecture.stairs):
+			result.add_error("Room '%s' references unknown architecture stairs '%s'." % [str(room.id), str(room.architecture.stairs)])
 
 	# Composition
 	if room.composition != null:

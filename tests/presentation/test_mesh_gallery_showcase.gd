@@ -28,7 +28,16 @@ func _run_test() -> void:
 		await process_frame
 		assert(showcase.prop_anchor.get_child_count() > 0, "FAIL: Prop should be spawned for category %d" % i)
 
+	# Probar exportación GLB interactiva
+	showcase._select_category(0)
+	await process_frame
+	var export_path = showcase.export_current_model_to_glb()
+	assert(export_path != "", "FAIL: Export path must not be empty")
+	assert(FileAccess.file_exists(export_path), "FAIL: Exported GLB file must exist on filesystem")
+	print("  [OK] Exported GLB from showcase UI successfully to: %s" % export_path)
+
 	root.free()
 
 	print("[PASS] test_mesh_gallery_showcase completed successfully.")
 	quit(0)
+

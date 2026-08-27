@@ -360,7 +360,12 @@ static func _filter_entries_for_rule(palette, rule) -> Array:
 			continue
 
 		if "target_fixture_ids" in rule and not rule.target_fixture_ids.is_empty():
-			if rule.target_fixture_ids.has(style.id):
+			var matched_id: bool = false
+			for fid in rule.target_fixture_ids:
+				if style.id == fid or str(style.id).to_lower().contains(str(fid).to_lower()):
+					matched_id = true
+					break
+			if matched_id:
 				result.append(entry)
 			continue
 
@@ -372,6 +377,7 @@ static func _filter_entries_for_rule(palette, rule) -> Array:
 		result.append(entry)
 
 	return result
+
 
 static func _get_fixture_footprint_cells(anchor_cell: Vector2i, style, rotation_y: float = 0.0) -> Array[Vector2i]:
 	if style != null and "footprint" in style and style.footprint != null:

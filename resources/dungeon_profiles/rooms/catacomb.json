@@ -18,6 +18,12 @@
             "storage"
         ]
     },
+    "architecture": {
+        "floor": "catacomb_dirt",
+        "walls": "dark_stone",
+        "door": "stone_arch",
+        "stairs": "stone"
+    },
     "composition": {
         "primary": null,
         "secondary": [

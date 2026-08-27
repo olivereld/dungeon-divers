@@ -18,7 +18,7 @@ func _run_test() -> void:
 	# 1. Validar TOMB
 	var prof_tomb = resolver.resolve(DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.TOMB)
 	assert(prof_tomb != null, "FAIL: Tomb profile is null")
-	assert(prof_tomb.floor_style == ArchitecturalStyleScript.FloorStyle.RUINED_STONE, "FAIL: Tomb floor mismatch")
+	assert(prof_tomb.floor_style == ArchitecturalStyleScript.FloorStyle.CATACOMB_DIRT, "FAIL: Tomb floor mismatch")
 	assert(prof_tomb.wall_style == ArchitecturalStyleScript.WallStyle.DARK_STONE, "FAIL: Tomb wall mismatch")
 	assert(prof_tomb.fixture_style == ArchitecturalStyleScript.FixtureStyle.TORCH, "FAIL: Tomb fixture mismatch")
 	print("  [OK] TOMB architectural profile verified.")

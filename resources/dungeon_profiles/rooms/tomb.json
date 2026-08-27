@@ -20,6 +20,12 @@
             "seating"
         ]
     },
+    "architecture": {
+        "floor": "catacomb_dirt",
+        "walls": "dark_stone",
+        "door": "stone_arch",
+        "stairs": "stone"
+    },
     "composition": {
         "primary": {
             "rule_id": "primary_sarcophagus",
@@ -37,16 +43,54 @@
         },
         "secondary": [
             {
+                "rule_id": "perimeter_tombstones",
+                "asset_tags": [
+                    "burial"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating",
+                    "storage"
+                ],
+                "placement": {
+                    "mode": "wall",
+                    "orientation": "face_room",
+                    "min_count": 0,
+                    "max_count": 3
+                }
+            },
+            {
+                "rule_id": "corner_tombstones",
+                "asset_tags": [
+                    "burial"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating",
+                    "storage"
+                ],
+                "placement": {
+                    "mode": "corner",
+                    "orientation": "face_room",
+                    "min_count": 0,
+                    "max_count": 2
+                }
+            },
+            {
                 "rule_id": "support_urns",
                 "asset_tags": [
                     "burial"
                 ],
                 "forbidden_tags": [
-                    "focal"
+                    "focal",
+                    "wall_decor",
+                    "corner_decor",
+                    "seating",
+                    "storage"
                 ],
                 "placement": {
                     "mode": "floor",
-                    "min_count": 1,
+                    "min_count": 0,
                     "max_count": 2,
                     "orientation": "face_room"
                 }
@@ -109,6 +153,26 @@
             "placement": "above",
             "min_count": 0,
             "max_count": 1
+        },
+        {
+            "id": "tombstone_candle",
+            "source": [
+                "tombstone_cross_corner",
+                "tombstone_classic_wall"
+            ],
+            "targets": [
+                "candle_cluster"
+            ],
+            "forbidden_targets": [
+                "wall_lantern",
+                "hanging_lantern",
+                "candle_holder"
+            ],
+            "placement": "near",
+            "min_count": 0,
+            "max_count": 1,
+            "min_distance": 1.0,
+            "max_distance": 1.5
         }
     ]
 }

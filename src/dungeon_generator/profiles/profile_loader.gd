@@ -11,6 +11,7 @@ const _ProfileArchetypeStyleScript = preload("res://src/dungeon_generator/profil
 const _ProfileArchetypeRoomRulesScript = preload("res://src/dungeon_generator/profiles/profile_archetype_room_rules.gd")
 const _ProfileRoomScript = preload("res://src/dungeon_generator/profiles/profile_room.gd")
 const _ProfileRoomIntentScript = preload("res://src/dungeon_generator/profiles/profile_room_intent.gd")
+const _ProfileRoomArchitectureScript = preload("res://src/dungeon_generator/profiles/profile_room_architecture.gd")
 const _ProfileCompositionScript = preload("res://src/dungeon_generator/profiles/profile_composition.gd")
 const _ProfileCompositionRuleScript = preload("res://src/dungeon_generator/profiles/profile_composition_rule.gd")
 const _ProfileLightingScript = preload("res://src/dungeon_generator/profiles/profile_lighting.gd")
@@ -21,6 +22,7 @@ const _AssetRegistryScript = preload("res://src/dungeon_generator/profiles/asset
 const _AssetPropEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_prop_entry.gd")
 const _AssetFixtureEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_fixture_entry.gd")
 const _AssetMaterialEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_material_entry.gd")
+const _AssetArchitectureEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_architecture_entry.gd")
 
 var base_path: String = "res://resources/dungeon_profiles/"
 
@@ -117,6 +119,25 @@ func load_asset_registry() -> _AssetRegistryScript:
 				str(mdata.get("trim", ""))
 			)
 			registry.register_material(mat_entry)
+
+	# 4. Architecture
+	var arch_json = _read_json_file(base_path + "assets/architecture.json")
+	if arch_json is Dictionary:
+		var categories: Array[String] = ["floors", "walls", "doors", "stairs"]
+		for cat: String in categories:
+			if arch_json.has(cat) and arch_json[cat] is Dictionary:
+				var cat_dict: Dictionary = arch_json[cat]
+				for aid in cat_dict:
+					var adata = cat_dict[aid]
+					var single_cat: String = cat.trim_suffix("s")
+					var arch_entry := _AssetArchitectureEntryScript.new(
+						StringName(aid),
+						StringName(adata.get("category", single_cat)),
+						StringName(adata.get("style", aid)),
+						StringName(adata.get("generator", "procedural")),
+						str(adata.get("scene", ""))
+					)
+					registry.register_architecture(arch_entry)
 
 	return registry
 
@@ -233,6 +254,15 @@ func load_room(filename: String) -> _ProfileRoomScript:
 		forbidden_tags
 	)
 
+	# Architecture
+	var arch_raw = dict.get("architecture", {})
+	var architecture := _ProfileRoomArchitectureScript.new(
+		StringName(arch_raw.get("floor", "")),
+		StringName(arch_raw.get("walls", arch_raw.get("wall", ""))),
+		StringName(arch_raw.get("door", arch_raw.get("doors", ""))),
+		StringName(arch_raw.get("stairs", ""))
+	)
+
 	# Composition
 	var comp_raw = dict.get("composition", {})
 	var primary_rule: _ProfileCompositionRuleScript = null
@@ -297,7 +327,7 @@ func load_room(filename: String) -> _ProfileRoomScript:
 					float(r.get("max_distance", 2.0))
 				))
 
-	return _ProfileRoomScript.new(id, display_name, version, intent, composition, lighting, relationships)
+	return _ProfileRoomScript.new(id, display_name, version, intent, architecture, composition, lighting, relationships)
 
 func _parse_composition_rule(raw: Dictionary) -> _ProfileCompositionRuleScript:
 	var rule_id := StringName(raw.get("rule_id", ""))
