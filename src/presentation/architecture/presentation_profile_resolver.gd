@@ -54,7 +54,7 @@ func resolve_from_room_profile(
 	var door_st = _ArchitecturalStyleScript.door_from_name(str(arch.door), fallback_prof.door_style)
 	var stairs_st = _ArchitecturalStyleScript.stairs_from_name(str(arch.stairs), fallback_prof.stairs_style)
 
-	return _ArchitecturalPresentationProfileScript.new(
+	var res_prof := _ArchitecturalPresentationProfileScript.new(
 		floor_st,
 		wall_st,
 		door_st,
@@ -62,6 +62,9 @@ func resolve_from_room_profile(
 		fallback_prof.fixture_style,
 		fallback_prof.decoration_palette
 	)
+	if arch.wall_variants != null:
+		res_prof.wall_variants = arch.wall_variants
+	return res_prof
 
 func _resolve_mausoleum(purpose: int) -> _ArchitecturalPresentationProfileScript:
 	match purpose:

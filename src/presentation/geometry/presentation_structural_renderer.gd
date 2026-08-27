@@ -82,25 +82,22 @@ func render_structure(
 		)
 
 		if not geom_res.generated_meshes.is_empty():
-			var wall_inst := MeshInstance3D.new()
-			wall_inst.name = "ContinuousWalls"
-			wall_inst.mesh = geom_res.get_unified_mesh()
-			wall_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var walls_container := Node3D.new()
+			walls_container.name = "ContinuousWalls"
+			staging_root.add_child(walls_container)
 
-			var static_body := StaticBody3D.new()
-			static_body.name = "WallStaticBody"
 			for g_mesh in geom_res.generated_meshes:
-				for i in range(g_mesh.collision_shapes.size()):
-					var col_shape := CollisionShape3D.new()
-					col_shape.shape = g_mesh.collision_shapes[i]
-					col_shape.transform = g_mesh.collision_transforms[i]
-					static_body.add_child(col_shape)
-			wall_inst.add_child(static_body)
+				var wall_inst: MeshInstance3D = g_mesh.to_mesh_instance("WallSection")
+				wall_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				wall_inst.add_to_group(CAMERA_OCCLUDER_GROUP, true)
 
-			wall_inst.add_to_group(CAMERA_OCCLUDER_GROUP, true)
-			static_body.add_to_group(CAMERA_OCCLUDER_GROUP, true)
+				var static_body: StaticBody3D = g_mesh.create_collision_body()
+				static_body.name = "StaticBody"
+				static_body.add_to_group(CAMERA_OCCLUDER_GROUP, true)
+				wall_inst.add_child(static_body)
 
-			staging_root.add_child(wall_inst)
+				walls_container.add_child(wall_inst)
+
 			if wall_grid_map != null:
 				wall_grid_map.visible = false
 			result["walls_rendered"] = true

@@ -9,6 +9,9 @@ var collision_shapes: Array[Shape3D] = []
 var collision_transforms: Array[Transform3D] = []
 var bounds: AABB = AABB()
 var component_id: int = 0
+var section_id: int = -1
+var variant_id: StringName = &""
+var room_id: int = -1
 var material_slots: Dictionary = {} # slot_index: int -> Material
 
 func add_collision_shape(shape: Shape3D, xform: Transform3D = Transform3D.IDENTITY) -> void:
@@ -18,7 +21,10 @@ func add_collision_shape(shape: Shape3D, xform: Transform3D = Transform3D.IDENTI
 
 func to_mesh_instance(name_prefix: String = "GeometryCluster") -> MeshInstance3D:
 	var inst := MeshInstance3D.new()
-	inst.name = "%s_%d" % [name_prefix, component_id]
+	if section_id >= 0:
+		inst.name = "%s_%d_%d" % [name_prefix, component_id, section_id]
+	else:
+		inst.name = "%s_%d" % [name_prefix, component_id]
 	inst.mesh = mesh
 	for slot_idx in material_slots.keys():
 		var mat = material_slots[slot_idx]

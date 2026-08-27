@@ -22,7 +22,18 @@
         "floor": "ruined_stone",
         "walls": "dark_stone",
         "door": "stone_arch",
-        "stairs": "stone"
+        "stairs": "stone",
+        "wall_variants": {
+            "enabled": true,
+            "allowed": [
+                "normal",
+                "cracked"
+            ],
+            "weights": {
+                "normal": 80,
+                "cracked": 20
+            }
+        }
     },
     "composition": {
         "primary": null,

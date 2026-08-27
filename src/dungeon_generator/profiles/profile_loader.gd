@@ -12,6 +12,7 @@ const _ProfileArchetypeRoomRulesScript = preload("res://src/dungeon_generator/pr
 const _ProfileRoomScript = preload("res://src/dungeon_generator/profiles/profile_room.gd")
 const _ProfileRoomIntentScript = preload("res://src/dungeon_generator/profiles/profile_room_intent.gd")
 const _ProfileRoomArchitectureScript = preload("res://src/dungeon_generator/profiles/profile_room_architecture.gd")
+const _ProfileWallVariantPolicyScript = preload("res://src/dungeon_generator/profiles/profile_wall_variant_policy.gd")
 const _ProfileCompositionScript = preload("res://src/dungeon_generator/profiles/profile_composition.gd")
 const _ProfileCompositionRuleScript = preload("res://src/dungeon_generator/profiles/profile_composition_rule.gd")
 const _ProfileLightingScript = preload("res://src/dungeon_generator/profiles/profile_lighting.gd")
@@ -257,11 +258,28 @@ func load_room(filename: String) -> _ProfileRoomScript:
 
 	# Architecture
 	var arch_raw = dict.get("architecture", {})
+	var wall_vars_raw = arch_raw.get("wall_variants", {})
+	var wall_variant_policy: _ProfileWallVariantPolicyScript = null
+	if wall_vars_raw is Dictionary and not wall_vars_raw.is_empty():
+		var wv_enabled: bool = bool(wall_vars_raw.get("enabled", true))
+		var wv_allowed: Array[StringName] = []
+		for a in wall_vars_raw.get("allowed", []):
+			wv_allowed.append(StringName(a))
+		if wv_allowed.is_empty():
+			wv_allowed = [&"normal"]
+		var wv_weights: Dictionary = {}
+		var raw_w = wall_vars_raw.get("weights", {})
+		if raw_w is Dictionary:
+			for k in raw_w:
+				wv_weights[StringName(k)] = float(raw_w[k])
+		wall_variant_policy = _ProfileWallVariantPolicyScript.new(wv_enabled, wv_allowed, wv_weights)
+
 	var architecture := _ProfileRoomArchitectureScript.new(
 		StringName(arch_raw.get("floor", "")),
 		StringName(arch_raw.get("walls", arch_raw.get("wall", ""))),
 		StringName(arch_raw.get("door", arch_raw.get("doors", ""))),
-		StringName(arch_raw.get("stairs", ""))
+		StringName(arch_raw.get("stairs", "")),
+		wall_variant_policy
 	)
 
 	# Composition

@@ -136,6 +136,18 @@ func _validate_single_room(room: _ProfileRoomScript, assets, result: _ProfileVal
 			result.add_error("Room '%s' references unknown architecture door '%s'." % [str(room.id), str(room.architecture.door)])
 		if room.architecture.stairs != &"" and not assets.has_architecture(room.architecture.stairs):
 			result.add_error("Room '%s' references unknown architecture stairs '%s'." % [str(room.id), str(room.architecture.stairs)])
+		if room.architecture.wall_variants != null and room.architecture.wall_variants.enabled:
+			var wv = room.architecture.wall_variants
+			if wv.allowed.is_empty():
+				result.add_error("Room '%s' wall_variants has empty allowed variants list." % str(room.id))
+			var total_w: float = 0.0
+			for v_name in wv.weights.keys():
+				var w = float(wv.weights[v_name])
+				if w < 0.0:
+					result.add_error("Room '%s' wall_variant '%s' has negative weight %f." % [str(room.id), str(v_name), w])
+				total_w += w
+			if total_w <= 0.0:
+				result.add_error("Room '%s' wall_variants total weight must be > 0." % str(room.id))
 
 	# Composition
 	if room.composition != null:

@@ -26,7 +26,18 @@
         "floor": "smooth_slabs",
         "walls": "dark_stone",
         "door": "stone_arch",
-        "stairs": "stone"
+        "stairs": "stone",
+        "wall_variants": {
+            "enabled": true,
+            "allowed": [
+                "normal",
+                "ornate"
+            ],
+            "weights": {
+                "normal": 80,
+                "ornate": 20
+            }
+        }
     },
     "composition": {
         "primary": {
