@@ -37,5 +37,9 @@ func handle_replacement(ctx: _DestructionResponseContextScript, staging_parent: 
 		staging_parent.add_child(rep_node)
 	elif ctx.event.target != null and is_instance_valid(ctx.event.target) and ctx.event.target.get_parent() != null:
 		ctx.event.target.get_parent().add_child(rep_node)
-
 	return rep_node
+
+## Alias de interfaz común para todos los consumidores de respuesta
+func handle(ctx: _DestructionResponseContextScript, staging_parent: Node3D = null) -> Node3D:
+	return handle_replacement(ctx, staging_parent)
+

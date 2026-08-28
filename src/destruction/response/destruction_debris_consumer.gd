@@ -87,3 +87,8 @@ func handle_debris(ctx: _DestructionResponseContextScript, staging_parent: Node3
 		result.append(shard)
 
 	return result
+
+## Alias de interfaz común para todos los consumidores de respuesta
+func handle(ctx: _DestructionResponseContextScript, staging_parent: Node3D = null) -> Array[Node3D]:
+	return handle_debris(ctx, staging_parent)
+

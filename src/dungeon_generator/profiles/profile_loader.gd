@@ -632,4 +632,3 @@ func populate_destruction_registry(target_registry) -> void:
 			if fdata is Dictionary and fdata.has("destruction") and fdata["destruction"] is Dictionary:
 				var def = _DestructibleDefinitionScript.from_dict(StringName(fid), fdata["destruction"])
 				target_registry.register_definition(def)
-

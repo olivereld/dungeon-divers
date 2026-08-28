@@ -82,3 +82,8 @@ func _create_particle_emitter(eff_key: String, cfg: Dictionary, ctx: _Destructio
 	emitter.mesh = quad
 
 	return emitter
+
+## Alias de interfaz común para todos los consumidores de respuesta
+func handle(ctx: _DestructionResponseContextScript, staging_parent: Node3D = null) -> Array[Node3D]:
+	return handle_effects(ctx, staging_parent)
+
