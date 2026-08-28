@@ -42,4 +42,3 @@ func handle_replacement(ctx: _DestructionResponseContextScript, staging_parent: 
 ## Alias de interfaz común para todos los consumidores de respuesta
 func handle(ctx: _DestructionResponseContextScript, staging_parent: Node3D = null) -> Node3D:
 	return handle_replacement(ctx, staging_parent)
-

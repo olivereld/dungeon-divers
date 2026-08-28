@@ -5,23 +5,12 @@ extends RefCounted
 ## basándose en las especificaciones declarativas de effects.json.
 
 const _DestructionResponseContextScript = preload("res://src/destruction/response/destruction_response_context.gd")
+const _DestructionEffectRegistryScript = preload("res://src/destruction/response/effects/destruction_effect_registry.gd")
 
-var _effects_catalog: Dictionary = {}
-var _catalog_path: String = "res://resources/dungeon_profiles/assets/effects.json"
+var _registry: _DestructionEffectRegistryScript = null
 
-func _init(catalog_path: String = "") -> void:
-	if catalog_path != "":
-		_catalog_path = catalog_path
-	_load_catalog()
-
-func _load_catalog() -> void:
-	if not ResourceLoader.exists(_catalog_path) and not FileAccess.file_exists(_catalog_path):
-		return
-	var file := FileAccess.open(_catalog_path, FileAccess.READ)
-	if file != null:
-		var parsed = JSON.parse_string(file.get_as_text())
-		if parsed is Dictionary and parsed.has("effects"):
-			_effects_catalog = parsed["effects"]
+func _init(registry: _DestructionEffectRegistryScript = null) -> void:
+	_registry = registry if registry != null else _DestructionEffectRegistryScript.new()
 
 ## Dispara los efectos configurados en el evento.
 func handle_effects(ctx: _DestructionResponseContextScript, staging_parent: Node3D = null) -> Array[Node3D]:
@@ -41,10 +30,10 @@ func handle_effects(ctx: _DestructionResponseContextScript, staging_parent: Node
 
 	for eff_key in effect_keys:
 		var key_str = str(eff_key)
-		if not _effects_catalog.has(key_str):
+		if _registry == null or not _registry.has_effect(key_str):
 			continue
 
-		var ecfg: Dictionary = _effects_catalog[key_str]
+		var ecfg: Dictionary = _registry.get_effect_config(key_str)
 		var emitter := _create_particle_emitter(key_str, ecfg, ctx)
 		if emitter != null:
 			emitter.position = origin_pos
@@ -76,7 +65,6 @@ func _create_particle_emitter(eff_key: String, cfg: Dictionary, ctx: _Destructio
 	var raw_grav = cfg.get("gravity", [0.0, -3.0, 0.0])
 	emitter.gravity = Vector3(raw_grav[0], raw_grav[1], raw_grav[2])
 
-	# Mesh para partículas
 	var quad := BoxMesh.new()
 	quad.size = Vector3(0.05, 0.05, 0.05)
 	emitter.mesh = quad
@@ -86,4 +74,3 @@ func _create_particle_emitter(eff_key: String, cfg: Dictionary, ctx: _Destructio
 ## Alias de interfaz común para todos los consumidores de respuesta
 func handle(ctx: _DestructionResponseContextScript, staging_parent: Node3D = null) -> Array[Node3D]:
 	return handle_effects(ctx, staging_parent)
-

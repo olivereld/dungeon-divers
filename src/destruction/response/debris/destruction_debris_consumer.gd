@@ -56,7 +56,6 @@ func handle_debris(ctx: _DestructionResponseContextScript, staging_parent: Node3
 		var shard := MeshInstance3D.new()
 		shard.name = "Debris_%s_%d" % [debris_key, i]
 
-		# Crear geometría de fragmento estilizada (pequeño tetraedro / prisma irregular)
 		var box_mesh := BoxMesh.new()
 		var sz_x = ctx.rng.randf_range(s_min, s_max)
 		var sz_y = ctx.rng.randf_range(s_min * 0.5, s_max * 0.8)
@@ -69,7 +68,6 @@ func handle_debris(ctx: _DestructionResponseContextScript, staging_parent: Node3
 		box_mesh.material = mat
 		shard.mesh = box_mesh
 
-		# Posicionamiento determinista alrededor del origen
 		var angle = ctx.rng.randf_range(0.0, TAU)
 		var dist = ctx.rng.randf_range(0.1, radius)
 		var offset := Vector3(cos(angle) * dist, ctx.rng.randf_range(0.02, s_height), sin(angle) * dist)
@@ -91,4 +89,3 @@ func handle_debris(ctx: _DestructionResponseContextScript, staging_parent: Node3
 ## Alias de interfaz común para todos los consumidores de respuesta
 func handle(ctx: _DestructionResponseContextScript, staging_parent: Node3D = null) -> Array[Node3D]:
 	return handle_debris(ctx, staging_parent)
-

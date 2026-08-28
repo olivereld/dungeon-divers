@@ -1,6 +1,6 @@
 extends SceneTree
 
-const _ReplacementConsumerScript = preload("res://src/destruction/response/destruction_replacement_consumer.gd")
+const _ReplacementConsumerScript = preload("res://src/destruction/response/replacement/destruction_replacement_consumer.gd")
 const _PropAssetProviderScript = preload("res://src/presentation/decoration/assets/prop_asset_provider.gd")
 const _DestructionContextScript = preload("res://src/destruction/response/destruction_response_context.gd")
 const _DestructionEventScript = preload("res://src/destruction/core/destruction_event.gd")
