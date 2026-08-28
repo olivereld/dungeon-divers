@@ -23,12 +23,24 @@ const _CandleHolderGeometryConfigScript = preload("res://src/geometry_generator/
 const _CandleClusterGeometryBuilderScript = preload("res://src/geometry_generator/fixtures/candle_cluster_geometry_builder.gd")
 const _CandleClusterGeometryConfigScript = preload("res://src/geometry_generator/config/candle_cluster_geometry_config.gd")
 const _TorchLightControllerScript = preload("res://src/dungeon_lighting/presentation/torch_light_controller.gd")
+const _DestructionBinderScript = preload("res://src/destruction/runtime/destruction_binder.gd")
 
 var _torch_builder = _TorchGeometryBuilderScript.new()
 var _lantern_builder = _LanternGeometryBuilderScript.new()
 var _brazier_builder = _BrazierGeometryBuilderScript.new()
 var _candle_holder_builder = _CandleHolderGeometryBuilderScript.new()
 var _candle_cluster_builder = _CandleClusterGeometryBuilderScript.new()
+var _destruction_binder: _DestructionBinderScript = null
+
+func _init(binder: _DestructionBinderScript = null) -> void:
+	_destruction_binder = binder if binder != null else _DestructionBinderScript.new()
+
+func get_destruction_binder() -> _DestructionBinderScript:
+	return _destruction_binder
+
+func set_destruction_binder(binder: _DestructionBinderScript) -> void:
+	if binder != null:
+		_destruction_binder = binder
 
 ## Spawnea todos los fixtures correspondientes a las directivas provistas dentro de staging_root.
 func spawn_fixtures(
@@ -194,5 +206,8 @@ func _materialize_procedural_fixture(directive: _FixtureDirectiveScript) -> Node
 		# Desfasar el tiempo según la posición espacial para evitar parpadeo sincronizado
 		flicker.time_offset = float(directive.cell.x * 43.17 + directive.cell.y * 79.23 + directive.room_id * 17.5)
 		light.add_child(flicker)
+
+	if _destruction_binder != null and directive.fixture_id != &"":
+		_destruction_binder.bind_prop(root_node, directive.fixture_id)
 
 	return root_node

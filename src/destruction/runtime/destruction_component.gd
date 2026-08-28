@@ -84,19 +84,21 @@ func _execute_destruction_mode(evt: _DestructionEventScript) -> void:
 	match definition.destruction_mode:
 		_DestructionModeScript.Mode.BREAK, _DestructionModeScript.Mode.COLLAPSE:
 			evt.target.visible = false
-			for child in evt.target.get_children():
-				if child is CollisionShape3D:
-					child.set_deferred("disabled", true)
-				elif child is StaticBody3D:
-					for sub in child.get_children():
-						if sub is CollisionShape3D:
-							sub.set_deferred("disabled", true)
+			_disable_colliders_recursive(evt.target)
 
 		_DestructionModeScript.Mode.EXTINGUISH:
 			_extinguish_lights_recursive(evt.target)
 
 		_DestructionModeScript.Mode.DISABLE:
 			evt.target.process_mode = Node.PROCESS_MODE_DISABLED
+
+static func _disable_colliders_recursive(n: Node) -> void:
+	if n is CollisionShape3D:
+		(n as CollisionShape3D).disabled = true
+	elif n is CollisionObject3D:
+		(n as CollisionObject3D).process_mode = Node.PROCESS_MODE_DISABLED
+	for c in n.get_children():
+		_disable_colliders_recursive(c)
 
 static func _extinguish_lights_recursive(n: Node) -> void:
 	if n is OmniLight3D or n is SpotLight3D:

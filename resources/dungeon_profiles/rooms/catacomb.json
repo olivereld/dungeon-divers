@@ -48,7 +48,7 @@
         "budget": 3.5,
         "color": "#68705C",
         "energy": 0.7,
-        "range": 3.0,
+        "range": 6.0,
         "fixtures": {
             "wall": {
                 "min": 1,

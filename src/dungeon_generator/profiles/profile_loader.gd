@@ -598,18 +598,38 @@ func _read_json_file(path: String):
 		return null
 	return json.data
 
-## Pobla el DestructionRegistry desde destruction.json
+## Pobla el DestructionRegistry desde destruction.json y bloques inline opcionales en props.json/fixtures.json
 func populate_destruction_registry(target_registry) -> void:
 	if target_registry == null:
 		return
 
+	# 1. Catálogo canónico destruction.json
 	var d_json = _read_json_file(base_path + "assets/destruction.json")
-	if not (d_json is Dictionary and d_json.has("destructibles")):
-		return
+	if d_json is Dictionary and d_json.has("destructibles"):
+		var d_dict = d_json["destructibles"]
+		for did in d_dict:
+			var ddata = d_dict[did]
+			if ddata is Dictionary:
+				var def = _DestructibleDefinitionScript.from_dict(StringName(did), ddata)
+				target_registry.register_definition(def)
 
-	var d_dict = d_json["destructibles"]
-	for did in d_dict:
-		var ddata = d_dict[did]
-		if ddata is Dictionary:
-			var def = _DestructibleDefinitionScript.from_dict(StringName(did), ddata)
-			target_registry.register_definition(def)
+	# 2. Definiciones inline opcionales en props.json
+	var p_json = _read_json_file(base_path + "assets/props.json")
+	if p_json is Dictionary and p_json.has("props"):
+		var p_dict = p_json["props"]
+		for pid in p_dict:
+			var pdata = p_dict[pid]
+			if pdata is Dictionary and pdata.has("destruction") and pdata["destruction"] is Dictionary:
+				var def = _DestructibleDefinitionScript.from_dict(StringName(pid), pdata["destruction"])
+				target_registry.register_definition(def)
+
+	# 3. Definiciones inline opcionales en fixtures.json
+	var f_json = _read_json_file(base_path + "assets/fixtures.json")
+	if f_json is Dictionary and f_json.has("fixtures"):
+		var f_dict = f_json["fixtures"]
+		for fid in f_dict:
+			var fdata = f_dict[fid]
+			if fdata is Dictionary and fdata.has("destruction") and fdata["destruction"] is Dictionary:
+				var def = _DestructibleDefinitionScript.from_dict(StringName(fid), fdata["destruction"])
+				target_registry.register_definition(def)
+

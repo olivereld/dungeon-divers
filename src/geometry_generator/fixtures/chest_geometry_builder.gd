@@ -21,12 +21,12 @@ func build_chest_fixture(config = null):
 	asset.asset_id = &"stylized_chest_assembled"
 
 	# Combinar slots de la base
-	for slot_name in base_asset.mesh_slots:
-		asset.add_mesh(slot_name, base_asset.mesh_slots[slot_name])
+	for slot_name in base_asset.meshes:
+		asset.add_mesh(slot_name, base_asset.meshes[slot_name])
 
 	# Combinar slots de la tapa (con prefijo lid_)
-	for slot_name in lid_asset.mesh_slots:
-		asset.add_mesh(slot_name, lid_asset.mesh_slots[slot_name])
+	for slot_name in lid_asset.meshes:
+		asset.add_mesh(slot_name, lid_asset.meshes[slot_name])
 
 	return asset
 

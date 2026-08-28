@@ -84,7 +84,7 @@
             "spacing": 4,
             "color": "#D6B36A",
             "energy": 0.90,
-            "range": 4.5,
+            "range": 6.5,
             "fixtures": {
                 "wall": {
                     "min": 4,
