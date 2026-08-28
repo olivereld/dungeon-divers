@@ -43,7 +43,12 @@ static func from_dict(p_id: StringName, d: Dictionary):
 
 	var effs: Array[String] = []
 	for e in d.get("effects", []):
-		effs.append(str(e))
+		if e is Dictionary:
+			var eff_id = e.get("id", e.get("effect_id", ""))
+			if str(eff_id) != "":
+				effs.append(str(eff_id))
+		elif str(e) != "":
+			effs.append(str(e))
 	def.effects = effs
 
 	return def
