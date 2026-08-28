@@ -2,6 +2,7 @@ class_name DecorationPurposeProfileRegistry
 extends RefCounted
 
 ## Registro y fábrica declarativa de perfiles de composición según el propósito semántico de la sala.
+## Desacoplado de enums fijos; opera directamente con identificadores StringName.
 
 const _DecorationPurposeProfileScript = preload("res://src/presentation/decoration/composition/decoration_purpose_profile.gd")
 const _DecorationRoomIntentScript = preload("res://src/presentation/decoration/composition/decoration_room_intent.gd")
@@ -20,21 +21,22 @@ const _PropFixtureRelationshipProfileScript = preload("res://src/presentation/de
 const _PropFixtureRelationScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relation.gd")
 const _PropFixtureRelationPlacementScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relation_placement.gd")
 
-var _profiles: Dictionary = {} # purpose_type (int) -> DecorationPurposeProfile
+var _profiles: Dictionary = {} # purpose_type (StringName) -> DecorationPurposeProfile
 
 func _init() -> void:
 	_register_crypt_purpose_profiles()
 
-func get_profile_for_purpose(purpose_type: int) -> _DecorationPurposeProfileScript:
-	if _profiles.has(purpose_type):
-		return _profiles[purpose_type]
+func get_profile_for_purpose(purpose_type: Variant) -> _DecorationPurposeProfileScript:
+	var p_id: StringName = _RoomPurposeScript.resolve_id(purpose_type)
+	if _profiles.has(p_id):
+		return _profiles[p_id]
 	# Fallback a perfil genérico
-	return _build_generic_profile(purpose_type)
+	return _build_generic_profile(p_id)
 
 func _register_crypt_purpose_profiles() -> void:
 	# 1. TOMB & ROYAL_TOMB
 	var tomb_profile := _DecorationPurposeProfileScript.new()
-	tomb_profile.purpose_type = _RoomPurposeScript.Type.TOMB
+	tomb_profile.purpose_type = &"tomb"
 	tomb_profile.default_lighting_budget = 4.0
 
 	var tomb_intent := _DecorationRoomIntentScript.new()
@@ -96,28 +98,30 @@ func _register_crypt_purpose_profiles() -> void:
 			0, 1, &"sarcophagus_hanging_lantern"
 		)
 	])
-	_profiles[_RoomPurposeScript.Type.TOMB] = tomb_profile
-	_profiles[_RoomPurposeScript.Type.ROYAL_TOMB] = tomb_profile
-	_profiles[_RoomPurposeScript.Type.SANCTUM] = tomb_profile
+	_profiles[&"tomb"] = tomb_profile
+	_profiles[&"royal_tomb"] = tomb_profile
+	_profiles[&"sanctum"] = tomb_profile
 
 	# 2. MORTUARY
 	var mortuary_profile := _DecorationPurposeProfileScript.new()
-	mortuary_profile.purpose_type = _RoomPurposeScript.Type.MORTUARY
+	mortuary_profile.purpose_type = &"mortuary"
 	mortuary_profile.default_lighting_budget = 4.0
 
 	var mort_intent := _DecorationRoomIntentScript.new()
 	mort_intent.allowed_tags = [
 		_DecorationTagScript.CEREMONIAL, _DecorationTagScript.FOCAL, _DecorationTagScript.BURIAL,
-		_DecorationTagScript.LIGHTING, _DecorationTagScript.DETAIL, _DecorationTagScript.DEBRIS
+		_DecorationTagScript.LIGHTING, _DecorationTagScript.WALL_DECOR, _DecorationTagScript.DETAIL,
+		_DecorationTagScript.DEBRIS
 	]
-	mort_intent.forbidden_tags = [_DecorationTagScript.STORAGE]
+	mort_intent.forbidden_tags = [_DecorationTagScript.STORAGE, _DecorationTagScript.SEATING]
 	mortuary_profile.intent = mort_intent
 
 	var mort_template := _DecorationCompositionTemplateScript.new()
-	mort_template.template_id = &"mortuary_embalming_table"
+	mort_template.template_id = &"mortuary_embalming_slab"
+	mort_template.min_room_size = Vector2i(4, 4)
 
 	var r_mort_primary := _DecorationCompositionRuleScript.new()
-	r_mort_primary.rule_id = &"primary_embalming_altar"
+	r_mort_primary.rule_id = &"primary_altar_table"
 	r_mort_primary.composition_role = _CompositionRoleScript.Role.PRIMARY
 	r_mort_primary.placement_mode = _PropPlacementModeScript.Mode.CENTER
 	r_mort_primary.required_tags = [_DecorationTagScript.CEREMONIAL, _DecorationTagScript.FOCAL]
@@ -128,7 +132,7 @@ func _register_crypt_purpose_profiles() -> void:
 	mort_template.primary_rule = r_mort_primary
 
 	var r_mort_support := _DecorationCompositionRuleScript.new()
-	r_mort_support.rule_id = &"mortuary_canopic_urns"
+	r_mort_support.rule_id = &"support_urns_tables"
 	r_mort_support.composition_role = _CompositionRoleScript.Role.SECONDARY
 	r_mort_support.placement_mode = _PropPlacementModeScript.Mode.FLOOR
 	r_mort_support.required_tags = [_DecorationTagScript.BURIAL]
@@ -140,8 +144,9 @@ func _register_crypt_purpose_profiles() -> void:
 
 	mortuary_profile.templates.append(mort_template)
 	mortuary_profile.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH, _FixtureStyleScript.Type.LANTERN], &"mortuary_torches"),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [_FixtureStyleScript.Type.BRAZIER], &"mortuary_braziers")
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [_FixtureStyleScript.Type.LANTERN], &"mortuary_focal_lantern"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 1, 2, _FixtureBudgetRuleScript.Affinity.FOCAL_COMPANION, [_FixtureStyleScript.Type.BRAZIER], &"mortuary_focal_braziers"),
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 3, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH], &"mortuary_perimeter_torches")
 	]
 	mortuary_profile.relationship_profile = _PropFixtureRelationshipProfileScript.new(&"mortuary_relations", [
 		_PropFixtureRelationScript.new(
@@ -151,11 +156,11 @@ func _register_crypt_purpose_profiles() -> void:
 			1, 2, &"altar_candles", 1.0, 1.8
 		)
 	])
-	_profiles[_RoomPurposeScript.Type.MORTUARY] = mortuary_profile
+	_profiles[&"mortuary"] = mortuary_profile
 
 	# 3. SACRISTY & ALTAR_ROOM / SHRINE
 	var sacristy_profile := _DecorationPurposeProfileScript.new()
-	sacristy_profile.purpose_type = _RoomPurposeScript.Type.SACRISTY
+	sacristy_profile.purpose_type = &"sacristy"
 	sacristy_profile.default_lighting_budget = 4.5
 
 	var sacristy_intent := _DecorationRoomIntentScript.new()
@@ -212,13 +217,13 @@ func _register_crypt_purpose_profiles() -> void:
 			[_FixtureStyleScript.Type.BRAZIER, _FixtureStyleScript.Type.CANDLE_CLUSTER, _FixtureStyleScript.Type.CANDLE_HOLDER, _FixtureStyleScript.Type.LANTERN]
 		)
 	])
-	_profiles[_RoomPurposeScript.Type.SACRISTY] = sacristy_profile
-	_profiles[_RoomPurposeScript.Type.ALTAR_ROOM] = sacristy_profile
-	_profiles[_RoomPurposeScript.Type.SHRINE] = sacristy_profile
+	_profiles[&"sacristy"] = sacristy_profile
+	_profiles[&"altar_room"] = sacristy_profile
+	_profiles[&"shrine"] = sacristy_profile
 
 	# 4. CATACOMB & CRYPT
 	var catacomb_profile := _DecorationPurposeProfileScript.new()
-	catacomb_profile.purpose_type = _RoomPurposeScript.Type.CATACOMB
+	catacomb_profile.purpose_type = &"catacomb"
 	catacomb_profile.default_lighting_budget = 3.5
 
 	var cata_intent := _DecorationRoomIntentScript.new()
@@ -257,14 +262,14 @@ func _register_crypt_purpose_profiles() -> void:
 			[_FixtureStyleScript.Type.LANTERN, _FixtureStyleScript.Type.CANDLE_HOLDER]
 		)
 	])
-	_profiles[_RoomPurposeScript.Type.CATACOMB] = catacomb_profile
-	_profiles[_RoomPurposeScript.Type.CRYPT] = catacomb_profile
-	_profiles[_RoomPurposeScript.Type.CHAMBER] = catacomb_profile
-	_profiles[_RoomPurposeScript.Type.STORAGE] = catacomb_profile
+	_profiles[&"catacomb"] = catacomb_profile
+	_profiles[&"crypt"] = catacomb_profile
+	_profiles[&"chamber"] = catacomb_profile
+	_profiles[&"storage"] = catacomb_profile
 
 	# 5. ANTECHAMBER & HALL
 	var ante_profile := _DecorationPurposeProfileScript.new()
-	ante_profile.purpose_type = _RoomPurposeScript.Type.ANTECHAMBER
+	ante_profile.purpose_type = &"antechamber"
 	ante_profile.default_lighting_budget = 3.5
 
 	var ante_intent := _DecorationRoomIntentScript.new()
@@ -293,12 +298,12 @@ func _register_crypt_purpose_profiles() -> void:
 		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH, _FixtureStyleScript.Type.LANTERN], &"ante_perimeter_torches"),
 		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.HANGING, 0, 1, _FixtureBudgetRuleScript.Affinity.FREE, [_FixtureStyleScript.Type.LANTERN], &"ante_ambient_hanging")
 	]
-	_profiles[_RoomPurposeScript.Type.ANTECHAMBER] = ante_profile
-	_profiles[_RoomPurposeScript.Type.HALL] = ante_profile
+	_profiles[&"antechamber"] = ante_profile
+	_profiles[&"hall"] = ante_profile
 
 	# 6. ENTRANCE
 	var entry_profile := _DecorationPurposeProfileScript.new()
-	entry_profile.purpose_type = _RoomPurposeScript.Type.ENTRANCE
+	entry_profile.purpose_type = &"entrance"
 	entry_profile.default_lighting_budget = 2.5
 
 	var entry_intent := _DecorationRoomIntentScript.new()
@@ -311,11 +316,12 @@ func _register_crypt_purpose_profiles() -> void:
 	entry_profile.fixture_rules = [
 		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH], &"entry_perimeter_torches")
 	]
-	_profiles[_RoomPurposeScript.Type.ENTRANCE] = entry_profile
+	_profiles[&"entrance"] = entry_profile
 
-func _build_generic_profile(purpose_type: int) -> _DecorationPurposeProfileScript:
+func _build_generic_profile(purpose_type: Variant) -> _DecorationPurposeProfileScript:
+	var p_id: StringName = _RoomPurposeScript.resolve_id(purpose_type)
 	var prof := _DecorationPurposeProfileScript.new()
-	prof.purpose_type = purpose_type
+	prof.purpose_type = p_id
 	var intent := _DecorationRoomIntentScript.new()
 	intent.allowed_tags = [
 		_DecorationTagScript.FOCAL, _DecorationTagScript.BURIAL, _DecorationTagScript.SEATING,
@@ -331,21 +337,13 @@ func _build_generic_profile(purpose_type: int) -> _DecorationPurposeProfileScrip
 	r_primary.rule_id = &"generic_primary"
 	r_primary.composition_role = _CompositionRoleScript.Role.PRIMARY
 	r_primary.placement_mode = _PropPlacementModeScript.Mode.CENTER
-	r_primary.min_count = 1
+	r_primary.required_tags = [_DecorationTagScript.FOCAL]
+	r_primary.min_count = 0
 	r_primary.max_count = 1
 	template.primary_rule = r_primary
 
-	var r_support := _DecorationCompositionRuleScript.new()
-	r_support.rule_id = &"generic_support"
-	r_support.composition_role = _CompositionRoleScript.Role.SECONDARY
-	r_support.placement_mode = -1
-	r_support.min_count = 1
-	r_support.max_count = 3
-	template.support_rules.append(r_support)
-
 	prof.templates.append(template)
 	prof.fixture_rules = [
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2),
-		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.FLOOR, 0, 1)
+		_FixtureBudgetRuleScript.new(_FixturePlacementModeScript.Mode.WALL, 1, 2, _FixtureBudgetRuleScript.Affinity.PERIMETER, [_FixtureStyleScript.Type.TORCH], &"generic_wall_torches")
 	]
 	return prof

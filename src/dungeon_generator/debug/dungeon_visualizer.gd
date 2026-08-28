@@ -1027,8 +1027,8 @@ func _build_hover_room_data(room_obj, floor_idx: int, sem_result: DungeonSemanti
 		return
 
 	var r_id: int = room_obj.id
-	var purpose_id: int = _RoomPurposeScript.Type.CRYPT
-	var purpose_name: String = "CRYPT"
+	var purpose_id: StringName = &"generic"
+	var purpose_name: String = "GENERIC"
 	var arch_type: int = 1
 
 	if sem_result != null:
@@ -1283,8 +1283,8 @@ func _draw_floor_blueprint(
 		var is_hovered: bool = (_hovered_room_id == r.id and _hovered_floor_idx == (floor_number - 1))
 
 		if _current_view_mode == ViewMode.ARCHETYPE:
-			var purpose_id: int = _RoomPurposeScript.Type.CRYPT
-			var purpose_name: String = "CRYPT"
+			var purpose_id: StringName = &"generic"
+			var purpose_name: String = "GENERIC"
 			if semantic_res != null:
 				purpose_id = semantic_res.get_room_purpose(r.id)
 				purpose_name = semantic_res.get_room_purpose_name(r.id)
@@ -1469,16 +1469,16 @@ func _draw_door_marker(door, grid: CellGrid, origin: Vector2, tile_scale: float)
 	_preview_canvas.draw_rect(rect, col)
 	_preview_canvas.draw_rect(rect, Color.WHITE, false, 1.0)
 
-func _get_purpose_color(p: int) -> Color:
-	match p:
-		_RoomPurposeScript.Type.ENTRANCE: return Color(0.3, 0.8, 0.4) # Verde esmeralda
-		_RoomPurposeScript.Type.THRONE_ROOM, _RoomPurposeScript.Type.ROYAL_TOMB, _RoomPurposeScript.Type.SANCTUM, _RoomPurposeScript.Type.FORGE:
+func _get_purpose_color(p: Variant) -> Color:
+	match str(p).to_lower():
+		"entrance": return Color(0.3, 0.8, 0.4) # Verde esmeralda
+		"throne_room", "royal_tomb", "sanctum", "forge":
 			return Color(0.95, 0.3, 0.3) # Rojo carmesí / Jefe
-		_RoomPurposeScript.Type.ARMORY, _RoomPurposeScript.Type.GUARD_ROOM, _RoomPurposeScript.Type.CRYPT, _RoomPurposeScript.Type.EXCAVATION:
+		"armory", "guard_room", "crypt", "excavation":
 			return Color(0.9, 0.6, 0.2) # Naranja cobrizo / Combate
-		_RoomPurposeScript.Type.TOMB, _RoomPurposeScript.Type.STORAGE, _RoomPurposeScript.Type.LIBRARY, _RoomPurposeScript.Type.MINE_STORAGE:
+		"tomb", "storage", "library", "mine_storage":
 			return Color(0.3, 0.7, 0.95) # Azul zafiro / Tesoro
-		_RoomPurposeScript.Type.SHRINE, _RoomPurposeScript.Type.ALTAR_ROOM, _RoomPurposeScript.Type.SACRISTY, _RoomPurposeScript.Type.MEDITATION_ROOM:
+		"shrine", "altar_room", "sacristy", "meditation_room":
 			return Color(0.8, 0.4, 0.9) # Púrpura místico / Sagrado
 		_: return Color(0.7, 0.7, 0.75) # Gris pizarra / Neutro
 
@@ -1589,11 +1589,11 @@ func _update_archetypes_panel() -> void:
 
 		var dist := sem.get_purpose_distribution()
 		for p_type in dist:
-			var p_name: String = _RoomPurposeScript.to_name(int(p_type) as _RoomPurposeScript.Type)
+			var p_name: String = str(p_type).to_upper()
 			var p_count: int = int(dist[p_type])
 			var badge := Label.new()
 			badge.text = " [%s: %d] " % [p_name, p_count]
-			badge.add_theme_color_override("font_color", _get_purpose_color(int(p_type)))
+			badge.add_theme_color_override("font_color", _get_purpose_color(p_type))
 			badge.add_theme_font_size_override("font_size", 10)
 			_arch_dist_container.add_child(badge)
 

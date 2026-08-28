@@ -212,7 +212,7 @@ func _display_diagnostics(diag: Dictionary) -> void:
 		return
 
 	var arch_str = str(_DungeonArchetypeScript.resolve_id(diag.get("archetype", &"generic"))).to_upper()
-	var purp_str = _RoomPurposeScript.to_name(diag.get("purpose", 0)).to_upper()
+	var purp_str = _RoomPurposeScript.to_name(diag.get("purpose", &"generic")).to_upper()
 
 	var text := ""
 	text += "[b][color=yellow]═══ ROOM ARCHETYPE LAB ═══[/color][/b]\n"

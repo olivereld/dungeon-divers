@@ -202,9 +202,6 @@ func build_presentation(
 	# 5.5 Iluminación y Antorchas de Pared en Corredores / Pasillos
 	if not geometry_partition.corridor_wall_cells.is_empty():
 		var corr_anchors = _fixture_anchor_resolver.find_corridor_wall_anchors(geometry_partition, tile_size)
-		if not corr_anchors.is_empty():
-			var corr_palette = _decoration_palette_resolver.resolve_palette(arch_type, 0, null)
-			
 			var corr_lighting_profile = null
 			var arch_name: String = "generic"
 			if semantic_result != null:
@@ -214,6 +211,7 @@ func build_presentation(
 					arch_name = str(_DungeonArchetypeScript.resolve_id(semantic_result.dungeon_archetype))
 
 			var bundle = _profile_loader.load_full_archetype_bundle(arch_name)
+			var corr_palette = _decoration_palette_resolver.resolve_palette_by_id(arch_name, &"corridor", null, bundle)
 			if bundle != null:
 				if bundle.archetype != null and bundle.archetype.corridor_lighting != null:
 					corr_lighting_profile = bundle.archetype.corridor_lighting

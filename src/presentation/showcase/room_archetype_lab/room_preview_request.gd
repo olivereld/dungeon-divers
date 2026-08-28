@@ -9,7 +9,7 @@ const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/ar
 const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 
 var archetype: StringName = &"necropolis"
-var purpose: int = _RoomPurposeScript.Type.TOMB
+var purpose: StringName = &"tomb"
 var seed: int = 12345
 var room_size: Vector2i = Vector2i(10, 8)
 var tile_size: float = 2.0
@@ -18,7 +18,7 @@ var has_stairs: bool = false
 
 func _init(
 	p_archetype: Variant = &"necropolis",
-	p_purpose: int = _RoomPurposeScript.Type.TOMB,
+	p_purpose: Variant = &"tomb",
 	p_seed: int = 12345,
 	p_size: Vector2i = Vector2i(10, 8),
 	p_tile_size: float = 2.0,
@@ -26,7 +26,7 @@ func _init(
 	p_stairs: bool = false
 ) -> void:
 	archetype = _DungeonArchetypeScript.resolve_id(p_archetype)
-	purpose = p_purpose
+	purpose = _RoomPurposeScript.resolve_id(p_purpose)
 	seed = p_seed
 	room_size = p_size
 	tile_size = p_tile_size
@@ -38,18 +38,19 @@ func is_valid() -> bool:
 		return false
 	return is_purpose_valid_for_archetype(archetype, purpose)
 
-static func is_purpose_valid_for_archetype(arch: Variant, purp: int) -> bool:
+static func is_purpose_valid_for_archetype(arch: Variant, purp: Variant) -> bool:
+	var purp_id: StringName = _RoomPurposeScript.resolve_id(purp)
 	var valid_purposes = get_valid_purposes_for_archetype(arch)
-	return valid_purposes.has(purp) or valid_purposes.is_empty()
+	return valid_purposes.has(purp_id) or valid_purposes.is_empty()
 
-static func get_valid_purposes_for_archetype(arch: Variant) -> Array[int]:
+static func get_valid_purposes_for_archetype(arch: Variant) -> Array[StringName]:
 	var arch_id: StringName = _DungeonArchetypeScript.resolve_id(arch)
 	var loader := _ProfileLoaderScript.new()
 	var bundle = loader.load_full_archetype_bundle(str(arch_id))
-	var result: Array[int] = []
+	var result: Array[StringName] = []
 	if bundle != null and bundle.archetype != null:
 		for p_str in bundle.archetype.purpose_weights.keys():
-			result.append(int(_RoomPurposeScript.from_name(str(p_str))))
+			result.append(_RoomPurposeScript.resolve_id(p_str))
 	if result.is_empty():
-		result = [_RoomPurposeScript.Type.GENERIC, _RoomPurposeScript.Type.ENTRANCE, _RoomPurposeScript.Type.HALL, _RoomPurposeScript.Type.CHAMBER]
+		result = [&"generic", &"entrance", &"hall", &"chamber"]
 	return result

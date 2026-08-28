@@ -62,14 +62,7 @@ func get_all_resolved_profiles() -> Dictionary:
 	return _bundle.rooms.duplicate()
 
 func _canonicalize_purpose_key(purpose: Variant) -> StringName:
-	if purpose is int or purpose is float:
-		var name_str = _RoomPurposeScript.to_name(int(purpose)).to_lower()
-		return StringName(name_str)
-	if purpose is StringName:
-		return StringName(str(purpose).to_lower())
-	if purpose is String:
-		return StringName(purpose.to_lower())
-	return &"generic"
+	return _RoomPurposeScript.resolve_id(purpose)
 
 func _init_fallback() -> void:
 	_fallback_profile = _ProfileRoomScript.new(&"generic_fallback", "Generic Fallback Room", 1)

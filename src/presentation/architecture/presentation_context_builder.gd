@@ -28,7 +28,7 @@ func build_contexts(semantic_result: DungeonSemanticResult) -> Array:
 
 	for room in semantic_result.rooms:
 		var r_id: int = room.id
-		var purpose: int = semantic_result.get_room_purpose(r_id)
+		var purpose: StringName = semantic_result.get_room_purpose(r_id)
 		var room_prof = room_resolver.resolve(purpose) if room_resolver != null else null
 		var prof: _ArchitecturalPresentationProfileScript = _resolver.resolve_profile_for_archetype(arch_id, purpose, room_prof)
 

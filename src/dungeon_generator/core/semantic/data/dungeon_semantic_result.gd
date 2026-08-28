@@ -37,7 +37,7 @@ var objectives: Array = [] # Array[ObjectiveData]
 # 5. Arquetipo Arquitectónico y Propósitos de Sala
 var dungeon_archetype: int = 0
 var dungeon_archetype_name: String = "GENERIC"
-var room_purposes: Dictionary = {} # room_id (int) -> RoomPurpose.Type (int)
+var room_purposes: Dictionary = {} # room_id (int) -> StringName
 
 # 6. Estado y Diagnóstico
 var gameplay_valid: bool = false
@@ -47,24 +47,24 @@ var is_committed: bool = false
 func mark_committed() -> void:
 	is_committed = true
 
-func get_room_purpose(room_id: int) -> int:
-	return int(room_purposes.get(room_id, 0))
+func get_room_purpose(room_id: int) -> StringName:
+	return _RoomPurposeScript.resolve_id(room_purposes.get(room_id, &"generic"))
 
 func get_room_purpose_name(room_id: int) -> String:
-	var purpose_id: int = get_room_purpose(room_id)
-	return _RoomPurposeScript.to_name(purpose_id as _RoomPurposeScript.Type)
+	return str(get_room_purpose(room_id)).to_upper()
 
 func get_purpose_distribution() -> Dictionary:
 	var dist: Dictionary = {}
 	for r_id in room_purposes:
-		var p: int = int(room_purposes[r_id])
+		var p: StringName = _RoomPurposeScript.resolve_id(room_purposes[r_id])
 		dist[p] = int(dist.get(p, 0)) + 1
 	return dist
 
-func get_rooms_by_purpose(purpose_id: int) -> Array[int]:
+func get_rooms_by_purpose(purpose: Variant) -> Array[int]:
+	var target_p: StringName = _RoomPurposeScript.resolve_id(purpose)
 	var result: Array[int] = []
 	for r_id in room_purposes:
-		if int(room_purposes[r_id]) == purpose_id:
+		if _RoomPurposeScript.resolve_id(room_purposes[r_id]) == target_p:
 			result.append(int(r_id))
 	result.sort()
 	return result
@@ -119,7 +119,7 @@ func to_debug_string() -> String:
 		s += "\n--- Purpose Distribution Summary ---\n"
 		var dist: Dictionary = get_purpose_distribution()
 		for p_type in dist:
-			var p_name: String = _RoomPurposeScript.to_name(int(p_type) as _RoomPurposeScript.Type)
+			var p_name: String = str(p_type).to_upper()
 			s += "  %s: %d\n" % [p_name, int(dist[p_type])]
 
 	if not gameplay_diagnostics.is_empty():

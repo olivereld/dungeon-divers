@@ -63,14 +63,14 @@ func generate_floor_for_partition(
 			elif "architecture" in r_geom.profile and r_geom.profile.architecture != null and "floor_variants" in r_geom.profile.architecture:
 				floor_policy = r_geom.profile.architecture.floor_variants
 
-		var base_floor_style: int = r_geom.profile.floor_style if (r_geom.profile != null and "floor_style" in r_geom.profile) else 0
+		var base_floor_style: StringName = r_geom.profile.floor_style if (r_geom.profile != null and "floor_style" in r_geom.profile) else &"generic_stone"
 		var style_config_cache: Dictionary = {}
 		style_config_cache[base_floor_style] = room_cfg
 
 		for cell_pos in r_geom.floor_cells:
 			var cell_cfg = room_cfg
 			if floor_policy != null and floor_policy.enabled and not floor_policy.variants.is_empty():
-				var cell_style: int = _variant_resolver.resolve_cell_floor_style(
+				var cell_style: StringName = _variant_resolver.resolve_cell_floor_style(
 					cell_pos, room_seed, floor_policy, base_floor_style
 				)
 				if style_config_cache.has(cell_style):

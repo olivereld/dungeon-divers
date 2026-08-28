@@ -27,18 +27,16 @@ func resolve_floor_config(
 	if profile == null:
 		return cfg
 
-	match profile.floor_style:
-		_ArchitecturalStyleScript.FloorStyle.RUINED_STONE:
+	match str(profile.floor_style).to_lower():
+		"ruined_stone", "ruined_tiles":
 			cfg.pattern = _FloorTileConfigScript.PatternType.RUINED_TILES
-		_ArchitecturalStyleScript.FloorStyle.COBBLESTONE:
+		"cobblestone", "mine_rock":
 			cfg.pattern = _FloorTileConfigScript.PatternType.COBBLESTONE
-		_ArchitecturalStyleScript.FloorStyle.BRICK:
+		"brick":
 			cfg.pattern = _FloorTileConfigScript.PatternType.BRICK
-		_ArchitecturalStyleScript.FloorStyle.SMOOTH_SLABS, _ArchitecturalStyleScript.FloorStyle.TEMPLE_TILES:
+		"smooth_slabs", "temple_tiles":
 			cfg.pattern = _FloorTileConfigScript.PatternType.SMOOTH_SLABS
-		_ArchitecturalStyleScript.FloorStyle.MINE_ROCK:
-			cfg.pattern = _FloorTileConfigScript.PatternType.COBBLESTONE
-		_ArchitecturalStyleScript.FloorStyle.CATACOMB_DIRT:
+		"catacomb_dirt":
 			cfg.pattern = _FloorTileConfigScript.PatternType.CATACOMB_DIRT
 		_:
 			cfg.pattern = _FloorTileConfigScript.PatternType.STYLIZED_STONE
@@ -58,17 +56,17 @@ func resolve_wall_decoration_config(
 	if profile == null:
 		return cfg
 
-	match profile.wall_style:
-		_ArchitecturalStyleScript.WallStyle.FORTRESS_STONE:
+	match str(profile.wall_style).to_lower():
+		"fortress_stone":
 			cfg.style = _DecorationConfigScript.DecorationStyle.FULL_MASONRY
 			cfg.brick_density = 0.75
-		_ArchitecturalStyleScript.WallStyle.DARK_STONE:
+		"dark_stone":
 			cfg.style = _DecorationConfigScript.DecorationStyle.STYLIZED_CLUSTERS
 			cfg.brick_density = 0.50
-		_ArchitecturalStyleScript.WallStyle.TEMPLE_STONE:
+		"temple_stone":
 			cfg.style = _DecorationConfigScript.DecorationStyle.STYLIZED_CLUSTERS
 			cfg.brick_density = 0.35
-		_ArchitecturalStyleScript.WallStyle.MINE_ROCK:
+		"mine_rock":
 			cfg.style = _DecorationConfigScript.DecorationStyle.FULL_MASONRY
 			cfg.brick_density = 0.60
 		_:

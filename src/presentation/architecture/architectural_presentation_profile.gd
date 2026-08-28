@@ -3,58 +3,64 @@ extends RefCounted
 
 ## Contrato de datos inmutable que encapsula los estilos arquitectónicos resueltos
 ## para una habitación o zona del dungeon (Suelo, Muro, Puerta, Escaleras, Luminaria, Paleta).
-## 100% puro: no depende de nodos de escena ni mallas 3D.
+## 100% puro: no depende de nodos de escena ni mallas 3D y utiliza StringName exclusivamente.
 
-const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
-
-var floor_style: _ArchitecturalStyleScript.FloorStyle = _ArchitecturalStyleScript.FloorStyle.GENERIC_STONE
-var wall_style: _ArchitecturalStyleScript.WallStyle = _ArchitecturalStyleScript.WallStyle.GENERIC_STONE
-var door_style: _ArchitecturalStyleScript.DoorStyle = _ArchitecturalStyleScript.DoorStyle.STONE_ARCH
-var stairs_style: _ArchitecturalStyleScript.StairsStyle = _ArchitecturalStyleScript.StairsStyle.STONE
-var fixture_style: _ArchitecturalStyleScript.FixtureStyle = _ArchitecturalStyleScript.FixtureStyle.TORCH
-var decoration_palette: int = _ArchitecturalStyleScript.DecorationPalette.GENERIC
+var floor_style: StringName = &"generic_stone"
+var wall_style: StringName = &"generic_stone"
+var door_style: StringName = &"stone_arch"
+var stairs_style: StringName = &"stone"
+var fixture_style: StringName = &"torch"
+var decoration_palette: StringName = &"generic"
 var wall_variants = null # ProfileWallVariantPolicy o WallVariantPolicy
 var floor_variants = null # ProfileFloorVariantPolicy
 
 func _init(
-	p_floor: _ArchitecturalStyleScript.FloorStyle = _ArchitecturalStyleScript.FloorStyle.GENERIC_STONE,
-	p_wall: _ArchitecturalStyleScript.WallStyle = _ArchitecturalStyleScript.WallStyle.GENERIC_STONE,
-	p_door: _ArchitecturalStyleScript.DoorStyle = _ArchitecturalStyleScript.DoorStyle.STONE_ARCH,
-	p_stairs: _ArchitecturalStyleScript.StairsStyle = _ArchitecturalStyleScript.StairsStyle.STONE,
-	p_fixture: _ArchitecturalStyleScript.FixtureStyle = _ArchitecturalStyleScript.FixtureStyle.TORCH,
-	p_palette: int = _ArchitecturalStyleScript.DecorationPalette.GENERIC
+	p_floor: Variant = &"generic_stone",
+	p_wall: Variant = &"generic_stone",
+	p_door: Variant = &"stone_arch",
+	p_stairs: Variant = &"stone",
+	p_fixture: Variant = &"torch",
+	p_palette: Variant = &"generic"
 ) -> void:
-	floor_style = p_floor
-	wall_style = p_wall
-	door_style = p_door
-	stairs_style = p_stairs
-	fixture_style = p_fixture
-	decoration_palette = p_palette
+	floor_style = _normalize_id(p_floor, &"generic_stone")
+	wall_style = _normalize_id(p_wall, &"generic_stone")
+	door_style = _normalize_id(p_door, &"stone_arch")
+	stairs_style = _normalize_id(p_stairs, &"stone")
+	fixture_style = _normalize_id(p_fixture, &"torch")
+	decoration_palette = _normalize_id(p_palette, &"generic")
+
+static func _normalize_id(val: Variant, default_val: StringName) -> StringName:
+	if val is StringName:
+		return val if not val.is_empty() else default_val
+	if val is String:
+		var s := (val as String).strip_edges().to_lower()
+		return StringName(s) if not s.is_empty() else default_val
+	return default_val
 
 func to_debug_string() -> String:
 	return "ArchProfile(Floor: %s, Wall: %s, Door: %s, Stairs: %s, Fixture: %s, Palette: %s)" % [
-		_ArchitecturalStyleScript.floor_to_name(floor_style),
-		_ArchitecturalStyleScript.wall_to_name(wall_style),
-		_ArchitecturalStyleScript.door_to_name(door_style),
-		_ArchitecturalStyleScript.stairs_to_name(stairs_style),
-		_ArchitecturalStyleScript.fixture_to_name(fixture_style),
-		_ArchitecturalStyleScript.palette_to_name(decoration_palette)
+		str(floor_style),
+		str(wall_style),
+		str(door_style),
+		str(stairs_style),
+		str(fixture_style),
+		str(decoration_palette)
 	]
 
 func to_dict() -> Dictionary:
 	return {
-		"floor_style": int(floor_style),
-		"floor_name": _ArchitecturalStyleScript.floor_to_name(floor_style),
-		"wall_style": int(wall_style),
-		"wall_name": _ArchitecturalStyleScript.wall_to_name(wall_style),
-		"door_style": int(door_style),
-		"door_name": _ArchitecturalStyleScript.door_to_name(door_style),
-		"stairs_style": int(stairs_style),
-		"stairs_name": _ArchitecturalStyleScript.stairs_to_name(stairs_style),
-		"fixture_style": int(fixture_style),
-		"fixture_name": _ArchitecturalStyleScript.fixture_to_name(fixture_style),
-		"decoration_palette": int(decoration_palette),
-		"palette_name": _ArchitecturalStyleScript.palette_to_name(decoration_palette)
+		"floor_style": str(floor_style),
+		"floor_name": str(floor_style).to_upper(),
+		"wall_style": str(wall_style),
+		"wall_name": str(wall_style).to_upper(),
+		"door_style": str(door_style),
+		"door_name": str(door_style).to_upper(),
+		"stairs_style": str(stairs_style),
+		"stairs_name": str(stairs_style).to_upper(),
+		"fixture_style": str(fixture_style),
+		"fixture_name": str(fixture_style).to_upper(),
+		"decoration_palette": str(decoration_palette),
+		"palette_name": str(decoration_palette).to_upper()
 	}
 
 func equals(other: ArchitecturalPresentationProfile) -> bool:

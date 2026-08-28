@@ -1,55 +1,28 @@
 class_name RoomPurpose
 extends RefCounted
 
-## Identificador canónico y tipos de propósitos arquitectónicos de habitaciones.
+## Modelo de valor puro que representa el propósito funcional/arquitectónico de una sala.
+## Desacoplado de listas fijas o enums de contenido; la identidad es un StringName.
 
-enum Type {
-	# Genérico
-	GENERIC = 0,
-	ENTRANCE = 1,
-	HALL = 2,
-	CHAMBER = 3,
-	STORAGE = 4,
-	ANTECHAMBER = 5,
+var id: StringName = &"generic"
 
-	# Mausoleum / Crypt
-	CRYPT = 10,
-	TOMB = 11,
-	CATACOMB = 12,
-	SACRISTY = 13,
-	ROYAL_TOMB = 14,
-	MORTUARY = 15,
+func _init(p_id: Variant = &"generic") -> void:
+	id = resolve_id(p_id)
 
-	# Fortress
-	ARMORY = 20,
-	BARRACKS = 21,
-	THRONE_ROOM = 22,
-	GUARD_ROOM = 23,
-	PRISON_CELLS = 24,
+func _to_string() -> String:
+	return str(id)
 
-	# Temple
-	SHRINE = 30,
-	SANCTUM = 31,
-	ALTAR_ROOM = 32,
-	LIBRARY = 33,
-	MEDITATION_ROOM = 34,
+## Resuelve y normaliza cualquier entrada a un StringName de ID de propósito.
+static func resolve_id(val: Variant) -> StringName:
+	if val is StringName:
+		return val if not val.is_empty() else &"generic"
+	if val is String:
+		var s := (val as String).strip_edges().to_lower()
+		return StringName(s) if not s.is_empty() else &"generic"
+	return &"generic"
 
-	# Mine
-	EXCAVATION = 40,
-	MINE_STORAGE = 41,
-	FORGE = 42,
-	ORE_CHAMBER = 43,
-	WORKSHOP = 44
-}
+static func to_name(p_id: Variant) -> String:
+	return str(resolve_id(p_id)).to_upper()
 
-static func to_name(p_type: Type) -> String:
-	for key in Type.keys():
-		if Type[key] == p_type:
-			return key
-	return "UNKNOWN"
-
-static func from_name(p_name: String) -> Type:
-	var key := p_name.to_upper()
-	if Type.has(key):
-		return Type[key]
-	return Type.GENERIC
+static func from_name(p_name: String) -> StringName:
+	return resolve_id(p_name)

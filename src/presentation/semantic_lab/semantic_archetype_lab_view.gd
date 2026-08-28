@@ -117,11 +117,11 @@ func _refresh_display() -> void:
 
 	var dist := current_semantic_result.get_purpose_distribution()
 	for p_type in dist:
-		var p_name: String = _RoomPurposeScript.to_name(int(p_type) as _RoomPurposeScript.Type)
+		var p_name: String = str(p_type).to_upper()
 		var p_count: int = int(dist[p_type])
 		var badge := Label.new()
 		badge.text = " [%s: %d] " % [p_name, p_count]
-		badge.add_theme_color_override("font_color", _get_purpose_color(int(p_type)))
+		badge.add_theme_color_override("font_color", _get_purpose_color(p_type))
 		ui_dist_container.add_child(badge)
 
 	# Rooms List Table
@@ -132,7 +132,7 @@ func _refresh_display() -> void:
 	sorted_ids.sort()
 
 	for r_id in sorted_ids:
-		var purpose_id: int = int(current_semantic_result.room_purposes[r_id])
+		var purpose_id: StringName = _RoomPurposeScript.resolve_id(current_semantic_result.room_purposes[r_id])
 		var p_name: String = current_semantic_result.get_room_purpose_name(r_id)
 		var role: String = "EXPLORE"
 
@@ -261,21 +261,21 @@ func _on_map_draw() -> void:
 		var txt := "#%d\n%s" % [room.id, current_semantic_result.get_room_purpose_name(room.id)]
 		ui_map_canvas.draw_string(ThemeDB.fallback_font, center - Vector2(25, 5), str(room.id), HORIZONTAL_ALIGNMENT_CENTER, 50, 14, Color.WHITE)
 
-func _get_purpose_color(p: int) -> Color:
-	match p:
-		_RoomPurposeScript.Type.ENTRANCE: return Color(0.3, 0.8, 0.4) # Verde
-		_RoomPurposeScript.Type.THRONE_ROOM, _RoomPurposeScript.Type.ROYAL_TOMB, _RoomPurposeScript.Type.SANCTUM, _RoomPurposeScript.Type.FORGE:
+func _get_purpose_color(p: Variant) -> Color:
+	match str(p).to_lower():
+		"entrance": return Color(0.3, 0.8, 0.4) # Verde
+		"throne_room", "royal_tomb", "sanctum", "forge":
 			return Color(0.95, 0.3, 0.3) # Rojo / Jefe
-		_RoomPurposeScript.Type.ARMORY, _RoomPurposeScript.Type.GUARD_ROOM, _RoomPurposeScript.Type.CRYPT, _RoomPurposeScript.Type.EXCAVATION:
+		"armory", "guard_room", "crypt", "excavation":
 			return Color(0.9, 0.6, 0.2) # Naranja / Combate
-		_RoomPurposeScript.Type.TOMB, _RoomPurposeScript.Type.STORAGE, _RoomPurposeScript.Type.LIBRARY, _RoomPurposeScript.Type.MINE_STORAGE:
+		"tomb", "storage", "library", "mine_storage":
 			return Color(0.3, 0.7, 0.95) # Azul / Tesoro
-		_RoomPurposeScript.Type.SHRINE, _RoomPurposeScript.Type.ALTAR_ROOM, _RoomPurposeScript.Type.SACRISTY, _RoomPurposeScript.Type.MEDITATION_ROOM:
+		"shrine", "altar_room", "sacristy", "meditation_room":
 			return Color(0.8, 0.4, 0.9) # Púrpura / Sagrado
 		_: return Color(0.7, 0.7, 0.75) # Gris / Neutro
 
 func _on_archetype_selected(idx: int) -> void:
-	var arch_id: int = ui_archetype_opt.get_item_id(idx)
+	var arch_id = ui_archetype_opt.get_item_metadata(idx)
 	var s_val: int = int(ui_seed_spin.value)
 	generate_dungeon_with_params(arch_id, s_val)
 
@@ -283,11 +283,13 @@ func _on_seed_changed(val: float) -> void:
 	current_seed = int(val)
 
 func _on_generate_pressed() -> void:
-	var arch_id: int = ui_archetype_opt.get_selected_id()
+	var arch_idx = ui_archetype_opt.selected
+	var arch_id = ui_archetype_opt.get_item_metadata(arch_idx) if arch_idx >= 0 else &"generic"
 	var s_val: int = int(ui_seed_spin.value)
 	generate_dungeon_with_params(arch_id, s_val)
 
 func _on_random_pressed() -> void:
 	var r_seed: int = randi() % 999999 + 1
-	var arch_id: int = ui_archetype_opt.get_selected_id()
+	var arch_idx = ui_archetype_opt.selected
+	var arch_id = ui_archetype_opt.get_item_metadata(arch_idx) if arch_idx >= 0 else &"generic"
 	generate_dungeon_with_params(arch_id, r_seed)

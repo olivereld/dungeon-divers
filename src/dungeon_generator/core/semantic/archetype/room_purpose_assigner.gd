@@ -17,7 +17,7 @@ func assign_purposes(
 	profile, # ProfileBundle or ProfileArchetype
 	seed_val: int
 ) -> Dictionary:
-	var result: Dictionary = {} # room_id (int) -> RoomPurpose.Type (int)
+	var result: Dictionary = {} # room_id (int) -> StringName
 	if profile == null or rooms.is_empty():
 		return result
 
@@ -38,23 +38,23 @@ func assign_purposes(
 
 	# Extraer reglas de arquetipo si existen
 	var max_consecutive: int = 2
-	var rare_purposes: Array[int] = []
-	var guaranteed_purposes: Array[int] = []
-	var distribution_weights: Dictionary = {} # int (RoomPurpose.Type) -> float
+	var rare_purposes: Array[StringName] = []
+	var guaranteed_purposes: Array[StringName] = []
+	var distribution_weights: Dictionary = {} # StringName -> float
 
 	if arch_profile != null:
 		if arch_profile.room_rules != null:
 			max_consecutive = arch_profile.room_rules.max_same_purpose_consecutive
 			for r in arch_profile.room_rules.rare:
-				rare_purposes.append(int(_RoomPurposeScript.from_name(str(r))))
+				rare_purposes.append(_RoomPurposeScript.resolve_id(r))
 			for g in arch_profile.room_rules.guaranteed:
-				guaranteed_purposes.append(int(_RoomPurposeScript.from_name(str(g))))
+				guaranteed_purposes.append(_RoomPurposeScript.resolve_id(g))
 
 		for p_key in arch_profile.room_purpose_distribution:
-			var purp_type = int(_RoomPurposeScript.from_name(str(p_key)))
-			distribution_weights[purp_type] = float(arch_profile.room_purpose_distribution[p_key])
+			var purp_id = _RoomPurposeScript.resolve_id(p_key)
+			distribution_weights[purp_id] = float(arch_profile.room_purpose_distribution[p_key])
 
-	var last_assigned_purpose: int = -1
+	var last_assigned_purpose: StringName = &""
 	var consecutive_count: int = 0
 	var satisfied_guaranteed: Dictionary = {}
 
@@ -82,10 +82,10 @@ func assign_purposes(
 		elif room.room_type == &"boss":
 			gameplay_role = "BOSS"
 
-		var chosen_purpose: int = _RoomPurposeScript.Type.GENERIC
+		var chosen_purpose: StringName = &"generic"
 
 		# 1. Verificar si hay un propósito garantizado aplicable para este rol
-		var allowed_purposes: Array = _get_allowed_purposes(arch_profile, gameplay_role)
+		var allowed_purposes: Array[StringName] = _get_allowed_purposes(arch_profile, gameplay_role)
 		var found_guaranteed: bool = false
 		for g_purp in guaranteed_purposes:
 			if not satisfied_guaranteed.has(g_purp) and allowed_purposes.has(g_purp):
@@ -118,78 +118,79 @@ func assign_purposes(
 
 		result[r_id] = chosen_purpose
 
-
 	return result
 
-func _get_allowed_purposes(arch_prof: _ProfileArchetypeScript, role: String) -> Array:
+func _get_allowed_purposes(arch_prof: _ProfileArchetypeScript, role: String) -> Array[StringName]:
 	if arch_prof != null:
 		var list = arch_prof.get_allowed_purposes_for_gameplay(StringName(role))
-		var arr: Array = []
+		var arr: Array[StringName] = []
 		for item in list:
-			arr.append(int(_RoomPurposeScript.from_name(str(item))))
-		return arr
-	return [_RoomPurposeScript.Type.GENERIC]
+			arr.append(_RoomPurposeScript.resolve_id(item))
+		if not arr.is_empty():
+			return arr
+	return [&"generic"]
 
 func _get_purpose_weights(arch_prof: _ProfileArchetypeScript) -> Dictionary:
 	var result: Dictionary = {}
 	if arch_prof != null:
 		for k in arch_prof.purpose_weights:
-			var purp = int(_RoomPurposeScript.from_name(str(k)))
+			var purp = _RoomPurposeScript.resolve_id(k)
 			result[purp] = float(arch_prof.purpose_weights[k])
 		return result
 	return result
 
 func _pick_distribution_purpose(
 	distribution_weights: Dictionary,
-	rare_purposes: Array[int],
-	last_purpose: int,
+	rare_purposes: Array[StringName],
+	last_purpose: StringName,
 	consecutive_count: int,
 	max_consecutive: int,
 	rng: RandomNumberGenerator
-) -> int:
-	var candidates: Array[int] = []
+) -> StringName:
+	var candidates: Array[StringName] = []
 	var weights: Dictionary = {}
 
 	for p in distribution_weights:
+		var purp_id: StringName = _RoomPurposeScript.resolve_id(p)
 		# Excluir entradas con peso <= 0 o salas raras (reservadas a roles especiales como BOSS)
-		if distribution_weights[p] <= 0.0 or rare_purposes.has(p):
+		if distribution_weights[p] <= 0.0 or rare_purposes.has(purp_id):
 			continue
 
 		# Si ya alcanzamos el límite consecutivo, excluir temporalmente ese propósito
-		if p == last_purpose and consecutive_count >= max_consecutive:
+		if purp_id == last_purpose and consecutive_count >= max_consecutive:
 			continue
 
-		candidates.append(p)
-		weights[p] = distribution_weights[p]
+		candidates.append(purp_id)
+		weights[purp_id] = distribution_weights[p]
 
 	if candidates.is_empty():
 		# Fallback si todos fueron filtrados
 		for p in distribution_weights:
-			if not rare_purposes.has(p):
-				return p
-		return _RoomPurposeScript.Type.GENERIC
+			var purp_id: StringName = _RoomPurposeScript.resolve_id(p)
+			if not rare_purposes.has(purp_id):
+				return purp_id
+		return &"generic"
 
 	return _pick_weighted_purpose(candidates, weights, rng)
 
-func _pick_weighted_purpose(allowed: Array, weights: Dictionary, rng: RandomNumberGenerator) -> int:
+func _pick_weighted_purpose(allowed: Array[StringName], weights: Dictionary, rng: RandomNumberGenerator) -> StringName:
 	if allowed.is_empty():
-		return _RoomPurposeScript.Type.GENERIC
+		return &"generic"
 	if allowed.size() == 1:
-		return int(allowed[0])
+		return allowed[0]
 
 	var total_weight: float = 0.0
 	for p in allowed:
-		total_weight += float(weights.get(int(p), 1.0))
+		total_weight += float(weights.get(p, 1.0))
 
 	if total_weight <= 0.0:
-		return int(allowed[0])
+		return allowed[0]
 
 	var roll: float = rng.randf() * total_weight
 	var accum: float = 0.0
 	for p in allowed:
-		accum += float(weights.get(int(p), 1.0))
+		accum += float(weights.get(p, 1.0))
 		if roll <= accum:
-			return int(p)
+			return p
 
-	return int(allowed[allowed.size() - 1])
-
+	return allowed[allowed.size() - 1]

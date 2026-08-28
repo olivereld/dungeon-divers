@@ -254,12 +254,7 @@ func load_archetype(archetype_id: Variant) -> _ProfileArchetypeScript:
 
 	var json_data = _read_json_file(path)
 	if not (json_data is Dictionary):
-		if target_id == &"mausoleum":
-			json_data = _read_json_file(base_path + "archetypes/necropolis.json")
-		elif target_id == &"necropolis":
-			json_data = _read_json_file(base_path + "archetypes/mausoleum.json")
-		if not (json_data is Dictionary):
-			return null
+		return null
 
 	var dict: Dictionary = json_data
 	var id := StringName(dict.get("id", archetype_id))
