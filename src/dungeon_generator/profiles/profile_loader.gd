@@ -299,11 +299,11 @@ func load_archetype(archetype_id: String) -> _ProfileArchetypeScript:
 	# Architectural Style
 	var s_raw = dict.get("architectural_style", {})
 	var arch_style := _ProfileArchetypeStyleScript.new(
-		StringName(s_raw.get("floor_style", "mausoleum")),
-		StringName(s_raw.get("wall_style", "mausoleum")),
-		StringName(s_raw.get("door_style", "mausoleum")),
-		StringName(s_raw.get("stairs_style", "mausoleum")),
-		StringName(s_raw.get("material_profile", "mausoleum_stone"))
+		StringName(s_raw.get("floor_style", "generic")),
+		StringName(s_raw.get("wall_style", "generic")),
+		StringName(s_raw.get("door_style", "generic")),
+		StringName(s_raw.get("stairs_style", "generic")),
+		StringName(s_raw.get("material_profile", "generic_stone"))
 	)
 
 	# Room rules
