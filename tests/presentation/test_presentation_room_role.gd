@@ -19,7 +19,7 @@ func _run_test() -> void:
 
 	var prof := ArchitecturalPresentationProfileScript.new()
 	var ctx := PresentationRoomContextScript.new(
-		1, Rect2i(0, 0, 6, 6), RoomPurposeScript.Type.CRYPT, prof, PresentationRoomRoleScript.Role.COMBAT
+		1, Rect2i(0, 0, 6, 6), &"crypt", prof, PresentationRoomRoleScript.Role.COMBAT
 	)
 	assert(ctx.role == PresentationRoomRoleScript.Role.COMBAT)
 	assert(ctx.role_name == "COMBAT")

@@ -13,12 +13,16 @@ const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semant
 @export var seed: int = 0
 @export var use_fixed_seed: bool = false
 @export var archetype_id: StringName = &"" ## ID dinámico de arquetipo (ej: &"necropolis", &"temple")
-@export var dungeon_archetype: int = 0 ## Legacy fallback (DungeonArchetype.Type)
+@export var dungeon_archetype: Variant = &""
 
 func get_effective_archetype_id() -> StringName:
 	if not archetype_id.is_empty():
 		return archetype_id
-	if dungeon_archetype != 0:
+	if dungeon_archetype is StringName and not dungeon_archetype.is_empty():
+		return dungeon_archetype
+	if dungeon_archetype is String and not (dungeon_archetype as String).is_empty():
+		return StringName(dungeon_archetype as String)
+	if dungeon_archetype != null and dungeon_archetype != 0:
 		return _DungeonArchetypeScript.resolve_id(dungeon_archetype)
 	return &"necropolis"
 

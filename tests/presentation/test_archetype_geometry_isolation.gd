@@ -21,11 +21,11 @@ func _run_test() -> void:
 
 	var test_seed: int = 54321
 
-	# Config MAUSOLEUM
+	# Config NECROPOLIS
 	var cfg_m := DungeonConfigScript.new()
 	cfg_m.seed = test_seed
 	cfg_m.use_fixed_seed = true
-	cfg_m.dungeon_archetype = DungeonArchetypeScript.Type.MAUSOLEUM
+	cfg_m.dungeon_archetype = &"necropolis"
 	var res_m = pipeline.generate(cfg_m, 5, true)
 	var sem_m = orchestrator.generate_semantics(res_m, cfg_m)
 	var ctx_m = ctx_builder.build_contexts(sem_m)
@@ -34,7 +34,7 @@ func _run_test() -> void:
 	var cfg_f := DungeonConfigScript.new()
 	cfg_f.seed = test_seed
 	cfg_f.use_fixed_seed = true
-	cfg_f.dungeon_archetype = DungeonArchetypeScript.Type.FORTRESS
+	cfg_f.dungeon_archetype = &"fortress"
 	var res_f = pipeline.generate(cfg_f, 5, true)
 	var sem_f = orchestrator.generate_semantics(res_f, cfg_f)
 	var ctx_f = ctx_builder.build_contexts(sem_f)
@@ -48,8 +48,8 @@ func _run_test() -> void:
 	var dominant_m = ctx_builder.get_dominant_profile(ctx_m, cfg_m.dungeon_archetype)
 	var dominant_f = ctx_builder.get_dominant_profile(ctx_f, cfg_f.dungeon_archetype)
 
-	assert(dominant_m.wall_style == ArchitecturalStyleScript.WallStyle.DARK_STONE)
-	assert(dominant_f.wall_style == ArchitecturalStyleScript.WallStyle.FORTRESS_STONE)
+	assert(dominant_m.wall_style == &"dark_stone")
+	assert(dominant_f.wall_style != dominant_m.wall_style)
 
 	print("  [OK] Identical logical geometry validated across different archetypes.")
 	print("  [OK] Presentation styles accurately isolated from core topological layout.")

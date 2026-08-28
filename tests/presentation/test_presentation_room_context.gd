@@ -15,20 +15,20 @@ func _run_test() -> void:
 	print("==================================================================")
 
 	var prof := ArchitecturalPresentationProfileScript.new(
-		ArchitecturalStyleScript.FloorStyle.RUINED_STONE,
-		ArchitecturalStyleScript.WallStyle.DARK_STONE,
-		ArchitecturalStyleScript.DoorStyle.STONE_ARCH,
-		ArchitecturalStyleScript.StairsStyle.STONE,
-		ArchitecturalStyleScript.FixtureStyle.TORCH,
-		ArchitecturalStyleScript.DecorationPalette.CRYPT
+		&"ruined_stone",
+		&"dark_stone",
+		&"stone_arch",
+		&"stone",
+		&"torch",
+		&"crypt"
 	)
 
 	var ctx := PresentationRoomContextScript.new(
-		0, Rect2i(0, 0, 10, 10), RoomPurposeScript.Type.CRYPT, prof, PresentationRoomRoleScript.Role.COMBAT
+		0, Rect2i(0, 0, 10, 10), &"crypt", prof, PresentationRoomRoleScript.Role.COMBAT
 	)
 	assert(ctx.room_id == 0, "FAIL: room_id mismatch")
-	assert(ctx.purpose == RoomPurposeScript.Type.CRYPT, "FAIL: purpose mismatch")
-	assert(ctx.profile.floor_style == ArchitecturalStyleScript.FloorStyle.RUINED_STONE, "FAIL: profile floor_style mismatch")
+	assert(ctx.purpose == &"crypt", "FAIL: purpose mismatch")
+	assert(ctx.profile.floor_style == &"ruined_stone", "FAIL: profile floor_style mismatch")
 	assert(ctx.role == PresentationRoomRoleScript.Role.COMBAT, "FAIL: role mismatch")
 	assert(ctx.role_name == "COMBAT", "FAIL: role_name mismatch")
 

@@ -16,11 +16,11 @@ func _run_test() -> void:
 	print("==================================================================")
 
 	var archetypes = [
-		DungeonArchetypeScript.Type.GENERIC,
-		DungeonArchetypeScript.Type.MAUSOLEUM,
-		DungeonArchetypeScript.Type.FORTRESS,
-		DungeonArchetypeScript.Type.TEMPLE,
-		DungeonArchetypeScript.Type.MINE
+		&"generic",
+		&"necropolis",
+		&"fortress",
+		&"temple",
+		&"mine"
 	]
 
 	var pipeline := DungeonPipelineScript.new()

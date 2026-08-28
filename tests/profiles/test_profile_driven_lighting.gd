@@ -98,9 +98,9 @@ func _run_test() -> void:
 	var pal_resolver := _DecorationPaletteResolverScript.new()
 	var comp_resolver := _DecorationCompositionResolverScript.new()
 
-	var arch_prof = pres_resolver.resolve_from_room_profile(tomb_prof, _DungeonArchetypeScript.Type.MAUSOLEUM, int(_RoomPurposeScript.Type.TOMB))
-	var pal = pal_resolver.resolve_palette(_DungeonArchetypeScript.Type.MAUSOLEUM, int(_RoomPurposeScript.Type.TOMB))
-	var ctx = _PresentationRoomContextScript.new(1, Rect2i(1, 1, 8, 8), int(_RoomPurposeScript.Type.TOMB), arch_prof, 0, tomb_prof)
+	var arch_prof = pres_resolver.resolve_from_room_profile(tomb_prof, &"necropolis", &"tomb")
+	var pal = pal_resolver.resolve_palette(&"necropolis", &"tomb")
+	var ctx = _PresentationRoomContextScript.new(1, Rect2i(1, 1, 8, 8), &"tomb", arch_prof, 0, tomb_prof)
 
 	var floor_cells: Array[Vector2i] = []
 	for x in range(2, 8):

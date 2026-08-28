@@ -10,6 +10,7 @@ const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/ar
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
 const _ProfileRoomScript = preload("res://src/dungeon_generator/profiles/profile_room.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 
 func resolve_profile_for_archetype(
 	archetype_id: Variant,
@@ -18,6 +19,15 @@ func resolve_profile_for_archetype(
 ) -> _ArchitecturalPresentationProfileScript:
 	if room_profile is _ProfileRoomScript and room_profile.architecture != null:
 		return resolve_from_room_profile(room_profile, archetype_id, purpose)
+
+	var arch_id := _DungeonArchetypeScript.resolve_id(archetype_id)
+	var purp_id := _RoomPurposeScript.resolve_id(purpose)
+	var loader := _ProfileLoaderScript.new()
+	var bundle = loader.load_full_archetype_bundle(str(arch_id))
+	if bundle != null and bundle.has_room(purp_id):
+		var r_prof = bundle.get_room(purp_id)
+		if r_prof != null and r_prof.architecture != null:
+			return resolve_from_room_profile(r_prof, arch_id, purp_id)
 
 	return _resolve_generic(purpose)
 

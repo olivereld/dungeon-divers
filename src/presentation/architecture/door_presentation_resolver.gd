@@ -3,35 +3,35 @@ extends RefCounted
 
 ## Resolvedor puro de estilos y propiedades de presentación para puertas.
 ## Traduce un DoorPresentationContext a especificaciones geométricas concretas (DoorStyle, FrameStyle, dimensiones).
-## 100% puro: no genera mallas ni nodos de escena.
+## 100% puro: no genera mallas ni nodos de escena y utiliza StringName.
 
 const _DoorPresentationContextScript = preload("res://src/presentation/architecture/door_presentation_context.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 
-func resolve_door_style(context: _DoorPresentationContextScript) -> _ArchitecturalStyleScript.DoorStyle:
+func resolve_door_style(context: _DoorPresentationContextScript) -> StringName:
 	if context == null:
-		return _ArchitecturalStyleScript.DoorStyle.STONE_ARCH
+		return &"stone_arch"
 
 	var prof_a = context.source_profile
 	var prof_b = context.target_profile
 
-	if prof_a != null and prof_a.door_style != _ArchitecturalStyleScript.DoorStyle.STONE_ARCH:
+	if prof_a != null and prof_a.door_style != &"stone_arch":
 		return prof_a.door_style
-	elif prof_b != null and prof_b.door_style != _ArchitecturalStyleScript.DoorStyle.STONE_ARCH:
+	elif prof_b != null and prof_b.door_style != &"stone_arch":
 		return prof_b.door_style
 	elif prof_a != null:
 		return prof_a.door_style
 	elif prof_b != null:
 		return prof_b.door_style
 
-	return _ArchitecturalStyleScript.DoorStyle.STONE_ARCH
+	return &"stone_arch"
 
 func resolve_door_specs(
 	context: _DoorPresentationContextScript,
 	tile_size: float = 2.0,
 	wall_height: int = 2
 ) -> Dictionary:
-	var style: _ArchitecturalStyleScript.DoorStyle = resolve_door_style(context)
+	var style: StringName = resolve_door_style(context)
 
 	var frame_width: float = tile_size
 	var frame_height: float = float(wall_height) * tile_size

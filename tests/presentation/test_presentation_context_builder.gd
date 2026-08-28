@@ -17,7 +17,7 @@ func _run_test() -> void:
 
 	var cfg := DungeonConfigScript.new()
 	cfg.seed = 12345
-	cfg.dungeon_archetype = DungeonArchetypeScript.Type.MAUSOLEUM
+	cfg.dungeon_archetype = &"necropolis"
 
 	var pipeline := DungeonPipelineScript.new()
 	var res = pipeline.generate(cfg)
@@ -30,11 +30,11 @@ func _run_test() -> void:
 	assert(contexts.size() == res.rooms.size(), "FAIL: Every room must have a context")
 	for ctx in contexts:
 		assert(ctx.profile != null, "FAIL: Context profile must not be null")
-		assert(ctx.profile.wall_style == ArchitecturalStyleScript.WallStyle.DARK_STONE, "FAIL: Mausoleum rooms must resolve to DARK_STONE")
+		assert(ctx.profile.wall_style == &"dark_stone", "FAIL: Necropolis rooms must resolve to dark_stone")
 
 	var dominant = builder.get_dominant_profile(contexts)
 	assert(dominant != null, "FAIL: Dominant profile must not be null")
-	assert(dominant.wall_style == ArchitecturalStyleScript.WallStyle.DARK_STONE)
+	assert(dominant.wall_style == &"dark_stone")
 
 	print("  [OK] PresentationContextBuilder correctly builds room contexts from semantic result.")
 	print("  [OK] Dominant profile correctly extracted.")

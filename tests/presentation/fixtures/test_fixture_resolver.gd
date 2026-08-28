@@ -21,7 +21,7 @@ func _run_all_tests() -> void:
 	var cfg := DungeonConfigScript.new()
 	cfg.seed = 448822
 	cfg.use_fixed_seed = true
-	cfg.dungeon_archetype = DungeonArchetypeScript.Type.MAUSOLEUM
+	cfg.dungeon_archetype = &"necropolis"
 
 	var pipeline := DungeonPipelineScript.new()
 	var res = pipeline.generate(cfg, 5, true)

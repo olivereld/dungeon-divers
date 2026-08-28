@@ -118,7 +118,7 @@ func _run_test() -> void:
 	# ==================================================================
 	var comp_resolver := _DecorationCompositionResolverScript.new()
 	var pal_resolver := _DecorationPaletteResolverScript.new()
-	var crypt_palette = pal_resolver.resolve_palette(_DungeonArchetypeScript.Type.MAUSOLEUM, int(_RoomPurposeScript.Type.CRYPT))
+	var crypt_palette = pal_resolver.resolve_palette(&"necropolis", &"crypt")
 
 	# Geometría estándar 10x10 para pruebas
 	var f_cells: Array[Vector2i] = []
@@ -135,7 +135,7 @@ func _run_test() -> void:
 	var test_geom = _PresentationRoomGeometryScript.new(1, Rect2i(1, 1, 10, 10), f_cells, w_cells, [Vector2i(5, 1)])
 
 	var dynamic_crypt = bundle.get_room(&"crypt")
-	var crypt_ctx = _PresentationRoomContextScript.new(1, Rect2i(2, 2, 8, 8), int(_RoomPurposeScript.Type.CRYPT), arch_baseline, 0, dynamic_crypt)
+	var crypt_ctx = _PresentationRoomContextScript.new(1, Rect2i(2, 2, 8, 8), &"crypt", arch_baseline, 0, dynamic_crypt)
 
 	# Backup original secondary and support
 	var orig_secondary = dynamic_crypt.composition.secondary.duplicate()
@@ -175,8 +175,8 @@ func _run_test() -> void:
 	# 4. LIGHTING & RELATIONSHIP AUTHORITY TEST
 	# ==================================================================
 	var tomb_room_prof = bundle.get_room(&"tomb")
-	var tomb_palette = pal_resolver.resolve_palette(_DungeonArchetypeScript.Type.MAUSOLEUM, int(_RoomPurposeScript.Type.TOMB))
-	var tomb_ctx = _PresentationRoomContextScript.new(2, Rect2i(2, 2, 8, 8), int(_RoomPurposeScript.Type.TOMB), arch_baseline, 0, tomb_room_prof)
+	var tomb_palette = pal_resolver.resolve_palette(&"necropolis", &"tomb")
+	var tomb_ctx = _PresentationRoomContextScript.new(2, Rect2i(2, 2, 8, 8), &"tomb", arch_baseline, 0, tomb_room_prof)
 	var saved_rels = tomb_room_prof.relationships.duplicate()
 
 	# Prueba A: Presupuesto bajo (budget = 1.0) sin relaciones

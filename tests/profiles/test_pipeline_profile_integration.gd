@@ -29,7 +29,7 @@ func _run_test() -> void:
 	# 3. Test generate() execution with loaded pipeline
 	var config := DungeonConfigScript.new()
 	config.seed = 1337
-	config.dungeon_archetype = DungeonArchetypeScript.Type.MAUSOLEUM
+	config.dungeon_archetype = &"necropolis"
 	var result = pipeline.generate(config)
 	assert(result != null, "FAIL: Pipeline generation result should not be null")
 	assert(result.grid != null, "FAIL: Generated result grid should not be null")

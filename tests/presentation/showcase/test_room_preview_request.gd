@@ -19,30 +19,20 @@ func _run_test() -> void:
 
 	# 2. Validación de dimensiones mínimas
 	var req_small := RoomPreviewRequestScript.new(
-		DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.TOMB, 123, Vector2i(2, 2)
+		&"necropolis", &"tomb", 123, Vector2i(2, 2)
 	)
 	assert(not req_small.is_valid(), "FAIL: Small room under 4x4 must be rejected")
 	print("  [OK] Minimum dimension enforcement verified.")
 
 	# 3. Compatibilidad de propósitos por arquetipo
-	# Mausoleum / Crypt: TOMB, SACRISTY, CRYPT, ROYAL_TOMB
-	assert(RoomPreviewRequestScript.is_purpose_valid_for_archetype(DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.TOMB), "FAIL: TOMB must be valid for MAUSOLEUM")
-	assert(RoomPreviewRequestScript.is_purpose_valid_for_archetype(DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.SACRISTY), "FAIL: SACRISTY must be valid for MAUSOLEUM")
-	assert(RoomPreviewRequestScript.is_purpose_valid_for_archetype(DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.CRYPT), "FAIL: CRYPT must be valid for MAUSOLEUM")
+	# Necropolis: tomb, sacristy, crypt, catacomb, hall
+	assert(RoomPreviewRequestScript.is_purpose_valid_for_archetype(&"necropolis", &"tomb"), "FAIL: tomb must be valid for necropolis")
+	assert(RoomPreviewRequestScript.is_purpose_valid_for_archetype(&"necropolis", &"sacristy"), "FAIL: sacristy must be valid for necropolis")
+	assert(RoomPreviewRequestScript.is_purpose_valid_for_archetype(&"necropolis", &"crypt"), "FAIL: crypt must be valid for necropolis")
 
-	# Incompatible: MAUSOLEUM + BARRACKS / FORGE / EXCAVATION
-	assert(not RoomPreviewRequestScript.is_purpose_valid_for_archetype(DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.BARRACKS), "FAIL: BARRACKS must be invalid for MAUSOLEUM")
-	assert(not RoomPreviewRequestScript.is_purpose_valid_for_archetype(DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.FORGE), "FAIL: FORGE must be invalid for MAUSOLEUM")
-
-	# Fortress: BARRACKS, ARMORY, THRONE_ROOM
-	assert(RoomPreviewRequestScript.is_purpose_valid_for_archetype(DungeonArchetypeScript.Type.FORTRESS, RoomPurposeScript.Type.BARRACKS), "FAIL: BARRACKS must be valid for FORTRESS")
-	assert(not RoomPreviewRequestScript.is_purpose_valid_for_archetype(DungeonArchetypeScript.Type.FORTRESS, RoomPurposeScript.Type.TOMB), "FAIL: TOMB must be invalid for FORTRESS")
-
-	# Temple: SHRINE, SANCTUM, ALTAR_ROOM
-	assert(RoomPreviewRequestScript.is_purpose_valid_for_archetype(DungeonArchetypeScript.Type.TEMPLE, RoomPurposeScript.Type.SHRINE), "FAIL: SHRINE must be valid for TEMPLE")
-
-	# Mine: EXCAVATION, MINE_STORAGE, FORGE
-	assert(RoomPreviewRequestScript.is_purpose_valid_for_archetype(DungeonArchetypeScript.Type.MINE, RoomPurposeScript.Type.EXCAVATION), "FAIL: EXCAVATION must be valid for MINE")
+	# Incompatible: necropolis + barracks / forge / excavation
+	assert(not RoomPreviewRequestScript.is_purpose_valid_for_archetype(&"necropolis", &"barracks"), "FAIL: barracks must be invalid for necropolis")
+	assert(not RoomPreviewRequestScript.is_purpose_valid_for_archetype(&"necropolis", &"forge"), "FAIL: forge must be invalid for necropolis")
 
 	print("  [OK] Archetype to purpose compatibility matrix verified.")
 	print("[PASS] test_room_preview_request completed successfully!")

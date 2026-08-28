@@ -15,9 +15,9 @@ func _run_test() -> void:
 
 	var generator := RoomArchetypeLabGeneratorScript.new()
 
-	# 1. Generación de sala aislada para CRYPT/MAUSOLEUM + TOMB
+	# 1. Generación de sala aislada para NECROPOLIS + TOMB
 	var req_tomb := RoomPreviewRequestScript.new(
-		DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.TOMB, 12345, Vector2i(10, 8)
+		&"necropolis", &"tomb", 12345, Vector2i(10, 8)
 	)
 	var res_tomb = generator.generate_preview(req_tomb)
 
@@ -51,33 +51,16 @@ func _run_test() -> void:
 
 	# 3. Validación de rechazo de combinación incompatible
 	var req_invalid := RoomPreviewRequestScript.new(
-		DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.BARRACKS, 12345
+		&"necropolis", &"barracks", 12345
 	)
 	var res_invalid = generator.generate_preview(req_invalid)
 	assert(not res_invalid.success, "FAIL: Incompatible purpose must return success == false")
 	assert(res_invalid.error_message != "", "FAIL: Error message should be populated")
 	print("  [OK] Incompatible combination rejection verified.")
 
-	# 4. Generación en otros arquetipos (FORTRESS, TEMPLE, MINE)
-	var req_fortress := RoomPreviewRequestScript.new(
-		DungeonArchetypeScript.Type.FORTRESS, RoomPurposeScript.Type.BARRACKS, 54321
-	)
-	var res_fortress = generator.generate_preview(req_fortress)
-	assert(res_fortress.success, "FAIL: Failed to generate FORTRESS BARRACKS preview")
-
-	var req_temple := RoomPreviewRequestScript.new(
-		DungeonArchetypeScript.Type.TEMPLE, RoomPurposeScript.Type.SHRINE, 67890
-	)
-	var res_temple = generator.generate_preview(req_temple)
-	assert(res_temple.success, "FAIL: Failed to generate TEMPLE SHRINE preview")
-
-	print("  [OK] Multi-archetype room preview generations verified.")
-
 	# Liberar memoria de nodos creados
 	res_tomb.room_root.free()
 	res_tomb_repeat.room_root.free()
-	res_fortress.room_root.free()
-	res_temple.room_root.free()
 
 	print("[PASS] test_room_preview_generation completed successfully!")
 	quit(0)

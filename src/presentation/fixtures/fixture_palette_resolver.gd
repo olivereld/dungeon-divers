@@ -23,8 +23,8 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 	var floor_spacing: int = 4
 	var floor_prob: float = 0.30
 
-	match profile.wall_style:
-		_ArchitecturalStyleScript.WallStyle.DARK_STONE:
+	match str(profile.wall_style).to_lower():
+		"dark_stone":
 			# Criptas / Mausoleos: Antorchas góticas, faroles de pared/colgantes, braseros de pie, candelabros y cúmulos de velas
 			palette_id = &"gothic_crypt_palette"
 			fixtures_list.append(_FixtureStyleScript.new(
@@ -110,7 +110,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 			floor_spacing = 4
 			floor_prob = 0.35
 
-		_ArchitecturalStyleScript.WallStyle.TEMPLE_STONE:
+		"temple_stone":
 			# Templos / Santuarios: Antorcha ceremonial, faroles, braseros sagrados y cúmulos de velas
 			palette_id = &"ceremonial_temple_palette"
 			fixtures_list.append(_FixtureStyleScript.new(
@@ -183,7 +183,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 			floor_spacing = 5
 			floor_prob = 0.30
 
-		_ArchitecturalStyleScript.WallStyle.FORTRESS_STONE:
+		"fortress_stone":
 			# Fortalezas: Antorchas militares de hierro, faroles de pared y braseros
 			palette_id = &"fortress_iron_palette"
 			fixtures_list.append(_FixtureStyleScript.new(
@@ -243,7 +243,7 @@ func resolve_palette(profile: _ArchitecturalPresentationProfileScript) -> _Fixtu
 			floor_spacing = 5
 			floor_prob = 0.25
 
-		_ArchitecturalStyleScript.WallStyle.MINE_ROCK:
+		"mine_rock":
 			# Minas: Antorchas utilitarias, faroles colgantes y candeleros
 			palette_id = &"mine_shaft_palette"
 			fixtures_list.append(_FixtureStyleScript.new(

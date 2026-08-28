@@ -29,7 +29,7 @@ func _run_test() -> void:
 	var cfg1 := DungeonConfigScript.new()
 	cfg1.seed = test_seed
 	cfg1.use_fixed_seed = true
-	cfg1.dungeon_archetype = DungeonArchetypeScript.Type.MAUSOLEUM
+	cfg1.dungeon_archetype = &"necropolis"
 
 	var res1 = pipeline.generate(cfg1, 5, true)
 	var sem1 = orchestrator.generate_semantics(res1, cfg1)
@@ -40,7 +40,7 @@ func _run_test() -> void:
 	var cfg2 := DungeonConfigScript.new()
 	cfg2.seed = test_seed
 	cfg2.use_fixed_seed = true
-	cfg2.dungeon_archetype = DungeonArchetypeScript.Type.MAUSOLEUM
+	cfg2.dungeon_archetype = &"necropolis"
 
 	var res2 = pipeline.generate(cfg2, 5, true)
 	var sem2 = orchestrator.generate_semantics(res2, cfg2)
@@ -82,7 +82,7 @@ func _run_test() -> void:
 	# 3. Test de Room Archetype Lab (Generación aislada)
 	var lab_gen := preload("res://src/presentation/showcase/room_archetype_lab/room_archetype_lab_generator.gd").new()
 	var lab_req := preload("res://src/presentation/showcase/room_archetype_lab/room_preview_request.gd").new(
-		DungeonArchetypeScript.Type.MAUSOLEUM, 11, test_seed
+		&"necropolis", &"tomb", test_seed
 	)
 	var lab_res = lab_gen.generate_preview(lab_req)
 	assert(lab_res.success, "FAIL: Lab preview generation failed")

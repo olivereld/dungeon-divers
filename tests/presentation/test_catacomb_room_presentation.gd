@@ -13,18 +13,18 @@ func _init() -> void:
 	print("--- Running test_catacomb_room_presentation ---")
 
 	var resolver := _PresentationProfileResolverScript.new()
-	var profile = resolver.resolve(_DungeonArchetypeScript.Type.MAUSOLEUM, _RoomPurposeScript.Type.CATACOMB)
+	var profile = resolver.resolve(&"necropolis", &"catacomb")
 
 	assert(profile != null, "Profile must not be null")
-	assert(profile.floor_style == _ArchitecturalStyleScript.FloorStyle.CATACOMB_DIRT, "CATACOMB room must resolve to CATACOMB_DIRT floor style, got %d" % profile.floor_style)
-	print("  [OK] CATACOMB room purpose in Mausoleum resolved to FloorStyle.CATACOMB_DIRT")
+	assert(profile.floor_style == &"catacomb_dirt", "CATACOMB room must resolve to catacomb_dirt floor style, got %s" % str(profile.floor_style))
+	print("  [OK] CATACOMB room purpose in Necropolis resolved to catacomb_dirt")
 
 	var config_resolver := _ArchitecturalStyleConfigResolverScript.new()
 	var floor_cfg = config_resolver.resolve_floor_config(profile)
 
 	assert(floor_cfg != null, "Floor config must not be null")
 	assert(floor_cfg.pattern == _FloorTileConfigScript.PatternType.CATACOMB_DIRT, "FloorTileConfig pattern must be CATACOMB_DIRT, got %d" % floor_cfg.pattern)
-	print("  [OK] ArchitecturalStyleConfigResolver translated FloorStyle.CATACOMB_DIRT to PatternType.CATACOMB_DIRT")
+	print("  [OK] ArchitecturalStyleConfigResolver translated catacomb_dirt to PatternType.CATACOMB_DIRT")
 
 	# Test generating 4x4 room with CATACOMB_DIRT
 	var grid := _CellGridScript.new(4, 4)

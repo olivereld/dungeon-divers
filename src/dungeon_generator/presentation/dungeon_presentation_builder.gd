@@ -202,6 +202,7 @@ func build_presentation(
 	# 5.5 Iluminación y Antorchas de Pared en Corredores / Pasillos
 	if not geometry_partition.corridor_wall_cells.is_empty():
 		var corr_anchors = _fixture_anchor_resolver.find_corridor_wall_anchors(geometry_partition, tile_size)
+		if not corr_anchors.is_empty():
 			var corr_lighting_profile = null
 			var arch_name: String = "generic"
 			if semantic_result != null:
@@ -295,6 +296,7 @@ func build_presentation(
 		var p_node = _prop_spawner.spawn_prop(p_dir, staging_root)
 		if p_node != null:
 			result.spawned_entities.append(p_node)
+
 	# 6. Spawning de Entidades (Marcadores, Llaves, Cerraduras) en Staging
 	var spawn_res: Dictionary = _entity_spawner.spawn_entities(
 		semantic_result, staging_root, biome, config

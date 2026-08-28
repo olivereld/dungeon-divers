@@ -14,12 +14,12 @@ func _run_test() -> void:
 	print("--- Running test_profile_driven_generation ---")
 
 	var pipeline := DungeonPipelineScript.new()
-	var val_res = pipeline.load_profiles("mausoleum")
-	assert(val_res.is_valid, "FAIL: Mausoleum profile should be valid")
+	var val_res = pipeline.load_profiles("necropolis")
+	assert(val_res.is_valid, "FAIL: Necropolis profile should be valid")
 
 	var config := DungeonConfigScript.new()
 	config.seed = 2026
-	config.dungeon_archetype = DungeonArchetypeScript.Type.MAUSOLEUM
+	config.dungeon_archetype = &"necropolis"
 
 	# 1. Generate full dungeon
 	var result = pipeline.generate(config)

@@ -14,8 +14,8 @@ func _run_test() -> void:
 	print("==================================================================")
 
 	var res := DungeonSemanticResultScript.new()
-	res.dungeon_archetype = DungeonArchetypeScript.Type.MAUSOLEUM
-	res.dungeon_archetype_name = "MAUSOLEUM"
+	res.dungeon_archetype = &"necropolis"
+	res.dungeon_archetype_name = "necropolis"
 
 	# Mock rooms y propósitos
 	for i in range(4):
@@ -23,25 +23,25 @@ func _run_test() -> void:
 		res.rooms.append(r)
 
 	res.room_purposes = {
-		0: RoomPurposeScript.Type.ENTRANCE,
-		1: RoomPurposeScript.Type.CRYPT,
-		2: RoomPurposeScript.Type.CRYPT,
-		3: RoomPurposeScript.Type.ROYAL_TOMB
+		0: &"entrance",
+		1: &"crypt",
+		2: &"crypt",
+		3: &"royal_tomb"
 	}
 
 	var dist = res.get_purpose_distribution()
-	assert(dist[RoomPurposeScript.Type.CRYPT] == 2, "FAIL: CRYPT count must be 2")
-	assert(dist[RoomPurposeScript.Type.ENTRANCE] == 1, "FAIL: ENTRANCE count must be 1")
-	assert(dist[RoomPurposeScript.Type.ROYAL_TOMB] == 1, "FAIL: ROYAL_TOMB count must be 1")
+	assert(dist[&"crypt"] == 2, "FAIL: crypt count must be 2")
+	assert(dist[&"entrance"] == 1, "FAIL: entrance count must be 1")
+	assert(dist[&"royal_tomb"] == 1, "FAIL: royal_tomb count must be 1")
 
-	var crypt_rooms = res.get_rooms_by_purpose(RoomPurposeScript.Type.CRYPT)
+	var crypt_rooms = res.get_rooms_by_purpose(&"crypt")
 	assert(crypt_rooms.size() == 2 and crypt_rooms.has(1) and crypt_rooms.has(2))
 
 	var debug_str = res.to_debug_string()
-	assert(debug_str.contains("Archetype: MAUSOLEUM"), "FAIL: Debug string must include Archetype")
-	assert(debug_str.contains("CRYPT: 2"), "FAIL: Debug string must include distribution")
+	assert(debug_str.contains("necropolis"), "FAIL: Debug string must include Archetype")
+	assert(debug_str.contains("crypt: 2"), "FAIL: Debug string must include distribution")
 
 	print("  [OK] get_purpose_distribution() and get_rooms_by_purpose() verified.")
 	print("  [OK] to_debug_string() formatted with archetype and purpose stats.")
-	print("[PASS] test_semantic_diagnostics completed successfully.")
+	print("[PASS] test_semantic_diagnostics completed successfully!")
 	quit(0)

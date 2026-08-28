@@ -12,7 +12,7 @@ func _init() -> void:
 
 	# 1. Palette check
 	var palette_resolver := _DecorationPaletteResolverScript.new()
-	var dec_palette = palette_resolver.resolve_palette(_DungeonArchetypeScript.Type.MAUSOLEUM, _RoomPurposeScript.Type.CATACOMB)
+	var dec_palette = palette_resolver.resolve_palette(&"necropolis", &"catacomb")
 
 	assert(dec_palette != null and dec_palette.fixtures != null, "Fixture palette must not be null")
 	var palette = dec_palette.fixtures
@@ -34,7 +34,7 @@ func _init() -> void:
 
 	# 2. Purpose Profile & Relationship Rules check
 	var registry := _DecorationPurposeProfileRegistryScript.new()
-	var profile = registry.get_profile_for_purpose(_RoomPurposeScript.Type.CATACOMB)
+	var profile = registry.get_profile_for_purpose(&"catacomb")
 	assert(profile != null, "Profile must not be null")
 
 	for r in profile.fixture_rules:

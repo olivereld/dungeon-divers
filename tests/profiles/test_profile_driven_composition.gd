@@ -37,8 +37,8 @@ func _run_test() -> void:
 	var resolver := _DecorationCompositionResolverScript.new()
 	var palette_resolver := _DecorationPaletteResolverScript.new()
 	var palette = palette_resolver.resolve_palette(
-		_DungeonArchetypeScript.Type.MAUSOLEUM,
-		_RoomPurposeScript.Type.CRYPT
+		&"necropolis",
+		&"crypt"
 	)
 	assert(palette != null and palette.props != null, "FAIL: Palette must resolve")
 
@@ -66,15 +66,15 @@ func _run_test() -> void:
 	var tomb_profile = bundle.get_room(&"tomb")
 	assert(tomb_profile != null, "FAIL: Tomb profile must exist")
 	var tomb_palette = palette_resolver.resolve_palette(
-		_DungeonArchetypeScript.Type.MAUSOLEUM,
-		_RoomPurposeScript.Type.TOMB
+		&"necropolis",
+		&"tomb"
 	)
 
 	var arch_prof := _ArchitecturalPresentationProfileScript.new()
 	var tomb_context := _PresentationRoomContextScript.new(
 		1,
 		Rect2i(2, 2, 8, 8),
-		int(_RoomPurposeScript.Type.TOMB),
+		&"tomb",
 		arch_prof,
 		0,
 		tomb_profile
@@ -107,14 +107,14 @@ func _run_test() -> void:
 	var sacristy_profile = bundle.get_room(&"sacristy")
 	assert(sacristy_profile != null, "FAIL: Sacristy profile must exist")
 	var sacristy_palette = palette_resolver.resolve_palette(
-		_DungeonArchetypeScript.Type.MAUSOLEUM,
-		_RoomPurposeScript.Type.SACRISTY
+		&"necropolis",
+		&"sacristy"
 	)
 
 	var sacristy_context := _PresentationRoomContextScript.new(
 		2,
 		Rect2i(2, 2, 8, 8),
-		int(_RoomPurposeScript.Type.SACRISTY),
+		&"sacristy",
 		arch_prof,
 		0,
 		sacristy_profile
@@ -150,14 +150,14 @@ func _run_test() -> void:
 	var royal_tomb_profile = bundle.get_room(&"royal_tomb")
 	assert(royal_tomb_profile != null, "FAIL: Royal tomb profile must exist")
 	var royal_tomb_palette = palette_resolver.resolve_palette(
-		_DungeonArchetypeScript.Type.MAUSOLEUM,
-		_RoomPurposeScript.Type.ROYAL_TOMB
+		&"necropolis",
+		&"royal_tomb"
 	)
 
 	var royal_tomb_context := _PresentationRoomContextScript.new(
 		4,
 		Rect2i(2, 2, 8, 8),
-		int(_RoomPurposeScript.Type.ROYAL_TOMB),
+		&"royal_tomb",
 		arch_prof,
 		0,
 		royal_tomb_profile
@@ -207,14 +207,14 @@ func _run_test() -> void:
 	dynamic_crypt.composition.secondary[0].min_count = 3
 	dynamic_crypt.composition.secondary[0].max_count = 3
 	var crypt_palette = palette_resolver.resolve_palette(
-		_DungeonArchetypeScript.Type.MAUSOLEUM,
-		_RoomPurposeScript.Type.CRYPT
+		&"necropolis",
+		&"crypt"
 	)
 
 	var dynamic_context := _PresentationRoomContextScript.new(
 		3,
 		Rect2i(2, 2, 8, 8),
-		int(_RoomPurposeScript.Type.CRYPT),
+		&"crypt",
 		arch_prof,
 		0,
 		dynamic_crypt
