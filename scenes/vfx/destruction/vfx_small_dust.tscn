@@ -1,55 +1,131 @@
-[gd_scene load_steps=5 format=3 uid="uid://vfxsmalldust01"]
+[gd_scene load_steps=11 format=3 uid="uid://vfxsmalldust01"]
 
 [ext_resource type="Script" path="res://src/vfx/vfx_instance.gd" id="1_vfxinst"]
+[ext_resource type="Texture2D" path="res://assets/texture/vfx/particles/alpha/dirt_01_a.png" id="2_dirt"]
+[ext_resource type="Texture2D" path="res://assets/texture/vfx/particles/alpha/smoke_04_a.png" id="3_smoke"]
+[ext_resource type="Texture2D" path="res://assets/texture/vfx/particles/alpha/circle_05_a.png" id="4_circle"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dust"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_burst"]
 transparency = 1
 shading_mode = 0
-albedo_color = Color(0.88, 0.82, 0.72, 0.75)
+albedo_color = Color(0.9, 0.84, 0.74, 0.85)
+albedo_texture = ExtResource("2_dirt")
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
 
-[sub_resource type="SphereMesh" id="SphereMesh_dust"]
-material = SubResource("StandardMaterial3D_dust")
-radius = 0.25
-height = 0.5
-radial_segments = 8
-rings = 4
+[sub_resource type="QuadMesh" id="QuadMesh_burst"]
+material = SubResource("StandardMaterial3D_burst")
+size = Vector2(0.6, 0.6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cloud"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.85, 0.8, 0.72, 0.55)
+albedo_texture = ExtResource("3_smoke")
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_cloud"]
+material = SubResource("StandardMaterial3D_cloud")
+size = Vector2(0.9, 0.9)
 
 [sub_resource type="BoxMesh" id="BoxMesh_debris"]
 size = Vector3(0.12, 0.12, 0.12)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.82, 0.78, 0.7, 0.5)
+albedo_texture = ExtResource("4_circle")
+
+[sub_resource type="QuadMesh" id="QuadMesh_ground"]
+material = SubResource("StandardMaterial3D_ground")
+size = Vector2(1.4, 1.4)
+orientation = 1
+
 [node name="VFX_SmallDust" type="Node3D"]
 script = ExtResource("1_vfxinst")
-max_lifetime = 1.0
+max_lifetime = 0.9
 auto_cleanup = true
 auto_play = true
 
-[node name="DustCloud" type="CPUParticles3D" parent="."]
+[node name="DustBurst" type="CPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
 emitting = true
-amount = 16
-lifetime = 0.8
+amount = 10
+lifetime = 0.5
 one_shot = true
-explosiveness = 0.95
-mesh = SubResource("SphereMesh_dust")
+explosiveness = 1.0
+mesh = SubResource("QuadMesh_burst")
+emission_shape = 1
+emission_sphere_radius = 0.15
+direction = Vector3(0, 1, 0)
+spread = 45.0
+gravity = Vector3(0, -1.5, 0)
+initial_velocity_min = 2.5
+initial_velocity_max = 4.5
+angle_min = -180.0
+angle_max = 180.0
+scale_amount_min = 0.6
+scale_amount_max = 1.4
+
+[node name="DustCloud" type="CPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+emitting = true
+amount = 3
+lifetime = 0.65
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("QuadMesh_cloud")
 emission_shape = 1
 emission_sphere_radius = 0.2
-spread = 180.0
-gravity = Vector3(0, 0.8, 0)
-initial_velocity_min = 2.0
-initial_velocity_max = 4.5
-scale_amount_min = 0.8
+direction = Vector3(0, 1, 0)
+spread = 60.0
+gravity = Vector3(0, 0.4, 0)
+initial_velocity_min = 1.0
+initial_velocity_max = 2.5
+angle_min = -180.0
+angle_max = 180.0
+scale_amount_min = 1.0
 scale_amount_max = 2.2
 
 [node name="Debris" type="CPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
 emitting = true
-amount = 12
-lifetime = 0.9
+amount = 6
+lifetime = 0.8
 one_shot = true
-explosiveness = 0.95
+explosiveness = 1.0
 mesh = SubResource("BoxMesh_debris")
 emission_shape = 1
 emission_sphere_radius = 0.1
-spread = 140.0
-gravity = Vector3(0, -9.8, 0)
-initial_velocity_min = 3.0
+direction = Vector3(0, 1, 0)
+spread = 40.0
+gravity = Vector3(0, -12.0, 0)
+initial_velocity_min = 3.5
 initial_velocity_max = 6.0
-color = Color(0.7, 0.55, 0.4, 1)
+angle_min = -180.0
+angle_max = 180.0
+color = Color(0.65, 0.52, 0.38, 1)
+
+[node name="GroundDust" type="CPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
+emitting = true
+amount = 3
+lifetime = 0.5
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("QuadMesh_ground")
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 0.1
+initial_velocity_max = 0.4
+angle_min = -180.0
+angle_max = 180.0
+scale_amount_min = 0.8
+scale_amount_max = 1.8
