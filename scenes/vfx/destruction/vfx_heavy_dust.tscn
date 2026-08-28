@@ -1,0 +1,52 @@
+[gd_scene load_steps=5 format=3 uid="uid://vfxheavydust01"]
+
+[ext_resource type="Script" path="res://src/vfx/vfx_instance.gd" id="1_vfxinst"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_heavy_cloud"]
+transparency = 1
+albedo_color = Color(0.65, 0.62, 0.58, 0.8)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="BoxMesh_heavy_cloud"]
+material = SubResource("StandardMaterial3D_heavy_cloud")
+size = Vector3(0.15, 0.15, 0.15)
+
+[sub_resource type="BoxMesh" id="BoxMesh_heavy_debris"]
+size = Vector3(0.08, 0.08, 0.08)
+
+[node name="VFX_HeavyDust" type="Node3D"]
+script = ExtResource("1_vfxinst")
+max_lifetime = 1.4
+auto_cleanup = true
+auto_play = true
+
+[node name="HeavyCloud" type="CPUParticles3D" parent="."]
+emitting = true
+amount = 20
+lifetime = 1.0
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("BoxMesh_heavy_cloud")
+emission_shape = 1
+emission_sphere_radius = 0.25
+spread = 180.0
+gravity = Vector3(0, 0.1, 0)
+initial_velocity_min = 2.0
+initial_velocity_max = 5.0
+scale_amount_min = 1.0
+scale_amount_max = 2.5
+
+[node name="HeavyDebris" type="CPUParticles3D" parent="."]
+emitting = true
+amount = 12
+lifetime = 1.2
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("BoxMesh_heavy_debris")
+emission_shape = 1
+emission_sphere_radius = 0.12
+spread = 150.0
+gravity = Vector3(0, -9.8, 0)
+initial_velocity_min = 3.0
+initial_velocity_max = 6.0
+color = Color(0.45, 0.42, 0.4, 1)

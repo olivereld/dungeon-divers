@@ -1,0 +1,50 @@
+[gd_scene load_steps=5 format=3 uid="uid://vfxwoodbreak01"]
+
+[ext_resource type="Script" path="res://src/vfx/vfx_instance.gd" id="1_vfxinst"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sawdust"]
+transparency = 1
+albedo_color = Color(0.75, 0.65, 0.45, 0.6)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_sawdust"]
+material = SubResource("StandardMaterial3D_sawdust")
+size = Vector3(0.06, 0.06, 0.06)
+
+[sub_resource type="BoxMesh" id="BoxMesh_splinters"]
+size = Vector3(0.12, 0.03, 0.03)
+
+[node name="VFX_WoodBreak" type="Node3D"]
+script = ExtResource("1_vfxinst")
+max_lifetime = 1.0
+auto_cleanup = true
+auto_play = true
+
+[node name="Sawdust" type="CPUParticles3D" parent="."]
+emitting = true
+amount = 12
+lifetime = 0.6
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("BoxMesh_sawdust")
+emission_shape = 1
+emission_sphere_radius = 0.12
+spread = 180.0
+gravity = Vector3(0, 0.2, 0)
+initial_velocity_min = 1.0
+initial_velocity_max = 2.5
+
+[node name="WoodSplinters" type="CPUParticles3D" parent="."]
+emitting = true
+amount = 8
+lifetime = 0.9
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("BoxMesh_splinters")
+emission_shape = 1
+emission_sphere_radius = 0.06
+spread = 130.0
+gravity = Vector3(0, -9.8, 0)
+initial_velocity_min = 2.0
+initial_velocity_max = 4.5
+color = Color(0.55, 0.38, 0.22, 1)

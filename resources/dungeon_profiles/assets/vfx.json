@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "effects": {
+    "small_dust": {
+      "scene": "res://scenes/vfx/destruction/vfx_small_dust.tscn"
+    },
+    "stone_break": {
+      "scene": "res://scenes/vfx/destruction/vfx_stone_break.tscn"
+    },
+    "wood_break": {
+      "scene": "res://scenes/vfx/destruction/vfx_wood_break.tscn"
+    },
+    "bone_collapse": {
+      "scene": "res://scenes/vfx/destruction/vfx_bone_collapse.tscn"
+    },
+    "heavy_dust": {
+      "scene": "res://scenes/vfx/destruction/vfx_heavy_dust.tscn"
+    }
+  }
+}

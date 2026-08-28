@@ -8,7 +8,10 @@
             "destruction_mode": "break",
             "replacement_asset": "crypt_rubble_corner",
             "debris": "ceramic_small",
-            "effects": ["dust_small", "ceramic_break"]
+            "effects": [
+                { "id": "stone_break" },
+                { "id": "small_dust" }
+            ]
         },
         "crypt_urn_relic_floor": {
             "enabled": true,
@@ -17,7 +20,10 @@
             "destruction_mode": "break",
             "replacement_asset": "crypt_rubble_corner",
             "debris": "ceramic_small",
-            "effects": ["dust_small", "ceramic_break"]
+            "effects": [
+                { "id": "stone_break" },
+                { "id": "small_dust" }
+            ]
         },
         "crypt_urn_canopic_surface": {
             "enabled": true,
@@ -26,7 +32,9 @@
             "destruction_mode": "break",
             "replacement_asset": null,
             "debris": "ceramic_small",
-            "effects": ["dust_small", "ceramic_break"]
+            "effects": [
+                { "id": "small_dust" }
+            ]
         },
         "temple_urn_pedestal_floor": {
             "enabled": true,
@@ -35,7 +43,10 @@
             "destruction_mode": "break",
             "replacement_asset": "crypt_rubble_corner",
             "debris": "ceramic_small",
-            "effects": ["dust_small", "ceramic_break"]
+            "effects": [
+                { "id": "stone_break" },
+                { "id": "small_dust" }
+            ]
         },
         "skull_pile": {
             "enabled": true,
@@ -44,7 +55,10 @@
             "destruction_mode": "collapse",
             "replacement_asset": null,
             "debris": "bones_small",
-            "effects": ["bone_scatter", "dust_small"]
+            "effects": [
+                { "id": "bone_collapse" },
+                { "id": "small_dust" }
+            ]
         },
         "candle_cluster": {
             "enabled": true,
@@ -53,7 +67,9 @@
             "destruction_mode": "extinguish",
             "replacement_asset": null,
             "debris": null,
-            "effects": ["candle_extinguish", "smoke_puff"]
+            "effects": [
+                { "id": "small_dust" }
+            ]
         },
         "candle_holder": {
             "enabled": true,
@@ -62,25 +78,33 @@
             "destruction_mode": "extinguish",
             "replacement_asset": null,
             "debris": null,
-            "effects": ["candle_extinguish", "smoke_puff"]
+            "effects": [
+                { "id": "small_dust" }
+            ]
         },
         "fortress_chest_corner": {
             "enabled": true,
             "durability": 50.0,
-            "damage_type_vulnerabilities": ["physical", "fire"],
+            "damage_type_vulnerabilities": ["physical", "bludgeoning", "slashing", "fire"],
             "destruction_mode": "break",
             "replacement_asset": null,
             "debris": "wood_splinters",
-            "effects": ["wood_splinter", "dust_small"]
+            "effects": [
+                { "id": "wood_break" },
+                { "id": "small_dust" }
+            ]
         },
         "mine_crate_corner": {
             "enabled": true,
             "durability": 20.0,
-            "damage_type_vulnerabilities": ["physical", "fire"],
+            "damage_type_vulnerabilities": ["physical", "bludgeoning", "slashing", "fire"],
             "destruction_mode": "break",
             "replacement_asset": null,
             "debris": "wood_splinters",
-            "effects": ["wood_splinter", "dust_small"]
+            "effects": [
+                { "id": "wood_break" },
+                { "id": "small_dust" }
+            ]
         }
     }
 }

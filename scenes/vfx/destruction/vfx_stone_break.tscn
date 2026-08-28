@@ -1,0 +1,52 @@
+[gd_scene load_steps=5 format=3 uid="uid://vfxstonebreak01"]
+
+[ext_resource type="Script" path="res://src/vfx/vfx_instance.gd" id="1_vfxinst"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stone_dust"]
+transparency = 1
+albedo_color = Color(0.7, 0.7, 0.68, 0.7)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="BoxMesh_stone_dust"]
+material = SubResource("StandardMaterial3D_stone_dust")
+size = Vector3(0.1, 0.1, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_stone_debris"]
+size = Vector3(0.06, 0.05, 0.05)
+
+[node name="VFX_StoneBreak" type="Node3D"]
+script = ExtResource("1_vfxinst")
+max_lifetime = 1.2
+auto_cleanup = true
+auto_play = true
+
+[node name="DustCloud" type="CPUParticles3D" parent="."]
+emitting = true
+amount = 14
+lifetime = 0.8
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("BoxMesh_stone_dust")
+emission_shape = 1
+emission_sphere_radius = 0.15
+spread = 180.0
+gravity = Vector3(0, 0.1, 0)
+initial_velocity_min = 1.5
+initial_velocity_max = 3.5
+scale_amount_min = 0.8
+scale_amount_max = 1.8
+
+[node name="StoneDebris" type="CPUParticles3D" parent="."]
+emitting = true
+amount = 10
+lifetime = 1.0
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("BoxMesh_stone_debris")
+emission_shape = 1
+emission_sphere_radius = 0.08
+spread = 140.0
+gravity = Vector3(0, -9.8, 0)
+initial_velocity_min = 2.5
+initial_velocity_max = 5.0
+color = Color(0.5, 0.48, 0.45, 1)

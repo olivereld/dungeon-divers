@@ -1,0 +1,52 @@
+[gd_scene load_steps=5 format=3 uid="uid://vfxsmalldust01"]
+
+[ext_resource type="Script" path="res://src/vfx/vfx_instance.gd" id="1_vfxinst"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dust"]
+transparency = 1
+albedo_color = Color(0.8, 0.75, 0.7, 0.6)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_dust"]
+material = SubResource("StandardMaterial3D_dust")
+size = Vector3(0.08, 0.08, 0.08)
+
+[sub_resource type="BoxMesh" id="BoxMesh_debris"]
+size = Vector3(0.04, 0.04, 0.04)
+
+[node name="VFX_SmallDust" type="Node3D"]
+script = ExtResource("1_vfxinst")
+max_lifetime = 1.0
+auto_cleanup = true
+auto_play = true
+
+[node name="DustCloud" type="CPUParticles3D" parent="."]
+emitting = true
+amount = 10
+lifetime = 0.6
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("BoxMesh_dust")
+emission_shape = 1
+emission_sphere_radius = 0.1
+spread = 180.0
+gravity = Vector3(0, 0.3, 0)
+initial_velocity_min = 1.0
+initial_velocity_max = 2.5
+scale_amount_min = 0.8
+scale_amount_max = 1.5
+
+[node name="Debris" type="CPUParticles3D" parent="."]
+emitting = true
+amount = 8
+lifetime = 0.8
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("BoxMesh_debris")
+emission_shape = 1
+emission_sphere_radius = 0.05
+spread = 120.0
+gravity = Vector3(0, -9.8, 0)
+initial_velocity_min = 2.0
+initial_velocity_max = 4.0
+color = Color(0.6, 0.5, 0.4, 1)
