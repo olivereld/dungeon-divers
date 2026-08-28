@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_cfg")
 dungeon_id = &"hybrid_depths"
+archetype_id = &"necropolis"
 dungeon_archetype = 1
 grid_width = 48
 grid_height = 48

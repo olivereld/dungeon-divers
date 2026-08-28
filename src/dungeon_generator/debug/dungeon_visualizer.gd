@@ -19,7 +19,7 @@ signal walls_visibility_toggled(visible: bool)
 signal doors_visibility_toggled(visible: bool)
 signal camera_view_toggled()
 signal player_follow_toggled(is_following: bool)
-
+signal archetype_selected(archetype_id: StringName)
 signal archetype_changed(archetype_idx: int)
 signal preset_changed(preset_idx: int)
 signal grid_size_changed(w: int, h: int)
@@ -66,6 +66,8 @@ const _DecorationCompositionResolverScript = preload("res://src/presentation/dec
 const _PresentationRoomGeometryScript = preload("res://src/presentation/geometry/presentation_room_geometry.gd")
 const _PresentationRoomContextScript = preload("res://src/presentation/architecture/presentation_room_context.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
+const _ArchetypeCatalogScript = preload("res://src/dungeon_generator/profiles/archetype_catalog.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 
 var _last_result: RefCounted = null # DungeonResult o DungeonFloorData
 var _last_semantic: DungeonSemanticResult = null
@@ -314,15 +316,11 @@ func _setup_2d_full_interface() -> void:
 	arch_vbox.add_child(arch_lbl)
 
 	_opt_archetype = OptionButton.new()
-	_opt_archetype.add_item("Crypt / Mausoleum (Referencia)", 1)
-	_opt_archetype.add_item("Fortress", 2)
-	_opt_archetype.add_item("Temple", 3)
-	_opt_archetype.add_item("Mine", 4)
-	_opt_archetype.add_item("Generic", 0)
-	_opt_archetype.selected = 0 # Crypt por defecto
+	_populate_archetype_options()
 	_opt_archetype.item_selected.connect(func(idx: int):
-		var arch_id: int = _opt_archetype.get_item_id(idx)
-		archetype_changed.emit(arch_id)
+		var metadata = _opt_archetype.get_item_metadata(idx)
+		var arch_id: StringName = metadata if metadata is StringName else &"generic"
+		archetype_selected.emit(arch_id)
 	)
 	arch_vbox.add_child(_opt_archetype)
 	_tab_params_container.add_child(arch_vbox)
@@ -1831,10 +1829,37 @@ func _on_build_3d_pressed() -> void:
 func _on_back_to_2d_pressed() -> void:
 	toggle_2d_view_requested.emit()
 
-func set_selected_archetype(p_arch_id: int) -> void:
+func _populate_archetype_options() -> void:
 	if _opt_archetype == null:
 		return
+	_opt_archetype.clear()
+	var catalog := _ArchetypeCatalogScript.new()
+	var loader := _ProfileLoaderScript.new()
+	var ids := catalog.get_ids()
+
+	var idx := 0
+	for id in ids:
+		var arch = loader.load_archetype(str(id))
+		var display_name: String = str(id).capitalize()
+		if arch != null and not arch.display_name.is_empty():
+			display_name = str(arch.display_name)
+		_opt_archetype.add_item(display_name, idx)
+		_opt_archetype.set_item_metadata(idx, id)
+		idx += 1
+
+	_opt_archetype.add_item("Generic (Sin Arquetipo)", idx)
+	_opt_archetype.set_item_metadata(idx, &"generic")
+	_opt_archetype.selected = 0
+
+func set_selected_archetype(p_arch: Variant) -> void:
+	if _opt_archetype == null:
+		return
+	var target_id: StringName = _DungeonArchetypeScript.resolve_id(p_arch) if (p_arch is int or p_arch is float) else StringName(str(p_arch).to_lower())
 	for idx in range(_opt_archetype.item_count):
-		if _opt_archetype.get_item_id(idx) == p_arch_id:
+		var meta = _opt_archetype.get_item_metadata(idx)
+		if meta is StringName and meta == target_id:
+			_opt_archetype.select(idx)
+			return
+		elif meta != null and str(meta).to_lower() == str(target_id).to_lower():
 			_opt_archetype.select(idx)
 			return

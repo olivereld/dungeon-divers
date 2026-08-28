@@ -114,8 +114,8 @@ func _update_destruction_debug_visibility() -> void:
 
 func _connect_visualizer_signals() -> void:
 	if visualizer != null:
-		if not visualizer.archetype_changed.is_connected(_on_archetype_changed):
-			visualizer.archetype_changed.connect(_on_archetype_changed)
+		if visualizer.has_signal("archetype_selected") and not visualizer.archetype_selected.is_connected(_on_archetype_selected):
+			visualizer.archetype_selected.connect(_on_archetype_selected)
 		if not visualizer.seed_submitted.is_connected(_on_seed_submitted):
 			visualizer.seed_submitted.connect(_on_seed_submitted)
 		if not visualizer.random_seed_requested.is_connected(_on_random_seed_requested):
@@ -399,9 +399,10 @@ func _setup_camera() -> void:
 	camera.size = _zoom
 	_update_camera_transform()
 
-func _on_archetype_changed(p_arch_id: int) -> void:
+func _on_archetype_selected(p_arch_id: StringName) -> void:
 	if config != null:
-		config.dungeon_archetype = p_arch_id
+		config.archetype_id = p_arch_id
+		config.dungeon_archetype = 0
 		regenerate(false)
 
 ## Paso 1: Generación lógica y apertura de la vista previa 2D
@@ -413,7 +414,7 @@ func regenerate(force_new_seed: bool = false) -> void:
 		return
 
 	if visualizer != null:
-		visualizer.set_selected_archetype(config.dungeon_archetype)
+		visualizer.set_selected_archetype(config.get_effective_archetype_id())
 
 	if force_new_seed:
 		config.seed = 0
