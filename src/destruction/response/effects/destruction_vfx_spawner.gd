@@ -30,9 +30,14 @@ func spawn_effect(effect_id: String, xform: Transform3D, parent: Node3D = null) 
 		return null
 
 	if parent != null and is_instance_valid(parent):
+		vfx_node.transform = xform
 		parent.add_child(vfx_node)
 		vfx_node.global_transform = xform
+		if vfx_node.has_method("play"):
+			vfx_node.play()
 	else:
 		vfx_node.transform = xform
+		if vfx_node.has_method("play"):
+			vfx_node.play()
 
 	return vfx_node

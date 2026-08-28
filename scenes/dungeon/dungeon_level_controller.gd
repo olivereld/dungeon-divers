@@ -99,6 +99,19 @@ func _setup_destruction_debug() -> void:
 			_destruction_hud.update_telemetry(node, comp, hit.damage)
 	)
 
+	_update_destruction_debug_visibility()
+
+func _update_destruction_debug_visibility() -> void:
+	var is_3d: bool = (_generation_state == "READY_3D")
+	if visualizer != null and visualizer.is_2d_preview_mode:
+		is_3d = false
+
+	if _destruction_hud != null:
+		_destruction_hud.visible = is_3d
+
+	if _destruction_interactor != null:
+		_destruction_interactor.enabled = is_3d
+
 func _connect_visualizer_signals() -> void:
 	if visualizer != null:
 		if not visualizer.archetype_changed.is_connected(_on_archetype_changed):
@@ -305,11 +318,13 @@ func _on_floor_view_mode_changed(p_floor_idx: int) -> void:
 	_center_camera_on_dungeon()
 
 func _on_toggle_2d_view_requested() -> void:
+	_generation_state = "READY_2D"
 	if visualizer != null:
 		if _current_multi_result != null:
 			visualizer.show_multi_floor_preview(_current_multi_result, _current_isolated_floor)
 		elif _current_result != null:
 			visualizer.show_2d_preview(_current_result, _current_semantic_result)
+	_update_destruction_debug_visibility()
 
 func _apply_floor_visibility() -> void:
 	if _current_presentation_root == null:
@@ -431,6 +446,7 @@ func regenerate(force_new_seed: bool = false) -> void:
 		if visualizer != null:
 			visualizer.update_floor_view_options(config.total_floors, _current_isolated_floor)
 			visualizer.show_multi_floor_preview(multi_res, _current_isolated_floor)
+		_update_destruction_debug_visibility()
 		return
 
 	# FLUJO MONO-PISO ESTÁNDAR
@@ -440,6 +456,7 @@ func regenerate(force_new_seed: bool = false) -> void:
 
 	if new_result == null:
 		_generation_state = "FAILED"
+		_update_destruction_debug_visibility()
 		push_error("[DungeonLevelController] Falló la generación física tras %d intentos para '%s'." % [
 			DungeonPipeline.MAX_ATTEMPTS,
 			config.dungeon_id if ("dungeon_id" in config) else "default"
@@ -456,6 +473,7 @@ func regenerate(force_new_seed: bool = false) -> void:
 
 	if new_semantic == null or not new_semantic.gameplay_valid:
 		_generation_state = "FAILED"
+		_update_destruction_debug_visibility()
 		push_error("[DungeonLevelController] Falló la validación semántica.")
 		if _current_semantic_result != null:
 			return
@@ -472,6 +490,7 @@ func regenerate(force_new_seed: bool = false) -> void:
 	if visualizer != null:
 		visualizer.update_floor_view_options(1, 0)
 		visualizer.show_2d_preview(_current_result, _current_semantic_result)
+	_update_destruction_debug_visibility()
 
 ## Paso 2: Materialización y visualización del mundo 3D al confirmar
 func build_3d_presentation() -> void:
@@ -543,6 +562,7 @@ func build_3d_presentation() -> void:
 		print("[DungeonLevel MultiFloor] Materialized Archetype: %s | Floors: %d | Total Props: %d | Total Fixtures: %d" % [
 			arch_lbl, _current_multi_result.get_floor_count(), total_props, total_fixtures
 		])
+		_update_destruction_debug_visibility()
 		return
 
 	# Si es mono-piso
@@ -555,6 +575,7 @@ func build_3d_presentation() -> void:
 
 		if not pres_res.success:
 			_generation_state = "FAILED"
+			_update_destruction_debug_visibility()
 			push_error("[DungeonLevelController] Falló la presentación 3D:\n%s" % pres_res.to_debug_string())
 			if not pres_res.previous_presentation_preserved:
 				_show_failure_ui("Fallo en presentación 3D:\n" + pres_res.to_debug_string())
@@ -607,6 +628,7 @@ func build_3d_presentation() -> void:
 				camera_rig.clear_target()
 
 		_apply_walls_visibility()
+		_update_destruction_debug_visibility()
 
 func _spawn_or_reposition_player() -> void:
 	if _player == null:

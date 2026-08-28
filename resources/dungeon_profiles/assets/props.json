@@ -30,9 +30,9 @@
                 ]
             },
             "scale": {
-                "default": 1.0,
-                "min": 1.0,
-                "max": 1.0
+                "default": 1.5,
+                "min": 1.5,
+                "max": 1.5
             }
         },
         "sarcophagus_stone_open": {
@@ -64,9 +64,9 @@
                 ]
             },
             "scale": {
-                "default": 1.0,
-                "min": 1.0,
-                "max": 1.0
+                "default": 1.5,
+                "min": 1.5,
+                "max": 1.5
             }
         },
         "sarcophagus_wood_closed": {
@@ -98,9 +98,9 @@
                 ]
             },
             "scale": {
-                "default": 1.0,
-                "min": 1.0,
-                "max": 1.0
+                "default": 1.5,
+                "min": 1.5,
+                "max": 1.5
             }
         },
         "sarcophagus_wood_open": {
@@ -131,9 +131,9 @@
                 ]
             },
             "scale": {
-                "default": 1.0,
-                "min": 1.0,
-                "max": 1.0
+                "default": 1.5,
+                "min": 1.5,
+                "max": 1.5
             }
         },
         "tombstone_classic_wall": {

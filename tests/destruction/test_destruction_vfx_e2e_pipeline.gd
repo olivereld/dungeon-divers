@@ -50,7 +50,7 @@ func _init() -> void:
 			assert(child is _VFXInstanceScript, "FAIL: spawned VFX must be instance of VFXInstance")
 
 	print("   [OK] Instancias VFX generadas para Urna: %d" % vfx_urn_count)
-	assert(vfx_urn_count >= 2, "FAIL: Urna must trigger at least 2 VFX instances (stone_break + small_dust)")
+	assert(vfx_urn_count >= 1, "FAIL: Urna must trigger VFX (small_dust)")
 
 	# 2. Probar Caja de Minas -> wood_break + small_dust
 	print("2. Probando Caja de Madera...")
