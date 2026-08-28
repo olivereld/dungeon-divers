@@ -12,6 +12,11 @@ var damage_vulnerabilities: Array[StringName] = []
 var destruction_mode: int = _DestructionModeScript.Mode.BREAK
 var replacement_asset: StringName = &""
 var debris_id: StringName = &""
+var debris: StringName:
+	get:
+		return debris_id
+	set(val):
+		debris_id = val
 var effects: Array[String] = []
 
 static func from_dict(p_id: StringName, d: Dictionary):

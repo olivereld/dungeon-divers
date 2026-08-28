@@ -22,6 +22,8 @@ const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semant
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const _DestructionDebugInteractorScript = preload("res://src/destruction/debug/destruction_debug_interactor.gd")
 const _DestructionDebugHUDScript = preload("res://src/destruction/debug/destruction_debug_hud.gd")
+const _DestructionResponseServiceScript = preload("res://src/destruction/response/destruction_response_service.gd")
+const _PropAssetProviderScript = preload("res://src/presentation/decoration/assets/prop_asset_provider.gd")
 
 var _pipeline: DungeonPipeline = DungeonPipeline.new()
 var _semantic_orchestrator := _SemanticOrchestratorScript.new()
@@ -35,9 +37,10 @@ var _current_semantic_result: DungeonSemanticResult = null
 var _current_presentation_root: Node3D = null
 var _player: CharacterBody3D = null
 
-# Destruction Debug Tools
+# Destruction Tools
 var _destruction_interactor: _DestructionDebugInteractorScript = null
 var _destruction_hud: _DestructionDebugHUDScript = null
+var _destruction_response_service: _DestructionResponseServiceScript = null
 
 # Métricas de generación por etapas
 var _time_layout_ms: float = 0.0
@@ -79,6 +82,12 @@ func _setup_destruction_debug() -> void:
 	_destruction_hud = _DestructionDebugHUDScript.new()
 	_destruction_hud.name = "DestructionDebugHUD"
 	add_child(_destruction_hud)
+
+	var provider := _PropAssetProviderScript.new()
+	var seed_val: int = config.seed if config != null else 1337
+	_destruction_response_service = _DestructionResponseServiceScript.new(provider, seed_val, _current_presentation_root)
+	if _destruction_interactor.get_service() != null:
+		_destruction_interactor.get_service().set_response_service(_destruction_response_service)
 
 	_destruction_interactor.destructible_hit.connect(func(node, comp, hit):
 		if _destruction_hud != null:
@@ -510,6 +519,10 @@ func build_3d_presentation() -> void:
 
 		_apply_floor_visibility()
 
+		if _destruction_response_service != null:
+			_destruction_response_service.set_staging_parent(_current_presentation_root)
+			_destruction_response_service.set_base_seed(config.seed if config != null else 1337)
+
 		# Loguear diagnóstico runtime de materialización multi-piso
 		var arch_lbl: String = "CRYPT" if config.dungeon_archetype == _DungeonArchetypeScript.Type.MAUSOLEUM else _DungeonArchetypeScript.to_name(config.dungeon_archetype)
 		var total_props: int = 0
@@ -547,6 +560,10 @@ func build_3d_presentation() -> void:
 		_current_presentation_root.visible = true
 		_apply_walls_visibility()
 		_apply_doors_visibility()
+
+		if _destruction_response_service != null:
+			_destruction_response_service.set_staging_parent(_current_presentation_root)
+			_destruction_response_service.set_base_seed(config.seed if config != null else 1337)
 
 		# Loguear diagnóstico runtime de materialización
 		var arch_lbl: String = "CRYPT" if config.dungeon_archetype == _DungeonArchetypeScript.Type.MAUSOLEUM else _DungeonArchetypeScript.to_name(config.dungeon_archetype)

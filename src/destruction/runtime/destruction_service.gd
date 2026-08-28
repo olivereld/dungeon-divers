@@ -11,6 +11,13 @@ const _DestructionEventScript = preload("res://src/destruction/core/destruction_
 signal global_destruction_event(event: _DestructionEventScript)
 
 var _instances: Dictionary = {} # Node3D -> DestructionComponent
+var _response_service: RefCounted = null
+
+func set_response_service(resp_service: RefCounted) -> void:
+	_response_service = resp_service
+
+func get_response_service() -> RefCounted:
+	return _response_service
 
 func register_instance(node: Node3D, comp: _DestructionCompScript) -> void:
 	if node != null and comp != null:
@@ -46,6 +53,8 @@ func clear() -> void:
 	_instances.clear()
 
 func _on_component_destroyed(event: _DestructionEventScript) -> void:
+	if _response_service != null and _response_service.has_method("handle_destruction_event"):
+		_response_service.handle_destruction_event(event)
 	global_destruction_event.emit(event)
 
 func _on_node_exiting(node: Node3D) -> void:
