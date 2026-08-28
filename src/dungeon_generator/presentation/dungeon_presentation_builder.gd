@@ -188,10 +188,18 @@ func build_presentation(
 	# 5.4 Composición y Spawning Espacial Integral de Decoración (Fase 6)
 	var all_fixture_directives: Array = []
 	var all_prop_directives: Array = []
-	var arch_type: int = semantic_result.dungeon_archetype if "dungeon_archetype" in semantic_result else 1
+	var arch_name: String = "generic"
+	if semantic_result != null:
+		if "dungeon_archetype_name" in semantic_result and not semantic_result.dungeon_archetype_name.is_empty():
+			arch_name = semantic_result.dungeon_archetype_name.to_lower()
+		elif "dungeon_archetype" in semantic_result:
+			arch_name = str(_DungeonArchetypeScript.resolve_id(semantic_result.dungeon_archetype))
+
+	var arch_id := StringName(arch_name)
+	var bundle = _profile_loader.load_full_archetype_bundle(arch_name)
 
 	for r_ctx in room_contexts:
-		var dec_palette = _decoration_palette_resolver.resolve_palette(arch_type, r_ctx.purpose, r_ctx.profile)
+		var dec_palette = _decoration_palette_resolver.resolve_palette_by_id(arch_id, r_ctx.purpose, r_ctx.profile, bundle)
 		var r_geom = geometry_partition.get_room_geometry(r_ctx.room_id)
 		var comp = _composition_resolver.resolve_room_composition(
 			r_ctx, dec_palette, r_geom, geometry_partition, config.seed if config != null else 1337, tile_size
@@ -204,14 +212,6 @@ func build_presentation(
 		var corr_anchors = _fixture_anchor_resolver.find_corridor_wall_anchors(geometry_partition, tile_size)
 		if not corr_anchors.is_empty():
 			var corr_lighting_profile = null
-			var arch_name: String = "generic"
-			if semantic_result != null:
-				if "dungeon_archetype_name" in semantic_result and not semantic_result.dungeon_archetype_name.is_empty():
-					arch_name = semantic_result.dungeon_archetype_name.to_lower()
-				elif "dungeon_archetype" in semantic_result:
-					arch_name = str(_DungeonArchetypeScript.resolve_id(semantic_result.dungeon_archetype))
-
-			var bundle = _profile_loader.load_full_archetype_bundle(arch_name)
 			var corr_palette = _decoration_palette_resolver.resolve_palette_by_id(arch_name, &"corridor", null, bundle)
 			if bundle != null:
 				if bundle.archetype != null and bundle.archetype.corridor_lighting != null:

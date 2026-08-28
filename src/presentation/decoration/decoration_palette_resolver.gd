@@ -77,51 +77,119 @@ func resolve_palette(
 
 func _resolve_dynamic_fixtures(bundle: _ProfileBundleScript, purp_id: StringName) -> _FixturePaletteScript:
 	var entries: Array[_FixturePaletteEntryScript] = []
+	var added_ids: Dictionary = {}
 
 	# 1. Chequear si la sala tiene iluminación definida en el bundle
 	if bundle != null and bundle.has_room(purp_id):
 		var r_prof := bundle.get_room(purp_id)
 		if r_prof != null and r_prof.lighting != null:
 			var lit = r_prof.lighting
-			var torch_style = _FixtureStyleScript.new(
-				&"wall_torch",
-				_FixtureStyleScript.Type.TORCH,
-				_FixturePlacementModeScript.Mode.WALL,
-				1.0,
-				Vector3(0.0, 2.0, 0.0),
-				false,
-				_FixtureCollisionModeScript.Mode.NONE,
-				true,
-				lit.color if "color" in lit else Color(1.0, 0.7, 0.3, 1.0),
-				lit.energy if "energy" in lit else 1.2,
-				lit.range if "range" in lit else 7.0
-			)
-			entries.append(_FixturePaletteEntryScript.new(torch_style, 1.0, 2, 4))
+
+			# Wall fixtures
+			if lit.wall != null:
+				for fix_name in lit.wall.allowed:
+					var f_id := StringName(str(fix_name))
+					if not added_ids.has(f_id):
+						added_ids[f_id] = true
+						var style = _create_fixture_style(f_id, _FixturePlacementModeScript.Mode.WALL, lit)
+						entries.append(_FixturePaletteEntryScript.new(style, 1.0, lit.wall.min_count, lit.wall.max_count))
+
+			# Floor fixtures (Braziers, floor candles, candelabras)
+			if lit.floor != null:
+				for fix_name in lit.floor.allowed:
+					var f_id := StringName(str(fix_name))
+					if not added_ids.has(f_id):
+						added_ids[f_id] = true
+						var style = _create_fixture_style(f_id, _FixturePlacementModeScript.Mode.FLOOR, lit)
+						entries.append(_FixturePaletteEntryScript.new(style, 1.0, lit.floor.min_count, lit.floor.max_count))
+
+			# Hanging fixtures
+			if lit.hanging != null:
+				for fix_name in lit.hanging.allowed:
+					var f_id := StringName(str(fix_name))
+					if not added_ids.has(f_id):
+						added_ids[f_id] = true
+						var style = _create_fixture_style(f_id, _FixturePlacementModeScript.Mode.HANGING, lit)
+						entries.append(_FixturePaletteEntryScript.new(style, 1.0, lit.hanging.min_count, lit.hanging.max_count))
+
+			# Relational fixtures (near sarcophagus, altar, etc.)
+			if r_prof.relationships != null:
+				for rel in r_prof.relationships:
+					for t_name in rel.targets:
+						var f_id := StringName(str(t_name))
+						if not added_ids.has(f_id):
+							added_ids[f_id] = true
+							var place_mode = _FixturePlacementModeScript.Mode.FLOOR
+							if "hanging" in str(f_id) or str(rel.placement).to_lower() == "above":
+								place_mode = _FixturePlacementModeScript.Mode.HANGING
+							elif "wall" in str(f_id):
+								place_mode = _FixturePlacementModeScript.Mode.WALL
+							var style = _create_fixture_style(f_id, place_mode, lit)
+							entries.append(_FixturePaletteEntryScript.new(style, 1.0, rel.min_count, rel.max_count))
 
 	if entries.is_empty():
-		# Fixture genérico universal
-		var def_torch = _FixtureStyleScript.new(
-			&"generic_torch",
-			_FixtureStyleScript.Type.TORCH,
-			_FixturePlacementModeScript.Mode.WALL,
-			1.0,
-			Vector3(0.0, 2.0, 0.0),
-			false,
-			_FixtureCollisionModeScript.Mode.NONE,
-			true,
-			Color(1.0, 0.7, 0.3, 1.0),
-			1.2,
-			6.5
-		)
-		entries.append(_FixturePaletteEntryScript.new(def_torch, 1.0, 2, 4))
+		# Paleta genérica completa de fixtures
+		var torch = _create_fixture_style(&"wall_torch", _FixturePlacementModeScript.Mode.WALL)
+		var brazier = _create_fixture_style(&"brazier", _FixturePlacementModeScript.Mode.FLOOR)
+		var candles = _create_fixture_style(&"candle_cluster", _FixturePlacementModeScript.Mode.FLOOR)
+		var lantern = _create_fixture_style(&"wall_lantern", _FixturePlacementModeScript.Mode.WALL)
+		entries.append(_FixturePaletteEntryScript.new(torch, 1.0, 1, 4))
+		entries.append(_FixturePaletteEntryScript.new(brazier, 0.8, 1, 2))
+		entries.append(_FixturePaletteEntryScript.new(candles, 0.6, 0, 2))
+		entries.append(_FixturePaletteEntryScript.new(lantern, 0.5, 0, 2))
 
 	return _FixturePaletteScript.new(
 		&"fixtures_%s" % str(purp_id),
 		entries
 	)
 
+func _create_fixture_style(fixture_id: StringName, mode: int, lighting_data = null) -> _FixtureStyleScript:
+	var f_type: _FixtureStyleScript.Type = _FixtureStyleScript.Type.TORCH
+	var f_name := str(fixture_id).to_lower()
+	if "lantern" in f_name:
+		f_type = _FixtureStyleScript.Type.LANTERN
+	elif "brazier" in f_name:
+		f_type = _FixtureStyleScript.Type.BRAZIER
+	elif "candle_holder" in f_name or "candelabra" in f_name:
+		f_type = _FixtureStyleScript.Type.CANDLE_HOLDER
+	elif "candle" in f_name or "cluster" in f_name:
+		f_type = _FixtureStyleScript.Type.CANDLE_CLUSTER
+
+	var col: Color = Color(1.0, 0.7, 0.3, 1.0)
+	var energy: float = 1.2
+	var light_range: float = 6.5
+	var offset := Vector3(0.0, 2.0, 0.0)
+
+	if mode == _FixturePlacementModeScript.Mode.FLOOR:
+		offset = Vector3(0.0, 0.0, 0.0)
+	elif mode == _FixturePlacementModeScript.Mode.HANGING:
+		offset = Vector3(0.0, 3.5, 0.0)
+
+	if lighting_data != null:
+		if "color" in lighting_data and lighting_data.color != null:
+			col = lighting_data.color
+		if "energy" in lighting_data and lighting_data.energy > 0.0:
+			energy = lighting_data.energy
+		if "range" in lighting_data and lighting_data.range > 0.0:
+			light_range = lighting_data.range
+
+	return _FixtureStyleScript.new(
+		fixture_id,
+		f_type,
+		mode,
+		1.0,
+		offset,
+		false,
+		_FixtureCollisionModeScript.Mode.NONE,
+		true,
+		col,
+		energy,
+		light_range
+	)
+
 func _resolve_dynamic_props(bundle: _ProfileBundleScript, purp_id: StringName) -> _PropPaletteScript:
 	var entries: Array[_PropPaletteEntryScript] = []
+	var added_prop_ids: Dictionary = {}
 
 	# Si el bundle tiene la sala definida con composición de props
 	if bundle != null and bundle.has_room(purp_id):
@@ -138,15 +206,21 @@ func _resolve_dynamic_props(bundle: _ProfileBundleScript, purp_id: StringName) -
 							var tag_props = bundle.assets.get_props_by_tag(tag)
 							for p_entry in tag_props:
 								matched = true
-								var style = _create_prop_style(str(p_entry.id), bundle.assets, rule.placement_mode)
-								entries.append(_PropPaletteEntryScript.new(style, 1.0, rule.min_count, rule.max_count))
+								if not added_prop_ids.has(p_entry.id):
+									added_prop_ids[p_entry.id] = true
+									var style = _create_prop_style(str(p_entry.id), bundle.assets, rule.placement_mode)
+									entries.append(_PropPaletteEntryScript.new(style, 1.0, rule.min_count, rule.max_count))
 						if not matched and bundle.assets.has_prop(rule.rule_id):
 							matched = true
-							var style = _create_prop_style(str(rule.rule_id), bundle.assets, rule.placement_mode)
-							entries.append(_PropPaletteEntryScript.new(style, 1.0, rule.min_count, rule.max_count))
+							if not added_prop_ids.has(rule.rule_id):
+								added_prop_ids[rule.rule_id] = true
+								var style = _create_prop_style(str(rule.rule_id), bundle.assets, rule.placement_mode)
+								entries.append(_PropPaletteEntryScript.new(style, 1.0, rule.min_count, rule.max_count))
 					if not matched and not rule.rule_id.is_empty():
-						var style = _create_prop_style(str(rule.rule_id), bundle.assets if bundle != null else null, rule.placement_mode)
-						entries.append(_PropPaletteEntryScript.new(style, 1.0, rule.min_count, rule.max_count))
+						if not added_prop_ids.has(rule.rule_id):
+							added_prop_ids[rule.rule_id] = true
+							var style = _create_prop_style(str(rule.rule_id), bundle.assets if bundle != null else null, rule.placement_mode)
+							entries.append(_PropPaletteEntryScript.new(style, 1.0, rule.min_count, rule.max_count))
 			elif comp is Dictionary:
 				var raw_props = comp.get("props", [])
 				for p_def in raw_props:
@@ -162,14 +236,16 @@ func _resolve_dynamic_props(bundle: _ProfileBundleScript, purp_id: StringName) -
 		var crate = _create_prop_style("crate_wooden_standard", bundle.assets if bundle != null else null)
 		var barrel = _create_prop_style("barrel_wood_small", bundle.assets if bundle != null else null)
 		var urn = _create_prop_style("crypt_urn_banded_floor", bundle.assets if bundle != null else null)
-		var chest = _create_prop_style("chest_wood_small", bundle.assets if bundle != null else null)
+		var chest = _create_prop_style("chest_wooden", bundle.assets if bundle != null else null)
 		var sarcophagus = _create_prop_style("sarcophagus_stone_closed", bundle.assets if bundle != null else null)
+		var pillar = _create_prop_style("pillar", bundle.assets if bundle != null else null)
 
 		entries.append(_PropPaletteEntryScript.new(crate, 1.0, 0, -1))
 		entries.append(_PropPaletteEntryScript.new(barrel, 0.8, 0, -1))
 		entries.append(_PropPaletteEntryScript.new(urn, 0.6, 0, -1))
 		entries.append(_PropPaletteEntryScript.new(chest, 0.3, 0, -1))
 		entries.append(_PropPaletteEntryScript.new(sarcophagus, 0.5, 0, -1))
+		entries.append(_PropPaletteEntryScript.new(pillar, 0.4, 0, -1))
 
 	return _PropPaletteScript.new(&"props_%s" % str(purp_id), entries)
 
@@ -209,9 +285,15 @@ func _create_prop_style(prop_name: String, assets = null, placement_hint: String
 	elif place_str == "center":
 		place_mode = _PropPlacementModeScript.Mode.CENTER
 
+	var prop_tags: Array[StringName] = []
+	var prop_role: int = _DecorationRoleScript.Role.SUPPORT
+
 	if assets != null and assets.has_method("get_prop"):
 		var p_entry = assets.get_prop(id)
 		if p_entry != null:
+			if "tags" in p_entry and p_entry.tags != null:
+				for t in p_entry.tags:
+					prop_tags.append(StringName(str(t)))
 			if "footprint" in p_entry and p_entry.footprint != null:
 				if p_entry.footprint is Vector2i:
 					fp = _PropFootprintScript.new(p_entry.footprint)
@@ -225,6 +307,26 @@ func _create_prop_style(prop_name: String, assets = null, placement_hint: String
 					place_mode = _PropPlacementModeScript.Mode.WALL
 				elif first_p == "center":
 					place_mode = _PropPlacementModeScript.Mode.CENTER
+
+	if prop_tags.is_empty():
+		prop_tags.append(id)
+		match type_val:
+			_PropStyleScript.Type.CHEST:
+				prop_tags.append_array([&"chest", &"treasure", &"storage"])
+			_PropStyleScript.Type.PILLAR:
+				prop_tags.append_array([&"pillar", &"architectural", &"structural"])
+			_PropStyleScript.Type.TABLE:
+				prop_tags.append_array([&"table", &"furniture", &"storage"])
+			_PropStyleScript.Type.BENCH:
+				prop_tags.append_array([&"bench", &"seating", &"furniture"])
+			_PropStyleScript.Type.BOOKSHELF:
+				prop_tags.append_array([&"bookshelf", &"furniture", &"storage"])
+			_PropStyleScript.Type.BARREL, _PropStyleScript.Type.CRATE:
+				prop_tags.append_array([&"storage", &"debris"])
+			_PropStyleScript.Type.ALTAR:
+				prop_tags.append_array([&"altar", &"ceremonial", &"focal"])
+			_PropStyleScript.Type.SARCOPHAGUS, _PropStyleScript.Type.TOMBSTONE, _PropStyleScript.Type.URN:
+				prop_tags.append_array([&"burial", &"detail"])
 
 	if place_str.is_empty():
 		if "corner" in prop_name:
@@ -240,5 +342,8 @@ func _create_prop_style(prop_name: String, assets = null, placement_hint: String
 		place_mode,
 		_PropCollisionModeScript.Mode.BLOCKING,
 		fp,
-		id
+		id,
+		{},
+		prop_role,
+		prop_tags
 	)

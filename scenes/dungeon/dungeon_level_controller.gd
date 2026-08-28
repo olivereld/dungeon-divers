@@ -18,8 +18,6 @@ const _MultiFloorGeneratorScript = preload("res://src/dungeon_generator/core/mul
 const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
 const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/floor_tile_config.gd")
 const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
-const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
-const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const _DestructionDebugInteractorScript = preload("res://src/destruction/debug/destruction_debug_interactor.gd")
 const _DestructionDebugHUDScript = preload("res://src/destruction/debug/destruction_debug_hud.gd")
 const _DestructionServiceScript = preload("res://src/destruction/runtime/destruction_service.gd")
@@ -607,8 +605,8 @@ func build_3d_presentation() -> void:
 		])
 
 		for room in _current_semantic_result.rooms:
-			var purp_id: int = _current_semantic_result.room_purposes.get(room.id, 0)
-			var purp_name: String = _RoomPurposeScript.to_name(purp_id)
+			var purp_id = _current_semantic_result.room_purposes.get(room.id, &"generic")
+			var purp_name: String = str(purp_id)
 			print("  - Room %d (%s): Bounds (%d, %d) [%dx%d]" % [
 				room.id, purp_name, room.rect.position.x, room.rect.position.y, room.rect.size.x, room.rect.size.y
 			])
@@ -645,9 +643,9 @@ func _spawn_or_reposition_player() -> void:
 				break
 		if spawn_grid_pos == Vector2i.ZERO and not _current_semantic_result.rooms.is_empty():
 			# Seleccionar sala de entrada si existe, de lo contrario la primera sala
-			var entrance = _current_semantic_result.get_room_by_purpose(_RoomPurposeScript.Type.ENTRANCE)
+			var entrance = _current_semantic_result.get_room_by_purpose(&"entrance")
 			if entrance == null:
-				entrance = _current_semantic_result.get_room_by_purpose(_RoomPurposeScript.Type.ANTECHAMBER)
+				entrance = _current_semantic_result.get_room_by_purpose(&"antechamber")
 			if entrance != null:
 				spawn_grid_pos = entrance.center
 			else:
@@ -842,7 +840,7 @@ func _update_debug_overlay() -> void:
 	# Inspección en tiempo real de la sala actual del jugador o cámara
 	var cur_room = _get_player_current_room()
 	if not cur_room.is_empty():
-		var p_name = _RoomPurposeScript.to_name(cur_room.get("purpose", 0))
+		var p_name = str(cur_room.get("purpose", "generic"))
 		text += "[b][color=light_green]Current Room:[/color][/b] ID: %d | [color=yellow]%s[/color]\n" % [cur_room.get("id", 0), p_name]
 		var r_rect: Rect2i = cur_room.get("rect", Rect2i())
 		text += "Bounds: (%d, %d) [%dx%d]\n" % [r_rect.position.x, r_rect.position.y, r_rect.size.x, r_rect.size.y]
@@ -878,7 +876,7 @@ func _get_player_current_room() -> Dictionary:
 			)
 			for room in f_data.semantic_result.rooms:
 				if room.rect.has_point(p_cell):
-					var purp_id: int = f_data.semantic_result.room_purposes.get(room.id, 0)
+					var purp_id = f_data.semantic_result.room_purposes.get(room.id, &"generic")
 					return {"id": room.id, "rect": room.rect, "purpose": purp_id, "floor": f_idx}
 
 	elif _current_semantic_result != null:
@@ -888,7 +886,7 @@ func _get_player_current_room() -> Dictionary:
 		)
 		for room in _current_semantic_result.rooms:
 			if room.rect.has_point(p_cell):
-				var purp_id: int = _current_semantic_result.room_purposes.get(room.id, 0)
+				var purp_id = _current_semantic_result.room_purposes.get(room.id, &"generic")
 				return {"id": room.id, "rect": room.rect, "purpose": purp_id, "floor": 0}
 	elif _current_result != null:
 		var p_cell := Vector2i(
@@ -897,7 +895,7 @@ func _get_player_current_room() -> Dictionary:
 		)
 		for room in _current_result.rooms:
 			if room.rect.has_point(p_cell):
-				return {"id": room.id, "rect": room.rect, "purpose": 0, "floor": 0}
+				return {"id": room.id, "rect": room.rect, "purpose": &"generic", "floor": 0}
 	return {}
 
 func _handle_camera_pan(delta: float) -> void:

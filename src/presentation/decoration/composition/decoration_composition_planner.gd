@@ -23,6 +23,7 @@ const _PropStyleScript = preload("res://src/presentation/props/prop_style.gd")
 const _CompositionRoleScript = preload("res://src/presentation/decoration/composition/composition_role.gd")
 const _DecorationRoleScript = preload("res://src/presentation/decoration/decoration_role.gd")
 const _DecorationTagScript = preload("res://src/presentation/decoration/composition/decoration_tag.gd")
+const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 
 const _ProfileRoomScript = preload("res://src/dungeon_generator/profiles/profile_room.gd")
 const _DecorationCompositionRuleScript = preload("res://src/presentation/decoration/composition/decoration_composition_rule.gd")
@@ -75,15 +76,15 @@ func plan_room_composition(
 	elif room_context != null and "room_profile" in room_context and room_context.room_profile is _ProfileRoomScript:
 		profile_room = room_context.room_profile
 
-	var purpose_type: int = 0
+	var purpose_id: StringName = &"generic"
 	if room_context is Dictionary:
-		purpose_type = int(room_context.get("purpose", room_context.get("room_purpose", 0)))
+		purpose_id = _RoomPurposeScript.resolve_id(room_context.get("purpose", room_context.get("room_purpose", &"generic")))
 	elif room_context != null and "purpose" in room_context:
-		purpose_type = int(room_context.purpose)
+		purpose_id = _RoomPurposeScript.resolve_id(room_context.purpose)
 	elif room_context != null and "room_purpose" in room_context:
-		purpose_type = int(room_context.room_purpose)
+		purpose_id = _RoomPurposeScript.resolve_id(room_context.room_purpose)
 
-	var purpose_profile = _purpose_registry.get_profile_for_purpose(purpose_type)
+	var purpose_profile = _purpose_registry.get_profile_for_purpose(purpose_id)
 	var intent = null
 	var relationship_profile = null
 	var fixture_rules: Array = []
@@ -512,9 +513,21 @@ static func _style_has_tag(style, tag: StringName) -> bool:
 		return true
 	if str(tag).to_lower() == "focal" and (style.role == _DecorationRoleScript.Role.FOCAL or style.prop_type == _PropStyleScript.Type.SARCOPHAGUS or style.prop_type == _PropStyleScript.Type.ALTAR):
 		return true
-	if str(tag).to_lower() == "seating" and style.prop_type == _PropStyleScript.Type.BENCH:
+	if str(tag).to_lower() == "seating" and (style.prop_type == _PropStyleScript.Type.BENCH or style.prop_type == _PropStyleScript.Type.CHAIR):
 		return true
 	if str(tag).to_lower() == "ceremonial" and style.prop_type == _PropStyleScript.Type.ALTAR:
+		return true
+	if str(tag).to_lower() == "chest" and style.prop_type == _PropStyleScript.Type.CHEST:
+		return true
+	if str(tag).to_lower() == "treasure" and style.prop_type == _PropStyleScript.Type.CHEST:
+		return true
+	if str(tag).to_lower() == "pillar" and style.prop_type == _PropStyleScript.Type.PILLAR:
+		return true
+	if str(tag).to_lower() == "storage" and (style.prop_type == _PropStyleScript.Type.CHEST or style.prop_type == _PropStyleScript.Type.CRATE or style.prop_type == _PropStyleScript.Type.BARREL):
+		return true
+	if str(tag).to_lower() == "furniture" and (style.prop_type == _PropStyleScript.Type.TABLE or style.prop_type == _PropStyleScript.Type.CHAIR or style.prop_type == _PropStyleScript.Type.BENCH or style.prop_type == _PropStyleScript.Type.BOOKSHELF):
+		return true
+	if str(tag).to_lower() == "debris" and (style.prop_type == _PropStyleScript.Type.RUBBLE or style.prop_type == _PropStyleScript.Type.CRATE or style.prop_type == _PropStyleScript.Type.BARREL):
 		return true
 	return false
 
@@ -650,15 +663,15 @@ static func _find_matching_palette_entries(entries: Array, rule, intent) -> Arra
 				result.append(entry)
 			continue
 
-		# 4. New strict tag system: required_tags use AND logic
+		# 4. New strict tag system: matches if style satisfies any candidate tag from required_tags
 		if use_new_tags:
 			if "required_tags" in rule and not rule.required_tags.is_empty():
-				var all_required_met: bool = true
+				var matched_required: bool = false
 				for req_tag in rule.required_tags:
-					if not _style_has_tag(style, req_tag):
-						all_required_met = false
+					if _style_has_tag(style, req_tag):
+						matched_required = true
 						break
-				if not all_required_met:
+				if not matched_required:
 					continue
 			result.append(entry)
 			continue
