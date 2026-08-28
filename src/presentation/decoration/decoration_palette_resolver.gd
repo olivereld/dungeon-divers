@@ -194,42 +194,56 @@ func _resolve_dynamic_props(bundle: _ProfileBundleScript, purp_id: StringName) -
 	# Si el bundle tiene la sala definida con composición de props
 	if bundle != null and bundle.has_room(purp_id):
 		var r_prof := bundle.get_room(purp_id)
-		if r_prof != null and r_prof.composition != null:
-			var comp = r_prof.composition
-			if comp.has_method("get_all_rules"):
-				for rule in comp.get_all_rules():
+		if r_prof != null:
+			# 1. Cargar props de las reglas específicas de composición
+			if r_prof.composition != null and r_prof.composition.has_method("get_all_rules"):
+				for rule in r_prof.composition.get_all_rules():
 					if rule == null:
 						continue
-					var matched: bool = false
 					if bundle.assets != null:
-						for tag in rule.asset_tags:
-							var tag_props = bundle.assets.get_props_by_tag(tag)
-							for p_entry in tag_props:
-								matched = true
-								if not added_prop_ids.has(p_entry.id):
+						if not rule.asset_tags.is_empty():
+							var candidate_props = bundle.assets.get_props_by_tag(rule.asset_tags[0])
+							for p_entry in candidate_props:
+								var all_tags_match: bool = true
+								for tag in rule.asset_tags:
+									if not p_entry.has_tag(tag):
+										all_tags_match = false
+										break
+								if all_tags_match and rule.forbidden_tags != null:
+									for f_tag in rule.forbidden_tags:
+										if p_entry.has_tag(f_tag):
+											all_tags_match = false
+											break
+								if all_tags_match and not added_prop_ids.has(p_entry.id):
 									added_prop_ids[p_entry.id] = true
-									var style = _create_prop_style(str(p_entry.id), bundle.assets, rule.placement_mode)
+									var style = _create_prop_style(str(p_entry.id), bundle.assets)
 									entries.append(_PropPaletteEntryScript.new(style, 1.0, rule.min_count, rule.max_count))
-						if not matched and bundle.assets.has_prop(rule.rule_id):
-							matched = true
+						if bundle.assets.has_prop(rule.rule_id):
 							if not added_prop_ids.has(rule.rule_id):
 								added_prop_ids[rule.rule_id] = true
-								var style = _create_prop_style(str(rule.rule_id), bundle.assets, rule.placement_mode)
+								var style = _create_prop_style(str(rule.rule_id), bundle.assets)
 								entries.append(_PropPaletteEntryScript.new(style, 1.0, rule.min_count, rule.max_count))
-					if not matched and not rule.rule_id.is_empty():
+					elif not rule.rule_id.is_empty():
 						if not added_prop_ids.has(rule.rule_id):
 							added_prop_ids[rule.rule_id] = true
-							var style = _create_prop_style(str(rule.rule_id), bundle.assets if bundle != null else null, rule.placement_mode)
+							var style = _create_prop_style(str(rule.rule_id), null)
 							entries.append(_PropPaletteEntryScript.new(style, 1.0, rule.min_count, rule.max_count))
-			elif comp is Dictionary:
-				var raw_props = comp.get("props", [])
-				for p_def in raw_props:
-					var prop_name: String = str(p_def.get("prop", p_def.get("name", "")))
-					if prop_name.is_empty():
-						continue
-					var weight: float = float(p_def.get("weight", 1.0))
-					var style = _create_prop_style(prop_name, bundle.assets if bundle != null else null)
-					entries.append(_PropPaletteEntryScript.new(style, weight, 0, -1))
+
+			# 2. Cargar props adicionales permitidos por el intent de la sala
+			if r_prof.intent != null and bundle.assets != null:
+				for tag in r_prof.intent.allowed_tags:
+					var tag_props = bundle.assets.get_props_by_tag(tag)
+					for p_entry in tag_props:
+						var is_forbidden: bool = false
+						if r_prof.intent.forbidden_tags != null:
+							for f_tag in r_prof.intent.forbidden_tags:
+								if p_entry.has_tag(f_tag):
+									is_forbidden = true
+									break
+						if not is_forbidden and not added_prop_ids.has(p_entry.id):
+							added_prop_ids[p_entry.id] = true
+							var style = _create_prop_style(str(p_entry.id), bundle.assets)
+							entries.append(_PropPaletteEntryScript.new(style, 1.0, 0, 2))
 
 	if entries.is_empty():
 		# Paleta genérica data-driven básica
@@ -277,14 +291,6 @@ func _create_prop_style(prop_name: String, assets = null, placement_hint: String
 		type_val = _PropStyleScript.Type.PILLAR
 
 	var place_mode: _PropPlacementModeScript.Mode = _PropPlacementModeScript.Mode.FLOOR
-	var place_str: String = str(placement_hint).to_lower()
-	if place_str == "corner":
-		place_mode = _PropPlacementModeScript.Mode.CORNER
-	elif place_str == "wall":
-		place_mode = _PropPlacementModeScript.Mode.WALL
-	elif place_str == "center":
-		place_mode = _PropPlacementModeScript.Mode.CENTER
-
 	var prop_tags: Array[StringName] = []
 	var prop_role: int = _DecorationRoleScript.Role.SUPPORT
 
@@ -299,7 +305,7 @@ func _create_prop_style(prop_name: String, assets = null, placement_hint: String
 					fp = _PropFootprintScript.new(p_entry.footprint)
 				elif p_entry.footprint is _PropFootprintScript:
 					fp = p_entry.footprint
-			if place_str.is_empty() and "placement_modes" in p_entry and not p_entry.placement_modes.is_empty():
+			if "placement_modes" in p_entry and not p_entry.placement_modes.is_empty():
 				var first_p: String = str(p_entry.placement_modes[0]).to_lower()
 				if first_p == "corner":
 					place_mode = _PropPlacementModeScript.Mode.CORNER
@@ -307,6 +313,17 @@ func _create_prop_style(prop_name: String, assets = null, placement_hint: String
 					place_mode = _PropPlacementModeScript.Mode.WALL
 				elif first_p == "center":
 					place_mode = _PropPlacementModeScript.Mode.CENTER
+				elif first_p == "floor":
+					place_mode = _PropPlacementModeScript.Mode.FLOOR
+
+	if place_mode == _PropPlacementModeScript.Mode.FLOOR and not placement_hint.is_empty():
+		var place_str: String = str(placement_hint).to_lower()
+		if place_str == "corner":
+			place_mode = _PropPlacementModeScript.Mode.CORNER
+		elif place_str == "wall":
+			place_mode = _PropPlacementModeScript.Mode.WALL
+		elif place_str == "center":
+			place_mode = _PropPlacementModeScript.Mode.CENTER
 
 	if prop_tags.is_empty():
 		prop_tags.append(id)
@@ -327,14 +344,6 @@ func _create_prop_style(prop_name: String, assets = null, placement_hint: String
 				prop_tags.append_array([&"altar", &"ceremonial", &"focal"])
 			_PropStyleScript.Type.SARCOPHAGUS, _PropStyleScript.Type.TOMBSTONE, _PropStyleScript.Type.URN:
 				prop_tags.append_array([&"burial", &"detail"])
-
-	if place_str.is_empty():
-		if "corner" in prop_name:
-			place_mode = _PropPlacementModeScript.Mode.CORNER
-		elif "wall" in prop_name:
-			place_mode = _PropPlacementModeScript.Mode.WALL
-		elif "center" in prop_name:
-			place_mode = _PropPlacementModeScript.Mode.CENTER
 
 	return _PropStyleScript.new(
 		id,

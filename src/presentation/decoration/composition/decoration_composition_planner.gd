@@ -663,15 +663,15 @@ static func _find_matching_palette_entries(entries: Array, rule, intent) -> Arra
 				result.append(entry)
 			continue
 
-		# 4. New strict tag system: matches if style satisfies any candidate tag from required_tags
+		# 4. New strict tag system: all required tags of the rule must be satisfied
 		if use_new_tags:
 			if "required_tags" in rule and not rule.required_tags.is_empty():
-				var matched_required: bool = false
+				var all_required_met: bool = true
 				for req_tag in rule.required_tags:
-					if _style_has_tag(style, req_tag):
-						matched_required = true
+					if not _style_has_tag(style, req_tag):
+						all_required_met = false
 						break
-				if not matched_required:
+				if not all_required_met:
 					continue
 			result.append(entry)
 			continue

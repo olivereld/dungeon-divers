@@ -71,8 +71,9 @@ func score_candidate(
 	if occupancy != null and occupancy.has_clearance(cell):
 		total_score -= 40.0
 
-	# 4. Modulación pseudoaleatoria determinista para evitar patrones rígidos
-	var hash_mod: float = float((cell.x * 73856093 ^ cell.y * 19349663 ^ seed_val) & 0xFF) / 255.0
-	total_score += hash_mod * 8.0
+	# 4. Modulación pseudoaleatoria determinista para evitar patrones rígidos y monopolio de un solo asset
+	var style_hash: int = candidate.style_id.hash() if candidate != null and candidate.style_id != &"" else 0
+	var hash_mod: float = float((cell.x * 73856093 ^ cell.y * 19349663 ^ style_hash * 83492791 ^ seed_val) & 0xFFFF) / 65535.0
+	total_score += hash_mod * 15.0
 
 	return total_score

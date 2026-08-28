@@ -38,7 +38,7 @@ func process_fade_step(delta: float) -> void:
 		return
 
 	var weight: float = 1.0 - exp(-fade_speed * delta)
-	var keys_to_remove: Array[Node3D] = []
+	var keys_to_remove: Array = []
 
 	for wall in _target_transparencies.keys():
 		if wall == null or not is_instance_valid(wall):

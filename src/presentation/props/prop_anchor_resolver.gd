@@ -172,16 +172,10 @@ static func _build_door_and_stairs_clearance_map(r_geom) -> Dictionary:
 	if "door_positions" in r_geom and r_geom.door_positions != null:
 		for d_pos in r_geom.door_positions:
 			map[d_pos] = true
-			for dx in [-1, 0, 1]:
-				for dy in [-1, 0, 1]:
-					map[d_pos + Vector2i(dx, dy)] = true
 
 	if "stairs_cells" in r_geom and r_geom.stairs_cells != null:
 		for s_pos in r_geom.stairs_cells:
 			map[s_pos] = true
-			for dx in [-1, 0, 1]:
-				for dy in [-1, 0, 1]:
-					map[s_pos + Vector2i(dx, dy)] = true
 
 	return map
 
