@@ -53,14 +53,14 @@ func _init() -> void:
 	var spawner := _PropSpawnerScript.new(provider)
 
 	var tested_rooms: Dictionary = {
-		"crypt.json": _RoomPurposeScript.Type.CRYPT,
-		"tomb.json": _RoomPurposeScript.Type.TOMB,
-		"chamber.json": _RoomPurposeScript.Type.CHAMBER,
-		"royal_tomb.json": _RoomPurposeScript.Type.ROYAL_TOMB
+		"crypt.json": &"crypt",
+		"tomb.json": &"tomb",
+		"chamber.json": &"chamber",
+		"royal_tomb.json": &"royal_tomb"
 	}
 
 	for room_file in tested_rooms.keys():
-		var purpose_type: int = tested_rooms[room_file]
+		var purpose_type: StringName = tested_rooms[room_file]
 		var profile = loader.load_room(room_file)
 		assert(profile != null, "FAIL: Could not load " + room_file)
 
@@ -90,7 +90,7 @@ func _init() -> void:
 				[]
 			)
 
-			var palette = pal_resolver.resolve_palette(1, purpose_type, null)
+			var palette = pal_resolver.resolve_palette_by_id(&"necropolis", purpose_type, null)
 			var room_ctx = {"room_id": 1, "room_purpose": purpose_type, "room_type": "NORMAL"}
 			var seed_ctx = _PresentationSeedContextScript.for_room(seed_val, 1)
 

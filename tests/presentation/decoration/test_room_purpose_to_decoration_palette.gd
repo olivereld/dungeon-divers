@@ -16,26 +16,26 @@ func _run_test() -> void:
 	var dec_resolver := DecorationPaletteResolverScript.new()
 	var prof := ArchitecturalPresentationProfileScript.new()
 
-	var archetypes = [
-		DungeonArchetypeScript.Type.MAUSOLEUM,
-		DungeonArchetypeScript.Type.TEMPLE,
-		DungeonArchetypeScript.Type.FORTRESS,
-		DungeonArchetypeScript.Type.MINE
+	var archetypes: Array[StringName] = [
+		&"necropolis",
+		&"temple",
+		&"fortress",
+		&"mine"
 	]
 
-	var purposes = [
-		RoomPurposeScript.Type.TOMB,
-		RoomPurposeScript.Type.ENTRANCE,
-		RoomPurposeScript.Type.SANCTUM,
-		RoomPurposeScript.Type.CRYPT
+	var purposes: Array[StringName] = [
+		&"tomb",
+		&"entrance",
+		&"sanctum",
+		&"crypt"
 	]
 
 	for arch in archetypes:
 		for purp in purposes:
-			var dec_palette = dec_resolver.resolve_palette(arch, purp, prof)
-			assert(dec_palette != null, "FAIL: DecorationPalette cannot be null for %d:%d" % [arch, purp])
-			assert(dec_palette.fixtures != null, "FAIL: FixturePalette cannot be null for %d:%d" % [arch, purp])
-			assert(not dec_palette.fixtures.entries.is_empty(), "FAIL: Entries cannot be empty for %d:%d" % [arch, purp])
+			var dec_palette = dec_resolver.resolve_palette_by_id(arch, purp, prof)
+			assert(dec_palette != null, "FAIL: DecorationPalette cannot be null for %s:%s" % [str(arch), str(purp)])
+			assert(dec_palette.fixtures != null, "FAIL: FixturePalette cannot be null for %s:%s" % [str(arch), str(purp)])
+			assert(not dec_palette.fixtures.entries.is_empty(), "FAIL: Entries cannot be empty for %s:%s" % [str(arch), str(purp)])
 
 	print("  [OK] DecorationPalette resolution verified for all archetype and room purpose combinations.")
 	print("[PASS] test_room_purpose_to_decoration_palette completed successfully!")

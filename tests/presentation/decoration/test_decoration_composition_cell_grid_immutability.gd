@@ -37,11 +37,11 @@ func _run_test() -> void:
 	var grid_bytes_before: PackedByteArray = grid.get_raw_byte_buffer()
 
 	var pal_resolver := DecorationPaletteResolverScript.new()
-	var palette = pal_resolver.resolve_palette(DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.TOMB)
+	var palette = pal_resolver.resolve_palette_by_id(&"necropolis", &"tomb")
 
 	var r_ctx := PresentationRoomContextScript.new()
 	r_ctx.room_id = 1
-	r_ctx.purpose = RoomPurposeScript.Type.TOMB
+	r_ctx.purpose = &"tomb"
 
 	var comp_resolver := DecorationCompositionResolverScript.new()
 

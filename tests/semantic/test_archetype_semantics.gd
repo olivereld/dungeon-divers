@@ -39,9 +39,9 @@ func _run_test() -> void:
 
 		for r_id in sem_m.room_purposes:
 			var p = sem_m.room_purposes[r_id]
-			assert(p != RoomPurposeScript.Type.ARMORY, "FAIL: NECROPOLIS cannot have ARMORY")
-			assert(p != RoomPurposeScript.Type.FORGE, "FAIL: NECROPOLIS cannot have FORGE")
-			assert(p != RoomPurposeScript.Type.EXCAVATION, "FAIL: NECROPOLIS cannot have EXCAVATION")
+			assert(p != &"armory", "FAIL: NECROPOLIS cannot have ARMORY")
+			assert(p != &"forge", "FAIL: NECROPOLIS cannot have FORGE")
+			assert(p != &"excavation", "FAIL: NECROPOLIS cannot have EXCAVATION")
 
 	print("  [OK] Strict archetype incompatibilities verified across multiple seeds.")
 	print("[PASS] test_archetype_semantics completed successfully.")

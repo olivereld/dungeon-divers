@@ -14,7 +14,7 @@ func _init() -> void:
 	var registry := DecorationPurposeProfileRegistryScript.new()
 
 	# 1. Validar Perfil de Tumba (TOMB)
-	var tomb_profile = registry.get_profile_for_purpose(RoomPurposeScript.Type.TOMB)
+	var tomb_profile = registry.get_profile_for_purpose(&"tomb")
 	assert(tomb_profile != null, "FAIL: Tomb profile must be registered")
 	assert(tomb_profile.intent != null, "FAIL: Tomb profile must have intent")
 	assert(tomb_profile.intent.allowed_tags.has(DecorationTagScript.BURIAL), "FAIL: Tomb intent must allow BURIAL")
@@ -22,12 +22,12 @@ func _init() -> void:
 	assert(tomb_profile.templates.size() >= 1, "FAIL: Tomb profile must have at least 1 composition template")
 
 	# 2. Validar Perfil de Entrada (ENTRANCE)
-	var entry_profile = registry.get_profile_for_purpose(RoomPurposeScript.Type.ENTRANCE)
+	var entry_profile = registry.get_profile_for_purpose(&"entrance")
 	assert(entry_profile != null, "FAIL: Entrance profile must be registered")
 	assert(entry_profile.intent.player_clearance_level >= 2, "FAIL: Entrance must have high player clearance")
 
 	# 3. Validar Perfil de Antecámara (ANTECHAMBER)
-	var ante_profile = registry.get_profile_for_purpose(RoomPurposeScript.Type.ANTECHAMBER)
+	var ante_profile = registry.get_profile_for_purpose(&"antechamber")
 	assert(ante_profile != null, "FAIL: Antechamber profile must be registered")
 	assert(ante_profile.intent.is_tag_allowed(DecorationTagScript.SEATING) == true, "FAIL: Antechamber allows seating benches")
 	print("  [OK] DecorationPurposeProfileRegistry successfully mapped Crypt room purposes to declarative intents and templates.")

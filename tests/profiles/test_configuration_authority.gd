@@ -41,7 +41,7 @@ func _run_test() -> void:
 	var assignments_default = assigner.assign_purposes(1, 10, test_rooms, [], bundle, 1337)
 	var crypt_count_a: int = 0
 	for r_id in assignments_default:
-		if assignments_default[r_id] == _RoomPurposeScript.Type.CRYPT:
+		if assignments_default[r_id] == &"crypt":
 			crypt_count_a += 1
 
 	# Mutación 1: room_purpose_distribution en ProfileArchetype (Macro distribution: Tomb = 1.0, Crypt = 0.0)
@@ -55,9 +55,9 @@ func _run_test() -> void:
 	var crypt_count_b: int = 0
 	var tomb_count_b: int = 0
 	for r_id in assignments_modified_macro:
-		if assignments_modified_macro[r_id] == _RoomPurposeScript.Type.CRYPT:
+		if assignments_modified_macro[r_id] == &"crypt":
 			crypt_count_b += 1
-		elif assignments_modified_macro[r_id] == _RoomPurposeScript.Type.TOMB:
+		elif assignments_modified_macro[r_id] == &"tomb":
 			tomb_count_b += 1
 
 	assert(crypt_count_a > 0, "FAIL: Default mausoleum must assign crypts")
@@ -70,7 +70,7 @@ func _run_test() -> void:
 	bundle.archetype.purpose_weights[&"crypt"] = 0.0
 	bundle.archetype.purpose_weights[&"catacomb"] = 100.0
 	var assignments_combat = assigner.assign_purposes(1, 10, test_rooms, [mock_objective], bundle, 1337)
-	assert(assignments_combat[combat_obj_room_id] == _RoomPurposeScript.Type.CATACOMB, "FAIL: purpose_weights must select CATACOMB for combat room when crypt weight is 0.0")
+	assert(assignments_combat[combat_obj_room_id] == &"catacomb", "FAIL: purpose_weights must select CATACOMB for combat room when crypt weight is 0.0")
 
 	print("  [OK] 1. Archetype authority validated (room_purpose_distribution and purpose_weights dynamically control generation).")
 

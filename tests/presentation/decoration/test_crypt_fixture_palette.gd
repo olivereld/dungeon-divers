@@ -19,9 +19,9 @@ func _run_test() -> void:
 	var prof := ArchitecturalPresentationProfileScript.new()
 
 	# 1. Crypt Tomb Palette
-	var dec_pal_tomb = dec_resolver.resolve_palette(
-		DungeonArchetypeScript.Type.MAUSOLEUM,
-		RoomPurposeScript.Type.TOMB,
+	var dec_pal_tomb = dec_resolver.resolve_palette_by_id(
+		&"necropolis",
+		&"tomb",
 		prof
 	)
 	assert(dec_pal_tomb != null, "FAIL: DecorationPalette cannot be null")
@@ -51,9 +51,9 @@ func _run_test() -> void:
 	print("  [OK] Crypt Tomb palette weights validated (Lantern: %.1f > Torch: %.1f)." % [lantern_w, torch_w])
 
 	# 2. Crypt Entrance Palette
-	var dec_pal_ante = dec_resolver.resolve_palette(
-		DungeonArchetypeScript.Type.MAUSOLEUM,
-		RoomPurposeScript.Type.ENTRANCE,
+	var dec_pal_ante = dec_resolver.resolve_palette_by_id(
+		&"necropolis",
+		&"entrance",
 		prof
 	)
 	var fix_ante = dec_pal_ante.fixtures

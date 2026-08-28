@@ -59,7 +59,7 @@ func _init() -> void:
 	profile.rules.append(r_support)
 
 	# 3. Resolver paleta de Tumba
-	var palette = pal_resolver.resolve_palette(1, RoomPurposeScript.Type.TOMB)
+	var palette = pal_resolver.resolve_palette_by_id(&"necropolis", &"tomb")
 	var seed_ctx = PresentationSeedContextScript.for_room(1337, 0)
 
 	var comp = planner.plan_room_composition(

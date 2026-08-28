@@ -34,14 +34,14 @@ func _init() -> void:
 	)
 
 	# 1. TEST TOMB HIERARCHY (Primary Sarcophagus + Secondary Urns/Tombstones)
-	var tomb_prof = registry.get_profile_for_purpose(_RoomPurposeScript.Type.TOMB)
-	var tomb_pal = pal_resolver.resolve_palette(_DungeonArchetypeScript.Type.MAUSOLEUM, _RoomPurposeScript.Type.TOMB)
+	var tomb_prof = registry.get_profile_for_purpose(&"tomb")
+	var tomb_pal = pal_resolver.resolve_palette_by_id(&"necropolis", &"tomb")
 
 	var tomb_comp = planner.plan_room_composition(
 		null,
 		tomb_pal,
 		room_geom,
-		{"purpose": _RoomPurposeScript.Type.TOMB},
+		{"purpose": &"tomb"},
 		null,
 		{"prop_seed": 101, "fixture_seed": 102},
 		2.0
@@ -62,14 +62,14 @@ func _init() -> void:
 	print("  [OK] TOMB Primary/Secondary hierarchy successfully verified.")
 
 	# 2. TEST ENTRANCE MINIMALISM (Minimal props, high clearance)
-	var entry_prof = registry.get_profile_for_purpose(_RoomPurposeScript.Type.ENTRANCE)
-	var entry_pal = pal_resolver.resolve_palette(_DungeonArchetypeScript.Type.MAUSOLEUM, _RoomPurposeScript.Type.ENTRANCE)
+	var entry_prof = registry.get_profile_for_purpose(&"entrance")
+	var entry_pal = pal_resolver.resolve_palette_by_id(&"necropolis", &"entrance")
 
 	var entry_comp = planner.plan_room_composition(
 		null,
 		entry_pal,
 		room_geom,
-		{"purpose": _RoomPurposeScript.Type.ENTRANCE},
+		{"purpose": &"entrance"},
 		null,
 		{"prop_seed": 201, "fixture_seed": 202},
 		2.0

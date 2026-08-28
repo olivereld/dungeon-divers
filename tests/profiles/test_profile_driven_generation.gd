@@ -47,14 +47,14 @@ func _run_test() -> void:
 		assert(ctx.room_profile.lighting != null, "FAIL: ProfileRoom must have lighting config")
 
 		# Check specific purpose mappings
-		if ctx.purpose == RoomPurposeScript.Type.CRYPT:
-			assert(ctx.room_profile.id == &"crypt", "FAIL: CRYPT purpose must carry crypt room profile")
-		elif ctx.purpose == RoomPurposeScript.Type.TOMB:
-			assert(ctx.room_profile.id == &"tomb", "FAIL: TOMB purpose must carry tomb room profile")
-		elif ctx.purpose == RoomPurposeScript.Type.ROYAL_TOMB:
-			assert(ctx.room_profile.id == &"royal_tomb", "FAIL: ROYAL_TOMB purpose must carry royal_tomb room profile")
-		elif ctx.purpose == RoomPurposeScript.Type.ENTRANCE:
-			assert(ctx.room_profile.id == &"entrance", "FAIL: ENTRANCE purpose must carry entrance room profile")
+		if ctx.purpose == &"crypt":
+			assert(ctx.room_profile.id == &"crypt", "FAIL: 'crypt' purpose must carry crypt room profile")
+		elif ctx.purpose == &"tomb":
+			assert(ctx.room_profile.id == &"tomb", "FAIL: 'tomb' purpose must carry tomb room profile")
+		elif ctx.purpose == &"royal_tomb":
+			assert(ctx.room_profile.id == &"royal_tomb", "FAIL: 'royal_tomb' purpose must carry royal_tomb room profile")
+		elif ctx.purpose == &"entrance":
+			assert(ctx.room_profile.id == &"entrance", "FAIL: 'entrance' purpose must carry entrance room profile")
 
 	print("[PASS] test_profile_driven_generation completed successfully!")
 	quit(0)

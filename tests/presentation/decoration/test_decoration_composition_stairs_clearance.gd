@@ -26,11 +26,11 @@ func _run_test() -> void:
 	r_geom.stairs_positions.append(stairs_pos)
 
 	var pal_resolver := DecorationPaletteResolverScript.new()
-	var palette = pal_resolver.resolve_palette(DungeonArchetypeScript.Type.MAUSOLEUM, RoomPurposeScript.Type.CRYPT)
+	var palette = pal_resolver.resolve_palette_by_id(&"necropolis", &"crypt")
 
 	var r_ctx := PresentationRoomContextScript.new()
 	r_ctx.room_id = 1
-	r_ctx.purpose = RoomPurposeScript.Type.CRYPT
+	r_ctx.purpose = &"crypt"
 
 	var comp_resolver := DecorationCompositionResolverScript.new()
 	var comp = comp_resolver.resolve_room_composition(r_ctx, palette, r_geom, null, 54321, 2.0)

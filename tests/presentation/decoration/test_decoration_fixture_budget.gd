@@ -29,14 +29,14 @@ func _init() -> void:
 		[]
 	)
 
-	var tomb_prof = registry.get_profile_for_purpose(_RoomPurposeScript.Type.TOMB)
-	var tomb_pal = pal_resolver.resolve_palette(_DungeonArchetypeScript.Type.MAUSOLEUM, _RoomPurposeScript.Type.TOMB)
+	var tomb_prof = registry.get_profile_for_purpose(&"tomb")
+	var tomb_pal = pal_resolver.resolve_palette_by_id(&"necropolis", &"tomb")
 
 	var comp = planner.plan_room_composition(
 		null,
 		tomb_pal,
 		room_geom,
-		{"purpose": _RoomPurposeScript.Type.TOMB},
+		{"purpose": &"tomb"},
 		null,
 		{"prop_seed": 555, "fixture_seed": 777},
 		2.0
