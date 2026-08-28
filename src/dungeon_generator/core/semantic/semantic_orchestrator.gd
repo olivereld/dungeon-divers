@@ -148,7 +148,8 @@ func generate_semantics(dungeon_result: DungeonResult, config: DungeonConfig = n
 		arch_profile,
 		arch_seed
 	)
-	semantic_result.dungeon_archetype = int(config.dungeon_archetype)
+	semantic_result.archetype_id = target_arch_id
+	semantic_result.dungeon_archetype = int(config.dungeon_archetype) if config.dungeon_archetype is int else 0
 	semantic_result.dungeon_archetype_name = str(target_arch_id)
 	semantic_result.room_purposes = room_purposes
 	semantic_result.seed_trace = seed_trace

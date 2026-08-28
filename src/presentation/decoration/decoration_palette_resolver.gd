@@ -245,21 +245,11 @@ func _resolve_dynamic_props(bundle: _ProfileBundleScript, purp_id: StringName) -
 							var style = _create_prop_style(str(p_entry.id), bundle.assets)
 							entries.append(_PropPaletteEntryScript.new(style, 1.0, 0, 2))
 
-	if entries.is_empty():
-		# Paleta genérica data-driven básica
-		var crate = _create_prop_style("crate_wooden_standard", bundle.assets if bundle != null else null)
-		var barrel = _create_prop_style("barrel_wood_small", bundle.assets if bundle != null else null)
-		var urn = _create_prop_style("crypt_urn_banded_floor", bundle.assets if bundle != null else null)
-		var chest = _create_prop_style("chest_wooden", bundle.assets if bundle != null else null)
-		var sarcophagus = _create_prop_style("sarcophagus_stone_closed", bundle.assets if bundle != null else null)
-		var pillar = _create_prop_style("pillar", bundle.assets if bundle != null else null)
-
-		entries.append(_PropPaletteEntryScript.new(crate, 1.0, 0, -1))
-		entries.append(_PropPaletteEntryScript.new(barrel, 0.8, 0, -1))
-		entries.append(_PropPaletteEntryScript.new(urn, 0.6, 0, -1))
-		entries.append(_PropPaletteEntryScript.new(chest, 0.3, 0, -1))
-		entries.append(_PropPaletteEntryScript.new(sarcophagus, 0.5, 0, -1))
-		entries.append(_PropPaletteEntryScript.new(pillar, 0.4, 0, -1))
+	if entries.is_empty() and bundle != null and bundle.assets != null:
+		# Fallback data-driven: Poblar desde todos los props registrados en el AssetRegistry
+		for p_entry in bundle.assets.props.values():
+			var style = _create_prop_style(str(p_entry.id), bundle.assets)
+			entries.append(_PropPaletteEntryScript.new(style, 1.0, 0, -1))
 
 	return _PropPaletteScript.new(&"props_%s" % str(purp_id), entries)
 

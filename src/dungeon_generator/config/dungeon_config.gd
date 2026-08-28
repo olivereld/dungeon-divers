@@ -12,17 +12,16 @@ const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semant
 @export var floor_height: float = 6.0
 @export var seed: int = 0
 @export var use_fixed_seed: bool = false
-@export var archetype_id: StringName = &"" ## ID dinámico de arquetipo (ej: &"necropolis", &"temple")
-@export var dungeon_archetype: Variant = &""
+@export var archetype_id: StringName = &"necropolis" ## ID canónico de arquetipo (ej: &"necropolis", &"temple")
+@export var dungeon_archetype: Variant = &"necropolis" ## Deprecated: usar archetype_id
 
 func get_effective_archetype_id() -> StringName:
 	if not archetype_id.is_empty():
 		return archetype_id
-	if dungeon_archetype is StringName:
-		return dungeon_archetype if not (dungeon_archetype as StringName).is_empty() else &"necropolis"
-	if dungeon_archetype is String:
-		var s := (dungeon_archetype as String).strip_edges().to_lower()
-		return StringName(s) if not s.is_empty() else &"necropolis"
+	if dungeon_archetype is StringName and not (dungeon_archetype as StringName).is_empty():
+		return dungeon_archetype
+	if dungeon_archetype is String and not (dungeon_archetype as String).is_empty():
+		return StringName((dungeon_archetype as String).strip_edges().to_lower())
 	if dungeon_archetype is int and (dungeon_archetype as int) != 0:
 		return _DungeonArchetypeScript.resolve_id(dungeon_archetype)
 	return &"necropolis"

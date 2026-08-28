@@ -22,7 +22,7 @@ func build_contexts(semantic_result: DungeonSemanticResult) -> Array:
 	if semantic_result == null or semantic_result.rooms.is_empty():
 		return contexts
 
-	var arch_id: StringName = _DungeonArchetypeScript.resolve_id(semantic_result.dungeon_archetype_name if not semantic_result.dungeon_archetype_name.is_empty() else semantic_result.dungeon_archetype)
+	var arch_id: StringName = semantic_result.get_archetype_id() if semantic_result != null else &"necropolis"
 	var arch_name: String = str(arch_id)
 	var room_resolver := _get_room_resolver(arch_name)
 

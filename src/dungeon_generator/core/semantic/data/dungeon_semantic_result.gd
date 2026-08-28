@@ -35,9 +35,17 @@ var locks: Array = [] # Array[LockData]
 var objectives: Array = [] # Array[ObjectiveData]
 
 # 5. Arquetipo Arquitectónico y Propósitos de Sala
+var archetype_id: StringName = &""
 var dungeon_archetype: int = 0
 var dungeon_archetype_name: String = "GENERIC"
 var room_purposes: Dictionary = {} # room_id (int) -> StringName
+
+func get_archetype_id() -> StringName:
+	if not archetype_id.is_empty():
+		return archetype_id
+	if not dungeon_archetype_name.is_empty() and dungeon_archetype_name != "GENERIC":
+		return StringName(dungeon_archetype_name.to_lower())
+	return &"necropolis"
 
 # 6. Estado y Diagnóstico
 var gameplay_valid: bool = false
