@@ -549,7 +549,7 @@ func build_3d_presentation() -> void:
 			_destruction_response_service.set_base_seed(config.seed if config != null else 1337)
 
 		# Loguear diagnóstico runtime de materialización multi-piso
-		var arch_lbl: String = "CRYPT" if config.dungeon_archetype == _DungeonArchetypeScript.Type.MAUSOLEUM else _DungeonArchetypeScript.to_name(config.dungeon_archetype)
+		var arch_lbl: String = str(config.get_effective_archetype_id()).to_upper() if config != null else "GENERIC"
 		var total_props: int = 0
 		var total_fixtures: int = 0
 		for child in _current_presentation_root.get_children():
@@ -593,7 +593,7 @@ func build_3d_presentation() -> void:
 			_destruction_response_service.set_base_seed(config.seed if config != null else 1337)
 
 		# Loguear diagnóstico runtime de materialización
-		var arch_lbl: String = "CRYPT" if config.dungeon_archetype == _DungeonArchetypeScript.Type.MAUSOLEUM else _DungeonArchetypeScript.to_name(config.dungeon_archetype)
+		var arch_lbl: String = str(config.get_effective_archetype_id()).to_upper() if config != null else "GENERIC"
 		var total_props: int = 0
 		var total_fixtures: int = 0
 		for child in _current_presentation_root.get_children():
@@ -804,9 +804,7 @@ func _update_debug_overlay() -> void:
 	if _debug_overlay_label == null:
 		return
 
-	var arch_name: String = "UNKNOWN"
-	var arch_id: int = config.dungeon_archetype if config != null else 0
-	arch_name = "CRYPT" if arch_id == _DungeonArchetypeScript.Type.MAUSOLEUM else _DungeonArchetypeScript.to_name(arch_id)
+	var arch_name: String = str(config.get_effective_archetype_id()).to_upper() if config != null else "GENERIC"
 
 	var text := ""
 	text += "[b][color=yellow]═══ DUNGEON DEBUG (F3) ═══[/color][/b]\n"

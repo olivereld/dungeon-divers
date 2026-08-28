@@ -11,8 +11,8 @@ func _init() -> void:
 	assert(archetype_script.resolve_id(&"necropolis") == &"necropolis", "StringName must resolve directly")
 	assert(archetype_script.resolve_id("temple") == &"temple", "String must resolve to StringName")
 	assert(archetype_script.resolve_id("NECROPOLIS") == &"necropolis", "Case insensitive resolution")
-	assert(archetype_script.resolve_id(1) == &"necropolis", "Legacy int enum must map gracefully")
-	assert(archetype_script.resolve_id(4) == &"mine", "Legacy mine int enum must map gracefully")
+	assert(archetype_script.resolve_id(1) == &"necropolis", "Legacy int enum 1 must map to necropolis")
+	assert(archetype_script.resolve_id(99) == &"generic", "Unmapped int enum must map gracefully to generic")
 	print("  [OK] DungeonArchetype.resolve_id() works for strings, stringnames, and legacy integer enums.")
 
 	# 2. Test DungeonConfig dynamic archetype assignment

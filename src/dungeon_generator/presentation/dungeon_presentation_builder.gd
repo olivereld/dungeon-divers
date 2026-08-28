@@ -206,10 +206,12 @@ func build_presentation(
 			var corr_palette = _decoration_palette_resolver.resolve_palette(arch_type, 0, null)
 			
 			var corr_lighting_profile = null
-			var arch_name: String = "mausoleum"
-			if semantic_result != null and "dungeon_archetype" in semantic_result:
-				var arch_enum = semantic_result.dungeon_archetype
-				arch_name = _DungeonArchetypeScript.to_name(arch_enum as _DungeonArchetypeScript.Type).to_lower()
+			var arch_name: String = "generic"
+			if semantic_result != null:
+				if "dungeon_archetype_name" in semantic_result and not semantic_result.dungeon_archetype_name.is_empty():
+					arch_name = semantic_result.dungeon_archetype_name.to_lower()
+				elif "dungeon_archetype" in semantic_result:
+					arch_name = str(_DungeonArchetypeScript.resolve_id(semantic_result.dungeon_archetype))
 
 			var bundle = _profile_loader.load_full_archetype_bundle(arch_name)
 			if bundle != null:

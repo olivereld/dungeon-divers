@@ -33,25 +33,14 @@ func resolve(archetype: int, purpose: int, room_profile = null) -> _Architectura
 
 func resolve_from_room_profile(
 	p_room_profile: _ProfileRoomScript,
-	fallback_archetype: int = 0,
+	fallback_archetype: Variant = &"generic",
 	fallback_purpose: int = 0
 ) -> _ArchitecturalPresentationProfileScript:
 	if p_room_profile == null or p_room_profile.architecture == null:
-		return resolve(fallback_archetype, fallback_purpose)
+		return resolve_profile_for_archetype(fallback_archetype, fallback_purpose)
 
 	var arch = p_room_profile.architecture
-	var fallback_prof: _ArchitecturalPresentationProfileScript = null
-	match fallback_archetype:
-		_DungeonArchetypeScript.Type.MAUSOLEUM:
-			fallback_prof = _resolve_mausoleum(fallback_purpose)
-		_DungeonArchetypeScript.Type.FORTRESS:
-			fallback_prof = _resolve_fortress(fallback_purpose)
-		_DungeonArchetypeScript.Type.TEMPLE:
-			fallback_prof = _resolve_temple(fallback_purpose)
-		_DungeonArchetypeScript.Type.MINE:
-			fallback_prof = _resolve_mine(fallback_purpose)
-		_:
-			fallback_prof = _resolve_generic(fallback_purpose)
+	var fallback_prof: _ArchitecturalPresentationProfileScript = resolve_profile_for_archetype(fallback_archetype, fallback_purpose)
 
 	var floor_st = _ArchitecturalStyleScript.floor_from_name(str(arch.floor), fallback_prof.floor_style)
 	var wall_st = _ArchitecturalStyleScript.wall_from_name(str(arch.walls), fallback_prof.wall_style)

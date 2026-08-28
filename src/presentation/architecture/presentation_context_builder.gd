@@ -22,15 +22,15 @@ func build_contexts(semantic_result: DungeonSemanticResult) -> Array:
 	if semantic_result == null or semantic_result.rooms.is_empty():
 		return contexts
 
-	var archetype: int = semantic_result.dungeon_archetype
-	var arch_name: String = _DungeonArchetypeScript.to_name(archetype as _DungeonArchetypeScript.Type).to_lower()
+	var arch_id: StringName = _DungeonArchetypeScript.resolve_id(semantic_result.dungeon_archetype_name if not semantic_result.dungeon_archetype_name.is_empty() else semantic_result.dungeon_archetype)
+	var arch_name: String = str(arch_id)
 	var room_resolver := _get_room_resolver(arch_name)
 
 	for room in semantic_result.rooms:
 		var r_id: int = room.id
 		var purpose: int = semantic_result.get_room_purpose(r_id)
 		var room_prof = room_resolver.resolve(purpose) if room_resolver != null else null
-		var prof: _ArchitecturalPresentationProfileScript = _resolver.resolve(archetype, purpose, room_prof)
+		var prof: _ArchitecturalPresentationProfileScript = _resolver.resolve_profile_for_archetype(arch_id, purpose, room_prof)
 
 		var role_type := _PresentationRoomRoleScript.Role.EXPLORE
 		if r_id == semantic_result.start_room_id:

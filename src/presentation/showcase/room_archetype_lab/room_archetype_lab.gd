@@ -10,6 +10,8 @@ const _RoomPreviewRequestScript = preload("res://src/presentation/showcase/room_
 const _RoomPreviewResultScript = preload("res://src/presentation/showcase/room_archetype_lab/room_preview_result.gd")
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
+const _ArchetypeCatalogScript = preload("res://src/dungeon_generator/profiles/archetype_catalog.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 
 @onready var room_root: Node3D = $RoomRoot
 @onready var camera_pivot: Node3D = $CameraPivot
@@ -100,33 +102,46 @@ func _populate_archetype_dropdown() -> void:
 	if archetype_option == null:
 		return
 	archetype_option.clear()
-	archetype_option.add_item("Mausoleum / Crypt", _DungeonArchetypeScript.Type.MAUSOLEUM)
-	archetype_option.add_item("Fortress", _DungeonArchetypeScript.Type.FORTRESS)
-	archetype_option.add_item("Temple", _DungeonArchetypeScript.Type.TEMPLE)
-	archetype_option.add_item("Mine", _DungeonArchetypeScript.Type.MINE)
+	var catalog := _ArchetypeCatalogScript.new()
+	var loader := _ProfileLoaderScript.new()
+	var ids := catalog.get_ids()
+	var idx := 0
+	for id in ids:
+		var arch = loader.load_archetype(str(id))
+		var display_name: String = str(id).capitalize()
+		if arch != null and not arch.display_name.is_empty():
+			display_name = str(arch.display_name)
+		archetype_option.add_item(display_name, idx)
+		archetype_option.set_item_metadata(idx, id)
+		idx += 1
 
 func _on_archetype_selected(idx: int) -> void:
 	if archetype_option == null or purpose_option == null:
 		return
-	var arch_id: int = archetype_option.get_item_id(idx)
+	var arch_id = archetype_option.get_item_metadata(idx)
 	purpose_option.clear()
 
 	var valid_purposes = _RoomPreviewRequestScript.get_valid_purposes_for_archetype(arch_id)
+	var p_idx := 0
 	for p_id in valid_purposes:
 		var p_name = _RoomPurposeScript.to_name(p_id).capitalize()
-		purpose_option.add_item(p_name, p_id)
+		purpose_option.add_item(p_name, p_idx)
+		purpose_option.set_item_metadata(p_idx, p_id)
+		p_idx += 1
 
 func _on_generate_pressed() -> void:
 	if archetype_option == null or purpose_option == null:
 		return
 
-	var arch: int = archetype_option.get_selected_id()
-	var purp: int = purpose_option.get_selected_id()
+	var arch_idx = archetype_option.selected
+	var purp_idx = purpose_option.selected
+	var arch_id = archetype_option.get_item_metadata(arch_idx) if arch_idx >= 0 else &"necropolis"
+	var purp_id: int = int(purpose_option.get_item_metadata(purp_idx)) if purp_idx >= 0 else 0
 	var seed_val: int = int(seed_spinbox.value) if seed_spinbox != null else 12345
 
-	generate_preview(arch, purp, seed_val)
+	generate_preview(arch_id, purp_id, seed_val)
 
-func generate_preview(arch: int, purp: int, seed_val: int) -> _RoomPreviewResultScript:
+func generate_preview(arch: Variant, purp: int, seed_val: int) -> _RoomPreviewResultScript:
 	_clear_room()
 
 	var req := _RoomPreviewRequestScript.new(arch, purp, seed_val, Vector2i(10, 8), 2.0, true, false)
@@ -196,7 +211,7 @@ func _display_diagnostics(diag: Dictionary) -> void:
 	if diagnostics_label == null:
 		return
 
-	var arch_str = _DungeonArchetypeScript.to_name(diag.get("archetype", 0))
+	var arch_str = str(_DungeonArchetypeScript.resolve_id(diag.get("archetype", &"generic"))).to_upper()
 	var purp_str = _RoomPurposeScript.to_name(diag.get("purpose", 0)).to_upper()
 
 	var text := ""

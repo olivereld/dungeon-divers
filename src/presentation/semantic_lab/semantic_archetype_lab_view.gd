@@ -17,6 +17,9 @@ const _PresentationRoomGeometryScript = preload("res://src/presentation/geometry
 const _PresentationRoomContextScript = preload("res://src/presentation/architecture/presentation_room_context.gd")
 const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/architectural_style.gd")
 
+const _ArchetypeCatalogScript = preload("res://src/dungeon_generator/profiles/archetype_catalog.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
+
 # Pipeline & State
 var _pipeline := _DungeonPipelineScript.new()
 var _orchestrator := _SemanticOrchestratorScript.new()
@@ -26,7 +29,7 @@ var _comp_resolver := _DecorationCompositionResolverScript.new()
 var current_dungeon_result: DungeonResult = null
 var current_semantic_result: DungeonSemanticResult = null
 var current_seed: int = 1337
-var current_archetype: int = 1 # MAUSOLEUM default
+var current_archetype_id: StringName = &"necropolis"
 
 # UI Nodes
 @onready var ui_archetype_opt: OptionButton = $Margin/VBox/TopBar/ArchetypeOpt
@@ -43,16 +46,26 @@ var current_archetype: int = 1 # MAUSOLEUM default
 func _ready() -> void:
 	if ui_archetype_opt != null:
 		_setup_ui()
-		generate_dungeon_with_params(current_archetype, current_seed)
+		generate_dungeon_with_params(current_archetype_id, current_seed)
 
 func _setup_ui() -> void:
 	ui_archetype_opt.clear()
-	ui_archetype_opt.add_item("GENERIC", _DungeonArchetypeScript.Type.GENERIC)
-	ui_archetype_opt.add_item("MAUSOLEUM", _DungeonArchetypeScript.Type.MAUSOLEUM)
-	ui_archetype_opt.add_item("FORTRESS", _DungeonArchetypeScript.Type.FORTRESS)
-	ui_archetype_opt.add_item("TEMPLE", _DungeonArchetypeScript.Type.TEMPLE)
-	ui_archetype_opt.add_item("MINE", _DungeonArchetypeScript.Type.MINE)
-	ui_archetype_opt.select(current_archetype)
+	var catalog := _ArchetypeCatalogScript.new()
+	var loader := _ProfileLoaderScript.new()
+	var ids := catalog.get_ids()
+	var idx := 0
+	for id in ids:
+		var arch = loader.load_archetype(str(id))
+		var display_name: String = str(id).capitalize()
+		if arch != null and not arch.display_name.is_empty():
+			display_name = str(arch.display_name)
+		ui_archetype_opt.add_item(display_name, idx)
+		ui_archetype_opt.set_item_metadata(idx, id)
+		idx += 1
+
+	ui_archetype_opt.add_item("GENERIC", idx)
+	ui_archetype_opt.set_item_metadata(idx, &"generic")
+	ui_archetype_opt.select(0)
 
 	ui_archetype_opt.item_selected.connect(_on_archetype_selected)
 	ui_seed_spin.value = current_seed
@@ -63,8 +76,8 @@ func _setup_ui() -> void:
 	if ui_map_canvas != null:
 		ui_map_canvas.draw.connect(_on_map_draw)
 
-func generate_dungeon_with_params(archetype_idx: int, seed_val: int) -> void:
-	current_archetype = archetype_idx
+func generate_dungeon_with_params(archetype_val: Variant, seed_val: int) -> void:
+	current_archetype_id = _DungeonArchetypeScript.resolve_id(archetype_val)
 	current_seed = seed_val
 
 	if ui_seed_spin != null and int(ui_seed_spin.value) != current_seed:
@@ -73,7 +86,7 @@ func generate_dungeon_with_params(archetype_idx: int, seed_val: int) -> void:
 	var cfg := _DungeonConfigScript.new()
 	cfg.seed = current_seed
 	cfg.use_fixed_seed = true
-	cfg.dungeon_archetype = current_archetype
+	cfg.archetype_id = current_archetype_id
 
 	current_dungeon_result = _pipeline.generate(cfg, 5, true)
 	if current_dungeon_result != null and current_dungeon_result.grid != null:

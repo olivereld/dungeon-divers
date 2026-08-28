@@ -12,16 +12,11 @@ func _run_test() -> void:
 	print("--- Running test_dungeon_archetype_contracts ---")
 	print("==================================================================")
 
-	# 1. Verificar enum DungeonArchetype
-	assert(DungeonArchetypeScript.Type.GENERIC == 0, "FAIL: GENERIC must be 0")
-	assert(DungeonArchetypeScript.Type.MAUSOLEUM == 1, "FAIL: MAUSOLEUM must be 1")
-	assert(DungeonArchetypeScript.Type.FORTRESS == 2, "FAIL: FORTRESS must be 2")
-	assert(DungeonArchetypeScript.Type.TEMPLE == 3, "FAIL: TEMPLE must be 3")
-	assert(DungeonArchetypeScript.Type.MINE == 4, "FAIL: MINE must be 4")
-
-	assert(DungeonArchetypeScript.to_name(DungeonArchetypeScript.Type.FORTRESS) == "FORTRESS")
-	assert(DungeonArchetypeScript.from_name("FORTRESS") == DungeonArchetypeScript.Type.FORTRESS)
-	assert(DungeonArchetypeScript.from_name("mausoleum") == DungeonArchetypeScript.Type.MAUSOLEUM)
+	# 1. Verificar DungeonArchetype Value Object
+	var arch_val = DungeonArchetypeScript.new(&"necropolis")
+	assert(arch_val.id == &"necropolis", "FAIL: DungeonArchetype id must match")
+	assert(DungeonArchetypeScript.resolve_id("NECROPOLIS") == &"necropolis", "FAIL: resolve_id must normalize")
+	assert(DungeonArchetypeScript.resolve_id(1) == &"necropolis", "FAIL: resolve_id must map int 1 to necropolis")
 
 	# 2. Verificar enum RoomPurpose
 	assert(RoomPurposeScript.Type.ENTRANCE != null)

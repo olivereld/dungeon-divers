@@ -6,8 +6,9 @@ extends RefCounted
 
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 
-var archetype: int = _DungeonArchetypeScript.Type.MAUSOLEUM
+var archetype: StringName = &"necropolis"
 var purpose: int = _RoomPurposeScript.Type.TOMB
 var seed: int = 12345
 var room_size: Vector2i = Vector2i(10, 8)
@@ -16,7 +17,7 @@ var has_door: bool = true
 var has_stairs: bool = false
 
 func _init(
-	p_archetype: int = _DungeonArchetypeScript.Type.MAUSOLEUM,
+	p_archetype: Variant = &"necropolis",
 	p_purpose: int = _RoomPurposeScript.Type.TOMB,
 	p_seed: int = 12345,
 	p_size: Vector2i = Vector2i(10, 8),
@@ -24,7 +25,7 @@ func _init(
 	p_door: bool = true,
 	p_stairs: bool = false
 ) -> void:
-	archetype = p_archetype
+	archetype = _DungeonArchetypeScript.resolve_id(p_archetype)
 	purpose = p_purpose
 	seed = p_seed
 	room_size = p_size
@@ -37,49 +38,18 @@ func is_valid() -> bool:
 		return false
 	return is_purpose_valid_for_archetype(archetype, purpose)
 
-static func is_purpose_valid_for_archetype(arch: int, purp: int) -> bool:
+static func is_purpose_valid_for_archetype(arch: Variant, purp: int) -> bool:
 	var valid_purposes = get_valid_purposes_for_archetype(arch)
-	return valid_purposes.has(purp)
+	return valid_purposes.has(purp) or valid_purposes.is_empty()
 
-static func get_valid_purposes_for_archetype(arch: int) -> Array[int]:
-	match arch:
-		_DungeonArchetypeScript.Type.MAUSOLEUM:
-			return [
-				_RoomPurposeScript.Type.TOMB,
-				_RoomPurposeScript.Type.SACRISTY,
-				_RoomPurposeScript.Type.CRYPT,
-				_RoomPurposeScript.Type.MORTUARY,
-				_RoomPurposeScript.Type.ANTECHAMBER,
-				_RoomPurposeScript.Type.CATACOMB,
-				_RoomPurposeScript.Type.ROYAL_TOMB,
-				_RoomPurposeScript.Type.GENERIC
-			]
-		_DungeonArchetypeScript.Type.FORTRESS:
-			return [
-				_RoomPurposeScript.Type.BARRACKS,
-				_RoomPurposeScript.Type.ARMORY,
-				_RoomPurposeScript.Type.THRONE_ROOM,
-				_RoomPurposeScript.Type.GUARD_ROOM,
-				_RoomPurposeScript.Type.PRISON_CELLS,
-				_RoomPurposeScript.Type.GENERIC
-			]
-		_DungeonArchetypeScript.Type.TEMPLE:
-			return [
-				_RoomPurposeScript.Type.SHRINE,
-				_RoomPurposeScript.Type.SANCTUM,
-				_RoomPurposeScript.Type.ALTAR_ROOM,
-				_RoomPurposeScript.Type.LIBRARY,
-				_RoomPurposeScript.Type.MEDITATION_ROOM,
-				_RoomPurposeScript.Type.GENERIC
-			]
-		_DungeonArchetypeScript.Type.MINE:
-			return [
-				_RoomPurposeScript.Type.EXCAVATION,
-				_RoomPurposeScript.Type.MINE_STORAGE,
-				_RoomPurposeScript.Type.FORGE,
-				_RoomPurposeScript.Type.ORE_CHAMBER,
-				_RoomPurposeScript.Type.WORKSHOP,
-				_RoomPurposeScript.Type.GENERIC
-			]
-		_:
-			return [_RoomPurposeScript.Type.GENERIC]
+static func get_valid_purposes_for_archetype(arch: Variant) -> Array[int]:
+	var arch_id: StringName = _DungeonArchetypeScript.resolve_id(arch)
+	var loader := _ProfileLoaderScript.new()
+	var bundle = loader.load_full_archetype_bundle(str(arch_id))
+	var result: Array[int] = []
+	if bundle != null and bundle.archetype != null:
+		for p_str in bundle.archetype.purpose_weights.keys():
+			result.append(int(_RoomPurposeScript.from_name(str(p_str))))
+	if result.is_empty():
+		result = [_RoomPurposeScript.Type.GENERIC, _RoomPurposeScript.Type.ENTRANCE, _RoomPurposeScript.Type.HALL, _RoomPurposeScript.Type.CHAMBER]
+	return result
