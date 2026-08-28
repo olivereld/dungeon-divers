@@ -30,31 +30,23 @@ const _PropAssetDefinitionScript = preload("res://src/presentation/decoration/as
 const _PropAssetSourceScript = preload("res://src/presentation/decoration/assets/prop_asset_source.gd")
 const _DestructibleDefinitionScript = preload("res://src/destruction/core/destructible_definition.gd")
 const _ArchetypeCatalogScript = preload("res://src/dungeon_generator/profiles/archetype_catalog.gd")
-const _ArchetypeRegistryScript = preload("res://src/dungeon_generator/profiles/archetype_registry.gd")
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 
 var base_path: String = "res://resources/dungeon_profiles/"
 var _catalog: _ArchetypeCatalogScript = null
-var _archetype_registry: _ArchetypeRegistryScript = null
 
 func _init(p_base_path: String = "res://resources/dungeon_profiles/") -> void:
 	base_path = p_base_path
 	if not base_path.ends_with("/"):
 		base_path += "/"
 	_catalog = _ArchetypeCatalogScript.new(base_path + "archetypes/")
-	_archetype_registry = _ArchetypeRegistryScript.new(base_path + "archetypes/")
 
 func get_catalog() -> _ArchetypeCatalogScript:
 	return _catalog
 
-func get_archetype_registry() -> _ArchetypeRegistryScript:
-	return _archetype_registry
-
 func list_available_archetypes() -> Array[StringName]:
 	if _catalog != null:
 		return _catalog.get_ids()
-	if _archetype_registry != null:
-		return _archetype_registry.get_available_ids()
 	return []
 
 ## Carga el bundle completo: Arquetipo + AssetRegistry + Todas las salas referenciadas.
@@ -257,8 +249,6 @@ func load_archetype(archetype_id: Variant) -> _ProfileArchetypeScript:
 	var path := ""
 	if _catalog != null and _catalog.has_archetype(target_id):
 		path = _catalog.get_profile_path(target_id)
-	elif _archetype_registry != null and _archetype_registry.has_archetype(target_id):
-		path = _archetype_registry.get_filepath(target_id)
 	else:
 		path = base_path + "archetypes/" + str(target_id) + ".json"
 

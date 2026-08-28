@@ -5,7 +5,6 @@ extends RefCounted
 ## Combina mapeo de roles de gameplay ("START", "BOSS", "TREASURE", "COMBAT") con la distribución
 ## macro (room_purpose_distribution) para salas de exploración y reglas de restricción (room_rules).
 
-const _DungeonArchetypeProfileScript = preload("res://src/dungeon_generator/config/dungeon_archetype_profile.gd")
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const _ProfileArchetypeScript = preload("res://src/dungeon_generator/profiles/profile_archetype.gd")
 const _ProfileBundleScript = preload("res://src/dungeon_generator/profiles/profile_bundle.gd")
@@ -15,7 +14,7 @@ func assign_purposes(
 	boss_room_id: int,
 	rooms: Array, # Array[RoomData]
 	objectives: Array, # Array[ObjectiveData]
-	profile, # ProfileBundle, ProfileArchetype or DungeonArchetypeProfile
+	profile, # ProfileBundle or ProfileArchetype
 	seed_val: int
 ) -> Dictionary:
 	var result: Dictionary = {} # room_id (int) -> RoomPurpose.Type (int)
@@ -23,14 +22,11 @@ func assign_purposes(
 		return result
 
 	var arch_profile: _ProfileArchetypeScript = null
-	var legacy_profile: _DungeonArchetypeProfileScript = null
 
 	if profile is _ProfileBundleScript:
 		arch_profile = profile.archetype
 	elif profile is _ProfileArchetypeScript:
 		arch_profile = profile
-	elif profile is _DungeonArchetypeProfileScript:
-		legacy_profile = profile
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_val
@@ -89,7 +85,7 @@ func assign_purposes(
 		var chosen_purpose: int = _RoomPurposeScript.Type.GENERIC
 
 		# 1. Verificar si hay un propósito garantizado aplicable para este rol
-		var allowed_purposes: Array = _get_allowed_purposes(arch_profile, legacy_profile, gameplay_role)
+		var allowed_purposes: Array = _get_allowed_purposes(arch_profile, gameplay_role)
 		var found_guaranteed: bool = false
 		for g_purp in guaranteed_purposes:
 			if not satisfied_guaranteed.has(g_purp) and allowed_purposes.has(g_purp):
@@ -111,7 +107,7 @@ func assign_purposes(
 				)
 			else:
 				# Asignación contextual basada en gameplay_purpose_map + purpose_weights
-				var weights_dict: Dictionary = _get_purpose_weights(arch_profile, legacy_profile)
+				var weights_dict: Dictionary = _get_purpose_weights(arch_profile)
 				chosen_purpose = _pick_weighted_purpose(allowed_purposes, weights_dict, rng)
 
 		if chosen_purpose == last_assigned_purpose:
@@ -125,26 +121,22 @@ func assign_purposes(
 
 	return result
 
-func _get_allowed_purposes(arch_prof: _ProfileArchetypeScript, leg_prof: _DungeonArchetypeProfileScript, role: String) -> Array:
+func _get_allowed_purposes(arch_prof: _ProfileArchetypeScript, role: String) -> Array:
 	if arch_prof != null:
 		var list = arch_prof.get_allowed_purposes_for_gameplay(StringName(role))
 		var arr: Array = []
 		for item in list:
 			arr.append(int(_RoomPurposeScript.from_name(str(item))))
 		return arr
-	if leg_prof != null:
-		return leg_prof.get_allowed_purposes_for_gameplay(role)
 	return [_RoomPurposeScript.Type.GENERIC]
 
-func _get_purpose_weights(arch_prof: _ProfileArchetypeScript, leg_prof: _DungeonArchetypeProfileScript) -> Dictionary:
+func _get_purpose_weights(arch_prof: _ProfileArchetypeScript) -> Dictionary:
 	var result: Dictionary = {}
 	if arch_prof != null:
 		for k in arch_prof.purpose_weights:
 			var purp = int(_RoomPurposeScript.from_name(str(k)))
 			result[purp] = float(arch_prof.purpose_weights[k])
 		return result
-	if leg_prof != null:
-		return leg_prof.purpose_weights
 	return result
 
 func _pick_distribution_purpose(

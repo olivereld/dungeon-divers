@@ -2,7 +2,7 @@ extends SceneTree
 
 const DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 const RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
-const ArchetypeProfileFactoryScript = preload("res://src/dungeon_generator/core/semantic/archetype/archetype_profile_factory.gd")
+const ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 
 func _init() -> void:
 	call_deferred("_run_test")
@@ -35,24 +35,20 @@ func _run_test() -> void:
 	assert(RoomPurposeScript.from_name("ARMORY") == RoomPurposeScript.Type.ARMORY)
 	assert(RoomPurposeScript.from_name("throne_room") == RoomPurposeScript.Type.THRONE_ROOM)
 
-	# 3. Verificar Archetype Profiles
-	for arch in [
-		DungeonArchetypeScript.Type.GENERIC,
-		DungeonArchetypeScript.Type.MAUSOLEUM,
-		DungeonArchetypeScript.Type.FORTRESS,
-		DungeonArchetypeScript.Type.TEMPLE,
-		DungeonArchetypeScript.Type.MINE
-	]:
-		var profile = ArchetypeProfileFactoryScript.get_profile(arch)
-		assert(profile != null, "FAIL: Profile must exist for %s" % DungeonArchetypeScript.to_name(arch))
-		assert(profile.archetype == arch)
-		assert(not profile.purpose_weights.is_empty(), "FAIL: Weights cannot be empty")
-		assert(profile.get_allowed_purposes_for_gameplay("BOSS").size() > 0)
-		assert(profile.get_allowed_purposes_for_gameplay("START").size() > 0)
-		assert(profile.get_allowed_purposes_for_gameplay("TREASURE").size() > 0)
-		assert(profile.get_allowed_purposes_for_gameplay("COMBAT").size() > 0)
+	# 3. Verificar Archetype Profiles vía ProfileLoader y ArchetypeCatalog
+	var loader = ProfileLoaderScript.new()
+	var ids = loader.list_available_archetypes()
+	assert(ids.size() > 0, "FAIL: Must have registered archetypes")
+	for arch_id in ids:
+		var bundle = loader.load_full_archetype_bundle(str(arch_id))
+		assert(bundle != null and bundle.archetype != null, "FAIL: Profile must exist for %s" % str(arch_id))
+		assert(not bundle.archetype.purpose_weights.is_empty(), "FAIL: Weights cannot be empty")
+		assert(bundle.archetype.get_allowed_purposes_for_gameplay(&"BOSS").size() > 0)
+		assert(bundle.archetype.get_allowed_purposes_for_gameplay(&"START").size() > 0)
+		assert(bundle.archetype.get_allowed_purposes_for_gameplay(&"TREASURE").size() > 0)
+		assert(bundle.archetype.get_allowed_purposes_for_gameplay(&"COMBAT").size() > 0)
 
 	print("  [OK] DungeonArchetype and RoomPurpose contracts verified.")
-	print("  [OK] ArchetypeProfileFactory and all 5 profiles verified.")
+	print("  [OK] Data-driven Archetype Profiles verified.")
 	print("[PASS] test_dungeon_archetype_contracts completed successfully.")
 	quit(0)

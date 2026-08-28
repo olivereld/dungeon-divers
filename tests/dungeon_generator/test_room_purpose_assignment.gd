@@ -1,8 +1,7 @@
 extends SceneTree
 
 const RoomPurposeAssignerScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose_assigner.gd")
-const ArchetypeProfileFactoryScript = preload("res://src/dungeon_generator/core/semantic/archetype/archetype_profile_factory.gd")
-const DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
+const ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 const RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const RoomDataScript = preload("res://src/dungeon_generator/core/data/room_data.gd")
 
@@ -15,7 +14,9 @@ func _run_test() -> void:
 	print("==================================================================")
 
 	var assigner = RoomPurposeAssignerScript.new()
-	var profile = ArchetypeProfileFactoryScript.get_profile(DungeonArchetypeScript.Type.FORTRESS)
+	var loader = ProfileLoaderScript.new()
+	var bundle = loader.load_full_archetype_bundle("necropolis")
+	assert(bundle != null and bundle.archetype != null, "FAIL: Must load necropolis bundle")
 
 	# Mock rooms
 	var rooms = []
@@ -28,18 +29,18 @@ func _run_test() -> void:
 	var objectives = []
 	var seed_val = 98765
 
-	var result = assigner.assign_purposes(start_id, boss_id, rooms, objectives, profile, seed_val)
+	var result = assigner.assign_purposes(start_id, boss_id, rooms, objectives, bundle, seed_val)
 
 	assert(result.size() == 5, "FAIL: All rooms must have an assigned purpose")
-	assert(result[start_id] == RoomPurposeScript.Type.ENTRANCE or result[start_id] == RoomPurposeScript.Type.GUARD_ROOM)
-	assert(result[boss_id] == RoomPurposeScript.Type.THRONE_ROOM, "FAIL: Fortress boss must be THRONE_ROOM")
+	assert(result[start_id] == RoomPurposeScript.Type.ENTRANCE or result[start_id] == RoomPurposeScript.Type.SACRISTY)
+	assert(result[boss_id] == RoomPurposeScript.Type.ROYAL_TOMB or result[boss_id] == RoomPurposeScript.Type.SANCTUM, "FAIL: Necropolis boss must be ROYAL_TOMB or SANCTUM")
 
 	# Determinismo: misma semilla debe dar exactamente el mismo resultado
-	var result_2 = assigner.assign_purposes(start_id, boss_id, rooms, objectives, profile, seed_val)
+	var result_2 = assigner.assign_purposes(start_id, boss_id, rooms, objectives, bundle, seed_val)
 	for r_id in result:
 		assert(result[r_id] == result_2[r_id], "FAIL: Purpose assignment must be 100% deterministic")
 
-	print("  [OK] Fortress start/boss and room purpose assignments verified.")
+	print("  [OK] Necropolis start/boss and room purpose assignments verified.")
 	print("  [OK] Determinism verified.")
 	print("[PASS] test_room_purpose_assignment completed successfully.")
 	quit(0)
