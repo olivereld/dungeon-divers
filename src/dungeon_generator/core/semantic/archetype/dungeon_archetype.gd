@@ -29,3 +29,18 @@ static func from_name(p_name: String) -> Type:
 		"TEMPLE": return Type.TEMPLE
 		"MINE": return Type.MINE
 		_: return Type.GENERIC
+
+## Resuelve dinámicamente cualquier tipo de entrada (String, StringName o int legacy) a un StringName de ID de arquetipo.
+static func resolve_id(val: Variant) -> StringName:
+	if val is StringName:
+		return val
+	if val is String:
+		return StringName((val as String).to_lower())
+	if val is int:
+		match int(val):
+			Type.MAUSOLEUM: return &"necropolis"
+			Type.FORTRESS: return &"fortress"
+			Type.TEMPLE: return &"temple"
+			Type.MINE: return &"mine"
+			_: return &"generic"
+	return &"generic"

@@ -3,6 +3,8 @@ extends Resource
 
 ## Configuración completa y exportable para el generador de mazmorras.
 
+const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
+
 @export_group("Identificación y Semilla")
 @export var dungeon_id: StringName = &"dungeon_01"
 @export var floor_number: int = 1
@@ -10,7 +12,15 @@ extends Resource
 @export var floor_height: float = 6.0
 @export var seed: int = 0
 @export var use_fixed_seed: bool = false
-@export var dungeon_archetype: int = 0 ## DungeonArchetype.Type (0 = GENERIC, 1 = MAUSOLEUM, 2 = FORTRESS, 3 = TEMPLE, 4 = MINE)
+@export var archetype_id: StringName = &"" ## ID dinámico de arquetipo (ej: &"necropolis", &"temple")
+@export var dungeon_archetype: int = 0 ## Legacy fallback (DungeonArchetype.Type)
+
+func get_effective_archetype_id() -> StringName:
+	if not archetype_id.is_empty():
+		return archetype_id
+	if dungeon_archetype != 0:
+		return _DungeonArchetypeScript.resolve_id(dungeon_archetype)
+	return &"necropolis"
 
 @export_group("Dimensiones de Rejilla")
 @export_range(16, 256, 1) var grid_width: int = 64

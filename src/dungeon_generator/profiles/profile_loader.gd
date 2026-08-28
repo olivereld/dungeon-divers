@@ -29,13 +29,24 @@ const _AssetArchitectureEntryScript = preload("res://src/dungeon_generator/profi
 const _PropAssetDefinitionScript = preload("res://src/presentation/decoration/assets/prop_asset_definition.gd")
 const _PropAssetSourceScript = preload("res://src/presentation/decoration/assets/prop_asset_source.gd")
 const _DestructibleDefinitionScript = preload("res://src/destruction/core/destructible_definition.gd")
+const _ArchetypeRegistryScript = preload("res://src/dungeon_generator/profiles/archetype_registry.gd")
 
 var base_path: String = "res://resources/dungeon_profiles/"
+var _archetype_registry: _ArchetypeRegistryScript = null
 
 func _init(p_base_path: String = "res://resources/dungeon_profiles/") -> void:
 	base_path = p_base_path
 	if not base_path.ends_with("/"):
 		base_path += "/"
+	_archetype_registry = _ArchetypeRegistryScript.new(base_path + "archetypes/")
+
+func get_archetype_registry() -> _ArchetypeRegistryScript:
+	return _archetype_registry
+
+func list_available_archetypes() -> Array[StringName]:
+	if _archetype_registry == null:
+		return []
+	return _archetype_registry.get_available_ids()
 
 ## Carga el bundle completo: Arquetipo + AssetRegistry + Todas las salas referenciadas.
 func load_full_archetype_bundle(archetype_id: String) -> _ProfileBundleScript:
@@ -233,7 +244,12 @@ func populate_prop_asset_registry(registry) -> void:
 
 ## Carga un archivo de arquetipo por ID (ej. "necropolis" o "mausoleum").
 func load_archetype(archetype_id: String) -> _ProfileArchetypeScript:
-	var path := base_path + "archetypes/" + archetype_id + ".json"
+	var path := ""
+	if _archetype_registry != null and _archetype_registry.has_archetype(StringName(archetype_id)):
+		path = _archetype_registry.get_filepath(StringName(archetype_id))
+	else:
+		path = base_path + "archetypes/" + archetype_id + ".json"
+
 	var json_data = _read_json_file(path)
 	if not (json_data is Dictionary):
 		if archetype_id == "mausoleum":

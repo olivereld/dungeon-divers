@@ -11,21 +11,25 @@ const _ArchitecturalStyleScript = preload("res://src/presentation/architecture/a
 const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/architecture/architectural_presentation_profile.gd")
 const _ProfileRoomScript = preload("res://src/dungeon_generator/profiles/profile_room.gd")
 
-func resolve(archetype: int, purpose: int, room_profile = null) -> _ArchitecturalPresentationProfileScript:
+func resolve_profile_for_archetype(archetype_id: Variant, purpose: int, room_profile = null) -> _ArchitecturalPresentationProfileScript:
 	if room_profile is _ProfileRoomScript and room_profile.architecture != null:
-		return resolve_from_room_profile(room_profile, archetype, purpose)
+		return resolve_from_room_profile(room_profile, 0, purpose)
 
-	match archetype:
-		_DungeonArchetypeScript.Type.MAUSOLEUM:
+	var id_str := str(archetype_id).to_lower()
+	match id_str:
+		"necropolis", "mausoleum", "crypt", "1":
 			return _resolve_mausoleum(purpose)
-		_DungeonArchetypeScript.Type.FORTRESS:
+		"fortress", "2":
 			return _resolve_fortress(purpose)
-		_DungeonArchetypeScript.Type.TEMPLE:
+		"temple", "3":
 			return _resolve_temple(purpose)
-		_DungeonArchetypeScript.Type.MINE:
+		"mine", "4":
 			return _resolve_mine(purpose)
 		_:
 			return _resolve_generic(purpose)
+
+func resolve(archetype: int, purpose: int, room_profile = null) -> _ArchitecturalPresentationProfileScript:
+	return resolve_profile_for_archetype(archetype, purpose, room_profile)
 
 func resolve_from_room_profile(
 	p_room_profile: _ProfileRoomScript,

@@ -22,26 +22,27 @@ const _ArchitecturalPresentationProfileScript = preload("res://src/presentation/
 const _DecorationRoleScript = preload("res://src/presentation/decoration/decoration_role.gd")
 const _DecorationTagScript = preload("res://src/presentation/decoration/composition/decoration_tag.gd")
 
-## Resuelve la paleta de decoración completa (fixtures + props) para una sala.
-func resolve_palette(
-	archetype: int,
+## Resuelve la paleta de decoración completa (fixtures + props) para una sala a partir de un ID de arquetipo dinámico.
+func resolve_palette_by_id(
+	archetype_id: Variant,
 	room_purpose: int,
 	profile: _ArchitecturalPresentationProfileScript = null
 ) -> _DecorationPaletteScript:
+	var id_str := str(archetype_id).to_lower()
 	var fix_palette: _FixturePaletteScript = null
 	var prop_palette: _PropPaletteScript = null
 
-	match archetype:
-		_DungeonArchetypeScript.Type.MAUSOLEUM:
+	match id_str:
+		"necropolis", "mausoleum", "crypt", "1":
 			fix_palette = _resolve_mausoleum_fixture_palette(room_purpose)
 			prop_palette = _resolve_mausoleum_prop_palette(room_purpose)
-		_DungeonArchetypeScript.Type.TEMPLE:
+		"temple", "3":
 			fix_palette = _resolve_temple_fixture_palette(room_purpose)
 			prop_palette = _resolve_temple_prop_palette(room_purpose)
-		_DungeonArchetypeScript.Type.FORTRESS:
+		"fortress", "2":
 			fix_palette = _resolve_fortress_fixture_palette(room_purpose)
 			prop_palette = _resolve_fortress_prop_palette(room_purpose)
-		_DungeonArchetypeScript.Type.MINE:
+		"mine", "4":
 			fix_palette = _resolve_mine_fixture_palette(room_purpose)
 			prop_palette = _resolve_mine_prop_palette(room_purpose)
 		_:
@@ -49,10 +50,25 @@ func resolve_palette(
 			prop_palette = _resolve_mausoleum_prop_palette(room_purpose)
 
 	return _DecorationPaletteScript.new(
-		&"dec_palette_%s_%s" % [str(archetype), str(room_purpose)],
+		&"dec_palette_%s_%s" % [id_str, str(room_purpose)],
 		fix_palette,
 		prop_palette
 	)
+
+func resolve_palette_for_archetype(
+	archetype_id: Variant,
+	room_purpose: int,
+	profile: _ArchitecturalPresentationProfileScript = null
+) -> _DecorationPaletteScript:
+	return resolve_palette_by_id(archetype_id, room_purpose, profile)
+
+## Resuelve la paleta de decoración completa (fixtures + props) para una sala (compatibilidad legacy).
+func resolve_palette(
+	archetype: int,
+	room_purpose: int,
+	profile: _ArchitecturalPresentationProfileScript = null
+) -> _DecorationPaletteScript:
+	return resolve_palette_by_id(archetype, room_purpose, profile)
 
 
 # ==============================================================================
