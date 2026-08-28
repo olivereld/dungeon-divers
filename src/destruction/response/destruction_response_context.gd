@@ -8,7 +8,13 @@ const _DestructionEventScript = preload("res://src/destruction/core/destruction_
 
 var event: _DestructionEventScript = null
 var global_transform: Transform3D = Transform3D.IDENTITY
+var target_transform: Transform3D:
+	get:
+		return global_transform
+	set(val):
+		global_transform = val
 var room_id: int = -1
+var source_asset_id: StringName = &""
 var seed_value: int = 0
 var base_seed: int = 0
 var rng: RandomNumberGenerator = null
@@ -18,13 +24,15 @@ func _init(
 	p_transform: Transform3D = Transform3D.IDENTITY,
 	p_seed: int = 0,
 	p_room: int = -1,
-	p_base_seed: int = 0
+	p_base_seed: int = 0,
+	p_source_asset: StringName = &""
 ) -> void:
 	event = p_event
 	global_transform = p_transform
 	seed_value = p_seed
 	room_id = p_room
 	base_seed = p_base_seed
+	source_asset_id = p_source_asset
 	rng = RandomNumberGenerator.new()
 	rng.seed = p_seed
 
@@ -45,7 +53,5 @@ static func from_event(
 	# Generar semilla determinista combinando base_seed + hash de posición espacial
 	var pos_hash: int = int(xform.origin.x * 73856093) ^ int(xform.origin.y * 19349663) ^ int(xform.origin.z * 83492791)
 	var final_seed: int = (base_seed ^ pos_hash) if base_seed != 0 else pos_hash
-	if final_seed == 0:
-		final_seed = 1337
-
-	return load("res://src/destruction/response/destruction_response_context.gd").new(evt, xform, final_seed, r_id, base_seed)
+	var src_id: StringName = evt.definition.id if (evt != null and evt.definition != null) else &""
+	return load("res://src/destruction/response/destruction_response_context.gd").new(evt, xform, final_seed, r_id, base_seed, src_id)
