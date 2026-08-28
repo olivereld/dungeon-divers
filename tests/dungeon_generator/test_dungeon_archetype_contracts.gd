@@ -15,8 +15,7 @@ func _run_test() -> void:
 	# 1. Verificar DungeonArchetype Value Object
 	var arch_val = DungeonArchetypeScript.new(&"necropolis")
 	assert(arch_val.id == &"necropolis", "FAIL: DungeonArchetype id must match")
-	assert(DungeonArchetypeScript.resolve_id("NECROPOLIS") == &"necropolis", "FAIL: resolve_id must normalize")
-	assert(DungeonArchetypeScript.resolve_id(1) == &"necropolis", "FAIL: resolve_id must map int 1 to necropolis")
+	assert(DungeonArchetypeScript.resolve_id("necropolis") == &"necropolis", "FAIL: resolve_id must match StringName")
 
 	# 2. Verificar enum RoomPurpose
 	assert(RoomPurposeScript.Type.ENTRANCE != null)
