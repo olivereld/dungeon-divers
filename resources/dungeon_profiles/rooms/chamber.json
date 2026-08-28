@@ -59,8 +59,8 @@
                 "placement": {
                     "mode": "corner",
                     "orientation": "face_room",
-                    "min_count": 1,
-                    "max_count": 2
+                    "min_count": 0,
+                    "max_count": 1
                 }
             }
         ]

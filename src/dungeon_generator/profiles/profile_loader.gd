@@ -28,6 +28,7 @@ const _AssetMaterialEntryScript = preload("res://src/dungeon_generator/profiles/
 const _AssetArchitectureEntryScript = preload("res://src/dungeon_generator/profiles/assets/asset_architecture_entry.gd")
 const _PropAssetDefinitionScript = preload("res://src/presentation/decoration/assets/prop_asset_definition.gd")
 const _PropAssetSourceScript = preload("res://src/presentation/decoration/assets/prop_asset_source.gd")
+const _DestructibleDefinitionScript = preload("res://src/destruction/core/destructible_definition.gd")
 
 var base_path: String = "res://resources/dungeon_profiles/"
 
@@ -596,3 +597,19 @@ func _read_json_file(path: String):
 	if error != OK:
 		return null
 	return json.data
+
+## Pobla el DestructionRegistry desde destruction.json
+func populate_destruction_registry(target_registry) -> void:
+	if target_registry == null:
+		return
+
+	var d_json = _read_json_file(base_path + "assets/destruction.json")
+	if not (d_json is Dictionary and d_json.has("destructibles")):
+		return
+
+	var d_dict = d_json["destructibles"]
+	for did in d_dict:
+		var ddata = d_dict[did]
+		if ddata is Dictionary:
+			var def = _DestructibleDefinitionScript.from_dict(StringName(did), ddata)
+			target_registry.register_definition(def)

@@ -20,6 +20,8 @@ const _FloorTileConfigScript = preload("res://src/floor_tile_generator/config/fl
 const _LightingProfileScript = preload("res://src/dungeon_lighting/config/lighting_profile.gd")
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
+const _DestructionDebugInteractorScript = preload("res://src/destruction/debug/destruction_debug_interactor.gd")
+const _DestructionDebugHUDScript = preload("res://src/destruction/debug/destruction_debug_hud.gd")
 
 var _pipeline: DungeonPipeline = DungeonPipeline.new()
 var _semantic_orchestrator := _SemanticOrchestratorScript.new()
@@ -32,6 +34,10 @@ var _current_multi_result: DungeonMultiFloorResult = null
 var _current_semantic_result: DungeonSemanticResult = null
 var _current_presentation_root: Node3D = null
 var _player: CharacterBody3D = null
+
+# Destruction Debug Tools
+var _destruction_interactor: _DestructionDebugInteractorScript = null
+var _destruction_hud: _DestructionDebugHUDScript = null
 
 # Métricas de generación por etapas
 var _time_layout_ms: float = 0.0
@@ -60,9 +66,24 @@ func _ready() -> void:
 		config = preload("res://resources/configs/hybrid_dungeon.tres")
 
 	_setup_debug_overlay()
+	_setup_destruction_debug()
 	_connect_visualizer_signals()
 	_setup_camera()
 	regenerate(false)
+
+func _setup_destruction_debug() -> void:
+	_destruction_interactor = _DestructionDebugInteractorScript.new()
+	_destruction_interactor.name = "DestructionDebugInteractor"
+	add_child(_destruction_interactor)
+
+	_destruction_hud = _DestructionDebugHUDScript.new()
+	_destruction_hud.name = "DestructionDebugHUD"
+	add_child(_destruction_hud)
+
+	_destruction_interactor.destructible_hit.connect(func(node, comp, hit):
+		if _destruction_hud != null:
+			_destruction_hud.update_telemetry(node, comp, hit.damage)
+	)
 
 func _connect_visualizer_signals() -> void:
 	if visualizer != null:
@@ -927,6 +948,16 @@ func _input(event: InputEvent) -> void:
 					visualizer.update_floor_view_options(config.total_floors if config != null else 1, next_f)
 
 	if event is InputEventMouseButton:
+		if event.pressed and _destruction_interactor != null:
+			var active_cam: Camera3D = camera
+			if active_cam == null and camera_rig != null and camera_rig.has_method("get_camera"):
+				active_cam = camera_rig.get_camera()
+			if active_cam != null and (event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
+				var handled = _destruction_interactor.handle_input_event(active_cam, event)
+				if handled:
+					get_viewport().set_input_as_handled()
+					return
+
 		if event.button_index == MOUSE_BUTTON_MIDDLE or (not _is_player_active and event.button_index == MOUSE_BUTTON_RIGHT):
 			_is_orbiting = event.pressed
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:

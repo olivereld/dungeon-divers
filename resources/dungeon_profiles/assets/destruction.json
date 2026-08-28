@@ -1,0 +1,86 @@
+{
+    "schema_version": 1,
+    "destructibles": {
+        "crypt_urn_banded_floor": {
+            "enabled": true,
+            "durability": 20.0,
+            "damage_type_vulnerabilities": ["physical", "bludgeoning", "slashing", "fire"],
+            "destruction_mode": "break",
+            "replacement_asset": "crypt_rubble_corner",
+            "debris": "ceramic_small",
+            "effects": ["dust_small", "ceramic_break"]
+        },
+        "crypt_urn_relic_floor": {
+            "enabled": true,
+            "durability": 25.0,
+            "damage_type_vulnerabilities": ["physical", "bludgeoning", "slashing"],
+            "destruction_mode": "break",
+            "replacement_asset": "crypt_rubble_corner",
+            "debris": "ceramic_small",
+            "effects": ["dust_small", "ceramic_break"]
+        },
+        "crypt_urn_canopic_surface": {
+            "enabled": true,
+            "durability": 15.0,
+            "damage_type_vulnerabilities": ["physical", "bludgeoning", "slashing"],
+            "destruction_mode": "break",
+            "replacement_asset": null,
+            "debris": "ceramic_small",
+            "effects": ["dust_small", "ceramic_break"]
+        },
+        "temple_urn_pedestal_floor": {
+            "enabled": true,
+            "durability": 30.0,
+            "damage_type_vulnerabilities": ["physical", "bludgeoning", "slashing"],
+            "destruction_mode": "break",
+            "replacement_asset": "crypt_rubble_corner",
+            "debris": "ceramic_small",
+            "effects": ["dust_small", "ceramic_break"]
+        },
+        "skull_pile": {
+            "enabled": true,
+            "durability": 15.0,
+            "damage_type_vulnerabilities": ["physical", "bludgeoning", "crush"],
+            "destruction_mode": "collapse",
+            "replacement_asset": null,
+            "debris": "bones_small",
+            "effects": ["bone_scatter", "dust_small"]
+        },
+        "candle_cluster": {
+            "enabled": true,
+            "durability": 5.0,
+            "damage_type_vulnerabilities": ["physical", "wind", "water", "ice"],
+            "destruction_mode": "extinguish",
+            "replacement_asset": null,
+            "debris": null,
+            "effects": ["candle_extinguish", "smoke_puff"]
+        },
+        "candle_holder": {
+            "enabled": true,
+            "durability": 5.0,
+            "damage_type_vulnerabilities": ["physical", "wind", "water", "ice"],
+            "destruction_mode": "extinguish",
+            "replacement_asset": null,
+            "debris": null,
+            "effects": ["candle_extinguish", "smoke_puff"]
+        },
+        "fortress_chest_corner": {
+            "enabled": true,
+            "durability": 50.0,
+            "damage_type_vulnerabilities": ["physical", "fire"],
+            "destruction_mode": "break",
+            "replacement_asset": null,
+            "debris": "wood_splinters",
+            "effects": ["wood_splinter", "dust_small"]
+        },
+        "mine_crate_corner": {
+            "enabled": true,
+            "durability": 20.0,
+            "damage_type_vulnerabilities": ["physical", "fire"],
+            "destruction_mode": "break",
+            "replacement_asset": null,
+            "debris": "wood_splinters",
+            "effects": ["wood_splinter", "dust_small"]
+        }
+    }
+}
