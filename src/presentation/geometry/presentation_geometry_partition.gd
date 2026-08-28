@@ -8,6 +8,7 @@ extends RefCounted
 
 const _PresentationRoomGeometryScript = preload("res://src/presentation/geometry/presentation_room_geometry.gd")
 const _PresentationRoomContextScript = preload("res://src/presentation/architecture/presentation_room_context.gd")
+const _CellGridScript = preload("res://src/dungeon_generator/core/data/cell_grid.gd")
 
 var rooms_geometry: Dictionary = {} # room_id -> PresentationRoomGeometry
 var corridor_floor_cells: Array[Vector2i] = []
@@ -54,8 +55,10 @@ func build_partition(
 				if grid.is_in_bounds(pos):
 					if r_rect.has_point(pos):
 						if grid.is_walkable(pos):
-							r_floor.append(pos)
 							room_id_by_cell[pos] = r_id
+							# Excluir losas de suelo en celdas de foso de descenso
+							if grid.get_cell(pos) != _CellGridScript.CellType.STAIRS_DOWN:
+								r_floor.append(pos)
 						elif grid.is_solid(pos):
 							r_wall.append(pos)
 							all_room_walls[pos] = true
@@ -84,7 +87,8 @@ func build_partition(
 		for x in range(grid.width):
 			var pos := Vector2i(x, y)
 			if grid.is_walkable(pos) and not room_id_by_cell.has(pos):
-				corridor_floor_cells.append(pos)
+				if grid.get_cell(pos) != _CellGridScript.CellType.STAIRS_DOWN:
+					corridor_floor_cells.append(pos)
 
 	# 4. Detectar celdas de muros de corredores (muros sólidos adyacentes a corredores no pertenecientes a salas)
 	var seen_corridor_walls: Dictionary = {}

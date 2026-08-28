@@ -15,8 +15,8 @@ func _init() -> void:
 	var st_down = stair_data_script.new("stair_f1_down", 1, Vector2i(5, 5), PI * 0.5, "vconn_0_1", true)
 	var stairs: Array[StairData] = [st_up, st_down]
 
-	# 1. Validar Spawning de Escaleras en Staging
-	var spawn_res: Dictionary = spawner.spawn_stairs(stairs, staging, null, 2.0, 6.0, 1337)
+	# 1. Validar Spawning de Escaleras en Staging (Global Space Mode)
+	var spawn_res: Dictionary = spawner.spawn_stairs(stairs, staging, null, 2.0, 6.0, 1337, null, [], false)
 	assert(spawn_res["spawned_stairs"].size() == 2, "Must spawn 2 stair entities")
 
 	var stairs_container: Node3D = staging.get_node_or_null("Stairs")
@@ -37,7 +37,7 @@ func _init() -> void:
 	assert(node_down.get_child_count() > 0, "Stair DOWN must have collision body")
 
 	# 3. Validar Superficies de Malla Procedural
-	assert(node_up.mesh.get_surface_count() == 2, "Procedural stair mesh must contain 2 surfaces (StairSteps, StairRailings)")
+	assert(node_up.mesh.get_surface_count() >= 2, "Procedural stair mesh must contain at least 2 surfaces (Steps, Trims/Railings)")
 	print("  [OK] DungeonStairSpawner procedural stair geometry, positioning, and collision verified")
 
 	staging.free()

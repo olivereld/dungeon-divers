@@ -23,7 +23,8 @@ func spawn_stairs(
 	floor_height: float = 6.0,
 	seed_val: int = 1337,
 	partition = null,
-	stairs_contexts: Array = []
+	stairs_contexts: Array = [],
+	use_local_floor_space: bool = true
 ) -> Dictionary:
 	var result := {
 		"spawned_stairs": [],
@@ -92,7 +93,7 @@ func spawn_stairs(
 
 		if stair_node != null:
 			stair_node.name = "Stair_%s" % st.stair_id
-			var floor_base_y: float = float(st.floor_number) * floor_height
+			var floor_base_y: float = 0.0 if use_local_floor_space else (float(st.floor_number) * floor_height)
 			var pos_3d: Vector3 = _GridToWorldScript.get_cell_center_world(
 				st.cell, tile_size, floor_base_y
 			)

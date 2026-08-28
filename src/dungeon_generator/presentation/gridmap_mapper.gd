@@ -79,11 +79,15 @@ func map_grid(
 
 				CellGrid.CellType.DOOR, CellGrid.CellType.LOCKED_DOOR, \
 				CellGrid.CellType.SPAWN, CellGrid.CellType.OBJECTIVE, \
-				CellGrid.CellType.STAIRS_DOWN, CellGrid.CellType.STAIRS_UP:
+				CellGrid.CellType.STAIRS_UP:
 					# Capa de suelo base bajo transiciones y marcadores
 					if biome.floor_index >= 0:
 						target_floor_map.set_cell_item(Vector3i(x, 0, y), biome.floor_index, 0)
 						total_tiles += 1
+
+				CellGrid.CellType.STAIRS_DOWN:
+					# Foso de descenso vertical: apertura abierta en el suelo sin losa
+					continue
 
 				CellGrid.CellType.WALL:
 					# Solo colocar base de suelo y muro en GridMap si hay modelos 3D estáticos asignados
