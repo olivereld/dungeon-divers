@@ -56,9 +56,19 @@ func _on_lifetime_expired() -> void:
 func _trigger_emitters(node: Node, emit_state: bool) -> void:
 	for child in node.get_children():
 		if child is CPUParticles3D:
-			(child as CPUParticles3D).emitting = emit_state
+			var p := child as CPUParticles3D
+			if emit_state:
+				p.restart()
+				p.emitting = true
+			else:
+				p.emitting = false
 		elif child is GPUParticles3D:
-			(child as GPUParticles3D).emitting = emit_state
+			var p := child as GPUParticles3D
+			if emit_state:
+				p.restart()
+				p.emitting = true
+			else:
+				p.emitting = false
 		elif child is AudioStreamPlayer3D and emit_state:
 			(child as AudioStreamPlayer3D).play()
 

@@ -4,15 +4,18 @@
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stone_dust"]
 transparency = 1
-albedo_color = Color(0.7, 0.7, 0.68, 0.7)
-roughness = 0.95
+shading_mode = 0
+albedo_color = Color(0.82, 0.8, 0.76, 0.8)
 
-[sub_resource type="BoxMesh" id="BoxMesh_stone_dust"]
+[sub_resource type="SphereMesh" id="SphereMesh_stone_dust"]
 material = SubResource("StandardMaterial3D_stone_dust")
-size = Vector3(0.1, 0.1, 0.1)
+radius = 0.35
+height = 0.7
+radial_segments = 8
+rings = 4
 
 [sub_resource type="BoxMesh" id="BoxMesh_stone_debris"]
-size = Vector3(0.06, 0.05, 0.05)
+size = Vector3(0.18, 0.16, 0.16)
 
 [node name="VFX_StoneBreak" type="Node3D"]
 script = ExtResource("1_vfxinst")
@@ -22,31 +25,31 @@ auto_play = true
 
 [node name="DustCloud" type="CPUParticles3D" parent="."]
 emitting = true
-amount = 14
-lifetime = 0.8
+amount = 20
+lifetime = 0.9
 one_shot = true
-explosiveness = 1.0
-mesh = SubResource("BoxMesh_stone_dust")
+explosiveness = 0.95
+mesh = SubResource("SphereMesh_stone_dust")
 emission_shape = 1
-emission_sphere_radius = 0.15
+emission_sphere_radius = 0.25
 spread = 180.0
-gravity = Vector3(0, 0.1, 0)
-initial_velocity_min = 1.5
-initial_velocity_max = 3.5
-scale_amount_min = 0.8
-scale_amount_max = 1.8
+gravity = Vector3(0, 0.6, 0)
+initial_velocity_min = 3.0
+initial_velocity_max = 6.0
+scale_amount_min = 1.0
+scale_amount_max = 2.5
 
 [node name="StoneDebris" type="CPUParticles3D" parent="."]
 emitting = true
-amount = 10
-lifetime = 1.0
+amount = 14
+lifetime = 1.1
 one_shot = true
-explosiveness = 1.0
+explosiveness = 0.95
 mesh = SubResource("BoxMesh_stone_debris")
 emission_shape = 1
-emission_sphere_radius = 0.08
-spread = 140.0
-gravity = Vector3(0, -9.8, 0)
-initial_velocity_min = 2.5
-initial_velocity_max = 5.0
-color = Color(0.5, 0.48, 0.45, 1)
+emission_sphere_radius = 0.15
+spread = 150.0
+gravity = Vector3(0, -11.0, 0)
+initial_velocity_min = 4.0
+initial_velocity_max = 7.5
+color = Color(0.6, 0.58, 0.54, 1)

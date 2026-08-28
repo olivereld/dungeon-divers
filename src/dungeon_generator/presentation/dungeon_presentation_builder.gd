@@ -65,6 +65,17 @@ var _structural_renderer := _PresentationStructuralRendererScript.new()
 var _fixture_anchor_resolver := _FixtureAnchorResolverScript.new()
 var _profile_loader := _ProfileLoaderScript.new()
 
+func get_prop_spawner() -> _PropSpawnerScript:
+	return _prop_spawner
+
+func set_destruction_binder(binder) -> void:
+	if _prop_spawner != null and binder != null:
+		_prop_spawner.set_destruction_binder(binder)
+
+func set_destruction_service(service) -> void:
+	if _prop_spawner != null and _prop_spawner.get_destruction_binder() != null and service != null:
+		_prop_spawner.get_destruction_binder().set_service(service)
+
 ## Construye la presentación 3D de un piso semántico individual.
 func build_presentation(
 	semantic_result: DungeonSemanticResult,

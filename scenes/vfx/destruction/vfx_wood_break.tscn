@@ -4,15 +4,18 @@
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sawdust"]
 transparency = 1
-albedo_color = Color(0.75, 0.65, 0.45, 0.6)
-roughness = 0.9
+shading_mode = 0
+albedo_color = Color(0.85, 0.72, 0.5, 0.8)
 
-[sub_resource type="BoxMesh" id="BoxMesh_sawdust"]
+[sub_resource type="SphereMesh" id="SphereMesh_sawdust"]
 material = SubResource("StandardMaterial3D_sawdust")
-size = Vector3(0.06, 0.06, 0.06)
+radius = 0.3
+height = 0.6
+radial_segments = 8
+rings = 4
 
 [sub_resource type="BoxMesh" id="BoxMesh_splinters"]
-size = Vector3(0.12, 0.03, 0.03)
+size = Vector3(0.28, 0.08, 0.08)
 
 [node name="VFX_WoodBreak" type="Node3D"]
 script = ExtResource("1_vfxinst")
@@ -22,29 +25,31 @@ auto_play = true
 
 [node name="Sawdust" type="CPUParticles3D" parent="."]
 emitting = true
-amount = 12
-lifetime = 0.6
+amount = 18
+lifetime = 0.8
 one_shot = true
-explosiveness = 1.0
-mesh = SubResource("BoxMesh_sawdust")
+explosiveness = 0.95
+mesh = SubResource("SphereMesh_sawdust")
 emission_shape = 1
-emission_sphere_radius = 0.12
+emission_sphere_radius = 0.2
 spread = 180.0
-gravity = Vector3(0, 0.2, 0)
-initial_velocity_min = 1.0
-initial_velocity_max = 2.5
+gravity = Vector3(0, 0.5, 0)
+initial_velocity_min = 2.5
+initial_velocity_max = 5.0
+scale_amount_min = 0.8
+scale_amount_max = 2.0
 
 [node name="WoodSplinters" type="CPUParticles3D" parent="."]
 emitting = true
-amount = 8
-lifetime = 0.9
+amount = 12
+lifetime = 1.0
 one_shot = true
-explosiveness = 1.0
+explosiveness = 0.95
 mesh = SubResource("BoxMesh_splinters")
 emission_shape = 1
-emission_sphere_radius = 0.06
-spread = 130.0
+emission_sphere_radius = 0.1
+spread = 140.0
 gravity = Vector3(0, -9.8, 0)
-initial_velocity_min = 2.0
-initial_velocity_max = 4.5
+initial_velocity_min = 3.5
+initial_velocity_max = 6.5
 color = Color(0.55, 0.38, 0.22, 1)

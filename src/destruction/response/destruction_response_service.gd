@@ -77,4 +77,12 @@ func handle_destruction_event(evt: _DestructionEventScript) -> Dictionary:
 		var debris_nodes = _debris_consumer.handle_debris(ctx, parent)
 		result["debris"] = debris_nodes
 
+	print("[DestructionResponse] Destroyed: %s (id: %s) | VFX: %d | Replacement: %s | Debris: %d" % [
+		evt.target.name,
+		evt.definition.id if evt.definition != null else "unknown",
+		result["effects"].size(),
+		result["replacement"].name if result["replacement"] != null else "none",
+		result["debris"].size()
+	])
+
 	return result

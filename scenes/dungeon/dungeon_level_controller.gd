@@ -22,6 +22,7 @@ const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semant
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const _DestructionDebugInteractorScript = preload("res://src/destruction/debug/destruction_debug_interactor.gd")
 const _DestructionDebugHUDScript = preload("res://src/destruction/debug/destruction_debug_hud.gd")
+const _DestructionServiceScript = preload("res://src/destruction/runtime/destruction_service.gd")
 const _DestructionResponseServiceScript = preload("res://src/destruction/response/destruction_response_service.gd")
 const _PropAssetProviderScript = preload("res://src/presentation/decoration/assets/prop_asset_provider.gd")
 
@@ -38,6 +39,7 @@ var _current_presentation_root: Node3D = null
 var _player: CharacterBody3D = null
 
 # Destruction Tools
+var _destruction_service: _DestructionServiceScript = null
 var _destruction_interactor: _DestructionDebugInteractorScript = null
 var _destruction_hud: _DestructionDebugHUDScript = null
 var _destruction_response_service: _DestructionResponseServiceScript = null
@@ -75,7 +77,14 @@ func _ready() -> void:
 	regenerate(false)
 
 func _setup_destruction_debug() -> void:
-	_destruction_interactor = _DestructionDebugInteractorScript.new()
+	_destruction_service = _DestructionServiceScript.new()
+
+	var provider := _PropAssetProviderScript.new()
+	var seed_val: int = config.seed if config != null else 1337
+	_destruction_response_service = _DestructionResponseServiceScript.new(provider, seed_val, _current_presentation_root)
+	_destruction_service.set_response_service(_destruction_response_service)
+
+	_destruction_interactor = _DestructionDebugInteractorScript.new(_destruction_service)
 	_destruction_interactor.name = "DestructionDebugInteractor"
 	add_child(_destruction_interactor)
 
@@ -83,11 +92,7 @@ func _setup_destruction_debug() -> void:
 	_destruction_hud.name = "DestructionDebugHUD"
 	add_child(_destruction_hud)
 
-	var provider := _PropAssetProviderScript.new()
-	var seed_val: int = config.seed if config != null else 1337
-	_destruction_response_service = _DestructionResponseServiceScript.new(provider, seed_val, _current_presentation_root)
-	if _destruction_interactor.get_service() != null:
-		_destruction_interactor.get_service().set_response_service(_destruction_response_service)
+	_presentation_builder.set_destruction_service(_destruction_service)
 
 	_destruction_interactor.destructible_hit.connect(func(node, comp, hit):
 		if _destruction_hud != null:
