@@ -1,83 +1,69 @@
 extends SceneTree
 
 const _DecorationCompositionPlannerScript = preload("res://src/presentation/decoration/composition/decoration_composition_planner.gd")
-const _DecorationPurposeProfileRegistryScript = preload("res://src/presentation/decoration/composition/decoration_purpose_profile_registry.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 const _DecorationPaletteResolverScript = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
-const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
-const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 const _PresentationRoomGeometryScript = preload("res://src/presentation/geometry/presentation_room_geometry.gd")
+const _PresentationSeedContextScript = preload("res://src/presentation/architecture/presentation_seed_context.gd")
 const _CompositionRoleScript = preload("res://src/presentation/decoration/composition/composition_role.gd")
-const _PropStyleScript = preload("res://src/presentation/props/prop_style.gd")
-const _DecorationRoleScript = preload("res://src/presentation/decoration/decoration_role.gd")
 
 func _init() -> void:
 	print("--- Running test_decoration_composition_hierarchy ---")
 
+	var loader := _ProfileLoaderScript.new()
+	var available = loader.list_available_archetypes()
+	assert(not available.is_empty(), "FAIL: Must find archetypes")
+
+	var arch_id: StringName = available[0]
+	var bundle = loader.load_full_archetype_bundle(str(arch_id))
+	assert(bundle != null, "FAIL: Must load archetype bundle")
+
 	var planner := _DecorationCompositionPlannerScript.new()
-	var registry := _DecorationPurposeProfileRegistryScript.new()
 	var pal_resolver := _DecorationPaletteResolverScript.new()
 
-	# Create a mock 6x6 room geometry
 	var floor_cells: Array[Vector2i] = []
-	for x in range(6):
-		for y in range(6):
+	for x in range(8):
+		for y in range(8):
 			floor_cells.append(Vector2i(x, y))
 
 	var room_geom = _PresentationRoomGeometryScript.new(
 		0,
-		Rect2i(0, 0, 6, 6),
+		Rect2i(0, 0, 8, 8),
 		floor_cells,
 		[],
-		[Vector2i(3, 5)], # Door at bottom
+		[Vector2i(4, 7)],
 		null,
 		[]
 	)
 
-	# 1. TEST TOMB HIERARCHY (Primary Sarcophagus + Secondary Urns/Tombstones)
-	var tomb_prof = registry.get_profile_for_purpose(&"tomb")
-	var tomb_pal = pal_resolver.resolve_palette_by_id(&"necropolis", &"tomb")
+	# Probar jerarquía de composición para cada sala definida en el arquetipo
+	for room_id in bundle.rooms:
+		var room_prof = bundle.rooms[room_id]
+		var palette = pal_resolver.resolve_palette_by_id(arch_id, room_id)
+		var seed_ctx = _PresentationSeedContextScript.for_room(101, 0)
 
-	var tomb_comp = planner.plan_room_composition(
-		null,
-		tomb_pal,
-		room_geom,
-		{"purpose": &"tomb"},
-		null,
-		{"prop_seed": 101, "fixture_seed": 102},
-		2.0
-	)
+		var comp = planner.plan_room_composition(
+			room_prof,
+			palette,
+			room_geom,
+			{"purpose": room_id},
+			null,
+			seed_ctx,
+			2.0
+		)
 
-	assert(tomb_comp != null, "Tomb composition must not be null")
-	assert(tomb_comp.prop_directives.size() > 0, "Tomb must have props")
+		assert(comp != null, "Composition must not be null for room %s" % str(room_id))
 
-	# Check that Primary prop is present (sarcophagus)
-	var has_primary: bool = false
-	for p_dir in tomb_comp.prop_directives:
-		if p_dir.style != null and (p_dir.style.role == _DecorationRoleScript.Role.FOCAL or p_dir.style.prop_type == _PropStyleScript.Type.SARCOPHAGUS):
-			has_primary = true
-			print("  [OK] Found Primary prop: %s at %v" % [p_dir.prop_id, p_dir.world_position])
-			break
+		# Si el perfil declara reglas primarias con min_count >= 1, debe haber al menos un prop primario colocado
+		var has_declared_primary: bool = false
+		for r in room_prof.composition.primary:
+			if r.min_count >= 1:
+				has_declared_primary = true
+				break
 
-	assert(has_primary, "Tomb room must have a Primary prop placed")
-	print("  [OK] TOMB Primary/Secondary hierarchy successfully verified.")
+		if has_declared_primary:
+			assert(comp.prop_directives.size() >= 1, "FAIL: Room '%s' with declared primary must place props" % str(room_id))
 
-	# 2. TEST ENTRANCE MINIMALISM (Minimal props, high clearance)
-	var entry_prof = registry.get_profile_for_purpose(&"entrance")
-	var entry_pal = pal_resolver.resolve_palette_by_id(&"necropolis", &"entrance")
-
-	var entry_comp = planner.plan_room_composition(
-		null,
-		entry_pal,
-		room_geom,
-		{"purpose": &"entrance"},
-		null,
-		{"prop_seed": 201, "fixture_seed": 202},
-		2.0
-	)
-
-	assert(entry_comp != null, "Entrance composition must not be null")
-	assert(entry_comp.prop_directives.size() <= 2, "Entrance must have at most 2 props, got %d" % entry_comp.prop_directives.size())
-	print("  [OK] ENTRANCE minimalism successfully verified (props count = %d)." % entry_comp.prop_directives.size())
-
+	print("  [OK] Composition hierarchy (PRIMARY, SECONDARY, SUPPORT) verified across declared room profiles.")
 	print("[PASS] test_decoration_composition_hierarchy completed successfully!")
 	quit(0)

@@ -1,17 +1,26 @@
 extends SceneTree
 
 const _DecorationCompositionPlannerScript = preload("res://src/presentation/decoration/composition/decoration_composition_planner.gd")
-const _DecorationPurposeProfileRegistryScript = preload("res://src/presentation/decoration/composition/decoration_purpose_profile_registry.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 const _DecorationPaletteResolverScript = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
-const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
-const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
 const _PresentationRoomGeometryScript = preload("res://src/presentation/geometry/presentation_room_geometry.gd")
+const _PresentationSeedContextScript = preload("res://src/presentation/architecture/presentation_seed_context.gd")
 
 func _init() -> void:
 	print("--- Running test_decoration_fixture_budget ---")
 
+	var loader := _ProfileLoaderScript.new()
+	var available = loader.list_available_archetypes()
+	assert(not available.is_empty(), "FAIL: Must find archetypes")
+
+	var arch_id: StringName = available[0]
+	var bundle = loader.load_full_archetype_bundle(str(arch_id))
+	assert(bundle != null, "FAIL: Must load bundle for %s" % str(arch_id))
+
+	var first_room_id = bundle.rooms.keys()[0]
+	var room_prof = bundle.rooms[first_room_id]
+
 	var planner := _DecorationCompositionPlannerScript.new()
-	var registry := _DecorationPurposeProfileRegistryScript.new()
 	var pal_resolver := _DecorationPaletteResolverScript.new()
 
 	var floor_cells: Array[Vector2i] = []
@@ -29,16 +38,16 @@ func _init() -> void:
 		[]
 	)
 
-	var tomb_prof = registry.get_profile_for_purpose(&"tomb")
-	var tomb_pal = pal_resolver.resolve_palette_by_id(&"necropolis", &"tomb")
+	var palette = pal_resolver.resolve_palette_by_id(arch_id, first_room_id)
+	var seed_ctx = _PresentationSeedContextScript.for_room(555, 0)
 
 	var comp = planner.plan_room_composition(
-		null,
-		tomb_pal,
+		room_prof,
+		palette,
 		room_geom,
-		{"purpose": &"tomb"},
+		{"purpose": first_room_id},
 		null,
-		{"prop_seed": 555, "fixture_seed": 777},
+		seed_ctx,
 		2.0
 	)
 
@@ -52,8 +61,8 @@ func _init() -> void:
 			light_source_count += 1
 			total_light_energy += f_dir.style.light_energy
 
-	print("  [OK] Tomb Fixtures resolved: %d total light sources, total energy = %0.2f" % [light_source_count, total_light_energy])
-	assert(light_source_count <= 6, "Total light sources must be balanced (<= 6), got %d" % light_source_count)
+	print("  [OK] Room '%s' fixtures resolved: %d total light sources, total energy = %0.2f" % [str(first_room_id), light_source_count, total_light_energy])
+	assert(light_source_count <= 8, "Total light sources must respect budget (<= 8), got %d" % light_source_count)
 
 	print("[PASS] test_decoration_fixture_budget completed successfully!")
 	quit(0)

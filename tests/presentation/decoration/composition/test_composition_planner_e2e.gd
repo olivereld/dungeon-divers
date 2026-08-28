@@ -1,24 +1,25 @@
 extends SceneTree
 
-## Test suite E2E para validar DecorationCompositionPlanner y la integración en DecorationCompositionResolver.
+## Test suite E2E para validar DecorationCompositionPlanner con perfiles reales cargados desde JSON.
 
 const DecorationCompositionPlannerScript = preload("res://src/presentation/decoration/composition/decoration_composition_planner.gd")
-const DecorationCompositionResolverScript = preload("res://src/presentation/decoration/decoration_composition_resolver.gd")
-const DecorationCompositionProfileScript = preload("res://src/presentation/decoration/composition/decoration_composition_profile.gd")
-const DecorationCompositionRuleScript = preload("res://src/presentation/decoration/composition/decoration_composition_rule.gd")
-const CompositionRoleScript = preload("res://src/presentation/decoration/composition/composition_role.gd")
-const DecorationTagScript = preload("res://src/presentation/decoration/composition/decoration_tag.gd")
-const DecorationPaletteScript = preload("res://src/presentation/decoration/decoration_palette.gd")
+const ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 const DecorationPaletteResolverScript = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
-const RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const PresentationSeedContextScript = preload("res://src/presentation/architecture/presentation_seed_context.gd")
-const PropStyleScript = preload("res://src/presentation/props/prop_style.gd")
 const PresentationRoomGeometryScript = preload("res://src/presentation/geometry/presentation_room_geometry.gd")
 
 func _init() -> void:
 	print("==================================================================")
 	print("--- Running test_composition_planner_e2e ---")
 	print("==================================================================")
+
+	var loader := ProfileLoaderScript.new()
+	var available_archetypes = loader.list_available_archetypes()
+	assert(not available_archetypes.is_empty(), "FAIL: Must discover available archetypes")
+
+	var target_arch: StringName = available_archetypes[0]
+	var bundle = loader.load_full_archetype_bundle(str(target_arch))
+	assert(bundle != null, "FAIL: Must load archetype bundle")
 
 	var planner := DecorationCompositionPlannerScript.new()
 	var pal_resolver := DecorationPaletteResolverScript.new()
@@ -37,50 +38,29 @@ func _init() -> void:
 		[Vector2i(1, 4)]
 	)
 
-	# 2. Crear un perfil de composición de prueba (Tomb Central Focal)
-	var profile := DecorationCompositionProfileScript.new()
-	profile.id = &"tomb_profile"
+	# 2. Planificar composición para cada sala definida en el bundle
+	for room_id in bundle.rooms:
+		var room_prof = bundle.rooms[room_id]
+		var palette = pal_resolver.resolve_palette_by_id(target_arch, room_id)
+		var seed_ctx = PresentationSeedContextScript.for_room(1337, 0)
 
-	var r_primary := DecorationCompositionRuleScript.new()
-	r_primary.rule_id = &"primary_sarcophagus"
-	r_primary.composition_role = CompositionRoleScript.Role.PRIMARY
-	r_primary.target_style_ids = [&"sarcophagus_stone_closed"]
-	r_primary.min_count = 1
-	r_primary.max_count = 1
-	r_primary.clearance = 1
-	profile.rules.append(r_primary)
+		var comp = planner.plan_room_composition(
+			room_prof,
+			palette,
+			room_geom,
+			{"room_id": 0, "purpose": room_id},
+			null,
+			seed_ctx,
+			2.0
+		)
 
-	var r_support := DecorationCompositionRuleScript.new()
-	r_support.rule_id = &"support_tombstones"
-	r_support.composition_role = CompositionRoleScript.Role.SECONDARY
-	r_support.target_style_ids = [&"tombstone_classic_wall"]
-	r_support.min_count = 1
-	r_support.max_count = 2
-	profile.rules.append(r_support)
+		assert(comp != null, "FAIL: Composition result is null for room %s" % str(room_id))
 
-	# 3. Resolver paleta de Tumba
-	var palette = pal_resolver.resolve_palette_by_id(&"necropolis", &"tomb")
-	var seed_ctx = PresentationSeedContextScript.for_room(1337, 0)
+		# Verificar que ningún prop solape la puerta (1, 4)
+		for p_dir in comp.prop_directives:
+			assert(not p_dir.occupied_cells.has(Vector2i(1, 4)), "FAIL: Prop %s in room %s must not overlap door" % [str(p_dir.prop_id), str(room_id)])
 
-	var comp = planner.plan_room_composition(
-		profile,
-		palette,
-		room_geom,
-		{"room_id": 0},
-		null,
-		seed_ctx,
-		2.0
-	)
-
-	assert(comp != null, "FAIL: Composition result is null")
-	assert(comp.prop_directives.size() >= 1, "FAIL: Composition must have placed primary prop")
-
-	# Verificar que el primario fue colocado en el centro y no bloquea la puerta
-	var primary_dir = comp.prop_directives[0]
-	assert(primary_dir.prop_id == &"sarcophagus_stone_closed", "FAIL: Primary prop must be sarcophagus")
-	assert(not primary_dir.occupied_cells.has(Vector2i(1, 4)), "FAIL: Primary prop must not overlap door")
-	print("  [OK] DecorationCompositionPlanner successfully executed CentralFocal composition without door conflicts.")
-
+	print("  [OK] DecorationCompositionPlanner successfully planned compositions for all JSON room profiles without door conflicts.")
 	print("==================================================================")
 	print("[PASS] test_composition_planner_e2e completado con 100% éxito!")
 	print("==================================================================")

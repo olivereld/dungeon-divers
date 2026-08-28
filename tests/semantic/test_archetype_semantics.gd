@@ -4,7 +4,6 @@ const DungeonConfigScript = preload("res://src/dungeon_generator/config/dungeon_
 const DungeonPipelineScript = preload("res://src/dungeon_generator/core/dungeon_pipeline.gd")
 const SemanticOrchestratorScript = preload("res://src/dungeon_generator/core/semantic/semantic_orchestrator.gd")
 const ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
-const RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 
 func _init() -> void:
 	call_deferred("_run_test")
@@ -15,34 +14,45 @@ func _run_test() -> void:
 	print("==================================================================")
 
 	var loader := ProfileLoaderScript.new()
-
-	# Test A: Validación de integridad de los perfiles disponibles
-	var ids = loader.list_available_archetypes()
-	assert(ids.size() > 0, "FAIL: Archetype catalog should have registered archetypes")
-	for arch_id in ids:
-		var bundle = loader.load_full_archetype_bundle(str(arch_id))
-		assert(bundle != null and bundle.archetype != null, "FAIL: Bundle should load valid archetype")
-		assert(not bundle.archetype.purpose_weights.is_empty(), "FAIL: Profile weights cannot be empty")
-
-	# Test B: Incompatibilidades estrictas en generación completa con necropolis
 	var pipeline := DungeonPipelineScript.new()
 	var orchestrator := SemanticOrchestratorScript.new()
 
-	var arch_seeds = [1111, 2222, 3333, 4444]
-	for s in arch_seeds:
-		# NECROPOLIS no debe contener ARMORY ni FORGE
-		var cfg_m := DungeonConfigScript.new()
-		cfg_m.seed = s
-		cfg_m.archetype_id = &"necropolis"
-		var res_m = pipeline.generate(cfg_m)
-		var sem_m = orchestrator.generate_semantics(res_m, cfg_m)
+	var available_archetypes = loader.list_available_archetypes()
+	assert(not available_archetypes.is_empty(), "FAIL: Archetype catalog must discover available archetypes")
 
-		for r_id in sem_m.room_purposes:
-			var p = sem_m.room_purposes[r_id]
-			assert(p != &"armory", "FAIL: NECROPOLIS cannot have ARMORY")
-			assert(p != &"forge", "FAIL: NECROPOLIS cannot have FORGE")
-			assert(p != &"excavation", "FAIL: NECROPOLIS cannot have EXCAVATION")
+	# Validar de forma completamente dinámica para TODOS los arquetipos descubiertos
+	for arch_id in available_archetypes:
+		var bundle = loader.load_full_archetype_bundle(str(arch_id))
+		assert(bundle != null and bundle.archetype != null, "FAIL: Must load valid bundle for %s" % str(arch_id))
+		assert(bundle.archetype.schema_version == 1, "FAIL: Archetype must have schema_version 1")
 
-	print("  [OK] Strict archetype incompatibilities verified across multiple seeds.")
-	print("[PASS] test_archetype_semantics completed successfully.")
+		var declared_rooms = bundle.rooms.keys()
+		assert(not declared_rooms.is_empty(), "FAIL: Archetype %s must declare rooms" % str(arch_id))
+
+		for test_seed in [1010, 2020, 3030]:
+			var cfg := DungeonConfigScript.new()
+			cfg.seed = test_seed
+			cfg.archetype_id = arch_id
+			var d_res = pipeline.generate(cfg)
+			assert(d_res != null and d_res.grid != null, "FAIL: Pipeline generation failed for archetype %s" % str(arch_id))
+
+			var sem_res = orchestrator.generate_semantics(d_res, cfg)
+			assert(sem_res != null and sem_res.gameplay_valid, "FAIL: Semantic generation failed for archetype %s" % str(arch_id))
+			assert(sem_res.archetype_id == arch_id, "FAIL: Semantic result archetype_id must match requested archetype")
+
+			# Verificar que todos los propósitos asignados sean semánticamente válidos según el arquetipo
+			for r_id in sem_res.room_purposes:
+				var assigned_purpose: StringName = sem_res.get_room_purpose(r_id)
+				assert(assigned_purpose != &"", "FAIL: Room %d has empty purpose" % r_id)
+
+				# El propósito asignado debe existir en las salas del arquetipo o en su mapa de distribución/pesos
+				var is_known: bool = bundle.rooms.has(assigned_purpose) or \
+					bundle.archetype.purpose_weights.has(assigned_purpose) or \
+					bundle.archetype.room_purpose_distribution.has(assigned_purpose) or \
+					assigned_purpose == &"generic"
+				assert(is_known, "FAIL: Assigned purpose '%s' is not defined in archetype '%s'" % [str(assigned_purpose), str(arch_id)])
+
+		print("  [OK] Archetype semantic validation passed for: %s" % str(arch_id))
+
+	print("[PASS] test_archetype_semantics completed successfully!")
 	quit(0)

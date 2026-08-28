@@ -12,7 +12,6 @@ const _DecorationPlacementCandidateScript = preload("res://src/presentation/deco
 const _DecorationPlacementScorerScript = preload("res://src/presentation/decoration/composition/decoration_placement_scorer.gd")
 const _DecorationOrientationResolverScript = preload("res://src/presentation/decoration/composition/decoration_orientation_resolver.gd")
 const _DecorationRoomZoneScript = preload("res://src/presentation/decoration/composition/decoration_room_zone.gd")
-const _DecorationPurposeProfileRegistryScript = preload("res://src/presentation/decoration/composition/decoration_purpose_profile_registry.gd")
 const _DecorationRelationshipSolverScript = preload("res://src/presentation/decoration/composition/decoration_relationship_solver.gd")
 const _DecorationLightingPlannerScript = preload("res://src/presentation/decoration/composition/decoration_lighting_planner.gd")
 const _PropFixtureRelationshipResolverScript = preload("res://src/presentation/decoration/relationships/prop_fixture_relationship_resolver.gd")
@@ -40,7 +39,6 @@ var _anchor_resolver := _PropAnchorResolverScript.new()
 var _scorer := _DecorationPlacementScorerScript.new()
 var _orientation_resolver := _DecorationOrientationResolverScript.new()
 var _zone_partitioner := _DecorationRoomZoneScript.new()
-var _purpose_registry := _DecorationPurposeProfileRegistryScript.new()
 var _relationship_solver := _DecorationRelationshipSolverScript.new()
 var _relationship_resolver := _PropFixtureRelationshipResolverScript.new()
 var _lighting_planner := _DecorationLightingPlannerScript.new()
@@ -83,8 +81,6 @@ func plan_room_composition(
 		purpose_id = _RoomPurposeScript.resolve_id(room_context.purpose)
 	elif room_context != null and "room_purpose" in room_context:
 		purpose_id = _RoomPurposeScript.resolve_id(room_context.room_purpose)
-
-	var purpose_profile = _purpose_registry.get_profile_for_purpose(purpose_id)
 	var intent = null
 	var relationship_profile = null
 	var fixture_rules: Array = []
@@ -98,18 +94,9 @@ func plan_room_composition(
 		relationship_profile = _build_relationship_profile_from_profile_room(profile_room)
 		fixture_rules = _build_fixture_rules_from_profile_room(profile_room)
 		total_budget = profile_room.lighting.budget if profile_room.lighting != null else 4.0
-	else:
-		# Fallback legacy a purpose_profile de registry
-		intent = purpose_profile.intent if purpose_profile != null else null
-		relationship_profile = purpose_profile.relationship_profile if purpose_profile != null else null
-		fixture_rules = purpose_profile.fixture_rules if purpose_profile != null and "fixture_rules" in purpose_profile else []
-		total_budget = profile.lighting_budget if (profile != null and "lighting_budget" in profile) else (purpose_profile.default_lighting_budget if purpose_profile != null else 5.0)
-
-		if profile != null and "rules" in profile and not profile.rules.is_empty():
-			rules_to_execute = profile.rules.duplicate()
-		elif purpose_profile != null and not purpose_profile.templates.is_empty():
-			for t in purpose_profile.templates:
-				rules_to_execute.append_array(t.get_all_rules())
+	elif profile != null and "rules" in profile and not profile.rules.is_empty():
+		rules_to_execute = profile.rules.duplicate()
+		total_budget = profile.lighting_budget if "lighting_budget" in profile else 5.0
 
 	var door_cells: Array[Vector2i] = []
 	if "door_positions" in room_geometry and room_geometry.door_positions is Array:

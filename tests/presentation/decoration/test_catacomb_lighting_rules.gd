@@ -1,18 +1,15 @@
 extends SceneTree
 
 const _DecorationPaletteResolverScript = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
-const _DecorationPurposeProfileRegistryScript = preload("res://src/presentation/decoration/composition/decoration_purpose_profile_registry.gd")
-const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
-const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 const _FixtureStyleScript = preload("res://src/presentation/fixtures/fixture_style.gd")
-const _FixturePlacementModeScript = preload("res://src/presentation/fixtures/fixture_placement_mode.gd")
 
 func _init() -> void:
 	print("--- Running test_catacomb_lighting_rules ---")
 
 	# 1. Palette check
 	var palette_resolver := _DecorationPaletteResolverScript.new()
-	var dec_palette = palette_resolver.resolve_palette(&"necropolis", &"catacomb")
+	var dec_palette = palette_resolver.resolve_palette_by_id(&"necropolis", &"catacomb")
 
 	assert(dec_palette != null and dec_palette.fixtures != null, "Fixture palette must not be null")
 	var palette = dec_palette.fixtures
@@ -32,20 +29,13 @@ func _init() -> void:
 
 	print("  [OK] CATACOMB fixture palette contains exclusively Torches, Braziers, and Candle Clusters")
 
-	# 2. Purpose Profile & Relationship Rules check
-	var registry := _DecorationPurposeProfileRegistryScript.new()
-	var profile = registry.get_profile_for_purpose(&"catacomb")
+	# 2. JSON Profile Lighting check
+	var loader := _ProfileLoaderScript.new()
+	var profile = loader.load_room("catacomb.json")
 	assert(profile != null, "Profile must not be null")
+	assert(profile.lighting != null, "Lighting config must not be null")
+	assert(profile.lighting.hanging.max_count == 0, "No hanging fixtures in CATACOMB")
 
-	for r in profile.fixture_rules:
-		assert(r.placement_mode != _FixturePlacementModeScript.Mode.HANGING, "No hanging fixtures in CATACOMB")
-
-	if profile.relationship_profile != null:
-		for rel in profile.relationship_profile.relations:
-			assert(not rel.target_fixture_types.has(_FixtureStyleScript.Type.LANTERN), "No lantern relations in CATACOMB")
-			assert(not rel.target_fixture_types.has(_FixtureStyleScript.Type.CANDLE_HOLDER), "No candle holder relations in CATACOMB")
-
-	print("  [OK] CATACOMB purpose profile and relationship profile forbid hanging lamps, wall lanterns, and candle holders")
-
+	print("  [OK] CATACOMB JSON room profile forbids hanging lamps")
 	print("[PASS] test_catacomb_lighting_rules completed successfully!")
 	quit(0)

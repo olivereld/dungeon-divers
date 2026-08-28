@@ -1,13 +1,12 @@
 extends SceneTree
 
-## Test suite E2E para el Vertical Slice de Cripta (Fases 10.1 a 10.18).
-## Valida que cada propósito de sala de Cripta (TOMB, ANTECHAMBER, ENTRANCE, CATACOMB)
-## genere una composición con intención espacial, zonificación, plantillas y presupuesto lumínico.
+## Test suite E2E para el Vertical Slice de Composición Espacial.
+## Valida que los perfiles de sala (tomb, antechamber, entrance)
+## generen composiciones con intención espacial, zonificación, plantillas y presupuesto lumínico desde JSON.
 
 const DecorationCompositionPlannerScript = preload("res://src/presentation/decoration/composition/decoration_composition_planner.gd")
-const DecorationPurposeProfileRegistryScript = preload("res://src/presentation/decoration/composition/decoration_purpose_profile_registry.gd")
+const ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 const DecorationPaletteResolverScript = preload("res://src/presentation/decoration/decoration_palette_resolver.gd")
-const RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
 const PresentationRoomGeometryScript = preload("res://src/presentation/geometry/presentation_room_geometry.gd")
 const PresentationSeedContextScript = preload("res://src/presentation/architecture/presentation_seed_context.gd")
 
@@ -18,7 +17,7 @@ func _init() -> void:
 
 	var planner := DecorationCompositionPlannerScript.new()
 	var pal_resolver := DecorationPaletteResolverScript.new()
-	var purpose_registry := DecorationPurposeProfileRegistryScript.new()
+	var loader := ProfileLoaderScript.new()
 
 	# 1. TEST TOMB: Foco central, despeje de puertas, sin bancos
 	var floor_cells_tomb: Array[Vector2i] = []
@@ -42,15 +41,15 @@ func _init() -> void:
 		[Vector2i(1, 4)]
 	)
 
-	var profile_tomb = purpose_registry.get_profile_for_purpose(RoomPurposeScript.Type.TOMB)
-	var palette_tomb = pal_resolver.resolve_palette(1, RoomPurposeScript.Type.TOMB)
+	var profile_tomb = loader.load_room("tomb.json")
+	var palette_tomb = pal_resolver.resolve_palette_by_id(&"necropolis", &"tomb")
 	var seed_ctx_tomb = PresentationSeedContextScript.for_room(1337, 1)
 
 	var comp_tomb = planner.plan_room_composition(
-		null, # Usará el purpose profile automáticamente si es nulo
+		profile_tomb,
 		palette_tomb,
 		geom_tomb,
-		{"room_id": 1, "purpose": RoomPurposeScript.Type.TOMB},
+		{"room_id": 1, "purpose": &"tomb"},
 		null,
 		seed_ctx_tomb,
 		2.0
@@ -85,14 +84,15 @@ func _init() -> void:
 		[Vector2i(1, 3), Vector2i(6, 3)]
 	)
 
-	var palette_ante = pal_resolver.resolve_palette(1, RoomPurposeScript.Type.ANTECHAMBER)
+	var profile_ante = loader.load_room("antechamber.json")
+	var palette_ante = pal_resolver.resolve_palette_by_id(&"necropolis", &"antechamber")
 	var seed_ctx_ante = PresentationSeedContextScript.for_room(2026, 2)
 
 	var comp_ante = planner.plan_room_composition(
-		null,
+		profile_ante,
 		palette_ante,
 		geom_ante,
-		{"room_id": 2, "purpose": RoomPurposeScript.Type.ANTECHAMBER},
+		{"room_id": 2, "purpose": &"antechamber"},
 		null,
 		seed_ctx_ante,
 		2.0
@@ -124,12 +124,13 @@ func _init() -> void:
 		walls_entry,
 		[Vector2i(1, 2)]
 	)
-	var palette_entry = pal_resolver.resolve_palette(1, RoomPurposeScript.Type.ENTRANCE)
+	var profile_entry = loader.load_room("entrance.json")
+	var palette_entry = pal_resolver.resolve_palette_by_id(&"necropolis", &"entrance")
 	var comp_entry = planner.plan_room_composition(
-		null,
+		profile_entry,
 		palette_entry,
 		geom_entry,
-		{"room_id": 3, "purpose": RoomPurposeScript.Type.ENTRANCE},
+		{"room_id": 3, "purpose": &"entrance"},
 		null,
 		PresentationSeedContextScript.for_room(999, 3),
 		2.0

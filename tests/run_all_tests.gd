@@ -88,7 +88,6 @@ const TEST_SUITES: Array[String] = [
 	"res://tests/presentation/decoration/composition/test_decoration_relationship_solver.gd",
 	"res://tests/presentation/decoration/composition/test_composition_template.gd",
 	"res://tests/presentation/decoration/composition/test_decoration_lighting_planner.gd",
-	"res://tests/presentation/decoration/composition/test_purpose_profile_registry.gd",
 	"res://tests/presentation/decoration/composition/test_crypt_vertical_slice_e2e.gd",
 
 	# 10. Integrated Dungeon Validation & Migration (Fase 10.19)
