@@ -61,9 +61,9 @@ func _get_room_resolver(arch_name: String) -> _RoomProfileResolverScript:
 	return null
 
 
-func get_dominant_profile(contexts: Array, fallback_archetype: int = 0) -> _ArchitecturalPresentationProfileScript:
+func get_dominant_profile(contexts: Array, fallback_archetype: Variant = &"necropolis") -> _ArchitecturalPresentationProfileScript:
 	if contexts.is_empty():
-		return _resolver.resolve(fallback_archetype, 0)
+		return _resolver.resolve_profile_for_archetype(fallback_archetype, 0)
 	for ctx in contexts:
 		if ctx.role == _PresentationRoomRoleScript.Role.START:
 			return ctx.profile

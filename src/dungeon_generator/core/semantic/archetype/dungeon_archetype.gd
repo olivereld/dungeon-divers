@@ -1,7 +1,12 @@
 class_name DungeonArchetype
 extends RefCounted
 
-## Identificador canónico y tipos de arquetipos de mazmorra.
+## Modelo de valor que representa la identidad de un arquetipo de mazmorra.
+
+var id: StringName = &"generic"
+
+func _init(p_id: Variant = &"generic") -> void:
+	id = resolve_id(p_id)
 
 enum Type {
 	GENERIC = 0,

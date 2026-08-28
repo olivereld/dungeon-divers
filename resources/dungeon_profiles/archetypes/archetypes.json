@@ -1,0 +1,9 @@
+{
+    "archetypes": [
+        {
+            "file": "necropolis.json",
+            "id": "necropolis"
+        }
+    ],
+    "schema_version": 1
+}

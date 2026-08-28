@@ -99,7 +99,7 @@ func build_presentation(
 
 	# 1.5 Resolver Contextos de Sala, Partición Geométrica y Perfil Arquitectónico Dominante
 	var room_contexts: Array = _context_builder.build_contexts(semantic_result)
-	var dominant_profile = _context_builder.get_dominant_profile(room_contexts, config.dungeon_archetype)
+	var dominant_profile = _context_builder.get_dominant_profile(room_contexts, config.get_effective_archetype_id())
 
 	var geometry_partition := _PresentationGeometryPartitionScript.new()
 	if semantic_result.grid != null:
