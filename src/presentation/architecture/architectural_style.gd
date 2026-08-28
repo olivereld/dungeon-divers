@@ -170,7 +170,7 @@ static func fixture_from_name(name_str: String, default_style: int = 0) -> int:
 
 static func palette_from_name(name_str: String, default_palette: int = 0) -> int:
 	match name_str.to_lower():
-		"crypt", "mausoleum":
+		"crypt", "mausoleum", "necropolis":
 			return DecorationPalette.CRYPT
 		"armory", "fortress":
 			return DecorationPalette.ARMORY

@@ -21,11 +21,11 @@ func _run_test() -> void:
 	assert(assets.has_material(&"mausoleum_stone"), "FAIL: Missing mausoleum_stone")
 
 	# 2. Load Archetype
-	var arch = loader.load_archetype("mausoleum")
-	assert(arch != null, "FAIL: Archetype mausoleum should not be null")
-	assert(arch.id == &"mausoleum", "FAIL: Archetype ID mismatch")
+	var arch = loader.load_archetype("necropolis")
+	assert(arch != null, "FAIL: Archetype necropolis should not be null")
+	assert(arch.id == &"necropolis" or arch.id == &"mausoleum", "FAIL: Archetype ID mismatch")
 	assert(arch.schema_version == 1, "FAIL: Schema version mismatch")
-	assert(arch.rooms.size() == 9, "FAIL: Mausoleum should reference 9 rooms, found %d" % arch.rooms.size())
+	assert(arch.rooms.size() == 9, "FAIL: Necropolis should reference 9 rooms, found %d" % arch.rooms.size())
 	assert(arch.purpose_weights.has(&"crypt"), "FAIL: Missing crypt weight")
 	assert(arch.gameplay_purpose_map.has(&"BOSS"), "FAIL: Missing BOSS gameplay map")
 

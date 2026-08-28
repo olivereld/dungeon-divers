@@ -1,7 +1,7 @@
 {
     "schema_version": 1,
-    "id": "mausoleum",
-    "display_name": "Mausoleum",
+    "id": "necropolis",
+    "display_name": "Necropolis",
     "purpose_weights": {
         "crypt": 4.0,
         "tomb": 3.0,
@@ -51,11 +51,11 @@
         "fixture_density": 0.55
     },
     "architectural_style": {
-        "floor_style": "mausoleum",
-        "wall_style": "mausoleum",
-        "door_style": "mausoleum",
-        "stairs_style": "mausoleum",
-        "material_profile": "mausoleum_stone"
+        "floor_style": "necropolis",
+        "wall_style": "necropolis",
+        "door_style": "necropolis",
+        "stairs_style": "necropolis",
+        "material_profile": "necropolis_stone"
     },
     "room_rules": {
         "allow_duplicate_purposes": true,

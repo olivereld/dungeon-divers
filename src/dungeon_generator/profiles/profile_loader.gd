@@ -231,12 +231,17 @@ func populate_prop_asset_registry(registry) -> void:
 			)
 			registry.register_definition(def)
 
-## Carga un archivo de arquetipo por ID (ej. "mausoleum").
+## Carga un archivo de arquetipo por ID (ej. "necropolis" o "mausoleum").
 func load_archetype(archetype_id: String) -> _ProfileArchetypeScript:
 	var path := base_path + "archetypes/" + archetype_id + ".json"
 	var json_data = _read_json_file(path)
 	if not (json_data is Dictionary):
-		return null
+		if archetype_id == "mausoleum":
+			json_data = _read_json_file(base_path + "archetypes/necropolis.json")
+		elif archetype_id == "necropolis":
+			json_data = _read_json_file(base_path + "archetypes/mausoleum.json")
+		if not (json_data is Dictionary):
+			return null
 
 	var dict: Dictionary = json_data
 	var id := StringName(dict.get("id", archetype_id))

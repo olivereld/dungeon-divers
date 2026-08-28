@@ -1,6 +1,11 @@
 {
     "schema_version": 1,
     "materials": {
+        "necropolis_stone": {
+            "floor": "res://assets/materials/mausoleum/floor.tres",
+            "wall": "res://assets/materials/mausoleum/wall.tres",
+            "trim": "res://assets/materials/mausoleum/trim.tres"
+        },
         "mausoleum_stone": {
             "floor": "res://assets/materials/mausoleum/floor.tres",
             "wall": "res://assets/materials/mausoleum/wall.tres",
