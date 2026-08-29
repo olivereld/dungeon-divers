@@ -24,8 +24,12 @@
         "forbidden_tags": []
     },
     "templates": {
-        "allowed": [],
-        "preferred": [],
+        "allowed": [
+            "sacristy_v1"
+        ],
+        "preferred": [
+            "sacristy_v1"
+        ],
         "forbidden": [],
         "required_tags": [
             "ceremonial"
