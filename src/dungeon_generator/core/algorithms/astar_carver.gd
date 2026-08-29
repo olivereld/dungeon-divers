@@ -214,7 +214,7 @@ static func _carve_single_request(
 			var c_owner: int = grid.get_room_owner(cell)
 			if c_owner == -1:
 				c_owner = _get_room_id_at(cell, rooms)
-			if c_owner != -1:
+			if c_owner != -1 and c_owner != req.room_a_id and c_owner != req.room_b_id:
 				return {"success": false, "reason": "FORBIDDEN_ROOM_INVADED"}
 
 	# --- PASO 4: COMMIT (Commit atómico al CellGrid) ---
@@ -404,14 +404,14 @@ static func _find_direction_aware_path(
 				var owner_id: int = grid.get_room_owner(next_pos)
 				if owner_id == -1:
 					owner_id = _get_room_id_at(next_pos, rooms)
-				if owner_id != -1:
+				if owner_id != -1 and owner_id != req.room_a_id and owner_id != req.room_b_id:
 					continue
 
-				# Si no es corredor previo, no puede penetrar en el perímetro de 1 de distancia
+				# Si no es corredor previo, no puede penetrar en el perímetro de 1 de distancia de salas ajenas
 				if ctype != CellGrid.CellType.CORRIDOR:
 					var in_buffer := false
 					for r in rooms:
-						if r != null and r.rect.grow(1).has_point(next_pos):
+						if r != null and r.id != req.room_a_id and r.id != req.room_b_id and r.rect.grow(1).has_point(next_pos):
 							in_buffer = true
 							break
 					if in_buffer:
@@ -553,18 +553,18 @@ static func _validate_centerline(
 			if manhattan != 1:
 				return "NON_CARDINAL_STEP"
 
-		# Comprobar que no atraviese el interior ni el perímetro prohibido de ninguna habitación
+		# Comprobar que no atraviese el interior ni el perímetro prohibido de ninguna habitación ajena
 		if p != expected_start and p != expected_goal:
 			var owner_id: int = grid.get_room_owner(p)
 			if owner_id == -1:
 				owner_id = _get_room_id_at(p, rooms)
-			if owner_id != -1:
+			if owner_id != -1 and owner_id != room_a_id and owner_id != room_b_id:
 				return "FORBIDDEN_ROOM"
 
-			# Comprobar que no penetre en el perímetro prohibido (distancia 1)
+			# Comprobar que no penetre en el perímetro prohibido (distancia 1) de salas ajenas
 			if grid.get_cell(p) != CellGrid.CellType.CORRIDOR:
 				for r in rooms:
-					if r != null and r.rect.grow(1).has_point(p):
+					if r != null and r.id != room_a_id and r.id != room_b_id and r.rect.grow(1).has_point(p):
 						return "FORBIDDEN_ROOM_BUFFER"
 
 	return ""
