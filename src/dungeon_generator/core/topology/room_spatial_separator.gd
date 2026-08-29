@@ -135,46 +135,43 @@ static func separate_rooms(
 					placed = true
 					break
 
-			# 2. Búsqueda con reducción progresiva de tamaño si el espacio es reducido
+			# 2. Búsqueda exhaustiva con reducción progresiva de tamaño y relajación de padding
 			if not placed:
-				var min_w: int = 6
-				var min_h: int = 6
-				var cur_w: int = maxi(min_w, r.rect.size.x - 2)
-				var cur_h: int = maxi(min_h, r.rect.size.y - 2)
-				r.rect.size = Vector2i(cur_w, cur_h)
-
-				for y in range(bounds.position.y, bounds.end.y - cur_h + 1, 1):
-					for x in range(bounds.position.x, bounds.end.x - cur_w + 1, 1):
-						var cand := Rect2i(x, y, cur_w, cur_h)
-						var col := false
-						for acc in filtered_rooms:
-							if cand.intersects(acc.expanded(min_padding)):
-								col = true
-								break
-						if not col:
-							r.rect = cand
-							filtered_rooms.append(r)
-							placed = true
-							break
+				var min_w: int = 5 if (bounds.size.x <= 32 or bounds.size.y <= 32) else 6
+				var min_h: int = 5 if (bounds.size.x <= 32 or bounds.size.y <= 32) else 6
+				var orig_w: int = r.rect.size.x
+				var orig_h: int = r.rect.size.y
+				
+				for try_size in [
+					Vector2i(orig_w, orig_h),
+					Vector2i(maxi(min_w, orig_w - 2), maxi(min_h, orig_h - 2)),
+					Vector2i(min_w, min_h),
+					Vector2i(4, 4)
+				]:
 					if placed:
 						break
-
-			# 3. Si aún así no cupo con padding completo, relajar a padding de 1 celda para preservar la sala crítica
-			if not placed:
-				for y in range(bounds.position.y, bounds.end.y - r.rect.size.y + 1, 1):
-					for x in range(bounds.position.x, bounds.end.x - r.rect.size.x + 1, 1):
-						var cand := Rect2i(x, y, r.rect.size.x, r.rect.size.y)
-						var col := false
-						for acc in filtered_rooms:
-							if cand.intersects(acc.expanded(1)):
-								col = true
-								break
-						if not col:
-							r.rect = cand
-							filtered_rooms.append(r)
-							placed = true
+					for pad in [min_padding, 1, 0]:
+						if placed:
 							break
-					if placed:
-						break
+						for y in range(bounds.position.y, bounds.end.y - try_size.y + 1):
+							for x in range(bounds.position.x, bounds.end.x - try_size.x + 1):
+								var cand := Rect2i(x, y, try_size.x, try_size.y)
+								var col := false
+								for acc in filtered_rooms:
+									if pad > 0:
+										if cand.intersects(acc.expanded(pad)):
+											col = true
+											break
+									else:
+										if cand.intersects(acc):
+											col = true
+											break
+								if not col:
+									r.rect = cand
+									filtered_rooms.append(r)
+									placed = true
+									break
+							if placed:
+								break
 
 	return filtered_rooms
