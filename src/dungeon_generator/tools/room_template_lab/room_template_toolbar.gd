@@ -29,6 +29,8 @@ func _ready() -> void:
 	_build_ui()
 
 func setup(p_state: RoomTemplateLabState, p_history: CommandHistory) -> void:
+	if btn_brush == null:
+		_build_ui()
 	state = p_state
 	history = p_history
 

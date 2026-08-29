@@ -50,6 +50,8 @@ func _ready() -> void:
 	_build_ui()
 
 func setup(p_state: RoomTemplateLabState) -> void:
+	if input_id == null:
+		_build_ui()
 	state = p_state
 	if state != null:
 		if not state.template_changed.is_connected(_sync_from_state):

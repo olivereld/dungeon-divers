@@ -28,6 +28,8 @@ func _ready() -> void:
 	add_child(_debounce_timer)
 
 func setup(p_state: RoomTemplateLabState) -> void:
+	if lbl_dimensions == null:
+		_build_ui()
 	state = p_state
 	if state != null:
 		if not state.canvas_modified.is_connected(_on_canvas_modified):
