@@ -59,7 +59,21 @@ static func carve(
 	# Determine primary shape family from template geometry policy
 	var shape_family: StringName = &"rectangle"
 	if template != null and template.geometry != null and not template.geometry.allowed_shapes.is_empty():
-		shape_family = template.geometry.allowed_shapes[0]
+		var allowed = template.geometry.allowed_shapes
+		var feasible_shapes: Array[StringName] = []
+		for sh in allowed:
+			if _is_shape_feasible_for_rect(sh, w, h):
+				feasible_shapes.append(sh)
+		if feasible_shapes.is_empty():
+			feasible_shapes.append(&"rectangle")
+
+		if feasible_shapes.size() == 1:
+			shape_family = feasible_shapes[0]
+		elif rng != null:
+			var idx = rng.randi_range(0, feasible_shapes.size() - 1)
+			shape_family = feasible_shapes[idx]
+		else:
+			shape_family = feasible_shapes[0]
 
 	# If room is too small (< 6 on either axis), enforce open rectangular floor for walkability safety
 	if w < 6 or h < 6:
@@ -128,6 +142,7 @@ static func carve(
 
 	# Resolve concrete anchor positions
 	var resolved_anchors: Dictionary = {}
+	var anchors_success: bool = true
 	if template != null and template.anchors is Dictionary:
 		for a_key in template.anchors:
 			var a_def = template.anchors[a_key]
@@ -135,10 +150,13 @@ static func carve(
 			var target: Vector2i = _resolve_anchor_coordinate(rect, loc, p_orientation, center)
 			if not grid.is_walkable(target):
 				target = _find_nearest_walkable_cell(grid, rect, target)
-			resolved_anchors[a_key] = target
+			if grid.is_walkable(target) and rect.has_point(target):
+				resolved_anchors[a_key] = target
+			elif a_def != null and a_def.required:
+				anchors_success = false
 
 	return _TemplateCarveResultScript.new(
-		true,
+		anchors_success,
 		zone_map,
 		carved_cells,
 		reserved_cells,
@@ -330,3 +348,18 @@ static func _ensure_path_to_center(grid: CellGrid, rect: Rect2i, from_pos: Vecto
 		cur.y += 1 if to_pos.y > cur.y else -1
 		if rect.has_point(cur):
 			grid.set_cell(cur, CellGrid.CellType.FLOOR)
+
+static func _is_shape_feasible_for_rect(sh: StringName, w: int, h: int) -> bool:
+	match sh:
+		&"pillared", &"pillared_hall", &"pillars":
+			return w >= 8 and h >= 8
+		&"cruciform", &"cruciform_sanctuary", &"cross":
+			return w >= 7 and h >= 7
+		&"chapel", &"central_nave", &"nave":
+			return w >= 8 and h >= 8
+		&"octagonal", &"octagonal_chamber", &"octagon":
+			return w >= 6 and h >= 6
+		&"niched_hall", &"niches":
+			return w >= 6 and h >= 6
+		_:
+			return true
