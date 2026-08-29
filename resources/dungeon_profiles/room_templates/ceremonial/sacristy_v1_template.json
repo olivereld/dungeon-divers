@@ -424,6 +424,14 @@
         }
     },
     "id": "sacristy_v1",
+    "purposes": {
+        "allowed": [
+            "sacristy"
+        ],
+        "preferred": [
+            "sacristy"
+        ]
+    },
     "symmetry": {
         "axis": "none",
         "required": false
@@ -431,6 +439,6 @@
     "tags": [
         "sacristy",
         "ceremonial",
-        "treasure"
+        "custom"
     ]
 }
