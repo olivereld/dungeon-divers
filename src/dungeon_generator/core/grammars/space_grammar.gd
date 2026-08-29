@@ -39,7 +39,13 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 		var m_node: MissionNode = MissionNode.from_dictionary(node_data)
 
 		var room_type: StringName = m_node.room_type_hint
-		if room_type == &"":
+		if m_node.action == MissionNode.ActionType.BOSS:
+			room_type = &"boss"
+		elif m_node.action == MissionNode.ActionType.START:
+			room_type = &"start"
+		elif m_node.action == MissionNode.ActionType.GOAL or m_node.action == MissionNode.ActionType.PASSAGE_DOWN:
+			room_type = &"goal"
+		elif room_type == &"":
 			room_type = &"explore"
 
 		var remaining_rooms: int = node_ids.size() - i

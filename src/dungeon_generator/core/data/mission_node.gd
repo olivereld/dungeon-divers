@@ -78,6 +78,9 @@ static func from_dictionary(dict: Dictionary) -> MissionNode:
 	if dict.has("grants_items"):
 		node.grants_items = Array(dict["grants_items"], TYPE_STRING_NAME, &"", null)
 	node.difficulty_weight = float(dict.get("difficulty_weight", 1.0))
-	node.is_optional = bool(dict.get("is_optional", false))
-	node.room_type_hint = StringName(dict.get("room_type_hint", &""))
+	var raw_hint = dict.get("room_type_hint", &"")
+	if not str(raw_hint).is_empty():
+		node.room_type_hint = StringName(raw_hint)
+	else:
+		node._apply_default_hints()
 	return node
