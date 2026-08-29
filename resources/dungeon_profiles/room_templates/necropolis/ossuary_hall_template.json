@@ -1,0 +1,39 @@
+{
+    "schema_version": 1,
+    "id": "ossuary_hall",
+    "display_name": "Ossuary Hall Template",
+    "tags": ["necropolis", "ossuary", "bones", "hall"],
+    "geometry": {
+        "shape": { "allowed": ["niched_hall", "rectangle"] },
+        "width": { "min": 8, "max": 16 },
+        "depth": { "min": 8, "max": 18 },
+        "area": { "min": 64, "max": 288 },
+        "aspect_ratio": { "min": 0.5, "max": 2.0 }
+    },
+    "entrances": {
+        "min": 1,
+        "max": 4,
+        "allowed_sides": ["north", "south", "east", "west"],
+        "allow_corner": false,
+        "min_spacing": 2
+    },
+    "symmetry": {
+        "required": true,
+        "axis": "vertical"
+    },
+    "anchors": {
+        "bone_pile_center": { "required": false, "location": "center" },
+        "bone_niche_left": { "required": false, "location": "west_wall" },
+        "bone_niche_right": { "required": false, "location": "east_wall" }
+    },
+    "clearances": {
+        "entrance": 1,
+        "focal": 1,
+        "circulation": 1,
+        "walls": 0
+    },
+    "semantic_constraints": {
+        "allowed_purposes": ["ossuary", "crypt", "catacomb"],
+        "preferred_purposes": ["ossuary"]
+    }
+}

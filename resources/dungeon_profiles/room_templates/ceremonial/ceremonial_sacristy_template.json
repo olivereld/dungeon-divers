@@ -1,0 +1,38 @@
+{
+    "schema_version": 1,
+    "id": "ceremonial_sacristy",
+    "display_name": "Ceremonial Sacristy Template",
+    "tags": ["ceremonial", "sacristy", "prep", "ritual"],
+    "geometry": {
+        "shape": { "allowed": ["niched_hall", "rectangle"] },
+        "width": { "min": 6, "max": 12 },
+        "depth": { "min": 6, "max": 12 },
+        "area": { "min": 36, "max": 144 },
+        "aspect_ratio": { "min": 0.5, "max": 2.0 }
+    },
+    "entrances": {
+        "min": 1,
+        "max": 2,
+        "allowed_sides": ["south", "north", "west", "east"],
+        "allow_corner": false,
+        "min_spacing": 2
+    },
+    "symmetry": {
+        "required": false,
+        "axis": "none"
+    },
+    "anchors": {
+        "prep_altar": { "required": false, "location": "north_wall" },
+        "vestment_chest": { "required": false, "location": "east_wall" }
+    },
+    "clearances": {
+        "entrance": 1,
+        "focal": 1,
+        "circulation": 1,
+        "walls": 0
+    },
+    "semantic_constraints": {
+        "allowed_purposes": ["sacristy", "antechamber", "reliquary"],
+        "preferred_purposes": ["sacristy"]
+    }
+}

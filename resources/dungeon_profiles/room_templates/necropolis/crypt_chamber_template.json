@@ -1,0 +1,38 @@
+{
+    "schema_version": 1,
+    "id": "crypt_chamber",
+    "display_name": "Crypt Chamber Template",
+    "tags": ["necropolis", "crypt", "tombs", "undead"],
+    "geometry": {
+        "shape": { "allowed": ["pillared", "pillared_hall", "rectangle"] },
+        "width": { "min": 8, "max": 16 },
+        "depth": { "min": 8, "max": 16 },
+        "area": { "min": 64, "max": 256 },
+        "aspect_ratio": { "min": 0.6, "max": 1.6 }
+    },
+    "entrances": {
+        "min": 1,
+        "max": 4,
+        "allowed_sides": ["north", "south", "east", "west"],
+        "allow_corner": false,
+        "min_spacing": 2
+    },
+    "symmetry": {
+        "required": true,
+        "axis": "both"
+    },
+    "anchors": {
+        "sarcophagus_center": { "required": false, "location": "center" },
+        "urn_alcove": { "required": false, "location": "perimeter" }
+    },
+    "clearances": {
+        "entrance": 1,
+        "focal": 1,
+        "circulation": 1,
+        "walls": 0
+    },
+    "semantic_constraints": {
+        "allowed_purposes": ["crypt", "tomb", "ossuary", "burial"],
+        "preferred_purposes": ["crypt"]
+    }
+}

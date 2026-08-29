@@ -1,0 +1,40 @@
+{
+    "schema_version": 1,
+    "id": "royal_mausoleum",
+    "display_name": "Royal Mausoleum Template",
+    "tags": ["necropolis", "mausoleum", "royal", "tomb", "boss", "focal"],
+    "geometry": {
+        "shape": { "allowed": ["octagonal", "cruciform", "rectangle"] },
+        "width": { "min": 10, "max": 18 },
+        "depth": { "min": 10, "max": 18 },
+        "area": { "min": 100, "max": 324 },
+        "aspect_ratio": { "min": 0.7, "max": 1.4 }
+    },
+    "entrances": {
+        "min": 1,
+        "max": 3,
+        "allowed_sides": ["south", "east", "west"],
+        "allow_corner": false,
+        "min_spacing": 3
+    },
+    "symmetry": {
+        "required": true,
+        "axis": "both"
+    },
+    "anchors": {
+        "royal_sarcophagus": { "required": true, "location": "center" },
+        "canopic_urns": { "required": false, "location": "north_wall" },
+        "guardian_statue_l": { "required": false, "location": "south_west" },
+        "guardian_statue_r": { "required": false, "location": "south_east" }
+    },
+    "clearances": {
+        "entrance": 2,
+        "focal": 2,
+        "circulation": 2,
+        "walls": 0
+    },
+    "semantic_constraints": {
+        "allowed_purposes": ["royal_tomb", "boss", "goal", "sanctum"],
+        "preferred_purposes": ["royal_tomb", "boss", "goal"]
+    }
+}

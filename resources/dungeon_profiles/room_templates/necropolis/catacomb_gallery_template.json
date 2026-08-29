@@ -1,0 +1,38 @@
+{
+    "schema_version": 1,
+    "id": "catacomb_gallery",
+    "display_name": "Catacomb Gallery Template",
+    "tags": ["necropolis", "catacomb", "gallery", "corridor_room"],
+    "geometry": {
+        "shape": { "allowed": ["central_nave", "rectangle"] },
+        "width": { "min": 6, "max": 14 },
+        "depth": { "min": 8, "max": 20 },
+        "area": { "min": 48, "max": 280 },
+        "aspect_ratio": { "min": 0.4, "max": 1.8 }
+    },
+    "entrances": {
+        "min": 2,
+        "max": 4,
+        "allowed_sides": ["north", "south", "east", "west"],
+        "allow_corner": false,
+        "min_spacing": 2
+    },
+    "symmetry": {
+        "required": false,
+        "axis": "none"
+    },
+    "anchors": {
+        "loculi_left": { "required": false, "location": "west_wall" },
+        "loculi_right": { "required": false, "location": "east_wall" }
+    },
+    "clearances": {
+        "entrance": 1,
+        "focal": 1,
+        "circulation": 1,
+        "walls": 0
+    },
+    "semantic_constraints": {
+        "allowed_purposes": ["catacomb", "crypt", "passage"],
+        "preferred_purposes": ["catacomb"]
+    }
+}
