@@ -10,15 +10,18 @@ const _GeometryPolicyScript = preload("res://src/dungeon_generator/core/room_tem
 const _EntrancePolicyScript = preload("res://src/dungeon_generator/core/room_templates/data/room_template_entrance_policy.gd")
 const _RegistryScript = preload("res://src/dungeon_generator/core/room_templates/loader/room_template_registry.gd")
 const _ValidatorScript = preload("res://src/dungeon_generator/core/room_templates/validation/room_template_validator.gd")
+const _MatcherScript = preload("res://src/dungeon_generator/core/room_templates/matcher/room_template_matcher.gd")
 const _ProfileRoomScript = preload("res://src/dungeon_generator/profiles/profile_room.gd")
 
 var _registry: _RegistryScript = null
 var _validator: _ValidatorScript = null
+var _matcher: _MatcherScript = null
 var _fallback_template: _RoomTemplateScript = null
 
 func _init(p_registry: _RegistryScript = null, p_validator: _ValidatorScript = null) -> void:
 	_registry = p_registry
 	_validator = p_validator if p_validator != null else _ValidatorScript.new()
+	_matcher = _MatcherScript.new(_registry)
 	_init_fallback_template()
 
 func _init_fallback_template() -> void:
@@ -73,13 +76,12 @@ func resolve_template(
 	var scored_candidates: Array[Dictionary] = [] # Array de { "template": RoomTemplate, "score": int }
 
 	for tpl in candidates:
-		var val_result = _validator.validate_all(tpl, room.rect, entrances)
-		if not val_result.is_valid:
+		if not _matcher.is_compatible(tpl, room, profile, entrances):
 			continue
 
 		var score: int = 0
 
-		# Preferencias explícitas de ProfileRoom
+		# 1. Preferencias explícitas de ProfileRoom
 		if profile != null and profile.template_constraints != null:
 			var tc = profile.template_constraints
 			if tc.is_template_preferred(tpl.id):
@@ -87,12 +89,12 @@ func resolve_template(
 			elif tc.is_template_allowed(tpl.id):
 				score += 50
 
-			# Required tags matching
+			# Required tags matching (+20)
 			for req_tag in tc.required_tags:
 				if tpl.tags.has(req_tag):
 					score += 20
 
-		# Semantic Purpose matching
+		# 2. Semantic Purpose matching
 		if not purpose.is_empty():
 			if tpl.preferred_purposes.has(purpose):
 				score += 40
@@ -100,6 +102,11 @@ func resolve_template(
 				score += 20
 			elif tpl.allowed_purposes.is_empty():
 				score += 5
+
+		# 3. Size and aspect ratio fit bonus (+10)
+		var geom = tpl.geometry
+		if geom != null and room.rect.size.x >= geom.min_width and room.rect.size.y >= geom.min_depth:
+			score += 10
 
 		scored_candidates.append({
 			"template": tpl,
