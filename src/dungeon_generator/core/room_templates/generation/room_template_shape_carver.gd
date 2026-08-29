@@ -73,6 +73,7 @@ static func carve_room_shape(
 					grid.set_cell(inward, CellGrid.CellType.FLOOR)
 					if zone_map.get_zone(inward) == &"unassigned":
 						zone_map.set_zone(inward, &"entrance_clearance")
+			_ensure_path_to_center(grid, rect, ent, center)
 
 	# Assign focal zone if not already assigned
 	var center := room.get_center()
@@ -173,3 +174,14 @@ static func _is_adjacent_to_wall(grid: CellGrid, pos: Vector2i) -> bool:
 		if not grid.is_walkable(neighbor):
 			return true
 	return false
+
+static func _ensure_path_to_center(grid: CellGrid, rect: Rect2i, from_pos: Vector2i, to_pos: Vector2i) -> void:
+	var cur := from_pos
+	while cur.x != to_pos.x:
+		cur.x += 1 if to_pos.x > cur.x else -1
+		if rect.has_point(cur):
+			grid.set_cell(cur, CellGrid.CellType.FLOOR)
+	while cur.y != to_pos.y:
+		cur.y += 1 if to_pos.y > cur.y else -1
+		if rect.has_point(cur):
+			grid.set_cell(cur, CellGrid.CellType.FLOOR)
