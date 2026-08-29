@@ -40,37 +40,54 @@ func setup(p_state: RoomTemplateLabState) -> void:
 
 func _build_ui() -> void:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#111827", 0.9)
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 6
-	style.content_margin_bottom = 6
+	style.bg_color = Color("#0f131d", 0.95)
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	style.shadow_color = Color(0, 0, 0, 0.4)
+	style.shadow_size = 6
 	add_theme_stylebox_override("panel", style)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 16)
+	hbox.add_theme_constant_override("separation", 10)
 	add_child(hbox)
 
-	lbl_dimensions = _create_stat_label("Size: 0x0", hbox)
-	lbl_area = _create_stat_label("Area: 0", hbox)
-	lbl_ratio = _create_stat_label("Ratio: 0%", hbox)
-	lbl_status = _create_stat_label("Status: OK", hbox)
+	lbl_dimensions = _create_badge("📐 0x0", hbox)
+	lbl_area = _create_badge("🟩 0 cells", hbox)
+	lbl_ratio = _create_badge("📊 0%", hbox)
+	lbl_status = _create_badge("✅ Valid", hbox)
 
 	hbox.add_child(VSeparator.new())
 	btn_simulate = Button.new()
 	btn_simulate.text = "🎲 Simulate Carve"
+	btn_simulate.focus_mode = FOCUS_NONE
 	btn_simulate.pressed.connect(_on_simulate_pressed)
 	hbox.add_child(btn_simulate)
 
-func _create_stat_label(p_text: String, parent: Control) -> Label:
+func _create_badge(p_text: String, parent: Control) -> Label:
+	var pill := PanelContainer.new()
+	var pill_style := StyleBoxFlat.new()
+	pill_style.bg_color = Color("#1e2638", 0.8)
+	pill_style.corner_radius_bottom_left = 6
+	pill_style.corner_radius_bottom_right = 6
+	pill_style.corner_radius_top_left = 6
+	pill_style.corner_radius_top_right = 6
+	pill_style.content_margin_left = 8
+	pill_style.content_margin_right = 8
+	pill_style.content_margin_top = 4
+	pill_style.content_margin_bottom = 4
+	pill.add_theme_stylebox_override("panel", pill_style)
+
 	var l := Label.new()
 	l.text = p_text
-	l.add_theme_font_size_override("font_size", 13)
-	parent.add_child(l)
+	l.add_theme_font_size_override("font_size", 12)
+	pill.add_child(l)
+	parent.add_child(pill)
 	return l
 
 func _on_canvas_modified(_unused = null) -> void:
@@ -78,7 +95,7 @@ func _on_canvas_modified(_unused = null) -> void:
 		_debounce_timer.start()
 
 func _run_validation_and_stats() -> void:
-	if state == null:
+	if state == null or lbl_dimensions == null:
 		return
 
 	var geom = state.auto_calculate_geometry()
@@ -89,8 +106,8 @@ func _run_validation_and_stats() -> void:
 	var ratio: float = float(area) / float(bbox_area)
 
 	lbl_dimensions.text = "📐 Size: %dx%d" % [w, h]
-	lbl_area.text = "🟩 Area: %d cells" % area
-	lbl_ratio.text = "📊 Walkability: %d%%" % int(round(ratio * 100.0))
+	lbl_area.text = "🟩 Area: %d" % area
+	lbl_ratio.text = "📊 %d%% Walkable" % int(round(ratio * 100.0))
 
 	if ratio >= 0.70 or area == 0:
 		lbl_ratio.add_theme_color_override("font_color", Color("#10b981"))
@@ -116,10 +133,10 @@ func _run_validation_and_stats() -> void:
 	}
 	var val_res = _def_validator.validate_definition(def_dict)
 	if val_res.is_valid:
-		lbl_status.text = "✅ Schema Valid"
+		lbl_status.text = "✅ Valid Schema"
 		lbl_status.add_theme_color_override("font_color", Color("#10b981"))
 	else:
-		lbl_status.text = "⚠️ %d Schema Issues" % val_res.errors.size()
+		lbl_status.text = "⚠️ %d Issues" % val_res.errors.size()
 		lbl_status.add_theme_color_override("font_color", Color("#f59e0b"))
 
 	state.validation_updated.emit(val_res.is_valid, val_res.errors, { "width": w, "height": h, "area": area, "ratio": ratio })

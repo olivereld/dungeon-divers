@@ -22,26 +22,79 @@ var canvas_view = null
 var toolbar = null
 var inspector = null
 var simulator = null
+var loading_overlay: PanelContainer = null
 
 var _catalog_items: Array[Dictionary] = []
 
 func _ready() -> void:
-	_init_lab()
-
-func _init_lab() -> void:
-	state = _LabStateScript.new()
-	history = _CmdHistoryScript.new(100)
-	state.command_history = history
-
 	_build_master_layout()
+	_create_loading_overlay()
+	call_deferred("_async_init_lab")
+
+func _async_init_lab() -> void:
+	# Permitir que Godot dibuje la pantalla de carga inmediatamente
+	await get_tree().process_frame
+
 	_refresh_catalog_dropdown()
 
 	if not _catalog_items.is_empty():
 		_load_selected_template(0)
 
+	# Transición suave de salida para la pantalla de carga
+	_dismiss_loading_overlay()
+
+func _create_loading_overlay() -> void:
+	loading_overlay = PanelContainer.new()
+	loading_overlay.anchor_right = 1.0
+	loading_overlay.anchor_bottom = 1.0
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#0b0d13", 0.98)
+	loading_overlay.add_theme_stylebox_override("panel", style)
+
+	var center := CenterContainer.new()
+	center.anchor_right = 1.0
+	center.anchor_bottom = 1.0
+	loading_overlay.add_child(center)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 16)
+	center.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "🏛️ Room Template Lab 2D"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color("#60a5fa"))
+	vbox.add_child(title)
+
+	var subtitle := Label.new()
+	subtitle.text = "Indexando catálogo y preparando lienzo 2D interactivo..."
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 14)
+	subtitle.add_theme_color_override("font_color", Color("#94a3b8"))
+	vbox.add_child(subtitle)
+
+	add_child(loading_overlay)
+
+func _dismiss_loading_overlay() -> void:
+	if loading_overlay == null:
+		return
+	var tween = create_tween()
+	tween.tween_property(loading_overlay, "modulate:a", 0.0, 0.25)
+	tween.tween_callback(func():
+		if loading_overlay != null and is_instance_valid(loading_overlay):
+			loading_overlay.queue_free()
+			loading_overlay = null
+	)
+
 func _build_master_layout() -> void:
 	anchor_right = 1.0
 	anchor_bottom = 1.0
+
+	state = _LabStateScript.new()
+	history = _CmdHistoryScript.new(100)
+	state.command_history = history
 
 	var main_vbox := VBoxContainer.new()
 	main_vbox.anchor_right = 1.0
@@ -52,19 +105,19 @@ func _build_master_layout() -> void:
 	var top_bar := PanelContainer.new()
 	var top_style := StyleBoxFlat.new()
 	top_style.bg_color = Color("#131722")
-	top_style.content_margin_left = 12
-	top_style.content_margin_right = 12
+	top_style.content_margin_left = 16
+	top_style.content_margin_right = 16
 	top_style.content_margin_top = 8
 	top_style.content_margin_bottom = 8
 	top_bar.add_theme_stylebox_override("panel", top_style)
 	main_vbox.add_child(top_bar)
 
 	var top_hbox := HBoxContainer.new()
-	top_hbox.add_theme_constant_override("separation", 12)
+	top_hbox.add_theme_constant_override("separation", 14)
 	top_bar.add_child(top_hbox)
 
 	var title_lbl := Label.new()
-	title_lbl.text = "🏛️ Room Template Lab 2D"
+	title_lbl.text = "🏛️ Room Template Lab"
 	title_lbl.add_theme_font_size_override("font_size", 16)
 	title_lbl.add_theme_color_override("font_color", Color("#60a5fa"))
 	top_hbox.add_child(title_lbl)
@@ -76,12 +129,14 @@ func _build_master_layout() -> void:
 	top_hbox.add_child(tpl_lbl)
 
 	opt_templates = OptionButton.new()
-	opt_templates.custom_minimum_size = Vector2(240, 0)
+	opt_templates.custom_minimum_size = Vector2(260, 0)
+	opt_templates.focus_mode = FOCUS_NONE
 	opt_templates.item_selected.connect(_load_selected_template)
 	top_hbox.add_child(opt_templates)
 
 	var btn_clone := Button.new()
 	btn_clone.text = "👯 Clone"
+	btn_clone.focus_mode = FOCUS_NONE
 	btn_clone.pressed.connect(_on_clone_template)
 	top_hbox.add_child(btn_clone)
 
@@ -89,10 +144,10 @@ func _build_master_layout() -> void:
 	var split := HSplitContainer.new()
 	split.size_flags_vertical = SIZE_EXPAND_FILL
 	split.size_flags_horizontal = SIZE_EXPAND_FILL
-	split.split_offset = 360
+	split.split_offset = 380
 	main_vbox.add_child(split)
 
-	# Left / Center: Canvas Container
+	# Left / Center: Canvas Workspace Container
 	var canvas_container := Control.new()
 	canvas_container.size_flags_horizontal = SIZE_EXPAND_FILL
 	canvas_container.size_flags_vertical = SIZE_EXPAND_FILL
@@ -101,38 +156,37 @@ func _build_master_layout() -> void:
 	canvas_view = _CanvasViewScript.new()
 	canvas_view.anchor_right = 1.0
 	canvas_view.anchor_bottom = 1.0
-	canvas_view.setup(state, history)
 	canvas_container.add_child(canvas_view)
+	canvas_view.setup(state, history)
 
-	# Stats Simulator HUD (Top Right of canvas)
+	# Stats Simulator HUD (Top-Left of canvas with spacious pill design)
 	simulator = _SimulatorScript.new()
-	simulator.anchor_left = 0.55
-	simulator.anchor_right = 0.98
+	simulator.anchor_left = 0.02
 	simulator.anchor_top = 0.02
-	simulator.setup(state)
 	canvas_container.add_child(simulator)
+	simulator.setup(state)
 
 	# Floating Bottom Toolbar
 	toolbar = _ToolbarScript.new()
-	toolbar.anchor_left = 0.20
-	toolbar.anchor_right = 0.80
-	toolbar.anchor_top = 0.89
+	toolbar.anchor_left = 0.15
+	toolbar.anchor_right = 0.85
+	toolbar.anchor_top = 0.88
 	toolbar.anchor_bottom = 0.98
-	toolbar.setup(state, history)
 	toolbar.center_view_requested.connect(_center_canvas_view)
-	toolbar.zoom_in_requested.connect(func(): canvas_view._zoom_at_point(canvas_view.size * 0.5, 1.25))
-	toolbar.zoom_out_requested.connect(func(): canvas_view._zoom_at_point(canvas_view.size * 0.5, 0.8))
-	toolbar.clear_canvas_requested.connect(func(): state.clear_canvas())
+	toolbar.zoom_in_requested.connect(func(): if canvas_view: canvas_view._zoom_at_point(canvas_view.size * 0.5, 1.25))
+	toolbar.zoom_out_requested.connect(func(): if canvas_view: canvas_view._zoom_at_point(canvas_view.size * 0.5, 0.8))
+	toolbar.clear_canvas_requested.connect(func(): if state: state.clear_canvas())
 	canvas_container.add_child(toolbar)
+	toolbar.setup(state, history)
 
 	# Right: Parameter Inspector Dock
 	inspector = _InspectorScript.new()
 	inspector.custom_minimum_size = Vector2(360, 0)
-	inspector.setup(state)
 	inspector.save_requested.connect(_on_save_current_template)
 	inspector.export_requested.connect(_on_export_current_template)
 	inspector.new_requested.connect(_on_new_template)
 	split.add_child(inspector)
+	inspector.setup(state)
 
 func _refresh_catalog_dropdown() -> void:
 	opt_templates.clear()
@@ -150,7 +204,7 @@ func _load_selected_template(idx: int) -> void:
 		_preview_template_shape_on_canvas(tpl)
 
 func _preview_template_shape_on_canvas(tpl: _RoomTemplateScript) -> void:
-	if tpl == null:
+	if tpl == null or state == null:
 		return
 
 	state.clear_canvas()
@@ -208,6 +262,8 @@ func _center_canvas_view() -> void:
 		canvas_view.queue_redraw()
 
 func _on_new_template() -> void:
+	if state == null:
+		return
 	state.clear_canvas()
 	state.template_id = &"custom_room_template"
 	state.display_name = "Custom Room Template"
@@ -223,6 +279,8 @@ func _on_new_template() -> void:
 	_center_canvas_view()
 
 func _on_clone_template() -> void:
+	if state == null:
+		return
 	var cur_tpl = state.build_template_from_state()
 	var new_id = StringName(str(cur_tpl.id) + "_copy")
 	var cloned = repo.clone_template(cur_tpl, new_id, cur_tpl.display_name + " (Copy)")
@@ -231,6 +289,8 @@ func _on_clone_template() -> void:
 		state.template_id = new_id
 
 func _on_save_current_template() -> void:
+	if state == null:
+		return
 	var tpl = state.build_template_from_state()
 	var path := "res://resources/dungeon_profiles/room_templates/generic/%s_template.json" % str(tpl.id)
 	var ok = repo.save_template_to_json(tpl, path)

@@ -13,6 +13,10 @@ func _run_test() -> void:
 	root.add_child(lab_instance)
 	lab_instance.size = Vector2(1280.0, 720.0)
 
+	# Await async initialization frame
+	await process_frame
+	await process_frame
+
 	# 1. Verify lab state and components initialization
 	assert(lab_instance.state != null, "FAIL: lab state is null")
 	assert(lab_instance.canvas_view != null, "FAIL: canvas view is null")
