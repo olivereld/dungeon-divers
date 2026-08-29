@@ -1,0 +1,60 @@
+{
+    "schema_version": 1,
+    "id": "rectangular_chamber_template",
+    "display_name": "Rectangular Chamber Template",
+    "tags": [
+        "generic",
+        "hall"
+    ],
+    "geometry": {
+        "shape": {
+            "allowed": [
+                "rectangle",
+                "square"
+            ]
+        },
+        "width": {
+            "min": 5,
+            "max": 15
+        },
+        "depth": {
+            "min": 5,
+            "max": 15
+        },
+        "area": {
+            "min": 25,
+            "max": 225
+        },
+        "aspect_ratio": {
+            "min": 0.5,
+            "max": 2.0
+        }
+    },
+    "entrances": {
+        "min": 1,
+        "max": 4,
+        "allowed_sides": [
+            "north",
+            "south",
+            "east",
+            "west"
+        ],
+        "allow_corner": false,
+        "min_spacing": 2
+    },
+    "symmetry": {
+        "required": false,
+        "axis": "none"
+    },
+    "anchors": {},
+    "clearances": {
+        "entrance": 1,
+        "focal": 1,
+        "circulation": 1,
+        "walls": 0
+    },
+    "semantic_constraints": {
+        "allowed_purposes": [],
+        "preferred_purposes": []
+    }
+}
