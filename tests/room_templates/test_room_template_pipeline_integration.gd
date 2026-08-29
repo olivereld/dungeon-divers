@@ -20,7 +20,7 @@ func _run_test() -> void:
 	config.min_target_rooms = 6
 	config.max_target_rooms = 10
 	config.mission_depth = 5
-	config.algorithm = "Hybrid"
+	config.algorithm = "Template"
 
 	var result = pipeline.generate(config, 424242, bundle)
 	assert(result != null, "FAIL: result should not be null")

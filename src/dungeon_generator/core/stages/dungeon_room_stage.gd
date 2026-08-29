@@ -8,6 +8,7 @@ const _CellularAutomataScript = preload("res://src/dungeon_generator/core/algori
 const _RoomShapeGeneratorScript = preload("res://src/dungeon_generator/core/algorithms/room_shape_generator.gd")
 const _RoomTemplateResolverScript = preload("res://src/dungeon_generator/core/room_templates/resolver/room_template_resolver.gd")
 const _RoomTemplateShapeCarverScript = preload("res://src/dungeon_generator/core/room_templates/generation/room_template_shape_carver.gd")
+const _ZoneMapScript = preload("res://src/dungeon_generator/core/room_templates/data/room_template_zone_map.gd")
 const _StructuralValidatorScript = preload("res://src/dungeon_generator/core/validation/structural_validator.gd")
 const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/room_connectivity_repair.gd")
 const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
@@ -73,8 +74,10 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	return true
 
 func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonConfig, rng: RandomNumberGenerator, ctx: DungeonGenerationContext) -> void:
+	var algo: String = config.algorithm if config != null else "Hybrid"
+	var is_template_algo: bool = (algo == "Template")
 	var template_resolver: _RoomTemplateResolverScript = null
-	if ctx != null and ctx.profile_bundle != null and ctx.profile_bundle.template_registry != null:
+	if is_template_algo and ctx != null and ctx.profile_bundle != null and ctx.profile_bundle.template_registry != null:
 		template_resolver = _RoomTemplateResolverScript.new(ctx.profile_bundle.template_registry)
 
 	for room in rooms:
@@ -86,14 +89,14 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 		if ctx != null and ctx.profile_bundle != null:
 			room_profile = ctx.profile_bundle.get_room(room.room_type)
 
-		if template_resolver != null:
+		if is_template_algo and template_resolver != null:
 			var resolved_tpl = template_resolver.resolve_template(room, room_profile, [], room_seed)
 			var zone_map = _RoomTemplateShapeCarverScript.carve_room_shape(grid, room, resolved_tpl, [], room_rng)
 			if "custom_data" in room and room.custom_data is Dictionary:
 				room.custom_data["zone_map"] = zone_map
 				room.custom_data["resolved_template_id"] = resolved_tpl.id if resolved_tpl != null else &"procedural_fallback"
 		else:
-			match config.algorithm:
+			match algo:
 				"CellularAutomata":
 					if room.rect.size.x >= 12 and room.rect.size.y >= 12:
 						_cellular_automata.apply(grid, room.rect, rng)
@@ -117,6 +120,18 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 							_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.PILLARED_HALL, rng)
 				_:
 					grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
+
+			# Adjuntar zone_map por defecto sin mutar celdas
+			var zm := _ZoneMapScript.new(room.rect)
+			zm.set_zone(room.get_center(), &"focal")
+			for cy in range(room.rect.position.y, room.rect.end.y):
+				for cx in range(room.rect.position.x, room.rect.end.x):
+					var cpos := Vector2i(cx, cy)
+					if grid.is_walkable(cpos) and zm.get_zone(cpos) == &"unassigned":
+						zm.set_zone(cpos, &"circulation")
+			if "custom_data" in room and room.custom_data is Dictionary:
+				room.custom_data["zone_map"] = zm
+				room.custom_data["resolved_template_id"] = &"procedural_fallback"
 
 		# Asignar Room Ownership explícito a todas las celdas interiores de la sala
 		for y in range(room.rect.position.y, room.rect.end.y):

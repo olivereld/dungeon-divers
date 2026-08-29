@@ -18,7 +18,12 @@ func _init() -> void:
 	print("  Discrepancias / Deriva   : %d" % report["mismatched_seeds"])
 
 	for r in report["results"]:
-		print("    - Semilla %d: [%s] (Habitaciones: %s)" % [r["seed"], r["status"], str(r.get("rooms", "-"))])
+		if r["status"] == "PASS":
+			print("    - Semilla %d: [PASS] (Habitaciones: %s)" % [r["seed"], str(r.get("rooms", "-"))])
+		else:
+			print("    - Semilla %d: [FAIL] (Reason: %s, Stage: %s, Identical: %s)" % [
+				r["seed"], str(r.get("reason", "-")), str(r.get("stage", "-")), str(r.get("identical", "-"))
+			])
 
 	# Validar Invariantes de Golden Fixtures
 	assert(report["total_seeds"] == 20, "Must evaluate exactly 20 golden seeds")

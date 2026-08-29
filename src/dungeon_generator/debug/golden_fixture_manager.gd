@@ -126,6 +126,14 @@ func verify_golden_seeds(total_floors: int = 2) -> Dictionary:
 			report["results"].append({"seed": s, "status": "PASS", "rooms": fp_1["floors"][0]["room_count"]})
 		else:
 			report["mismatched_seeds"] += 1
-			report["results"].append({"seed": s, "status": "FAIL"})
+			report["results"].append({
+				"seed": s,
+				"status": "FAIL",
+				"reason": res_1.failure_reason if res_1 != null else "null",
+				"stage": res_1.failure_stage if res_1 != null else "null",
+				"valid_1": fp_1.get("valid", false),
+				"valid_2": fp_2.get("valid", false),
+				"identical": is_identical
+			})
 
 	return report
