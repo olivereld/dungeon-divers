@@ -9,6 +9,7 @@ var room_type: StringName = &"explore"   # &"start", &"explore", &"combat", &"bo
 var mission_node_id: int = -1
 var is_required: bool = true
 var depth_in_graph: int = 0
+var custom_data: Dictionary = {}
 
 func _init(p_id: int = 0, p_rect: Rect2i = Rect2i(), p_type: StringName = &"explore") -> void:
 	id = p_id
@@ -83,4 +84,5 @@ func duplicate_room() -> RoomData:
 	copy.mission_node_id = mission_node_id
 	copy.is_required = is_required
 	copy.depth_in_graph = depth_in_graph
+	copy.custom_data = custom_data.duplicate(true)
 	return copy
