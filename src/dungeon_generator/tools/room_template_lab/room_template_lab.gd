@@ -140,6 +140,14 @@ func _build_master_layout() -> void:
 	btn_clone.pressed.connect(_on_clone_template)
 	top_hbox.add_child(btn_clone)
 
+	top_hbox.add_child(VSeparator.new())
+
+	lbl_notification = Label.new()
+	lbl_notification.text = ""
+	lbl_notification.add_theme_font_size_override("font_size", 13)
+	lbl_notification.add_theme_color_override("font_color", Color("#10b981"))
+	top_hbox.add_child(lbl_notification)
+
 	# --- Main Workspace Splitter ---
 	var split := HSplitContainer.new()
 	split.size_flags_vertical = SIZE_EXPAND_FILL
@@ -288,6 +296,18 @@ func _on_clone_template() -> void:
 		state.load_from_template(cloned)
 		state.template_id = new_id
 
+var export_file_dialog: FileDialog = null
+var lbl_notification: Label = null
+
+func _build_file_dialog() -> void:
+	export_file_dialog = FileDialog.new()
+	export_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	export_file_dialog.access = FileDialog.ACCESS_RESOURCES
+	export_file_dialog.current_dir = "res://resources/dungeon_profiles/room_templates"
+	export_file_dialog.filters = ["*.json ; JSON Room Templates"]
+	export_file_dialog.file_selected.connect(_on_file_dialog_saved)
+	add_child(export_file_dialog)
+
 func _on_save_current_template() -> void:
 	if state == null:
 		return
@@ -296,6 +316,30 @@ func _on_save_current_template() -> void:
 	var ok = repo.save_template_to_json(tpl, path)
 	if ok:
 		_refresh_catalog_dropdown()
+		_show_notification("💾 Guardado en: %s" % path)
 
 func _on_export_current_template() -> void:
-	_on_save_current_template()
+	if export_file_dialog == null:
+		_build_file_dialog()
+	var tpl = state.build_template_from_state() if state else null
+	var default_name = "%s_template.json" % (str(tpl.id) if tpl else "new_room")
+	export_file_dialog.current_file = default_name
+	export_file_dialog.popup_centered(Vector2i(700, 500))
+
+func _on_file_dialog_saved(chosen_path: String) -> void:
+	if state == null:
+		return
+	var tpl = state.build_template_from_state()
+	var ok = repo.save_template_to_json(tpl, chosen_path)
+	if ok:
+		_refresh_catalog_dropdown()
+		_show_notification("📤 Exportado con éxito a: %s" % chosen_path)
+
+func _show_notification(msg: String) -> void:
+	if lbl_notification == null:
+		return
+	lbl_notification.text = msg
+	lbl_notification.modulate.a = 1.0
+	var tween = create_tween()
+	tween.tween_interval(3.0)
+	tween.tween_property(lbl_notification, "modulate:a", 0.0, 0.5)
