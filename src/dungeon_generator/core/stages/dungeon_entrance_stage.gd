@@ -40,9 +40,9 @@ func _carve_templates_with_entrances(ctx: DungeonGenerationContext) -> void:
 	for pair in ctx.entrance_pairs:
 		if pair != null:
 			if pair.entrance_a != null and entrances_by_room.has(pair.entrance_a.room_id):
-				entrances_by_room[pair.entrance_a.room_id].append(pair.entrance_a.inner_position)
+				entrances_by_room[pair.entrance_a.room_id].append(pair.entrance_a.inner_cell)
 			if pair.entrance_b != null and entrances_by_room.has(pair.entrance_b.room_id):
-				entrances_by_room[pair.entrance_b.room_id].append(pair.entrance_b.inner_position)
+				entrances_by_room[pair.entrance_b.room_id].append(pair.entrance_b.inner_cell)
 
 	# 2. Resolver y tallar cada sala con conocimiento exacto de sus entradas
 	for room in ctx.rooms:

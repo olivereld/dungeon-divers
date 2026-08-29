@@ -38,13 +38,14 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		if not c_rep_res.success:
 			if ctx.diagnostics_enabled:
 				var fail_info: Array = []
-				for f in corridor_res.failures:
-					fail_info.append("conn=%s r_a=%s r_b=%s reason=%s" % [
-						str(f.get("connection_id", "-")),
-						str(f.get("room_a", "-")),
-						str(f.get("room_b", "-")),
-						str(f.get("reason", "-"))
-					])
+				for diag in corridor_res.diagnostics:
+					if diag.get("status", "") == "FAILED":
+						fail_info.append("conn=%s r_a=%s r_b=%s reason=%s" % [
+							str(diag.get("connection_id", "-")),
+							str(diag.get("room_a", "-")),
+							str(diag.get("room_b", "-")),
+							str(diag.get("reason", "-"))
+						])
 				push_warning("[DungeonCorridorStage] Attempt %d: AStarCarver failed and repair failed. Details: %s" % [
 					ctx.attempt, ", ".join(fail_info)
 				])
