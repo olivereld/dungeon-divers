@@ -88,6 +88,12 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 		var room_profile = null
 		if ctx != null and ctx.profile_bundle != null:
 			room_profile = ctx.profile_bundle.get_room(room.room_type)
+			if room_profile == null and ctx.profile_bundle.archetype != null:
+				var g_map: Dictionary = ctx.profile_bundle.archetype.gameplay_purpose_map
+				var key: String = str(room.room_type).to_upper()
+				if g_map.has(key) and not g_map[key].is_empty():
+					var mapped_purpose = g_map[key][0]
+					room_profile = ctx.profile_bundle.get_room(mapped_purpose)
 
 		if is_template_algo and template_resolver != null:
 			var resolved_tpl = template_resolver.resolve_template(room, room_profile, [], room_seed)

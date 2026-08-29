@@ -144,6 +144,13 @@ func generate(
 	if force_new_seed:
 		_seed_registry.clear_dungeon(config.dungeon_id)
 
+	var target_arch: String = str(config.get_effective_archetype_id()) if config != null else "necropolis"
+	if target_arch.is_empty() or target_arch == "default":
+		target_arch = "necropolis"
+
+	if _profile_bundle == null or (_profile_bundle.archetype != null and str(_profile_bundle.archetype.id) != target_arch):
+		load_profiles(target_arch)
+
 	generation_started.emit()
 
 	var base_seed: int = _resolve_seed(config, 0)
