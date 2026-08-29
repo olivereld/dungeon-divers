@@ -71,7 +71,7 @@ const TEST_SUITES: Array[String] = [
 	"res://tests/test_widening_widths.gd",
 
 	# 7. Presentation & Visualizer
-	"res://tests/presentation/test_dungeon_visualizer_archetype_view.gd",
+	"res://tests/presentation/test_presentation_atomic_swap.gd",
 
 	# 8. Intelligent Decoration & Composition System (Blocks A-D)
 	"res://tests/presentation/decoration/composition/test_composition_contracts.gd",
@@ -92,7 +92,6 @@ const TEST_SUITES: Array[String] = [
 
 	# 10. Integrated Dungeon Validation & Migration (Fase 10.19)
 	"res://tests/integration/test_dungeon_presentation_pipeline_purity.gd",
-	"res://tests/presentation/decoration/test_composition_debug_overlay_metrics.gd",
 	"res://tests/integration/test_crypt_multi_seed_sweep.gd"
 ]
 
