@@ -190,22 +190,6 @@
             "max_distance": 2.0
         },
         {
-            "id": "perimeter_candle_clusters",
-            "source": [
-                "room_wall",
-                "room_corner"
-            ],
-            "targets": [
-                "candle_cluster",
-                "candle_holder"
-            ],
-            "placement": "near",
-            "min_count": 4,
-            "max_count": 8,
-            "min_distance": 1.0,
-            "max_distance": 2.5
-        },
-        {
             "id": "bench_no_lights",
             "source": [
                 "church_pew_wall",

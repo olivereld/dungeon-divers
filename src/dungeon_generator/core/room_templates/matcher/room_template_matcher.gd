@@ -26,7 +26,8 @@ func is_compatible(
 
 	# 1. Compatibilidad de propósito semántico
 	var purpose: StringName = room.room_type
-	if not template.is_purpose_allowed(purpose):
+	var is_generic_purpose: bool = (purpose in [&"", &"normal", &"explore", &"combat", &"room", &"start", &"goal", &"boss", &"preview_room"])
+	if not is_generic_purpose and not template.is_purpose_allowed(purpose):
 		return false
 
 	# 2. Restricciones de ProfileRoom si existen

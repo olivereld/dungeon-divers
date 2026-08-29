@@ -59,6 +59,10 @@ func validate_entrances(template: _RoomTemplateScript, rect: Rect2i, entrance_po
 	if ent == null:
 		return result
 
+	# Si aún no se han colocado entradas (etapa previa de construcción de suelo), omitir validación
+	if entrance_points.is_empty():
+		return result
+
 	var count: int = entrance_points.size()
 	if count < ent.min_count:
 		result.add_error("Entrance count (%d) is below minimum (%d)" % [count, ent.min_count])
@@ -94,24 +98,37 @@ func validate_shape_feasibility(template: _RoomTemplateScript, rect: Rect2i) -> 
 	var w: int = rect.size.x
 	var d: int = rect.size.y
 	var shapes = template.geometry.allowed_shapes
+	if shapes.is_empty():
+		return result
 
+	var has_any_feasible: bool = false
 	for sh in shapes:
+		var is_feasible: bool = true
 		match sh:
 			&"pillared", &"pillared_hall", &"pillars":
 				if w < 8 or d < 8:
-					result.add_error("Shape '%s' requires at least 8x8 dimensions, got %dx%d" % [str(sh), w, d])
+					is_feasible = false
 			&"cruciform", &"cruciform_sanctuary", &"cross":
 				if w < 7 or d < 7:
-					result.add_error("Shape '%s' requires at least 7x7 dimensions, got %dx%d" % [str(sh), w, d])
+					is_feasible = false
 			&"chapel", &"central_nave", &"nave":
 				if w < 8 or d < 8:
-					result.add_error("Shape '%s' requires at least 8x8 dimensions, got %dx%d" % [str(sh), w, d])
+					is_feasible = false
 			&"octagonal", &"octagonal_chamber", &"octagon":
 				if w < 6 or d < 6:
-					result.add_error("Shape '%s' requires at least 6x6 dimensions, got %dx%d" % [str(sh), w, d])
+					is_feasible = false
 			&"niched_hall", &"niches":
 				if w < 6 or d < 6:
-					result.add_error("Shape '%s' requires at least 6x6 dimensions, got %dx%d" % [str(sh), w, d])
+					is_feasible = false
+			&"rectangle", &"open_rectangle", &"square", &"custom", _:
+				is_feasible = true
+
+		if is_feasible:
+			has_any_feasible = true
+			break
+
+	if not has_any_feasible:
+		result.add_error("No allowed shapes (%s) are feasible for room dimensions %dx%d" % [str(shapes), w, d])
 
 	return result
 
