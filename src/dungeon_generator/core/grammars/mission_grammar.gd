@@ -123,7 +123,7 @@ func _compute_depths_from_start(graph: DungeonGraph, start_id: int) -> Dictionar
 				queue.append(succ)
 	return depths
 
-func _select_boss_candidate(graph: DungeonGraph, goal_id: int, depths: Dictionary) -> int:
+func _select_boss_candidate(graph: DungeonGraph, goal_id: int, start_id: int, depths: Dictionary) -> int:
 	if goal_id == -1:
 		return -1
 	var preds: Array[int] = graph.get_predecessors(goal_id)
@@ -131,6 +131,8 @@ func _select_boss_candidate(graph: DungeonGraph, goal_id: int, depths: Dictionar
 	var max_depth: int = -1
 
 	for cand in preds:
+		if cand == start_id or cand == goal_id:
+			continue
 		if depths.has(cand):
 			var d: int = depths[cand]
 			if d > max_depth:
@@ -155,15 +157,31 @@ func _ensure_single_boss(graph: DungeonGraph) -> void:
 		return
 
 	var depths: Dictionary = _compute_depths_from_start(graph, start_id)
-	var boss_node_id: int = _select_boss_candidate(graph, goal_id, depths)
+	var boss_node_id: int = _select_boss_candidate(graph, goal_id, start_id, depths)
 
 	if boss_node_id == -1:
-		push_warning("[MissionGrammar] Unable to select valid boss candidate")
-		return	
+		# Si no hay nodo intermedio antes de GOAL, insertar explícitamente un nodo BOSS
+		var chosen_pred: int = start_id
+		var preds: Array[int] = graph.get_predecessors(goal_id)
+		if not preds.is_empty():
+			chosen_pred = preds[0]
+
+		graph.remove_edge(chosen_pred, goal_id)
+		var b_node := MissionNode.new(MissionNode.ActionType.BOSS)
+		b_node.room_type_hint = &"boss"
+		b_node.difficulty_weight = 2.0
+		boss_node_id = graph.add_node(
+			StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.BOSS]),
+			b_node.to_dictionary()
+		)
+		graph.add_edge(chosen_pred, boss_node_id)
+		graph.add_edge(boss_node_id, goal_id)
 
 	# Obtener todos los nodos que actualmente están marcados como BOSS
 	var all_node_ids: Array[int] = graph.get_all_node_ids()
 	for nid in all_node_ids:
+		if nid == start_id or nid == goal_id:
+			continue
 		var nd: Dictionary = graph.get_node_data(nid)
 		var is_boss: bool = (int(nd.get("action", -1)) == MissionNode.ActionType.BOSS or StringName(nd.get("room_type_hint", &"")) == &"boss" or graph.get_node_type(nid) == StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.BOSS]))
 		if is_boss and nid != boss_node_id:
@@ -172,10 +190,11 @@ func _ensure_single_boss(graph: DungeonGraph) -> void:
 			graph.set_node_data(nid, "room_type_hint", &"combat")
 			graph.set_node_type(nid, StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.COMBAT]))
 
-	# Asignar exactamente el boss seleccionado
-	graph.set_node_data(boss_node_id, "action", MissionNode.ActionType.BOSS)
-	graph.set_node_data(boss_node_id, "room_type_hint", &"boss")
-	graph.set_node_type(boss_node_id, StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.BOSS]))
+	# Asignar exactamente el boss seleccionado si no es start ni goal
+	if boss_node_id != start_id and boss_node_id != goal_id:
+		graph.set_node_data(boss_node_id, "action", MissionNode.ActionType.BOSS)
+		graph.set_node_data(boss_node_id, "room_type_hint", &"boss")
+		graph.set_node_type(boss_node_id, StringName(MissionNode.ActionType.keys()[MissionNode.ActionType.BOSS]))
 
 func _validate_mission_graph_invariants(graph: DungeonGraph) -> bool:
 	var start_id: int = _find_start_id(graph)
