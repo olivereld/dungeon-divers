@@ -244,6 +244,20 @@ func _validate_single_room(room: _ProfileRoomScript, assets, result: _ProfileVal
 				str(room.id), str(rel.id), rel.min_distance, rel.max_distance
 			])
 
+	# Templates & Spatial Constraints
+	if room.template_constraints != null:
+		var tc = room.template_constraints
+		if "template_registry" in bundle and bundle.template_registry != null:
+			var reg = bundle.template_registry
+			for t_id in tc.allowed_templates:
+				if not reg.has_template(t_id):
+					result.add_error("Room '%s' references unknown allowed template '%s'." % [str(room.id), str(t_id)])
+			for t_id in tc.preferred_templates:
+				if not reg.has_template(t_id):
+					result.add_error("Room '%s' references unknown preferred template '%s'." % [str(room.id), str(t_id)])
+				elif not tc.is_template_allowed(t_id):
+					result.add_error("Room '%s' preferred template '%s' is not in allowed_templates." % [str(room.id), str(t_id)])
+
 func _validate_light_settings(context_name: String, settings, result: _ProfileValidationResultScript) -> void:
 	if settings == null:
 		return

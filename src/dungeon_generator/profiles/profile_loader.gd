@@ -10,6 +10,7 @@ const _ProfileArchetypeGlobalSettingsScript = preload("res://src/dungeon_generat
 const _ProfileArchetypeStyleScript = preload("res://src/dungeon_generator/profiles/profile_archetype_style.gd")
 const _ProfileArchetypeRoomRulesScript = preload("res://src/dungeon_generator/profiles/profile_archetype_room_rules.gd")
 const _ProfileRoomScript = preload("res://src/dungeon_generator/profiles/profile_room.gd")
+const _ProfileRoomTemplateConstraintsScript = preload("res://src/dungeon_generator/profiles/profile_room_template_constraints.gd")
 const _ProfileRoomIntentScript = preload("res://src/dungeon_generator/profiles/profile_room_intent.gd")
 const _ProfileRoomArchitectureScript = preload("res://src/dungeon_generator/profiles/profile_room_architecture.gd")
 const _ProfileWallVariantPolicyScript = preload("res://src/dungeon_generator/profiles/profile_wall_variant_policy.gd")
@@ -346,6 +347,10 @@ func parse_room_from_json_string(json_str: String) -> _ProfileRoomScript:
 		return null
 	return parse_room_dict(json.data as Dictionary)
 
+## Alias para parse_room_from_json_string
+func load_room_from_json_string(json_str: String) -> _ProfileRoomScript:
+	return parse_room_from_json_string(json_str)
+
 ## Carga un perfil de sala desde su filename (ej. "tomb.json" o "tomb").
 func load_room(filename: String) -> _ProfileRoomScript:
 	var clean_file := filename if filename.ends_with(".json") else filename + ".json"
@@ -503,7 +508,27 @@ func parse_room_dict(dict: Dictionary) -> _ProfileRoomScript:
 					float(r.get("max_distance", 2.0))
 				))
 
-	return _ProfileRoomScript.new(id, display_name, version, intent, architecture, composition, lighting, relationships)
+	# Templates & Spatial Constraints
+	var templates_raw = dict.get("templates", {})
+	var tpl_constraints: _ProfileRoomTemplateConstraintsScript = null
+	if templates_raw is Dictionary and not templates_raw.is_empty():
+		var allowed_tpls: Array[StringName] = []
+		for a in templates_raw.get("allowed", []):
+			allowed_tpls.append(StringName(a))
+		var preferred_tpls: Array[StringName] = []
+		for p in templates_raw.get("preferred", []):
+			preferred_tpls.append(StringName(p))
+		var forbidden_tpls: Array[StringName] = []
+		for f in templates_raw.get("forbidden", []):
+			forbidden_tpls.append(StringName(f))
+		var required_tags: Array[StringName] = []
+		for t in templates_raw.get("required_tags", []):
+			required_tags.append(StringName(t))
+		tpl_constraints = _ProfileRoomTemplateConstraintsScript.new(allowed_tpls, preferred_tpls, forbidden_tpls, required_tags)
+	else:
+		tpl_constraints = _ProfileRoomTemplateConstraintsScript.new()
+
+	return _ProfileRoomScript.new(id, display_name, version, intent, architecture, composition, lighting, relationships, tpl_constraints)
 
 func _parse_composition_rule(raw: Dictionary) -> _ProfileCompositionRuleScript:
 	var rule_id := StringName(raw.get("rule_id", ""))
