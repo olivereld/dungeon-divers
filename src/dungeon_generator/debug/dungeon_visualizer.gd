@@ -336,9 +336,10 @@ func _setup_2d_full_interface() -> void:
 	algo_vbox.add_child(algo_lbl)
 
 	_opt_algorithm = OptionButton.new()
-	_opt_algorithm.add_item("Hybrid (Recomendado)", 0)
-	_opt_algorithm.add_item("BSP (Arquitectónico)", 1)
-	_opt_algorithm.add_item("CellularAutomata (Cuevas)", 2)
+	_opt_algorithm.add_item("Template (Room Templates)", 0)
+	_opt_algorithm.add_item("Hybrid (Procedural)", 1)
+	_opt_algorithm.add_item("BSP (Arquitectónico)", 2)
+	_opt_algorithm.add_item("CellularAutomata (Cuevas)", 3)
 	_opt_algorithm.item_selected.connect(_on_algorithm_selected)
 	algo_vbox.add_child(_opt_algorithm)
 	_tab_params_container.add_child(algo_vbox)
@@ -1762,11 +1763,6 @@ func update_floor_view_options(total_floors: int, selected_floor: int = -1) -> v
 			select_3d_idx = selected_floor + 1
 		_opt_3d_floor_view.select(select_3d_idx)
 
-func _on_algorithm_selected(idx: int) -> void:
-	var algo_names = ["Hybrid", "BSP", "CellularAutomata"]
-	if idx >= 0 and idx < algo_names.size():
-		algorithm_changed.emit(algo_names[idx])
-
 func _on_line_edit_submitted(new_text: String) -> void:
 	_apply_seed_input(new_text)
 
@@ -1863,3 +1859,22 @@ func set_selected_archetype(p_arch: Variant) -> void:
 		elif meta != null and str(meta).to_lower() == str(target_id).to_lower():
 			_opt_archetype.select(idx)
 			return
+
+func _on_algorithm_selected(idx: int) -> void:
+	var algo_name := "Template"
+	match idx:
+		0: algo_name = "Template"
+		1: algo_name = "Hybrid"
+		2: algo_name = "BSP"
+		3: algo_name = "CellularAutomata"
+	algorithm_changed.emit(algo_name)
+
+func sync_algorithm(p_algo: String) -> void:
+	if _opt_algorithm == null:
+		return
+	match p_algo:
+		"Template": _opt_algorithm.select(0)
+		"Hybrid": _opt_algorithm.select(1)
+		"BSP": _opt_algorithm.select(2)
+		"CellularAutomata": _opt_algorithm.select(3)
+		_: _opt_algorithm.select(0)

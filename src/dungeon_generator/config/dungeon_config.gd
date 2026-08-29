@@ -44,7 +44,7 @@ func get_effective_archetype_id() -> StringName:
 @export var boss_enabled: bool = true
 
 @export_group("Algoritmo de Construcción")
-@export_enum("CellularAutomata", "BSP", "Hybrid") var algorithm: String = "Hybrid"
+@export_enum("Template", "Hybrid", "BSP", "CellularAutomata") var algorithm: String = "Template"
 @export_range(0.3, 0.6, 0.01) var ca_fill_chance: float = 0.45
 @export_range(1, 8, 1) var ca_iterations: int = 4
 @export var bsp_min_room: Vector2i = Vector2i(6, 6)

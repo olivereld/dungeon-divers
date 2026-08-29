@@ -184,6 +184,8 @@ func _connect_visualizer_signals() -> void:
 			visualizer.lighting_rim_energy_changed.connect(_on_lighting_rim_energy_changed)
 		if not visualizer.lighting_fog_density_changed.is_connected(_on_lighting_fog_density_changed):
 			visualizer.lighting_fog_density_changed.connect(_on_lighting_fog_density_changed)
+		if config != null and visualizer.has_method("sync_algorithm"):
+			visualizer.sync_algorithm(config.algorithm)
 
 func _on_walls_visibility_toggled(p_visible: bool) -> void:
 	_are_walls_visible = p_visible
