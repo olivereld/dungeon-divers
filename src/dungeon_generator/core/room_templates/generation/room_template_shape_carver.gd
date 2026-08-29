@@ -22,6 +22,7 @@ static func carve_room_shape(
 	var zone_map := _ZoneMapScript.new(rect)
 	var w: int = rect.size.x
 	var h: int = rect.size.y
+	var center: Vector2i = room.get_center()
 
 	# Default baseline: Fill entire room with floor
 	grid.fill_rect(rect, CellGrid.CellType.FLOOR)
@@ -76,7 +77,6 @@ static func carve_room_shape(
 			_ensure_path_to_center(grid, rect, ent, center)
 
 	# Assign focal zone if not already assigned
-	var center := room.get_center()
 	if zone_map.get_zone(center) == &"unassigned":
 		zone_map.set_zone(center, &"focal")
 

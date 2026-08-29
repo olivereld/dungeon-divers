@@ -63,3 +63,12 @@ func _carve_templates_with_entrances(ctx: DungeonGenerationContext) -> void:
 		if "custom_data" in room and room.custom_data is Dictionary:
 			room.custom_data["zone_map"] = zone_map
 			room.custom_data["resolved_template_id"] = resolved_tpl.id if resolved_tpl != null else &"procedural_fallback"
+
+		# Reconstruir sincronización estricta de room_owner con la geometría final
+		for y in range(room.rect.position.y, room.rect.end.y):
+			for x in range(room.rect.position.x, room.rect.end.x):
+				var pos := Vector2i(x, y)
+				if ctx.grid.is_walkable(pos):
+					ctx.grid.set_room_owner(pos, room.id)
+				else:
+					ctx.grid.clear_room_owner(pos)
