@@ -115,12 +115,31 @@ func set_profile_bundle(bundle: _ProfileBundleScript) -> void:
 ##     Se aborta inmediatamente.
 func generate(
 	config: DungeonConfig = null,
-	max_retries: int = MAX_ATTEMPTS,
-	force_new_seed: bool = false,
-	diagnostics_enabled: bool = true
+	param2 = null,
+	param3 = null,
+	param4 = null
 ) -> DungeonResult:
 	if config == null:
 		config = DungeonConfig.new()
+
+	var max_retries: int = MAX_ATTEMPTS
+	var force_new_seed: bool = false
+	var diagnostics_enabled: bool = true
+
+	if param2 is _ProfileBundleScript:
+		_profile_bundle = param2
+	elif param2 is int:
+		if param3 is _ProfileBundleScript:
+			config.seed = param2
+			_profile_bundle = param3
+		else:
+			max_retries = param2
+			if param3 is bool:
+				force_new_seed = param3
+			if param4 is bool:
+				diagnostics_enabled = param4
+			elif param4 is _ProfileBundleScript:
+				_profile_bundle = param4
 
 	if force_new_seed:
 		_seed_registry.clear_dungeon(config.dungeon_id)
@@ -140,6 +159,7 @@ func generate(
 			base_seed,
 			attempt
 		)
+		ctx.profile_bundle = _profile_bundle
 
 		ctx.attempt_seed = _DungeonSeedFactoryScript.derive_seed(
 			base_seed,

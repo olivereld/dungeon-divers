@@ -11,6 +11,7 @@ const _DungeonChecksumCalculatorScript = preload("res://src/dungeon_generator/co
 
 # 1. Configuración y Semillas
 var config: DungeonConfig = null
+var profile_bundle = null                   # ProfileBundle opcional
 var base_seed: int = 0
 var attempt: int = 0
 var attempt_seed: int = 0

@@ -32,6 +32,7 @@ const _PropAssetSourceScript = preload("res://src/presentation/decoration/assets
 const _DestructibleDefinitionScript = preload("res://src/destruction/core/destructible_definition.gd")
 const _ArchetypeCatalogScript = preload("res://src/dungeon_generator/profiles/archetype_catalog.gd")
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
+const _RoomTemplateRegistryScript = preload("res://src/dungeon_generator/core/room_templates/loader/room_template_registry.gd")
 
 var base_path: String = "res://resources/dungeon_profiles/"
 var _catalog: _ArchetypeCatalogScript = null
@@ -50,10 +51,21 @@ func list_available_archetypes() -> Array[StringName]:
 		return _catalog.get_ids()
 	return []
 
-## Carga el bundle completo: Arquetipo + AssetRegistry + Todas las salas referenciadas.
+## Carga el registro de RoomTemplates descubiertos en resources/dungeon_profiles/room_templates.
+func load_room_template_registry() -> _RoomTemplateRegistryScript:
+	var registry := _RoomTemplateRegistryScript.new()
+	var templates_path := base_path + "room_templates"
+	registry.discover_templates_in_directory(templates_path)
+	return registry
+
+## Carga el bundle completo: Arquetipo + AssetRegistry + Todas las salas referenciadas + RoomTemplateRegistry.
 func load_full_archetype_bundle(archetype_id: String) -> _ProfileBundleScript:
+	var clean_id := archetype_id
+	if clean_id.ends_with(".json"):
+		clean_id = clean_id.get_file().get_basename()
 	var assets := load_asset_registry()
-	var arch := load_archetype(archetype_id)
+	var templates := load_room_template_registry()
+	var arch := load_archetype(clean_id)
 	var rooms_map: Dictionary = {}
 
 	if arch != null:
@@ -63,7 +75,11 @@ func load_full_archetype_bundle(archetype_id: String) -> _ProfileBundleScript:
 			if room_prof != null:
 				rooms_map[StringName(purpose_key)] = room_prof
 
-	return _ProfileBundleScript.new(arch, rooms_map, assets)
+	return _ProfileBundleScript.new(arch, rooms_map, assets, templates)
+
+## Alias polimórfico para cargar un bundle completo (acepta ID o path).
+func load_bundle(archetype_path_or_id: String) -> _ProfileBundleScript:
+	return load_full_archetype_bundle(archetype_path_or_id)
 
 ## Carga el catálogo completo de Assets (props, fixtures, materials).
 func load_asset_registry() -> _AssetRegistryScript:
