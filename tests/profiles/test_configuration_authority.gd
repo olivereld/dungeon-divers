@@ -44,6 +44,8 @@ func _run_test() -> void:
 		test_rooms.append(_RoomDataScript.new(i, Rect2i(i * 10, 0, 8, 8), &"room"))
 
 	# Mutación 1: room_purpose_distribution en ProfileArchetype (Macro distribution: room_b = 1.0, room_a = 0.0)
+	if bundle.archetype.room_rules != null:
+		bundle.archetype.room_rules.guaranteed.clear()
 	bundle.archetype.room_purpose_distribution.clear()
 	bundle.archetype.room_purpose_distribution[room_id_b] = 1.0
 	bundle.archetype.room_purpose_distribution[room_id_a] = 0.0
@@ -52,21 +54,29 @@ func _run_test() -> void:
 	var count_a: int = 0
 	var count_b: int = 0
 	for r_id in assignments_b:
+		if r_id == 1 or r_id == 10:
+			continue # Start (1) and Boss (10) have dedicated gameplay roles
 		if assignments_b[r_id] == room_id_a:
 			count_a += 1
 		elif assignments_b[r_id] == room_id_b:
 			count_b += 1
 
-	assert(count_a == 0, "FAIL: Setting purpose distribution to 0.0 in profile must prevent its assignment")
-	assert(count_b > 0, "FAIL: Setting purpose distribution to 1.0 in profile must produce assignments")
+	assert(count_a == 0, "FAIL: Setting purpose distribution to 0.0 in profile must prevent its assignment in explore rooms")
+	assert(count_b > 0, "FAIL: Setting purpose distribution to 1.0 in profile must produce assignments in explore rooms")
 
 	# Mutación 2: purpose_weights en ProfileArchetype (Contextual combat objective role)
 	var combat_obj_room_id: int = 5
 	var mock_objective = { "room_id": combat_obj_room_id, "type": 1 } # COMBAT role
-	bundle.archetype.purpose_weights[room_id_a] = 0.0
-	bundle.archetype.purpose_weights[room_id_b] = 100.0
+	var combat_allowed = bundle.archetype.get_allowed_purposes_for_gameplay(&"COMBAT")
+	assert(combat_allowed.size() >= 2, "FAIL: Archetype must allow at least 2 purposes for COMBAT")
+	var combat_target_purpose: StringName = combat_allowed[1]
+
+	for p in combat_allowed:
+		bundle.archetype.purpose_weights[p] = 0.0
+	bundle.archetype.purpose_weights[combat_target_purpose] = 100.0
+
 	var assignments_combat = assigner.assign_purposes(1, 10, test_rooms, [mock_objective], bundle, 1337)
-	assert(assignments_combat[combat_obj_room_id] == room_id_b, "FAIL: purpose_weights must select room_b for combat room")
+	assert(assignments_combat[combat_obj_room_id] == combat_target_purpose, "FAIL: purpose_weights must select target purpose for combat room")
 
 	print("  [OK] 1. Archetype authority validated (room_purpose_distribution and purpose_weights dynamically control generation).")
 
