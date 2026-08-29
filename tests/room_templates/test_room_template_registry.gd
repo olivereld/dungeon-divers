@@ -25,10 +25,10 @@ func _run_test() -> void:
 	assert(matched_sacristy != null, "FAIL: must match template for sacristy")
 	assert(matched_sacristy.id == &"sacristy_template", "FAIL: matched template must be sacristy_template, got %s" % str(matched_sacristy.id))
 
-	# 3. Matcher: Emparejar propósito desconocido (debe caer en rectangular_chamber_template genérico)
+	# 3. Matcher: Emparejar propósito desconocido (debe caer en un template genérico)
 	var matched_generic = matcher.match_template_for_purpose(&"unknown_dungeon_room")
 	assert(matched_generic != null, "FAIL: must match fallback generic template")
-	assert(matched_generic.id == &"rectangular_chamber_template", "FAIL: matched template must be rectangular_chamber_template")
+	assert(matched_generic.allowed_purposes.is_empty(), "FAIL: matched template must be generic (empty allowed_purposes)")
 
 	# 4. Encontrar todas las plantillas compatibles con 'ceremonial'
 	var ceremonial_templates = matcher.find_compatible_templates(&"ceremonial")

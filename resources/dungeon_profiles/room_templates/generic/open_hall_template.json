@@ -1,0 +1,66 @@
+{
+    "schema_version": 1,
+    "id": "open_hall",
+    "display_name": "Open Hall Template",
+    "tags": [
+        "generic",
+        "hall",
+        "open"
+    ],
+    "geometry": {
+        "shape": {
+            "allowed": [
+                "open_rectangle",
+                "rectangle"
+            ]
+        },
+        "width": {
+            "min": 5,
+            "max": 20
+        },
+        "depth": {
+            "min": 5,
+            "max": 20
+        },
+        "area": {
+            "min": 25,
+            "max": 400
+        },
+        "aspect_ratio": {
+            "min": 0.4,
+            "max": 2.5
+        }
+    },
+    "entrances": {
+        "min": 1,
+        "max": 6,
+        "allowed_sides": [
+            "north",
+            "south",
+            "east",
+            "west"
+        ],
+        "allow_corner": false,
+        "min_spacing": 2
+    },
+    "symmetry": {
+        "required": false,
+        "axis": "none"
+    },
+    "anchors": {
+        "center": {
+            "required": false,
+            "location": "center"
+        }
+    },
+    "clearances": {
+        "entrance": 1,
+        "focal": 1,
+        "circulation": 1,
+        "walls": 0
+    },
+    "semantic_constraints": {
+        "allowed_purposes": [],
+        "preferred_purposes": []
+    }
+}

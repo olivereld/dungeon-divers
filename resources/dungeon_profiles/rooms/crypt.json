@@ -26,6 +26,21 @@
             "seating"
         ]
     },
+    "templates": {
+        "allowed": [
+            "pillared_hall",
+            "octagonal_chamber",
+            "cruciform_sanctuary",
+            "open_hall",
+            "rectangular_chamber_template"
+        ],
+        "preferred": [
+            "pillared_hall",
+            "octagonal_chamber"
+        ],
+        "forbidden": [],
+        "required_tags": []
+    },
     "architecture": {
         "floor": {
             "base": "catacomb_dirt",

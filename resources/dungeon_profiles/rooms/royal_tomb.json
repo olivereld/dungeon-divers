@@ -31,6 +31,22 @@
             "seating"
         ]
     },
+    "templates": {
+        "allowed": [
+            "octagonal_chamber",
+            "pillared_hall",
+            "cruciform_sanctuary",
+            "open_hall"
+        ],
+        "preferred": [
+            "octagonal_chamber",
+            "pillared_hall"
+        ],
+        "forbidden": [],
+        "required_tags": [
+            "ceremonial"
+        ]
+    },
     "architecture": {
         "floor": {
             "base": "smooth_slabs",
