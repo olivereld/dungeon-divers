@@ -9,6 +9,22 @@ const _RoomTemplateScript = preload("res://src/dungeon_generator/core/room_templ
 const _ZoneMapScript = preload("res://src/dungeon_generator/core/room_templates/data/room_template_zone_map.gd")
 const _TemplateCarveResultScript = preload("res://src/dungeon_generator/core/room_templates/data/template_carve_result.gd")
 
+static func determine_orientation_from_entrances(rect: Rect2i, entrances: Array[Vector2i], p_seed: int = 0) -> int:
+	if entrances.is_empty():
+		return posmod(p_seed, 4)
+
+	var ent: Vector2i = entrances[0]
+	if ent.y >= rect.end.y - 1:
+		return 0 # South entrance -> Face North
+	elif ent.y <= rect.position.y:
+		return 2 # North entrance -> Face South
+	elif ent.x <= rect.position.x:
+		return 1 # West entrance -> Face East
+	elif ent.x >= rect.end.x - 1:
+		return 3 # East entrance -> Face West
+
+	return posmod(p_seed, 4)
+
 static func carve_room_shape(
 	grid: CellGrid,
 	room: RoomData,
@@ -16,7 +32,8 @@ static func carve_room_shape(
 	entrances: Array[Vector2i] = [],
 	rng: RandomNumberGenerator = null
 ) -> _ZoneMapScript:
-	var res = carve(grid, room, template, entrances, rng, 0)
+	var orientation := determine_orientation_from_entrances(room.rect, entrances, rng.seed if rng != null else 0)
+	var res = carve(grid, room, template, entrances, rng, orientation)
 	return res.zone_map if res != null else null
 
 static func carve(

@@ -59,10 +59,13 @@ func _carve_templates_with_entrances(ctx: DungeonGenerationContext) -> void:
 					room_entrances.append(e)
 
 		var resolved_tpl = template_resolver.resolve_template(room, room_profile, room_entrances, room_seed)
-		var zone_map = _RoomTemplateShapeCarverScript.carve_room_shape(ctx.grid, room, resolved_tpl, room_entrances, room_rng)
+		var orientation := _RoomTemplateShapeCarverScript.determine_orientation_from_entrances(room.rect, room_entrances, room_seed)
+		var carve_res = _RoomTemplateShapeCarverScript.carve(ctx.grid, room, resolved_tpl, room_entrances, room_rng, orientation)
 		if "custom_data" in room and room.custom_data is Dictionary:
-			room.custom_data["zone_map"] = zone_map
+			room.custom_data["zone_map"] = carve_res.zone_map if carve_res != null else null
 			room.custom_data["resolved_template_id"] = resolved_tpl.id if resolved_tpl != null else &"procedural_fallback"
+			room.custom_data["orientation"] = carve_res.orientation if carve_res != null else orientation
+			room.custom_data["resolved_anchors"] = carve_res.resolved_anchors if carve_res != null else {}
 
 		# Reconstruir sincronización estricta de room_owner con la geometría final
 		for y in range(room.rect.position.y, room.rect.end.y):
