@@ -13,11 +13,13 @@
             "lighting",
             "furniture",
             "wall_decor",
+            "corner_decor",
             "detail",
             "debris",
             "chest",
             "treasure",
-            "storage"
+            "storage",
+            "burial"
         ],
         "forbidden_tags": []
     },
@@ -25,7 +27,18 @@
         "floor": "smooth_slabs",
         "walls": "dark_stone",
         "door": "stone_arch",
-        "stairs": "stone"
+        "stairs": "stone",
+        "wall_variants": {
+            "enabled": true,
+            "allowed": [
+                "normal",
+                "niche"
+            ],
+            "weights": {
+                "normal": 70,
+                "niche": 30
+            }
+        }
     },
     "composition": {
         "primary": {
@@ -74,6 +87,42 @@
                     "min_count": 1,
                     "max_count": 1
                 }
+            },
+            {
+                "rule_id": "sacristy_wall_crates",
+                "asset_tags": [
+                    "storage"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating"
+                ],
+                "placement": {
+                    "mode": "wall",
+                    "orientation": "face_room",
+                    "min_count": 0,
+                    "max_count": 2
+                }
+            },
+            {
+                "rule_id": "sacristy_wall_urns",
+                "asset_tags": [
+                    "burial",
+                    "detail"
+                ],
+                "forbidden_tags": [
+                    "focal",
+                    "seating",
+                    "storage",
+                    "skull",
+                    "remains"
+                ],
+                "placement": {
+                    "mode": "wall",
+                    "orientation": "face_room",
+                    "min_count": 0,
+                    "max_count": 2
+                }
             }
         ]
     },
@@ -119,9 +168,25 @@
             ],
             "placement": "near",
             "min_count": 1,
-            "max_count": 2,
+            "max_count": 4,
             "min_distance": 1.0,
             "max_distance": 2.0
+        },
+        {
+            "id": "perimeter_candle_clusters",
+            "source": [
+                "room_wall",
+                "room_corner"
+            ],
+            "targets": [
+                "candle_cluster",
+                "candle_holder"
+            ],
+            "placement": "near",
+            "min_count": 4,
+            "max_count": 8,
+            "min_distance": 1.0,
+            "max_distance": 2.5
         },
         {
             "id": "bench_no_lights",

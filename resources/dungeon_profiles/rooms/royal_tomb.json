@@ -49,11 +49,13 @@
             "enabled": true,
             "allowed": [
                 "normal",
-                "ornate"
+                "ornate",
+                "niche"
             ],
             "weights": {
-                "normal": 80,
-                "ornate": 20
+                "normal": 60,
+                "ornate": 15,
+                "niche": 25
             }
         }
     },

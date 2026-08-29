@@ -62,9 +62,13 @@ func build_partition(
 						elif grid.is_solid(pos):
 							r_wall.append(pos)
 							all_room_walls[pos] = true
+							if not room_id_by_cell.has(pos):
+								room_id_by_cell[pos] = r_id
 					elif grid.is_solid(pos):
 						r_wall.append(pos)
 						all_room_walls[pos] = true
+						if not room_id_by_cell.has(pos):
+							room_id_by_cell[pos] = r_id
 
 		# Registrar puertas asociadas
 		if semantic_result.door_pairs != null:

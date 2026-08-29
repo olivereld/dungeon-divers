@@ -48,6 +48,12 @@ func build_wall_showcase_fixture(config = null):
 	var st_foliage := SurfaceTool.new()
 	st_foliage.begin(Mesh.PRIMITIVE_TRIANGLES)
 
+	# 5. Vela Votiva / Llama Emisiva
+	var g_candle = _GeneratedMeshScript.new()
+	g_candle.component_id = 4
+	var st_candle := SurfaceTool.new()
+	st_candle.begin(Mesh.PRIMITIVE_TRIANGLES)
+
 	match config.variant:
 		_WallShowcaseGeometryConfigScript.WallVariant.BARRED_WINDOW:
 			_build_barred_window_wall(st_stone, st_trim, st_iron, s, w, h, d)
@@ -55,6 +61,8 @@ func build_wall_showcase_fixture(config = null):
 			_build_center_pilaster_wall(st_stone, st_trim, s, w, h, d)
 		_WallShowcaseGeometryConfigScript.WallVariant.FISSURE_BRICKS:
 			_build_fissure_bricks_wall(st_stone, st_trim, st_foliage, s, w, h, d)
+		_WallShowcaseGeometryConfigScript.WallVariant.NICHE_ALCOVE:
+			_build_niche_alcove_wall(st_stone, st_trim, st_candle, s, w, h, d)
 
 	# Commit Piedra Principal
 	var mesh_stone := ArrayMesh.new()
@@ -114,6 +122,24 @@ func build_wall_showcase_fixture(config = null):
 		mat_foliage.cull_mode = BaseMaterial3D.CULL_DISABLED
 		g_foliage.material_slots[0] = mat_foliage
 		asset.add_mesh(&"wall_foliage", g_foliage)
+
+	# Commit Vela Votiva y Llama Emisiva
+	var mesh_candle := ArrayMesh.new()
+	mesh_candle = st_candle.commit(mesh_candle)
+	if mesh_candle.get_surface_count() > 0:
+		mesh_candle.surface_set_name(0, "WallCandle")
+		g_candle.mesh = mesh_candle
+
+		var mat_candle := StandardMaterial3D.new()
+		mat_candle.albedo_color = Color(1.0, 0.88, 0.68, 1.0)
+		mat_candle.emission_enabled = true
+		mat_candle.emission = Color(1.0, 0.62, 0.18, 1.0)
+		mat_candle.emission_energy_multiplier = 4.0
+		mat_candle.roughness = 0.35
+		mat_candle.metallic = 0.0
+		mat_candle.cull_mode = BaseMaterial3D.CULL_DISABLED
+		g_candle.material_slots[0] = mat_candle
+		asset.add_mesh(&"wall_candle", g_candle)
 
 	# Colisión física
 	var col_shape := BoxShape3D.new()
@@ -391,6 +417,159 @@ static func _build_fissure_bricks_wall(
 	_build_foliage_cluster(st_f, Vector3(2.10 * s, 0.44 * s, d * 0.5 + 0.06 * s), 0.18 * s)
 	# Brote en el vértice de la grieta
 	_build_foliage_cluster(st_f, Vector3(-0.50 * s, 1.40 * s, d * 0.5 + 0.04 * s), 0.12 * s)
+
+# ==============================================================================
+# 4. VARIANTE: NICHO / HORNACINA ARQUEADA EMPOTRADA CON REPISA Y VELA
+# ==============================================================================
+
+static func _build_niche_alcove_wall(
+	st_s: SurfaceTool, st_t: SurfaceTool, st_c: SurfaceTool,
+	s: float, w: float, h: float, d: float
+) -> void:
+	var plinth_h: float = 0.42 * s
+	var plinth_slope: float = 0.10 * s
+	var corn_h: float = 0.52 * s
+	var corn_slope: float = 0.12 * s
+	var overhang: float = 0.08 * s
+
+	# 1. Zócalo inferior (3 bloques)
+	var block_w: float = (w - 0.06 * s) / 3.0
+	var z_offsets = [-block_w - 0.025 * s, 0.0, block_w + 0.025 * s]
+	for bx in z_offsets:
+		_build_solid_box(st_t, Vector3(bx, (plinth_h - plinth_slope) * 0.5, overhang * 0.5), Vector3(block_w, plinth_h - plinth_slope, d + overhang))
+		_build_solid_box(st_t, Vector3(bx, plinth_h - plinth_slope * 0.5, overhang * 0.25), Vector3(block_w, plinth_slope, d + overhang * 0.5))
+
+	# 2. Cornisa superior (3 bloques)
+	for bx in z_offsets:
+		_build_solid_box(st_t, Vector3(bx, h - corn_h + corn_slope * 0.5, overhang * 0.25), Vector3(block_w, corn_slope, d + overhang * 0.5))
+		_build_solid_box(st_t, Vector3(bx, h - (corn_h - corn_slope) * 0.5, overhang * 0.5), Vector3(block_w, corn_h - corn_slope, d + overhang))
+
+	# 3. Dimensiones del Nicho Arqueado
+	var niche_w: float = 1.64 * s
+	var sill_y: float = 0.95 * s
+	var sill_h: float = 0.14 * s
+	var niche_bot_y: float = sill_y + sill_h * 0.5
+	var jamba_h: float = 1.25 * s
+	var arc_cy: float = niche_bot_y + jamba_h # Altura de arranque del arco (2.27m)
+	var r_in: float = niche_w * 0.5 - 0.08 * s # Radio interior del arco (0.74m)
+	var niche_top_y: float = arc_cy + r_in # Vértice superior (3.01m)
+	var wall_mid_h: float = h - plinth_h - corn_h
+	var wall_mid_cy: float = plinth_h + wall_mid_h * 0.5
+
+	# Profundidad de retroceso del nicho (receso interior)
+	var recess_depth: float = 0.26 * s
+	var front_wall_d: float = d - recess_depth
+	var back_wall_d: float = recess_depth
+
+	# 4. Pared Frontal Envolvente
+	var side_wall_w: float = (w - niche_w) * 0.5
+	var left_wall_x: float = -w * 0.5 + side_wall_w * 0.5
+	var right_wall_x: float = w * 0.5 - side_wall_w * 0.5
+
+	# Paños laterales completos (izq y der)
+	_build_solid_box(st_s, Vector3(left_wall_x, wall_mid_cy, 0.0), Vector3(side_wall_w, wall_mid_h, d))
+	_build_solid_box(st_s, Vector3(right_wall_x, wall_mid_cy, 0.0), Vector3(side_wall_w, wall_mid_h, d))
+
+	# Antepecho frontal bajo el nicho
+	var under_h: float = sill_y - plinth_h
+	_build_solid_box(st_s, Vector3(0.0, plinth_h + under_h * 0.5, 0.0), Vector3(niche_w, under_h, d))
+
+	# Dintel superior frontal sobre el arco
+	var over_h: float = (h - corn_h) - niche_top_y
+	_build_solid_box(st_s, Vector3(0.0, niche_top_y + over_h * 0.5, 0.0), Vector3(niche_w, over_h, d))
+
+	# 5. Fondo Retranqueado del Nicho (Pared posterior de ladrillo del nicho)
+	var niche_interior_h: float = niche_top_y - niche_bot_y
+	var niche_back_z: float = -d * 0.5 + back_wall_d * 0.5
+	_build_solid_box(st_s, Vector3(0.0, niche_bot_y + niche_interior_h * 0.5, niche_back_z), Vector3(niche_w - 0.02 * s, niche_interior_h, back_wall_d))
+
+	# Lados interiores del nicho (jambas internas en profundidad)
+	var inner_side_d: float = recess_depth
+	var inner_side_z: float = d * 0.5 - inner_side_d * 0.5
+	_build_solid_box(st_s, Vector3(-niche_w * 0.5 + 0.04 * s, niche_bot_y + jamba_h * 0.5, inner_side_z), Vector3(0.08 * s, jamba_h, inner_side_d))
+	_build_solid_box(st_s, Vector3(niche_w * 0.5 - 0.04 * s, niche_bot_y + jamba_h * 0.5, inner_side_z), Vector3(0.08 * s, jamba_h, inner_side_d))
+
+	# 6. Repisa / Alféizar Saliente del Nicho (Stone Shelf)
+	var sill_w: float = niche_w + 0.28 * s
+	var sill_d: float = d + 0.16 * s
+	_build_solid_box(st_t, Vector3(0.0, sill_y, 0.04 * s), Vector3(sill_w, sill_h, sill_d))
+	# Chaflán biselado inferior bajo la repisa
+	_build_solid_box(st_t, Vector3(0.0, sill_y - sill_h * 0.6, 0.02 * s), Vector3(sill_w * 0.90, sill_h * 0.4, sill_d * 0.85))
+
+	# 7. Hiladas Horizontales de Ladrillos en Relieve Dentro del Nicho (Fondo del nicho como la foto)
+	var brick_rows: int = 9
+	var brick_row_h: float = (niche_interior_h - 0.10 * s) / float(brick_rows)
+	var b_depth: float = 0.05 * s
+	var b_face_z: float = niche_back_z + back_wall_d * 0.5 + b_depth * 0.5
+
+	for row in range(brick_rows):
+		var row_y: float = niche_bot_y + 0.08 * s + (float(row) + 0.5) * brick_row_h
+		var row_w: float = (niche_w - 0.18 * s)
+		# En el arco superior, reducir el ancho de las hiladas
+		if row_y > arc_cy:
+			var dy: float = row_y - arc_cy
+			if dy < r_in:
+				var half_chord: float = sqrt(maxf(0.01, r_in * r_in - dy * dy))
+				row_w = minf(row_w, half_chord * 2.0 - 0.06 * s)
+			else:
+				row_w *= 0.4
+
+		var num_bricks: int = 3 if (row % 2 == 0) else 4
+		var single_bw: float = (row_w - float(num_bricks - 1) * 0.03 * s) / float(num_bricks)
+		var start_bx: float = -row_w * 0.5 + single_bw * 0.5
+
+		for b_idx in range(num_bricks):
+			var bx: float = start_bx + float(b_idx) * (single_bw + 0.03 * s)
+			var b_scale_rand: float = 0.92 + float((row * 7 + b_idx * 13) % 15) * 0.01
+			_build_solid_box(st_t, Vector3(bx, row_y, b_face_z), Vector3(single_bw * b_scale_rand, brick_row_h * 0.82, b_depth))
+
+	# 8. Arco de Dovelas de Piedra en Abanico (Frontal del Nicho)
+	var r_out: float = r_in + 0.22 * s
+	var arc_d: float = front_wall_d + 0.10 * s
+	var arc_z: float = d * 0.5 - front_wall_d * 0.5
+	var dovelas: int = 15
+
+	for i in range(dovelas):
+		var a0: float = PI - float(i) * (PI / float(dovelas))
+		var a1: float = PI - float(i + 1) * (PI / float(dovelas))
+		var mid_a: float = (a0 + a1) * 0.5
+
+		var r_mid: float = (r_in + r_out) * 0.5
+		var arc_px: float = cos(mid_a) * r_mid
+		var arc_py: float = arc_cy + sin(mid_a) * r_mid
+
+		var rad_thick: float = r_out - r_in
+		var tan_w: float = (r_in * (PI / float(dovelas))) * 1.10
+
+		# Clave central del arco
+		if i == 7:
+			rad_thick *= 1.18
+			arc_py += 0.03 * s
+
+		var b := Basis.from_euler(Vector3(0.0, 0.0, mid_a - PI * 0.5))
+		_build_oriented_solid_box(st_t, Transform3D(b, Vector3(arc_px, arc_py, arc_z + 0.02 * s)), Vector3(tan_w, rad_thick, arc_d))
+
+	# Jambas verticales de enmarcado a los lados del arco
+	var jamba_w: float = 0.16 * s
+	var jamba_cy: float = niche_bot_y + jamba_h * 0.5
+	_build_solid_box(st_t, Vector3(-r_out + jamba_w * 0.5, jamba_cy, arc_z + 0.02 * s), Vector3(jamba_w, jamba_h, arc_d))
+	_build_solid_box(st_t, Vector3(r_out - jamba_w * 0.5, jamba_cy, arc_z + 0.02 * s), Vector3(jamba_w, jamba_h, arc_d))
+
+	# Capitel / Imposta de unión limpia entre jamba y dovelas
+	_build_solid_box(st_t, Vector3(-r_out + jamba_w * 0.5, arc_cy, arc_z + 0.03 * s), Vector3(jamba_w * 1.25, 0.08 * s, arc_d * 1.05))
+	_build_solid_box(st_t, Vector3(r_out - jamba_w * 0.5, arc_cy, arc_z + 0.03 * s), Vector3(jamba_w * 1.25, 0.08 * s, arc_d * 1.05))
+
+	# 9. Ladrillos en Relieve en las Paredes Exteriores (Acentúan el estilo de mazmorra de forma equilibrada)
+	var ext_bricks = [
+		Vector3(-2.15 * s, 2.70 * s, d * 0.5 + 0.02 * s), Vector3(0.50 * s, 0.22 * s, 0.06 * s),
+		Vector3(-1.85 * s, 2.38 * s, d * 0.5 + 0.02 * s), Vector3(0.55 * s, 0.22 * s, 0.06 * s),
+		Vector3(-2.05 * s, 1.25 * s, d * 0.5 + 0.02 * s), Vector3(0.48 * s, 0.20 * s, 0.06 * s),
+		Vector3(2.15 * s, 2.80 * s, d * 0.5 + 0.02 * s), Vector3(0.42 * s, 0.20 * s, 0.06 * s),
+		Vector3(1.90 * s, 2.48 * s, d * 0.5 + 0.02 * s), Vector3(0.52 * s, 0.22 * s, 0.06 * s),
+		Vector3(2.10 * s, 1.30 * s, d * 0.5 + 0.02 * s), Vector3(0.46 * s, 0.20 * s, 0.06 * s)
+	]
+	for i in range(0, ext_bricks.size(), 2):
+		_build_solid_box(st_t, ext_bricks[i], ext_bricks[i + 1])
 
 # ==============================================================================
 # SUB-CONSTRUCTORES GEOMÉTRICOS CON NORMALES DIRIGIDAS

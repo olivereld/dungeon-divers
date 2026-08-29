@@ -151,6 +151,17 @@ func _register_all_entries() -> void:
 			&"wall_showcase_prop",
 			{"variant": 2},
 			&"wall_showcase_3x2", "Muro Recto 3x2 (Straight Wall)", "Grieta Diagonal y Vegetación"
+		),
+		_create_entry(
+			&"wall_straight_niche",
+			&"walls",
+			"🧱 Muros Procedurales 3D",
+			"Muro 3x2 con Nicho Arqueado (Hornacina)",
+			"src/geometry_generator/fixtures/wall_showcase_geometry_builder.gd",
+			"Muro recto de 3x2 con nicho arqueado empotrado, hiladas de ladrillos en relieve, dovelas en abanico, repisa de piedra y vela votiva.",
+			&"wall_showcase_prop",
+			{"variant": 3},
+			&"wall_showcase_3x2", "Muro Recto 3x2 (Straight Wall)", "Nicho / Hornacina Arqueada"
 		)
 	])
 

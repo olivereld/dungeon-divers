@@ -395,6 +395,7 @@
             },
             "placement": {
                 "allowed": [
+                    "wall",
                     "floor"
                 ]
             },
@@ -428,6 +429,7 @@
             },
             "placement": {
                 "allowed": [
+                    "wall",
                     "floor"
                 ]
             },
@@ -817,6 +819,7 @@
             "placement": {
                 "allowed": [
                     "corner",
+                    "wall",
                     "floor"
                 ]
             },

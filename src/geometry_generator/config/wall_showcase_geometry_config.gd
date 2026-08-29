@@ -7,7 +7,8 @@ extends Resource
 enum WallVariant {
 	BARRED_WINDOW = 0,   ## Muro con arco y ventana enrejada de celda de hierro, alféizar y ladrillos
 	CENTER_PILASTER = 1, ## Muro con pilar / pilastra central saliente con chaflanes a 45° y ladrillos
-	FISSURE_BRICKS = 2   ## Muro con grieta tallada diagonal, grupos de ladrillos y brotes de vegetación
+	FISSURE_BRICKS = 2,  ## Muro con grieta tallada diagonal, grupos de ladrillos y brotes de vegetación
+	NICHE_ALCOVE = 3     ## Muro con nicho / hornacina arqueada empotrada, dovelas de ladrillo, repisa y vela votiva
 }
 
 @export var scale_mult: float = 1.0

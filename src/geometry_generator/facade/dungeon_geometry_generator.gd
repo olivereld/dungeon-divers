@@ -155,6 +155,15 @@ func _resolve_section_room_id(sec: _WallSectionScript, partition) -> int:
 			if n_id != -1:
 				return n_id
 
+	if "rooms_geometry" in partition:
+		for r_id in partition.rooms_geometry:
+			var r_geom = partition.rooms_geometry[r_id]
+			if r_geom != null and "rect" in r_geom:
+				var expanded_rect: Rect2i = r_geom.rect.grow(1)
+				for pt in sec.points:
+					if expanded_rect.has_point(pt):
+						return r_id
+
 	return -1
 
 func _get_room_profile(r_id: int, partition):

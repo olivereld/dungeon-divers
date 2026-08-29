@@ -127,40 +127,56 @@ static func _build_church_pew(
 	var cap_d: float = back_t * 1.4
 	_build_solid_box(st_t, Vector3(0.0, seat_h + back_h + cap_h * 0.5, back_z), Vector3(len_x, cap_h, cap_d))
 
-	# 3. 2 Paneles Laterales Altos Esculpidos (+X y -X)
-	var side_h: float = seat_h + back_h * 0.90
-	var side_d: float = dep_z
+	# 3. Costados y Reposabrazos Esculpidos Estilizados (+X y -X)
+	var arm_top_y: float = seat_h + 0.24 * s
+	var arm_rail_h: float = 0.045 * s
+	var arm_rail_w: float = panel_w * 1.5
+	var post_w: float = panel_w * 1.3
+
 	for ix in [-1, 1]:
 		var px: float = float(ix) * (half_len - panel_w * 0.5)
 
-		# Panel base del costado
-		_build_solid_box(st_m, Vector3(px, side_h * 0.5, 0.0), Vector3(panel_w, side_h, side_d))
+		# A. Pata/Costado inferior bajo el asiento (0.0 .. seat_h)
+		var base_h: float = seat_h - s_thick * 0.5
+		var base_d: float = dep_z * 0.90
+		_build_solid_box(st_m, Vector3(px, base_h * 0.5, 0.0), Vector3(panel_w, base_h, base_d))
 
-		# Zócalo inferior del costado
-		var foot_w: float = panel_w * 1.5
-		var foot_h: float = 0.04 * s
-		_build_solid_box(st_t, Vector3(px, foot_h * 0.5, 0.0), Vector3(foot_w, foot_h, side_d + 0.04 * s))
+		# Zapata / Pie inferior ensanchado (Trim)
+		var foot_h: float = 0.045 * s
+		_build_solid_box(st_t, Vector3(px, foot_h * 0.5, 0.0), Vector3(arm_rail_w, foot_h, base_d + 0.06 * s))
 
-		# Remate / Pomo superior del costado
-		var finial_h: float = 0.10 * s
-		var finial_w: float = panel_w * 1.3
-		var finial_d: float = 0.12 * s
-		var finial_z: float = -half_dep + finial_d * 0.5
-		_build_solid_box(st_t, Vector3(px, side_h + finial_h * 0.5, finial_z), Vector3(finial_w, finial_h, finial_d))
+		# B. Montante trasero vertical (conecta con el respaldo)
+		var back_post_h: float = back_h + 0.06 * s
+		var back_post_y: float = seat_h + back_post_h * 0.5
+		_build_solid_box(st_m, Vector3(px, back_post_y, back_z), Vector3(post_w, back_post_h, back_t * 1.3))
 
-		# Reposabrazos y balaustres (Trim)
-		var arm_h: float = 0.035 * s
-		var arm_d: float = side_d * 0.55
-		var arm_z: float = half_dep - arm_d * 0.5
-		var arm_y: float = seat_h + 0.22 * s
-		_build_solid_box(st_t, Vector3(px, arm_y, arm_z), Vector3(panel_w * 1.4, arm_h, arm_d))
+		# Remate / Pomo superior decorativo sobre el montante trasero (Trim)
+		var finial_h: float = 0.09 * s
+		var finial_w: float = post_w * 1.25
+		_build_solid_box(st_t, Vector3(px, seat_h + back_h + finial_h * 0.5 + 0.02 * s, back_z), Vector3(finial_w, finial_h, finial_w))
 
-		# 2 Balaustres/Columnillas bajo el reposabrazos
-		var bal_r: float = 0.02 * s
-		var bal_h: float = arm_y - seat_h - arm_h * 0.5
-		var bal_y: float = seat_h + bal_h * 0.5
-		_build_solid_box(st_t, Vector3(px, bal_y, half_dep - 0.10 * s), Vector3(bal_r * 2.0, bal_h, bal_r * 2.0))
-		_build_solid_box(st_t, Vector3(px, bal_y, half_dep - 0.20 * s), Vector3(bal_r * 2.0, bal_h, bal_r * 2.0))
+		# C. Columna / Poste frontal torneado del reposabrazos (de seat_h a arm_top_y)
+		var front_post_z: float = half_dep - 0.08 * s
+		var front_post_h: float = arm_top_y - seat_h
+		var front_post_y: float = seat_h + front_post_h * 0.5
+		var front_col_w: float = 0.055 * s
+		_build_solid_box(st_m, Vector3(px, front_post_y, front_post_z), Vector3(front_col_w, front_post_h, front_col_w))
+		# Anillo decorativo en el poste frontal (Trim)
+		_build_solid_box(st_t, Vector3(px, seat_h + front_post_h * 0.4, front_post_z), Vector3(front_col_w * 1.3, 0.025 * s, front_col_w * 1.3))
+
+		# D. Reposabrazos superior curvado / ergonómico (Rail)
+		var arm_rail_z: float = (front_post_z + back_z) * 0.5
+		var actual_arm_d: float = (front_post_z - back_z) + 0.04 * s
+		# Pasamanos superior moldurado (Trim)
+		_build_solid_box(st_t, Vector3(px, arm_top_y, arm_rail_z), Vector3(arm_rail_w, arm_rail_h, actual_arm_d))
+		# Remate redondeado en el extremo frontal del reposabrazos
+		_build_solid_box(st_t, Vector3(px, arm_top_y - 0.01 * s, front_post_z + 0.03 * s), Vector3(arm_rail_w * 1.15, arm_rail_h * 1.2, 0.06 * s))
+
+		# E. Balaustre decorativo gótico central bajo el reposabrazos (Trim)
+		var mid_bal_z: float = (front_post_z + back_z) * 0.5
+		var mid_bal_h: float = arm_top_y - seat_h - arm_rail_h * 0.5
+		var mid_bal_y: float = seat_h + mid_bal_h * 0.5
+		_build_solid_box(st_t, Vector3(px, mid_bal_y, mid_bal_z), Vector3(0.038 * s, mid_bal_h, 0.038 * s))
 
 	# 4. Pata/Soporte central bajo el asiento
 	var center_leg_w: float = 0.04 * s
