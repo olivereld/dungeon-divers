@@ -114,6 +114,9 @@ func template_to_dictionary(tpl: _RoomTemplateScript) -> Dictionary:
 			"preferred": _to_string_array(tpl.preferred_purposes)
 		}
 
+	if tpl.custom_layout is Dictionary and not tpl.custom_layout.is_empty():
+		dict["custom_layout"] = tpl.custom_layout
+
 	return dict
 
 func clone_template(source_tpl: _RoomTemplateScript, new_id: StringName, new_display_name: String) -> _RoomTemplateScript:

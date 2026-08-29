@@ -29,19 +29,10 @@ var _catalog_items: Array[Dictionary] = []
 func _ready() -> void:
 	_build_master_layout()
 	_create_loading_overlay()
-	call_deferred("_async_init_lab")
-
-func _async_init_lab() -> void:
-	# Permitir que Godot dibuje la pantalla de carga inmediatamente
-	await get_tree().process_frame
-
 	_refresh_catalog_dropdown()
-
 	if not _catalog_items.is_empty():
 		_load_selected_template(0)
-
-	# Transición suave de salida para la pantalla de carga
-	_dismiss_loading_overlay()
+	call_deferred("_dismiss_loading_overlay")
 
 func _create_loading_overlay() -> void:
 	loading_overlay = PanelContainer.new()
@@ -197,6 +188,8 @@ func _build_master_layout() -> void:
 	inspector.setup(state)
 
 func _refresh_catalog_dropdown() -> void:
+	if opt_templates == null:
+		return
 	opt_templates.clear()
 	_catalog_items = repo.list_templates()
 	for i in range(_catalog_items.size()):
@@ -204,7 +197,7 @@ func _refresh_catalog_dropdown() -> void:
 		opt_templates.add_item("[%s] %s" % [item["category"], item["id"]], i)
 
 func _load_selected_template(idx: int) -> void:
-	if idx < 0 or idx >= _catalog_items.size():
+	if opt_templates == null or idx < 0 or idx >= _catalog_items.size():
 		return
 	var item = _catalog_items[idx]
 	var tpl = repo.load_template_by_id(item["id"])
@@ -218,6 +211,34 @@ func _preview_template_shape_on_canvas(tpl: _RoomTemplateScript) -> void:
 	state.clear_canvas()
 	state.load_from_template(tpl)
 
+	# 1. Si la plantilla tiene un diseño personalizado dibujado por el usuario, cargarlo tal cual:
+	if tpl.custom_layout is Dictionary and tpl.custom_layout.has("cells") and not tpl.custom_layout["cells"].is_empty():
+		var l_w: int = int(tpl.custom_layout.get("width", 10))
+		var l_h: int = int(tpl.custom_layout.get("height", 10))
+		var start_x := -int(l_w / 2)
+		var start_y := -int(l_h / 2)
+		var base_pos := Vector2i(start_x, start_y)
+
+		for c_arr in tpl.custom_layout["cells"]:
+			var cell_pos := base_pos + Vector2i(int(c_arr[0]), int(c_arr[1]))
+			state.set_cell(cell_pos, 1)
+
+		var custom_a = tpl.custom_layout.get("anchors", {})
+		if custom_a is Dictionary:
+			for a_id in custom_a:
+				var a_pos := base_pos + Vector2i(int(custom_a[a_id][0]), int(custom_a[a_id][1]))
+				state.set_anchor(StringName(a_id), a_pos)
+
+		var custom_e = tpl.custom_layout.get("entrances", [])
+		if custom_e is Array:
+			for e_arr in custom_e:
+				var e_pos := base_pos + Vector2i(int(e_arr[0]), int(e_arr[1]))
+				state.add_entrance(e_pos)
+
+		_center_canvas_view()
+		return
+
+	# 2. Si no tiene diseño dibujado, tallar la forma canónica procedural:
 	var w: int = 10
 	var h: int = 10
 	if tpl.geometry != null:

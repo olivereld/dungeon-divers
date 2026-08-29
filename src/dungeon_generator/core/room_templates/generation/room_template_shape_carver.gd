@@ -52,55 +52,71 @@ static func carve(
 	var w: int = rect.size.x
 	var h: int = rect.size.y
 	var center: Vector2i = room.get_center()
-
-	# Default baseline: Fill entire room with floor
-	grid.fill_rect(rect, CellGrid.CellType.FLOOR)
-
-	# Determine primary shape family from template geometry policy
 	var shape_family: StringName = &"rectangle"
-	if template != null and template.geometry != null and not template.geometry.allowed_shapes.is_empty():
-		var allowed = template.geometry.allowed_shapes
-		var feasible_shapes: Array[StringName] = []
-		for sh in allowed:
-			if _is_shape_feasible_for_rect(sh, w, h):
-				feasible_shapes.append(sh)
-		if feasible_shapes.is_empty():
-			feasible_shapes.append(&"rectangle")
+	var has_custom_layout: bool = (template != null and template.custom_layout is Dictionary and template.custom_layout.has("cells") and not template.custom_layout["cells"].is_empty())
+	var base_offset := Vector2i.ZERO
 
-		if feasible_shapes.size() == 1:
-			shape_family = feasible_shapes[0]
-		elif rng != null:
-			var idx = rng.randi_range(0, feasible_shapes.size() - 1)
-			shape_family = feasible_shapes[idx]
-		else:
-			shape_family = feasible_shapes[0]
+	if has_custom_layout:
+		shape_family = &"custom"
+		grid.fill_rect(rect, CellGrid.CellType.WALL)
+		var l_w: int = int(template.custom_layout.get("width", w))
+		var l_h: int = int(template.custom_layout.get("height", h))
+		var off_x: int = rect.position.x + int((w - l_w) / 2)
+		var off_y: int = rect.position.y + int((h - l_h) / 2)
+		base_offset = Vector2i(off_x, off_y)
 
-	# If room is too small (< 6 on either axis), enforce open rectangular floor for walkability safety
-	if w < 6 or h < 6:
-		shape_family = &"rectangle"
+		for c in template.custom_layout["cells"]:
+			var p := base_offset + Vector2i(int(c[0]), int(c[1]))
+			if rect.has_point(p):
+				grid.set_cell(p, CellGrid.CellType.FLOOR)
+	else:
+		# Default baseline: Fill entire room with floor
+		grid.fill_rect(rect, CellGrid.CellType.FLOOR)
 
-	match shape_family:
-		&"octagonal", &"octagonal_chamber", &"octagon":
-			_apply_octagonal_shape(grid, rect, w, h, entrances)
+		# Determine primary shape family from template geometry policy
+		if template != null and template.geometry != null and not template.geometry.allowed_shapes.is_empty():
+			var allowed = template.geometry.allowed_shapes
+			var feasible_shapes: Array[StringName] = []
+			for sh in allowed:
+				if _is_shape_feasible_for_rect(sh, w, h):
+					feasible_shapes.append(sh)
+			if feasible_shapes.is_empty():
+				feasible_shapes.append(&"rectangle")
 
-		&"cruciform", &"cruciform_sanctuary", &"cross":
-			_apply_cruciform_shape(grid, rect, w, h, entrances)
+			if feasible_shapes.size() == 1:
+				shape_family = feasible_shapes[0]
+			elif rng != null:
+				var idx = rng.randi_range(0, feasible_shapes.size() - 1)
+				shape_family = feasible_shapes[idx]
+			else:
+				shape_family = feasible_shapes[0]
 
-		&"pillared", &"pillared_hall", &"pillars":
-			_apply_pillared_shape(grid, rect, w, h, entrances, rng)
+		# If room is too small (< 6 on either axis), enforce open rectangular floor for walkability safety
+		if w < 6 or h < 6:
+			shape_family = &"rectangle"
 
-		&"chapel":
-			_apply_chapel_shape(grid, rect, w, h, entrances, zone_map, p_orientation)
+		match shape_family:
+			&"octagonal", &"octagonal_chamber", &"octagon":
+				_apply_octagonal_shape(grid, rect, w, h, entrances)
 
-		&"central_nave", &"nave":
-			_apply_central_nave_shape(grid, rect, w, h, entrances, zone_map, p_orientation)
+			&"cruciform", &"cruciform_sanctuary", &"cross":
+				_apply_cruciform_shape(grid, rect, w, h, entrances)
 
-		&"niched_hall", &"niches":
-			_apply_niched_hall_shape(grid, rect, w, h, entrances, zone_map, p_orientation)
+			&"pillared", &"pillared_hall", &"pillars":
+				_apply_pillared_shape(grid, rect, w, h, entrances, rng)
 
-		&"rectangle", &"open_rectangle", &"square", _:
-			# Open rectangle (already filled with floor)
-			pass
+			&"chapel":
+				_apply_chapel_shape(grid, rect, w, h, entrances, zone_map, p_orientation)
+
+			&"central_nave", &"nave":
+				_apply_central_nave_shape(grid, rect, w, h, entrances, zone_map, p_orientation)
+
+			&"niched_hall", &"niches":
+				_apply_niched_hall_shape(grid, rect, w, h, entrances, zone_map, p_orientation)
+
+			&"rectangle", &"open_rectangle", &"square", _:
+				# Open rectangle (already filled with floor)
+				pass
 
 	# Ensure room center is always walkable floor
 	grid.set_cell(room.get_center(), CellGrid.CellType.FLOOR)
@@ -123,7 +139,7 @@ static func carve(
 	if zone_map.get_zone(center) == &"unassigned":
 		zone_map.set_zone(center, &"focal")
 
-	# Collect carved cells and assign zones
+	# Collect all walkable floor cells
 	var carved_cells: Array[Vector2i] = []
 	var reserved_cells: Array[Vector2i] = []
 
@@ -143,11 +159,20 @@ static func carve(
 	# Resolve concrete anchor positions
 	var resolved_anchors: Dictionary = {}
 	var anchors_success: bool = true
+	var custom_anchors: Dictionary = template.custom_layout.get("anchors", {}) if has_custom_layout else {}
+
 	if template != null and template.anchors is Dictionary:
 		for a_key in template.anchors:
 			var a_def = template.anchors[a_key]
-			var loc: StringName = a_def.location_hint if a_def != null else &"center"
-			var target: Vector2i = _resolve_anchor_coordinate(rect, loc, p_orientation, center)
+			var str_k: String = str(a_key)
+			var target: Vector2i = Vector2i(-999, -999)
+			if has_custom_layout and custom_anchors.has(str_k):
+				var off_a = custom_anchors[str_k]
+				target = base_offset + Vector2i(int(off_a[0]), int(off_a[1]))
+			else:
+				var loc: StringName = a_def.location_hint if a_def != null else &"center"
+				target = _resolve_anchor_coordinate(rect, loc, p_orientation, center)
+
 			if not grid.is_walkable(target):
 				target = _find_nearest_walkable_cell(grid, rect, target)
 			if grid.is_walkable(target) and rect.has_point(target):

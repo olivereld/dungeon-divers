@@ -13,7 +13,8 @@ const VALID_SHAPES: Array[StringName] = [
 	&"pillared", &"pillared_hall", &"pillars",
 	&"chapel",
 	&"central_nave", &"nave",
-	&"niched_hall", &"niches"
+	&"niched_hall", &"niches",
+	&"custom"
 ]
 
 const VALID_SIDES: Array[StringName] = [&"north", &"south", &"east", &"west", &"corner"]

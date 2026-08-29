@@ -23,6 +23,7 @@ var anchors: Dictionary = {} # StringName -> RoomTemplateAnchorDef
 var clearances: _ClearancePolicyScript = null
 var allowed_purposes: Array[StringName] = []
 var preferred_purposes: Array[StringName] = []
+var custom_layout: Dictionary = {}
 
 func _init(
 	p_id: StringName = &"",
@@ -149,7 +150,13 @@ static func from_dictionary(dict: Dictionary) -> RoomTemplate:
 		for p in dict.get("preferred_purposes", []):
 			pref_p.append(StringName(p))
 
-	return RoomTemplate.new(
+	var tpl = RoomTemplate.new(
 		t_id, display_name, tags, geom_policy, ent_policy, sym_policy,
 		anchors_dict, clr_policy, allowed_p, pref_p
 	)
+
+	var custom_lay = dict.get("custom_layout", {})
+	if custom_lay is Dictionary and not custom_lay.is_empty():
+		tpl.custom_layout = custom_lay
+
+	return tpl

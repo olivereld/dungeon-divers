@@ -246,7 +246,7 @@ func build_template_from_state() -> _RoomTemplateScript:
 		clearance_circulation,
 		clearance_walls
 	)
-	return _RoomTemplateScript.new(
+	var tpl = _RoomTemplateScript.new(
 		template_id,
 		display_name,
 		tags,
@@ -258,3 +258,35 @@ func build_template_from_state() -> _RoomTemplateScript:
 		allowed_purposes,
 		preferred_purposes
 	)
+
+	# Si hay celdas pintadas en el canvas, guardar el diseño exacto en custom_layout
+	var geom_info = auto_calculate_geometry()
+	if geom_info["width"] > 0 and geom_info["height"] > 0:
+		var bounds: Rect2i = geom_info["bounds"]
+		var rel_cells: Array[Array] = []
+		for c in painted_cells:
+			if painted_cells[c] == 1:
+				var rel: Vector2i = c - bounds.position
+				rel_cells.append([rel.x, rel.y])
+
+		var rel_anchors: Dictionary = {}
+		for a_id in anchors:
+			var a_pos: Vector2i = anchors[a_id]
+			if bounds.has_point(a_pos):
+				var rel_a: Vector2i = a_pos - bounds.position
+				rel_anchors[str(a_id)] = [rel_a.x, rel_a.y]
+
+		var rel_entrances: Array[Array] = []
+		for e in entrances:
+			var rel_e: Vector2i = e - bounds.position
+			rel_entrances.append([rel_e.x, rel_e.y])
+
+		tpl.custom_layout = {
+			"width": bounds.size.x,
+			"height": bounds.size.y,
+			"cells": rel_cells,
+			"anchors": rel_anchors,
+			"entrances": rel_entrances
+		}
+
+	return tpl
