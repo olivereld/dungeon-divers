@@ -9,6 +9,12 @@ var id: StringName = &""
 var required: bool = true
 var location_hint: StringName = &"center" # &"center", &"wall", &"opposite_entrance", &"corner", &"perimeter"
 
+var location: StringName:
+	get:
+		return location_hint
+	set(value):
+		location_hint = value
+
 func _init(
 	p_id: StringName = &"",
 	p_required: bool = true,
