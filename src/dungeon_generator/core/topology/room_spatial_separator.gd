@@ -163,7 +163,7 @@ static func separate_rooms(
 											col = true
 											break
 									else:
-										if cand.intersects(acc):
+										if cand.intersects(acc.rect):
 											col = true
 											break
 								if not col:

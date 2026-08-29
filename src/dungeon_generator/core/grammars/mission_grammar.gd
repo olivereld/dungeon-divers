@@ -220,7 +220,7 @@ func _validate_mission_graph_invariants(graph: DungeonGraph) -> bool:
 		return false
 
 	var depths: Dictionary = _compute_depths_from_start(graph, start_id)
-	var expected_boss_id: int = _select_boss_candidate(graph, goal_id, depths)
+	var expected_boss_id: int = _select_boss_candidate(graph, goal_id, start_id, depths)
 	if boss_id != expected_boss_id:
 		push_warning("[MissionGrammar] Invariant failed: BOSS (%d) does not match max depth candidate (%d)" % [boss_id, expected_boss_id])
 		return false
