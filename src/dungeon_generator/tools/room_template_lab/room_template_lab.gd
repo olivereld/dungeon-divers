@@ -10,6 +10,8 @@ const _ToolbarScript = preload("res://src/dungeon_generator/tools/room_template_
 const _InspectorScript = preload("res://src/dungeon_generator/tools/room_template_lab/room_template_inspector.gd")
 const _SimulatorScript = preload("res://src/dungeon_generator/tools/room_template_lab/room_template_simulator.gd")
 const _RepositoryScript = preload("res://src/dungeon_generator/tools/room_template_lab/room_template_repository.gd")
+const _ShapeCarverScript = preload("res://src/dungeon_generator/core/room_templates/generation/room_template_shape_carver.gd")
+const _RoomTemplateScript = preload("res://src/dungeon_generator/core/room_templates/data/room_template.gd")
 
 var state: RoomTemplateLabState
 var history: CommandHistory
@@ -74,7 +76,7 @@ func _build_master_layout() -> void:
 	top_hbox.add_child(tpl_lbl)
 
 	opt_templates = OptionButton.new()
-	opt_templates.custom_minimum_size = Vector2(220, 0)
+	opt_templates.custom_minimum_size = Vector2(240, 0)
 	opt_templates.item_selected.connect(_load_selected_template)
 	top_hbox.add_child(opt_templates)
 
@@ -87,6 +89,7 @@ func _build_master_layout() -> void:
 	var split := HSplitContainer.new()
 	split.size_flags_vertical = SIZE_EXPAND_FILL
 	split.size_flags_horizontal = SIZE_EXPAND_FILL
+	split.split_offset = 360
 	main_vbox.add_child(split)
 
 	# Left / Center: Canvas Container
@@ -103,7 +106,7 @@ func _build_master_layout() -> void:
 
 	# Stats Simulator HUD (Top Right of canvas)
 	simulator = _SimulatorScript.new()
-	simulator.anchor_left = 0.6
+	simulator.anchor_left = 0.55
 	simulator.anchor_right = 0.98
 	simulator.anchor_top = 0.02
 	simulator.setup(state)
@@ -111,9 +114,9 @@ func _build_master_layout() -> void:
 
 	# Floating Bottom Toolbar
 	toolbar = _ToolbarScript.new()
-	toolbar.anchor_left = 0.25
-	toolbar.anchor_right = 0.75
-	toolbar.anchor_top = 0.90
+	toolbar.anchor_left = 0.20
+	toolbar.anchor_right = 0.80
+	toolbar.anchor_top = 0.89
 	toolbar.anchor_bottom = 0.98
 	toolbar.setup(state, history)
 	toolbar.center_view_requested.connect(_center_canvas_view)
@@ -124,6 +127,7 @@ func _build_master_layout() -> void:
 
 	# Right: Parameter Inspector Dock
 	inspector = _InspectorScript.new()
+	inspector.custom_minimum_size = Vector2(360, 0)
 	inspector.setup(state)
 	inspector.save_requested.connect(_on_save_current_template)
 	inspector.export_requested.connect(_on_export_current_template)
@@ -143,9 +147,58 @@ func _load_selected_template(idx: int) -> void:
 	var item = _catalog_items[idx]
 	var tpl = repo.load_template_by_id(item["id"])
 	if tpl != null:
-		state.clear_canvas()
-		state.load_from_template(tpl)
-		_center_canvas_view()
+		_preview_template_shape_on_canvas(tpl)
+
+func _preview_template_shape_on_canvas(tpl: _RoomTemplateScript) -> void:
+	if tpl == null:
+		return
+
+	state.clear_canvas()
+	state.load_from_template(tpl)
+
+	var w: int = 10
+	var h: int = 10
+	if tpl.geometry != null:
+		w = int(round(float(tpl.geometry.min_width + tpl.geometry.max_width) * 0.5))
+		h = int(round(float(tpl.geometry.min_depth + tpl.geometry.max_depth) * 0.5))
+	w = maxi(8, w)
+	h = maxi(8, h)
+
+	var start_x := -int(w / 2)
+	var start_y := -int(h / 2)
+	var rect := Rect2i(start_x, start_y, w, h)
+
+	var grid_w := w + 8
+	var grid_h := h + 8
+	var grid := CellGrid.new(grid_w, grid_h, CellGrid.CellType.WALL)
+	var offset := Vector2i(4 - start_x, 4 - start_y)
+	var offset_rect := Rect2i(rect.position + offset, rect.size)
+	var room := RoomData.new(1, offset_rect, &"preview_room")
+
+	# Generate standard entrance at south side
+	var south_ent_cell := Vector2i(offset_rect.position.x + int(offset_rect.size.x / 2), offset_rect.end.y - 1)
+	var entrances: Array[Vector2i] = [south_ent_cell]
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var res = _ShapeCarverScript.carve(grid, room, tpl, entrances, rng, 0)
+	if res != null:
+		# Transfer carved floor cells to state
+		for cell in res.carved_cells:
+			var world_cell: Vector2i = cell - offset
+			state.set_cell(world_cell, 1)
+
+		# Transfer resolved anchors to state
+		for a_id in res.resolved_anchors:
+			var a_pos: Vector2i = res.resolved_anchors[a_id] - offset
+			state.set_anchor(a_id, a_pos)
+
+		# Transfer entrances
+		for ent in entrances:
+			var ent_world: Vector2i = ent - offset
+			state.add_entrance(ent_world)
+
+	_center_canvas_view()
 
 func _center_canvas_view() -> void:
 	if canvas_view != null and state != null:

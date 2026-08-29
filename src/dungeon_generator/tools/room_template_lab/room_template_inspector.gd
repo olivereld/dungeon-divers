@@ -61,10 +61,18 @@ func setup(p_state: RoomTemplateLabState) -> void:
 		_sync_from_state(null)
 
 func _build_ui() -> void:
+	var margin := MarginContainer.new()
+	margin.size_flags_horizontal = SIZE_EXPAND_FILL
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_bottom", 20)
+	add_child(margin)
+
 	var vbox := VBoxContainer.new()
 	vbox.size_flags_horizontal = SIZE_EXPAND_FILL
 	vbox.add_theme_constant_override("separation", 12)
-	add_child(vbox)
+	margin.add_child(vbox)
 
 	# --- Header Buttons ---
 	var header_box := HBoxContainer.new()
@@ -204,10 +212,12 @@ func _create_spin_row(label_text: String, min_v: float, max_v: float, parent: Co
 	var l := Label.new()
 	l.text = label_text + ":"
 	l.size_flags_horizontal = SIZE_EXPAND_FILL
+	l.custom_minimum_size = Vector2(140, 0)
 	var sb := SpinBox.new()
 	sb.min_value = min_v
 	sb.max_value = max_v
 	sb.step = step_v
+	sb.custom_minimum_size = Vector2(90, 0)
 	sb.value_changed.connect(p_callback)
 	hb.add_child(l)
 	hb.add_child(sb)
