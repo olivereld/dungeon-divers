@@ -86,8 +86,43 @@ func validate_entrances(template: _RoomTemplateScript, rect: Rect2i, entrance_po
 
 	return result
 
+func validate_shape_feasibility(template: _RoomTemplateScript, rect: Rect2i) -> _ValidationResultScript:
+	var result := _ValidationResultScript.new()
+	if template == null or template.geometry == null:
+		return result
+
+	var w: int = rect.size.x
+	var d: int = rect.size.y
+	var shapes = template.geometry.allowed_shapes
+
+	for sh in shapes:
+		match sh:
+			&"pillared", &"pillared_hall", &"pillars":
+				if w < 8 or d < 8:
+					result.add_error("Shape '%s' requires at least 8x8 dimensions, got %dx%d" % [str(sh), w, d])
+			&"cruciform", &"cruciform_sanctuary", &"cross":
+				if w < 7 or d < 7:
+					result.add_error("Shape '%s' requires at least 7x7 dimensions, got %dx%d" % [str(sh), w, d])
+			&"chapel", &"central_nave", &"nave":
+				if w < 8 or d < 8:
+					result.add_error("Shape '%s' requires at least 8x8 dimensions, got %dx%d" % [str(sh), w, d])
+			&"octagonal", &"octagonal_chamber", &"octagon":
+				if w < 6 or d < 6:
+					result.add_error("Shape '%s' requires at least 6x6 dimensions, got %dx%d" % [str(sh), w, d])
+			&"niched_hall", &"niches":
+				if w < 6 or d < 6:
+					result.add_error("Shape '%s' requires at least 6x6 dimensions, got %dx%d" % [str(sh), w, d])
+
+	return result
+
 func validate_all(template: _RoomTemplateScript, rect: Rect2i, entrance_points: Array[Vector2i] = []) -> _ValidationResultScript:
 	var res_geom := validate_rect(template, rect)
+	var res_shape := validate_shape_feasibility(template, rect)
+	for err in res_shape.errors:
+		res_geom.add_error(err)
+	for w in res_shape.warnings:
+		res_geom.add_warning(w)
+
 	if not entrance_points.is_empty():
 		var res_ent := validate_entrances(template, rect, entrance_points)
 		for err in res_ent.errors:
