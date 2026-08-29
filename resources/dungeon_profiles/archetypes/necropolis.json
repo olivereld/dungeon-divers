@@ -4,7 +4,7 @@
     "display_name": "Necropolis",
     "purpose_weights": {
         "crypt": 4.0,
-        "tomb": 3.0,
+        "tomb": 5.0,
         "catacomb": 3.0,
         "sacristy": 1.5,
         "hall": 1.0

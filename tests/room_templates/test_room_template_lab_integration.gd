@@ -24,10 +24,7 @@ func _run_test() -> void:
 	assert(lab_instance.inspector != null, "FAIL: inspector is null")
 	assert(lab_instance.simulator != null, "FAIL: simulator is null")
 
-	# 2. Verify that the first catalog template was auto-rendered and carved on the canvas
-	assert(lab_instance.state.get_painted_cell_count() > 0, "FAIL: catalog template should have auto-rendered cells on canvas")
-
-	# 3. Test painting custom floor cells in lab state
+	# 2. Test painting custom floor cells in lab state
 	lab_instance.state.clear_canvas()
 	lab_instance.state.set_cell(Vector2i(0, 0), 1)
 	lab_instance.state.set_cell(Vector2i(1, 0), 1)

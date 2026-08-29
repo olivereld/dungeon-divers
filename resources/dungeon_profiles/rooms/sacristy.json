@@ -24,17 +24,8 @@
         "forbidden_tags": []
     },
     "templates": {
-        "allowed": [
-            "chapel_template",
-            "sacristy_template",
-            "cruciform_sanctuary",
-            "octagonal_chamber",
-            "open_hall"
-        ],
-        "preferred": [
-            "sacristy_template",
-            "chapel_template"
-        ],
+        "allowed": [],
+        "preferred": [],
         "forbidden": [],
         "required_tags": [
             "ceremonial"

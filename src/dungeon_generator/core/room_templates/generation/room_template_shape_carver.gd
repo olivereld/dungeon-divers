@@ -69,6 +69,25 @@ static func carve(
 			var p := base_offset + Vector2i(int(c[0]), int(c[1]))
 			if rect.has_point(p):
 				grid.set_cell(p, CellGrid.CellType.FLOOR)
+
+		# Stamp internal doors / arches
+		var internal_doors_meta: Array = []
+		var custom_doors = template.custom_layout.get("internal_doors", [])
+		if custom_doors is Array:
+			for d_info in custom_doors:
+				if d_info is Dictionary:
+					var p := base_offset + Vector2i(int(d_info.get("x", 0)), int(d_info.get("y", 0)))
+					if rect.has_point(p):
+						var dtype: StringName = StringName(d_info.get("type", "door"))
+						grid.set_cell(p, CellGrid.CellType.DOOR if dtype != &"arch" else CellGrid.CellType.FLOOR)
+						internal_doors_meta.append({
+							"position": p,
+							"type": dtype,
+							"locked": (dtype == &"locked_door")
+						})
+
+		if not internal_doors_meta.is_empty() and "custom_data" in room and room.custom_data is Dictionary:
+			room.custom_data["internal_doors"] = internal_doors_meta
 	else:
 		# Default baseline: Fill entire room with floor
 		grid.fill_rect(rect, CellGrid.CellType.FLOOR)

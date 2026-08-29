@@ -17,6 +17,9 @@ const COLOR_FLOOR_BORDER := Color("#1a1e29")
 const COLOR_BOUNDS := Color("#3b82f6", 0.7)
 const COLOR_ENTRANCE := Color("#10b981")
 const COLOR_ANCHOR := Color("#f59e0b")
+const COLOR_DOOR := Color("#b45309")
+const COLOR_LOCKED_DOOR := Color("#dc2626")
+const COLOR_ARCH := Color("#0284c7")
 const COLOR_SYMMETRY_AXIS := Color("#ec4899", 0.6)
 const COLOR_RECT_PREVIEW := Color("#60a5fa", 0.4)
 
@@ -54,6 +57,8 @@ func setup(p_state: RoomTemplateLabState, p_history: CommandHistory) -> void:
 			state.anchors_modified.connect(queue_redraw)
 		if not state.entrances_modified.is_connected(queue_redraw):
 			state.entrances_modified.connect(queue_redraw)
+		if not state.doors_modified.is_connected(queue_redraw):
+			state.doors_modified.connect(queue_redraw)
 		if not state.tool_changed.is_connected(_on_tool_changed):
 			state.tool_changed.connect(_on_tool_changed)
 
@@ -168,6 +173,12 @@ func _handle_tool_press(cell: Vector2i, brush_val: int) -> void:
 					state.remove_entrance(cell)
 				else:
 					state.add_entrance(cell)
+
+		RoomTemplateLabState.Tool.PLACE_DOOR:
+			if state.has_internal_door(cell):
+				state.remove_internal_door(cell)
+			else:
+				state.set_internal_door(cell, state.active_door_type)
 
 func _handle_tool_drag(cell: Vector2i) -> void:
 	if not is_drawing or state == null:
@@ -286,6 +297,26 @@ func _draw() -> void:
 			var er = grid_transform.get_cell_rect(ent)
 			draw_rect(er, COLOR_ENTRANCE, true)
 			draw_rect(er, Color.WHITE, false, 2.0)
+
+	# 5.5 Draw Internal Doors & Arches
+	for d_pos in state.internal_doors:
+		if visible_range.has_point(d_pos):
+			var dr = grid_transform.get_cell_rect(d_pos)
+			var dtype: StringName = state.get_internal_door_type(d_pos)
+			var dcol := COLOR_DOOR
+			if dtype == &"locked_door":
+				dcol = COLOR_LOCKED_DOOR
+			elif dtype == &"arch":
+				dcol = COLOR_ARCH
+			draw_rect(dr, dcol, true)
+			draw_rect(dr, Color.WHITE, false, 1.5)
+			var c_center = dr.position + dr.size * 0.5
+			if dtype == &"locked_door":
+				draw_rect(Rect2(c_center - Vector2(3, 3), Vector2(6, 6)), Color.WHITE, true)
+			elif dtype == &"arch":
+				draw_arc(c_center + Vector2(0, 2), eff * 0.25, -PI, 0, 8, Color.WHITE, 2.0)
+			else:
+				draw_line(c_center - Vector2(0, eff * 0.25), c_center + Vector2(0, eff * 0.25), Color.WHITE, 2.0)
 
 	# 6. Draw Anchors
 	for a_id in state.anchors:

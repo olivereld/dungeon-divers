@@ -32,19 +32,12 @@
         ]
     },
     "templates": {
-        "allowed": [
-            "octagonal_chamber",
-            "pillared_hall",
-            "cruciform_sanctuary",
-            "open_hall"
-        ],
-        "preferred": [
-            "octagonal_chamber",
-            "pillared_hall"
-        ],
+        "allowed": [],
+        "preferred": [],
         "forbidden": [],
         "required_tags": [
-            "ceremonial"
+            "ceremonial",
+            "tomb"
         ]
     },
     "architecture": {

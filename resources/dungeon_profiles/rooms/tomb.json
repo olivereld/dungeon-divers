@@ -24,6 +24,14 @@
             "seating"
         ]
     },
+    "templates": {
+        "allowed": [],
+        "preferred": [],
+        "forbidden": [],
+        "required_tags": [
+            "tomb"
+        ]
+    },
     "architecture": {
         "floor": "catacomb_dirt",
         "walls": "dark_stone",

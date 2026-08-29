@@ -96,6 +96,42 @@ func _build_ui() -> void:
 	input_name = _create_line_edit("Display Name", func(txt): if state: state.display_name = txt, vbox)
 	input_tags = _create_line_edit("Tags (comma-separated)", func(txt): _update_tags(txt), vbox)
 
+	# Tag Selector Dropdown
+	var btn_add_tag := MenuButton.new()
+	btn_add_tag.text = "🏷️ + Añadir Tag Rápido... ▾"
+	btn_add_tag.flat = true
+	btn_add_tag.focus_mode = FOCUS_NONE
+	var tag_popup: PopupMenu = btn_add_tag.get_popup()
+
+	var p_rooms := PopupMenu.new()
+	p_rooms.name = "Salas"
+	var room_tags = ["tomb", "royal_tomb", "crypt", "catacomb", "sacristy", "chapel", "sanctum", "ossuary", "mortuary", "chamber", "hall", "entrance"]
+	for t in room_tags:
+		p_rooms.add_item(t)
+	p_rooms.id_pressed.connect(func(idx: int): _add_tag(room_tags[idx]))
+	tag_popup.add_child(p_rooms)
+	tag_popup.add_submenu_item("🏛️ Tipos de Sala", "Salas")
+
+	var p_theme := PopupMenu.new()
+	p_theme.name = "Tematica"
+	var theme_tags = ["ceremonial", "focal", "worship", "ritual", "burial", "storage", "custom"]
+	for t in theme_tags:
+		p_theme.add_item(t)
+	p_theme.id_pressed.connect(func(idx: int): _add_tag(theme_tags[idx]))
+	tag_popup.add_child(p_theme)
+	tag_popup.add_submenu_item("✨ Temática e Intención", "Tematica")
+
+	var p_game := PopupMenu.new()
+	p_game.name = "Gameplay"
+	var game_tags = ["boss", "treasure", "combat", "explore", "start", "goal"]
+	for t in game_tags:
+		p_game.add_item(t)
+	p_game.id_pressed.connect(func(idx: int): _add_tag(game_tags[idx]))
+	tag_popup.add_child(p_game)
+	tag_popup.add_submenu_item("🎯 Roles de Misión", "Gameplay")
+
+	vbox.add_child(btn_add_tag)
+
 	# --- 2. Geometry Policy ---
 	vbox.add_child(_create_section_label("2. Geometry Policy"))
 	var btn_autofit := Button.new()
@@ -248,6 +284,13 @@ func _update_tags(txt: String) -> void:
 		if not s.is_empty():
 			out.append(StringName(s))
 	state.tags = out
+
+func _add_tag(tag_name: String) -> void:
+	if state == null:
+		return
+	if not state.tags.has(StringName(tag_name)):
+		state.tags.append(StringName(tag_name))
+		input_tags.text = ", ".join(state.tags)
 
 func _update_purposes(txt: String, is_allowed: bool) -> void:
 	if state == null:

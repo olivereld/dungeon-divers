@@ -16,7 +16,8 @@ enum Tool {
 	RECT_FILL = 2,
 	PLACE_ENTRANCE = 3,
 	PLACE_ANCHOR = 4,
-	SELECT = 5
+	PLACE_DOOR = 5,
+	SELECT = 6
 }
 
 signal template_changed(template: _RoomTemplateScript)
@@ -24,6 +25,7 @@ signal canvas_modified()
 signal tool_changed(tool_idx: int)
 signal anchors_modified()
 signal entrances_modified()
+signal doors_modified()
 signal validation_updated(is_valid: bool, errors: Array[String], stats: Dictionary)
 
 # Identidad
@@ -66,6 +68,8 @@ var painted_cells: Dictionary = {} # Vector2i -> int (1: Floor, 0: Wall/Empty)
 var entrances: Array[Vector2i] = []
 var anchors: Dictionary = {} # StringName -> Vector2i
 var anchor_defs: Dictionary = {} # StringName -> RoomTemplateAnchorDef
+var internal_doors: Dictionary = {} # Vector2i -> StringName (&"door", &"locked_door", &"arch")
+var active_door_type: StringName = &"door"
 var active_tool: int = Tool.BRUSH
 
 # Command History Reference
@@ -76,6 +80,7 @@ func set_cell(pos: Vector2i, type: int) -> void:
 		painted_cells[pos] = type
 	else:
 		painted_cells.erase(pos)
+		internal_doors.erase(pos)
 	canvas_modified.emit()
 
 func get_cell(pos: Vector2i) -> int:
@@ -91,9 +96,11 @@ func clear_canvas() -> void:
 	painted_cells.clear()
 	entrances.clear()
 	anchors.clear()
+	internal_doors.clear()
 	canvas_modified.emit()
 	entrances_modified.emit()
 	anchors_modified.emit()
+	doors_modified.emit()
 
 func fill_rect(rect: Rect2i, type: int) -> void:
 	for y in range(rect.position.y, rect.end.y):
@@ -103,6 +110,7 @@ func fill_rect(rect: Rect2i, type: int) -> void:
 				painted_cells[p] = type
 			else:
 				painted_cells.erase(p)
+				internal_doors.erase(p)
 	canvas_modified.emit()
 
 func set_tool(tool_idx: int) -> void:
@@ -112,7 +120,8 @@ func set_tool(tool_idx: int) -> void:
 # --- Anchors ---
 func set_anchor(id: StringName, pos: Vector2i, is_required: bool = true, loc_hint: StringName = &"center") -> void:
 	anchors[id] = pos
-	anchor_defs[id] = _AnchorDefScript.new(id, is_required, loc_hint)
+	if not anchor_defs.has(id):
+		anchor_defs[id] = _AnchorDefScript.new(id, is_required, loc_hint)
 	anchors_modified.emit()
 
 func remove_anchor(id: StringName) -> void:
@@ -139,6 +148,27 @@ func remove_entrance(pos: Vector2i) -> void:
 
 func get_entrances() -> Array[Vector2i]:
 	return entrances
+
+# --- Internal Doors & Archways ---
+func set_internal_door(pos: Vector2i, door_type: StringName) -> void:
+	internal_doors[pos] = door_type
+	# Automatically ensure floor cell is painted underneath
+	if not painted_cells.has(pos):
+		painted_cells[pos] = 1
+	doors_modified.emit()
+	canvas_modified.emit()
+
+func remove_internal_door(pos: Vector2i) -> void:
+	if internal_doors.has(pos):
+		internal_doors.erase(pos)
+		doors_modified.emit()
+		canvas_modified.emit()
+
+func has_internal_door(pos: Vector2i) -> bool:
+	return internal_doors.has(pos)
+
+func get_internal_door_type(pos: Vector2i) -> StringName:
+	return internal_doors.get(pos, &"door")
 
 # --- Auto Calculation ---
 func auto_calculate_geometry() -> Dictionary:
@@ -281,12 +311,23 @@ func build_template_from_state() -> _RoomTemplateScript:
 			var rel_e: Vector2i = e - bounds.position
 			rel_entrances.append([rel_e.x, rel_e.y])
 
+		var rel_doors: Array[Dictionary] = []
+		for d_pos in internal_doors:
+			if bounds.has_point(d_pos):
+				var rel_d: Vector2i = d_pos - bounds.position
+				rel_doors.append({
+					"x": rel_d.x,
+					"y": rel_d.y,
+					"type": str(internal_doors[d_pos])
+				})
+
 		tpl.custom_layout = {
 			"width": bounds.size.x,
 			"height": bounds.size.y,
 			"cells": rel_cells,
 			"anchors": rel_anchors,
-			"entrances": rel_entrances
+			"entrances": rel_entrances,
+			"internal_doors": rel_doors
 		}
 
 	return tpl

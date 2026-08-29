@@ -27,19 +27,12 @@
         ]
     },
     "templates": {
-        "allowed": [
-            "pillared_hall",
-            "octagonal_chamber",
-            "cruciform_sanctuary",
-            "open_hall",
-            "rectangular_chamber_template"
-        ],
-        "preferred": [
-            "pillared_hall",
-            "octagonal_chamber"
-        ],
+        "allowed": [],
+        "preferred": [],
         "forbidden": [],
-        "required_tags": []
+        "required_tags": [
+            "crypt"
+        ]
     },
     "architecture": {
         "floor": {

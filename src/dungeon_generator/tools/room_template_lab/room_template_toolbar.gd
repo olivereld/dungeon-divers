@@ -67,10 +67,39 @@ func _build_ui() -> void:
 	btn_brush = _create_btn("✏️ Brush [B]", func(): _select_tool(RoomTemplateLabState.Tool.BRUSH))
 	btn_eraser = _create_btn("🧹 Eraser [E]", func(): _select_tool(RoomTemplateLabState.Tool.ERASER))
 	btn_rect = _create_btn("⬜ Rect [R]", func(): _select_tool(RoomTemplateLabState.Tool.RECT_FILL))
-	btn_entrance = _create_btn("🚪 Door [D]", func(): _select_tool(RoomTemplateLabState.Tool.PLACE_ENTRANCE))
+	btn_entrance = _create_btn("🚪 Entrance [D]", func(): _select_tool(RoomTemplateLabState.Tool.PLACE_ENTRANCE))
+
+	# MenuButton para puertas internas y arcos
+	var btn_doors := MenuButton.new()
+	btn_doors.text = "🚪 Puerta / Arco [P] ▾"
+	btn_doors.flat = true
+	btn_doors.focus_mode = FOCUS_NONE
+	var d_popup: PopupMenu = btn_doors.get_popup()
+	d_popup.add_item("🚪 Puerta Estándar", 0)
+	d_popup.add_item("🔒 Puerta Bloqueada (Llave)", 1)
+	d_popup.add_item("🏛️ Arco Abierto", 2)
+	d_popup.id_pressed.connect(func(id: int):
+		if state != null:
+			match id:
+				0:
+					state.active_door_type = &"door"
+					btn_doors.text = "🚪 Puerta Estándar [P] ▾"
+				1:
+					state.active_door_type = &"locked_door"
+					btn_doors.text = "🔒 Puerta Llave [P] ▾"
+				2:
+					state.active_door_type = &"arch"
+					btn_doors.text = "🏛️ Arco Abierto [P] ▾"
+			state.set_tool(RoomTemplateLabState.Tool.PLACE_DOOR)
+	)
+	btn_doors.pressed.connect(func():
+		if state != null:
+			state.set_tool(RoomTemplateLabState.Tool.PLACE_DOOR)
+	)
+
 	btn_anchor = _create_btn("⭐ Anchor [A]", func(): _select_tool(RoomTemplateLabState.Tool.PLACE_ANCHOR))
 
-	_tool_buttons = [btn_brush, btn_eraser, btn_rect, btn_entrance, btn_anchor]
+	_tool_buttons = [btn_brush, btn_eraser, btn_rect, btn_entrance, btn_doors, btn_anchor]
 	for b in _tool_buttons:
 		hbox.add_child(b)
 
@@ -160,6 +189,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		KEY_D:
 			_select_tool(RoomTemplateLabState.Tool.PLACE_ENTRANCE)
+			get_viewport().set_input_as_handled()
+		KEY_P:
+			_select_tool(RoomTemplateLabState.Tool.PLACE_DOOR)
 			get_viewport().set_input_as_handled()
 		KEY_A:
 			_select_tool(RoomTemplateLabState.Tool.PLACE_ANCHOR)

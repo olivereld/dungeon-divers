@@ -235,6 +235,14 @@ func _preview_template_shape_on_canvas(tpl: _RoomTemplateScript) -> void:
 				var e_pos := base_pos + Vector2i(int(e_arr[0]), int(e_arr[1]))
 				state.add_entrance(e_pos)
 
+		var custom_d = tpl.custom_layout.get("internal_doors", [])
+		if custom_d is Array:
+			for d_obj in custom_d:
+				if d_obj is Dictionary:
+					var d_pos := base_pos + Vector2i(int(d_obj.get("x", 0)), int(d_obj.get("y", 0)))
+					var d_type: StringName = StringName(d_obj.get("type", "door"))
+					state.set_internal_door(d_pos, d_type)
+
 		_center_canvas_view()
 		return
 
