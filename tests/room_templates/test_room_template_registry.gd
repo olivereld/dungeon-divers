@@ -1,9 +1,9 @@
 extends SceneTree
 
-## Test unitario del registro y emparejador de RoomTemplates
+## Test unitario del registro de RoomTemplates
 
 const _RegistryScript = preload("res://src/dungeon_generator/core/room_templates/loader/room_template_registry.gd")
-const _MatcherScript = preload("res://src/dungeon_generator/core/room_templates/matcher/room_template_matcher.gd")
+const _RoomTemplateScript = preload("res://src/dungeon_generator/core/room_templates/data/room_template.gd")
 
 func _init() -> void:
 	call_deferred("_run_test")
@@ -12,27 +12,32 @@ func _run_test() -> void:
 	print("--- Running test_room_template_registry ---")
 	var registry := _RegistryScript.new()
 
-	# 1. Autodescubrimiento de templates en res://resources/dungeon_profiles/room_templates/
+	# 1. Autodescubrimiento recursivo de templates en res://resources/dungeon_profiles/room_templates/
 	var count = registry.discover_templates_in_directory("res://resources/dungeon_profiles/room_templates")
-	assert(count >= 3, "FAIL: must discover at least 3 templates, found %d" % count)
-	assert(registry.has_template(&"sacristy_template"), "FAIL: registry must have sacristy_template")
-	assert(registry.has_template(&"chapel_template"), "FAIL: registry must have chapel_template")
-	assert(registry.has_template(&"rectangular_chamber_template"), "FAIL: registry must have rectangular_chamber_template")
+	assert(count >= 7, "FAIL: must discover at least 7 base templates, found %d" % count)
+	assert(registry.has_template(&"open_hall"), "FAIL: registry must have open_hall")
+	assert(registry.has_template(&"octagonal_chamber"), "FAIL: registry must have octagonal_chamber")
+	assert(registry.has_template(&"cruciform_sanctuary"), "FAIL: registry must have cruciform_sanctuary")
+	assert(registry.has_template(&"pillared_hall"), "FAIL: registry must have pillared_hall")
+	assert(registry.has_template(&"ceremonial_chapel"), "FAIL: registry must have ceremonial_chapel")
 
-	# 2. Matcher: Emparejar propósito 'sacristy'
-	var matcher := _MatcherScript.new(registry)
-	var matched_sacristy = matcher.match_template_for_purpose(&"sacristy")
-	assert(matched_sacristy != null, "FAIL: must match template for sacristy")
-	assert(matched_sacristy.id == &"sacristy_template", "FAIL: matched template must be sacristy_template, got %s" % str(matched_sacristy.id))
+	# 2. Lookup y enumeración
+	var all_tpls = registry.get_all_templates()
+	assert(all_tpls.size() == count, "FAIL: get_all_templates count mismatch")
 
-	# 3. Matcher: Emparejar propósito desconocido (debe caer en un template genérico)
-	var matched_generic = matcher.match_template_for_purpose(&"unknown_dungeon_room")
-	assert(matched_generic != null, "FAIL: must match fallback generic template")
-	assert(matched_generic.allowed_purposes.is_empty(), "FAIL: matched template must be generic (empty allowed_purposes)")
+	var all_ids = registry.list_template_ids()
+	assert(all_ids.has(&"open_hall"), "FAIL: list_template_ids missing open_hall")
 
-	# 4. Encontrar todas las plantillas compatibles con 'ceremonial'
-	var ceremonial_templates = matcher.find_compatible_templates(&"ceremonial")
-	assert(ceremonial_templates.size() >= 2, "FAIL: should find at least 2 ceremonial compatible templates")
+	var open_hall = registry.get_template(&"open_hall")
+	assert(open_hall != null and open_hall.id == &"open_hall", "FAIL: get_template returned incorrect template")
+
+	# 3. Registro dinámico y limpieza
+	var custom_tpl := _RoomTemplateScript.new(&"custom_test_tpl", "Custom Test", [&"test"])
+	registry.register_template(custom_tpl)
+	assert(registry.has_template(&"custom_test_tpl"), "FAIL: custom template should be registered")
+
+	registry.clear()
+	assert(registry.get_all_templates().is_empty(), "FAIL: clear() must empty the registry")
 
 	print("PASS: test_room_template_registry passed successfully!")
 	quit(0)
