@@ -124,4 +124,3 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 				var pos := Vector2i(x, y)
 				if grid.is_walkable(pos):
 					grid.set_room_owner(pos, room.id)
-
