@@ -11,6 +11,8 @@ const _FitnessEvaluatorScript = preload("res://src/dungeon_generator/core/solver
 
 class QualityGateResult extends RefCounted:
 	var hard_valid: bool = true
+	var is_valid: bool = true
+	var is_winnable: bool = true
 	var hard_failures: Array[String] = []
 	var fitness_score: float = 0.0
 	var soft_metrics: Dictionary = {}
@@ -18,6 +20,8 @@ class QualityGateResult extends RefCounted:
 
 	func add_hard_failure(reason: String) -> void:
 		hard_valid = false
+		is_valid = false
+		is_winnable = false
 		hard_failures.append(reason)
 
 ## Evalúa exhaustivamente el contexto de generación como Quality Gate formal.
