@@ -5,6 +5,9 @@ extends SceneTree
 ## consolidando métricas, tiempos de ejecución y código de salida para integración continua.
 
 const TEST_SUITES: Array[String] = [
+	# 0. Data-Driven Architecture & Extensibility
+	"res://tests/architecture/test_data_driven_architecture.gd",
+
 	# 1. Core & Fundamentos Topológicos
 	"res://tests/test_phase1_structural_invariants.gd",
 	"res://tests/test_phase2_generation_context.gd",
