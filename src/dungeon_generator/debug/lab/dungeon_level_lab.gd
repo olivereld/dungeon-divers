@@ -11,6 +11,8 @@ const _InspectorScript = preload("res://src/dungeon_generator/debug/lab/dungeon_
 const _ShowcaseScript = preload("res://src/dungeon_generator/debug/lab/dungeon_lab_template_showcase.gd")
 const _CoverageScript = preload("res://src/dungeon_generator/debug/lab/dungeon_lab_coverage.gd")
 const _GoldenRunnerScript = preload("res://src/dungeon_generator/debug/lab/dungeon_lab_golden_runner.gd")
+const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
+const _Dungeon3DViewerScript = preload("res://src/dungeon_generator/debug/lab/viewer/dungeon_3d_viewer.gd")
 
 enum LabMode {
 	GENERATE = 0,
@@ -20,7 +22,14 @@ enum LabMode {
 	REGRESSION = 4
 }
 
+enum ViewMode {
+	VIEW_2D = 0,
+	VIEW_3D = 1
+}
+
 var current_mode: LabMode = LabMode.GENERATE
+var current_view_mode: ViewMode = ViewMode.VIEW_2D
+
 var config: _LabConfigScript = _LabConfigScript.new()
 var controller: _LabControllerScript = _LabControllerScript.new()
 var overlay: _OverlayScript = _OverlayScript.new()
@@ -28,15 +37,20 @@ var inspector: _InspectorScript = _InspectorScript.new()
 var showcase: _ShowcaseScript = _ShowcaseScript.new()
 var coverage: _CoverageScript = _CoverageScript.new()
 var golden_runner: _GoldenRunnerScript = _GoldenRunnerScript.new()
+var presentation_builder: _DungeonPresentationBuilderScript = _DungeonPresentationBuilderScript.new()
 
 # Sub-nodes
 var renderer: _RendererScript
+var viewport_container_3d: SubViewportContainer
+var viewer_3d: _Dungeon3DViewerScript
 var seed_input: SpinBox
 var random_seed_btn: Button
 var algo_option: OptionButton
 var floor_spin: SpinBox
 var floor_selector: OptionButton
 var generate_btn: Button
+var view_mode_btn: Button
+var frame_dungeon_btn: Button
 var mode_tabs: TabBar
 var status_label: Label
 var inspector_text: RichTextLabel
@@ -45,6 +59,10 @@ var progress_bar: ProgressBar
 func _ensure_nodes() -> void:
 	if renderer == null:
 		renderer = find_child("Renderer", true, false) as _RendererScript
+	if viewport_container_3d == null:
+		viewport_container_3d = find_child("ViewportContainer3D", true, false) as SubViewportContainer
+	if viewer_3d == null:
+		viewer_3d = find_child("Viewer3D", true, false) as _Dungeon3DViewerScript
 	if seed_input == null:
 		seed_input = find_child("SeedSpin", true, false) as SpinBox
 	if random_seed_btn == null:
@@ -57,6 +75,10 @@ func _ensure_nodes() -> void:
 		floor_selector = find_child("FloorSelectOption", true, false) as OptionButton
 	if generate_btn == null:
 		generate_btn = find_child("GenerateBtn", true, false) as Button
+	if view_mode_btn == null:
+		view_mode_btn = find_child("ViewModeBtn", true, false) as Button
+	if frame_dungeon_btn == null:
+		frame_dungeon_btn = find_child("FrameDungeonBtn", true, false) as Button
 	if mode_tabs == null:
 		mode_tabs = find_child("ModeTabs", true, false) as TabBar
 	if status_label == null:
@@ -78,6 +100,7 @@ func _ready() -> void:
 	showcase = _ShowcaseScript.new()
 	coverage = _CoverageScript.new()
 	golden_runner = _GoldenRunnerScript.new()
+	presentation_builder = _DungeonPresentationBuilderScript.new()
 
 	if renderer != null:
 		renderer.set_overlay(overlay)
@@ -96,6 +119,7 @@ func _ready() -> void:
 	_setup_topbar_ui()
 	_setup_mode_tabs()
 	_setup_overlay_checkboxes()
+	_update_view_mode_visibility()
 
 	# Generar mazmorra inicial
 	generate_current()
@@ -115,6 +139,12 @@ func _setup_topbar_ui() -> void:
 	if random_seed_btn != null and not random_seed_btn.pressed.is_connected(_on_random_seed_pressed):
 		random_seed_btn.pressed.connect(_on_random_seed_pressed)
 
+	if view_mode_btn != null and not view_mode_btn.pressed.is_connected(_toggle_view_mode):
+		view_mode_btn.pressed.connect(_toggle_view_mode)
+
+	if frame_dungeon_btn != null and not frame_dungeon_btn.pressed.is_connected(frame_dungeon_view):
+		frame_dungeon_btn.pressed.connect(frame_dungeon_view)
+
 	if seed_input != null:
 		if not seed_input.value_changed.is_connected(_on_seed_value_changed):
 			seed_input.value_changed.connect(_on_seed_value_changed)
@@ -125,6 +155,31 @@ func _setup_topbar_ui() -> void:
 
 	if floor_selector != null and not floor_selector.item_selected.is_connected(_on_floor_selector_item_selected):
 		floor_selector.item_selected.connect(_on_floor_selector_item_selected)
+
+func _toggle_view_mode() -> void:
+	if current_view_mode == ViewMode.VIEW_2D:
+		current_view_mode = ViewMode.VIEW_3D
+		if view_mode_btn != null:
+			view_mode_btn.text = "🗺️ 2D Map"
+	else:
+		current_view_mode = ViewMode.VIEW_2D
+		if view_mode_btn != null:
+			view_mode_btn.text = "🏰 3D View"
+	_update_view_mode_visibility()
+
+func _update_view_mode_visibility() -> void:
+	if renderer != null:
+		renderer.visible = (current_view_mode == ViewMode.VIEW_2D)
+	if viewport_container_3d != null:
+		viewport_container_3d.visible = (current_view_mode == ViewMode.VIEW_3D)
+		if viewport_container_3d.visible and viewer_3d != null:
+			viewer_3d.frame_dungeon()
+
+func frame_dungeon_view() -> void:
+	if current_view_mode == ViewMode.VIEW_3D and viewer_3d != null:
+		viewer_3d.frame_dungeon()
+	elif renderer != null:
+		renderer.reset_view()
 
 func _on_seed_value_changed(val: float) -> void:
 	config.seed = int(val)
@@ -228,17 +283,65 @@ func _on_generation_completed(result: Dictionary) -> void:
 	if renderer != null:
 		renderer.render_floor(floor_data, overlay)
 
+	# 3D Presentation Materialization & Update
+	var sem_res = controller.get_active_semantic_result()
+	var pres_res = null
+	if viewer_3d != null:
+		pres_res = viewer_3d.load_dungeon(sem_res, presentation_builder, config.to_dungeon_config())
+
+	# Update stats in inspector panel if in GENERATE mode
+	if current_mode == LabMode.GENERATE and inspector_text != null and sem_res != null:
+		_display_generation_summary(sem_res, pres_res)
+
+func _display_generation_summary(sem_res: DungeonSemanticResult, pres_res) -> void:
+	var total_rooms := sem_res.rooms.size()
+	var resolved_templates := 0
+	var fallback_templates := 0
+	for r in sem_res.rooms:
+		var t_id: StringName = r.custom_data.get("resolved_template_id", &"procedural_fallback") if "custom_data" in r else &"procedural_fallback"
+		if t_id != StringName() and t_id != &"procedural_fallback" and t_id != &"none":
+			resolved_templates += 1
+		else:
+			fallback_templates += 1
+
+	var bbcode := "[b]GENERATION SUMMARY[/b]\n"
+	bbcode += "Seed: [color=cyan]%d[/color]\n" % config.seed
+	bbcode += "Floors: %d\n" % config.floor_count
+	bbcode += "Status: [color=green]VALID[/color]\n\n"
+
+	bbcode += "[b]Rooms (%d):[/b]\n" % total_rooms
+	bbcode += "  - Templates Resolved: [color=green]%d[/color]\n" % resolved_templates
+	bbcode += "  - Procedural Fallbacks: [color=yellow]%d[/color]\n" % fallback_templates
+	bbcode += "Corridors: %d\n" % sem_res.corridor_paths.size()
+	bbcode += "Door Pairs: %d\n" % sem_res.door_pairs.size()
+	var stairs_count: int = sem_res.stairs.size() if "stairs" in sem_res else 0
+	bbcode += "Stair Transitions: %d\n\n" % stairs_count
+
+	if pres_res != null:
+		bbcode += "[b]3D Presentation:[/b]\n"
+		bbcode += "  - Status: [color=green]%s[/color]\n" % ("OK" if pres_res.success else "DEGRADED")
+		bbcode += "  - Total Tiles Rendered: %d\n" % pres_res.total_tiles_rendered
+		bbcode += "  - Spawned Entities: %d\n" % pres_res.spawned_entities.size()
+		if not pres_res.diagnostics.is_empty():
+			bbcode += "  - Diagnostics: %d issues\n" % pres_res.diagnostics.size()
+
+	inspector_text.text = bbcode
+
 func _on_generation_failed(reason: String) -> void:
 	_set_status("ERROR: %s" % reason)
 	if progress_bar != null:
 		progress_bar.visible = false
 	if renderer != null:
 		renderer.render_failure(reason)
+	if viewer_3d != null:
+		viewer_3d.on_generation_failed(reason)
 
 func _on_floor_changed(_floor_idx: int) -> void:
 	var floor_data = controller.get_current_floor_result()
 	if renderer != null:
 		renderer.render_floor(floor_data, overlay)
+	if viewer_3d != null:
+		viewer_3d.on_floor_changed(_floor_idx, controller.get_multi_floor_result(), presentation_builder, config.to_dungeon_config())
 
 func _on_room_selected(room: RefCounted) -> void:
 	if room == null or inspector_text == null:

@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/dungeon_level_lab.gd" id="1_lab"]
 [ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/dungeon_lab_renderer.gd" id="2_renderer"]
+[ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/viewer/dungeon_3d_viewer.tscn" id="3_viewer"]
 
 [node name="DungeonLevelLab" type="Control"]
 layout_mode = 3
@@ -23,7 +24,7 @@ grow_vertical = 2
 [node name="TopBar" type="HBoxContainer" parent="VBox"]
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
 [node name="TitleLabel" type="Label" parent="VBox/TopBar"]
 layout_mode = 2
@@ -34,7 +35,7 @@ layout_mode = 2
 text = "Seed:"
 
 [node name="SeedSpin" type="SpinBox" parent="VBox/TopBar"]
-custom_minimum_size = Vector2(140, 0)
+custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 min_value = 1.0
 max_value = 2e+09
@@ -49,7 +50,7 @@ layout_mode = 2
 text = "Algo:"
 
 [node name="AlgoOption" type="OptionButton" parent="VBox/TopBar"]
-custom_minimum_size = Vector2(130, 0)
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 
 [node name="FloorLabel" type="Label" parent="VBox/TopBar"]
@@ -63,12 +64,23 @@ max_value = 10.0
 value = 1.0
 
 [node name="FloorSelectOption" type="OptionButton" parent="VBox/TopBar"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(90, 0)
 layout_mode = 2
 
 [node name="GenerateBtn" type="Button" parent="VBox/TopBar"]
 layout_mode = 2
 text = "  ⚡ GENERATE  "
+
+[node name="VSeparator" type="VSeparator" parent="VBox/TopBar"]
+layout_mode = 2
+
+[node name="ViewModeBtn" type="Button" parent="VBox/TopBar"]
+layout_mode = 2
+text = "🏰 3D View"
+
+[node name="FrameDungeonBtn" type="Button" parent="VBox/TopBar"]
+layout_mode = 2
+text = "🎯 Frame"
 
 [node name="StatusLabel" type="Label" parent="VBox/TopBar"]
 layout_mode = 2
@@ -151,6 +163,23 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2_renderer")
+
+[node name="ViewportContainer3D" type="SubViewportContainer" parent="VBox/HBox/CenterPanel"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="VBox/HBox/CenterPanel/ViewportContainer3D"]
+handle_input_locally = true
+size = Vector2i(800, 600)
+render_target_update_mode = 3
+
+[node name="Viewer3D" parent="VBox/HBox/CenterPanel/ViewportContainer3D/SubViewport" instance=ExtResource("3_viewer")]
 
 [node name="RightPanel" type="VBoxContainer" parent="VBox/HBox"]
 custom_minimum_size = Vector2(320, 0)
