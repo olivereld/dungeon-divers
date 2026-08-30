@@ -82,6 +82,14 @@ text = "🏰 3D View"
 layout_mode = 2
 text = "🎯 Frame"
 
+[node name="RotateLeftBtn" type="Button" parent="VBox/TopBar"]
+layout_mode = 2
+text = "↺ -45°"
+
+[node name="RotateRightBtn" type="Button" parent="VBox/TopBar"]
+layout_mode = 2
+text = "↻ +45°"
+
 [node name="StatusLabel" type="Label" parent="VBox/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3

@@ -51,6 +51,8 @@ var floor_selector: OptionButton
 var generate_btn: Button
 var view_mode_btn: Button
 var frame_dungeon_btn: Button
+var rotate_left_btn: Button
+var rotate_right_btn: Button
 var mode_tabs: TabBar
 var status_label: Label
 var inspector_text: RichTextLabel
@@ -79,6 +81,10 @@ func _ensure_nodes() -> void:
 		view_mode_btn = find_child("ViewModeBtn", true, false) as Button
 	if frame_dungeon_btn == null:
 		frame_dungeon_btn = find_child("FrameDungeonBtn", true, false) as Button
+	if rotate_left_btn == null:
+		rotate_left_btn = find_child("RotateLeftBtn", true, false) as Button
+	if rotate_right_btn == null:
+		rotate_right_btn = find_child("RotateRightBtn", true, false) as Button
 	if mode_tabs == null:
 		mode_tabs = find_child("ModeTabs", true, false) as TabBar
 	if status_label == null:
@@ -145,6 +151,12 @@ func _setup_topbar_ui() -> void:
 	if frame_dungeon_btn != null and not frame_dungeon_btn.pressed.is_connected(frame_dungeon_view):
 		frame_dungeon_btn.pressed.connect(frame_dungeon_view)
 
+	if rotate_left_btn != null and not rotate_left_btn.pressed.is_connected(_on_rotate_left_pressed):
+		rotate_left_btn.pressed.connect(_on_rotate_left_pressed)
+
+	if rotate_right_btn != null and not rotate_right_btn.pressed.is_connected(_on_rotate_right_pressed):
+		rotate_right_btn.pressed.connect(_on_rotate_right_pressed)
+
 	if seed_input != null:
 		if not seed_input.value_changed.is_connected(_on_seed_value_changed):
 			seed_input.value_changed.connect(_on_seed_value_changed)
@@ -180,6 +192,14 @@ func frame_dungeon_view() -> void:
 		viewer_3d.frame_dungeon()
 	elif renderer != null:
 		renderer.reset_view()
+
+func _on_rotate_left_pressed() -> void:
+	if viewer_3d != null:
+		viewer_3d.rotate_yaw(-45.0)
+
+func _on_rotate_right_pressed() -> void:
+	if viewer_3d != null:
+		viewer_3d.rotate_yaw(45.0)
 
 func _on_seed_value_changed(val: float) -> void:
 	config.seed = int(val)

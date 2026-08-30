@@ -2,7 +2,8 @@ class_name Dungeon3DViewer
 extends Node3D
 
 ## Dedicated 3D presentation viewer for DungeonLevelLab.
-## Directly integrates IsometricCameraRig for production-faithful camera presentation.
+## Directly integrates IsometricCameraRig for production-faithful camera presentation
+## with intuitive pan (Right Drag / WASD), orbit rotation (Middle Drag / Shift+Right Drag / Q-E), and zoom.
 
 const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
 const _BiomeProfileScript = preload("res://src/dungeon_generator/presentation/biome_profile.gd")
@@ -21,6 +22,9 @@ var _current_presentation: Node3D = null
 var _current_result: DungeonSemanticResult = null
 var _current_config: DungeonConfig = null
 var _current_biome: BiomeProfile = null
+
+var _is_panning: bool = false
+var _is_orbiting: bool = false
 
 func _ready() -> void:
 	_ensure_components()
@@ -136,6 +140,7 @@ func load_dungeon(
 ## Re-frames the camera around the active dungeon presentation.
 func frame_dungeon(instant_teleport: bool = true) -> void:
 	_ensure_components()
+	reset_camera_angles()
 	if _current_presentation == null:
 		if camera_rig != null:
 			camera_rig.clear_target()
@@ -162,6 +167,18 @@ func focus_room(room: RefCounted, cell_size: float = 2.0) -> void:
 	focus_target.global_position = room_pos
 	camera_rig.set_target(focus_target)
 	camera_rig.set_follow_enabled(true)
+
+## Resets camera angles to canonical isometric orientation.
+func reset_camera_angles() -> void:
+	if camera_rig != null:
+		camera_rig.yaw_degrees = 45.0
+		camera_rig.pitch_degrees = 35.264
+		camera_rig.roll_degrees = 0.0
+
+## Rotates the camera by a delta angle around current focus target.
+func rotate_yaw(degrees: float) -> void:
+	if camera_rig != null:
+		camera_rig.yaw_degrees += degrees
 
 ## Returns computed bounding box of the active presentation.
 func get_dungeon_bounds() -> Dictionary:
@@ -212,13 +229,85 @@ func on_generation_failed(_error_message: String = "") -> void:
 	if camera_rig != null:
 		camera_rig.clear_target()
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not is_visible_in_tree() or camera_rig == null:
+func _process(delta: float) -> void:
+	if not is_visible_in_tree() or camera_rig == null or focus_target == null:
 		return
+
+	# Keyboard WASD / Arrow Pan Navigation
+	var move_dir := Vector3.ZERO
+	var cam: Camera3D = camera_rig.get_camera()
+	if cam != null:
+		var right: Vector3 = cam.global_transform.basis.x
+		right.y = 0.0
+		right = right.normalized()
+		var forward: Vector3 = -cam.global_transform.basis.z
+		forward.y = 0.0
+		forward = forward.normalized()
+
+		if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+			move_dir += forward
+		if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+			move_dir -= forward
+		if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+			move_dir -= right
+		if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+			move_dir += right
+
+		if move_dir.length_squared() > 0.001:
+			var pan_speed: float = camera_rig.get_zoom() * 1.2 * delta
+			focus_target.global_position += move_dir.normalized() * pan_speed
+			camera_rig.teleport_to_target()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_visible_in_tree() or camera_rig == null or focus_target == null:
+		return
+
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
-		if mb.is_pressed():
-			if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
-				camera_rig.zoom_in()
-			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-				camera_rig.zoom_out()
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.is_pressed():
+			camera_rig.zoom_in()
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.is_pressed():
+			camera_rig.zoom_out()
+		elif mb.button_index == MOUSE_BUTTON_RIGHT:
+			if mb.shift_pressed or mb.alt_pressed:
+				_is_orbiting = mb.is_pressed()
+				_is_panning = false
+			else:
+				_is_panning = mb.is_pressed()
+				_is_orbiting = false
+		elif mb.button_index == MOUSE_BUTTON_MIDDLE:
+			_is_orbiting = mb.is_pressed()
+			_is_panning = false
+
+	elif event is InputEventMouseMotion:
+		var motion: InputEventMouseMotion = event as InputEventMouseMotion
+		var cam: Camera3D = camera_rig.get_camera()
+		if cam == null:
+			return
+
+		if _is_panning:
+			var right: Vector3 = cam.global_transform.basis.x
+			right.y = 0.0
+			right = right.normalized()
+			var forward: Vector3 = -cam.global_transform.basis.z
+			forward.y = 0.0
+			forward = forward.normalized()
+
+			var pan_factor: float = (camera_rig.get_zoom() / 700.0)
+			var world_delta: Vector3 = (-right * motion.relative.x + forward * motion.relative.y) * pan_factor
+			focus_target.global_position += world_delta
+			camera_rig.teleport_to_target()
+
+		elif _is_orbiting:
+			camera_rig.yaw_degrees -= motion.relative.x * 0.4
+			camera_rig.pitch_degrees = clampf(camera_rig.pitch_degrees - motion.relative.y * 0.3, 10.0, 85.0)
+
+	elif event is InputEventKey:
+		var ke: InputEventKey = event as InputEventKey
+		if ke.is_pressed() and not ke.is_echo():
+			if ke.keycode == KEY_Q:
+				rotate_yaw(-45.0)
+			elif ke.keycode == KEY_E:
+				rotate_yaw(45.0)
+			elif ke.keycode == KEY_R or ke.keycode == KEY_F:
+				frame_dungeon(true)
