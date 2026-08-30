@@ -47,33 +47,35 @@ func setup(p_state: RoomTemplateLabState, p_history: CommandHistory) -> void:
 func _build_ui() -> void:
 	# Estilo oscuro y redondeado moderno
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#1e2330", 0.95)
-	style.corner_radius_bottom_left = 12
-	style.corner_radius_bottom_right = 12
-	style.corner_radius_top_left = 12
-	style.corner_radius_top_right = 12
-	style.content_margin_left = 16
-	style.content_margin_right = 16
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
+	style.bg_color = Color("#181c26", 0.96)
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
 	style.shadow_color = Color(0, 0, 0, 0.4)
-	style.shadow_size = 8
+	style.shadow_size = 6
 	add_theme_stylebox_override("panel", style)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 8)
+	hbox.add_theme_constant_override("separation", 4)
 	add_child(hbox)
 
-	btn_brush = _create_btn("✏️ Brush [B]", func(): _select_tool(RoomTemplateLabState.Tool.BRUSH))
-	btn_eraser = _create_btn("🧹 Eraser [E]", func(): _select_tool(RoomTemplateLabState.Tool.ERASER))
-	btn_rect = _create_btn("⬜ Rect [R]", func(): _select_tool(RoomTemplateLabState.Tool.RECT_FILL))
-	btn_entrance = _create_btn("🚪 Entrance [D]", func(): _select_tool(RoomTemplateLabState.Tool.PLACE_ENTRANCE))
+	btn_brush = _create_btn("✏️ Pincel", func(): _select_tool(RoomTemplateLabState.Tool.BRUSH), "Pincel [B]")
+	btn_eraser = _create_btn("🧹 Borrar", func(): _select_tool(RoomTemplateLabState.Tool.ERASER), "Borrador [E]")
+	btn_rect = _create_btn("⬜ Rect", func(): _select_tool(RoomTemplateLabState.Tool.RECT_FILL), "Rectángulo [R]")
+	btn_entrance = _create_btn("🚪 Entrada", func(): _select_tool(RoomTemplateLabState.Tool.PLACE_ENTRANCE), "Punto de Entrada [D]")
 
 	# MenuButton para puertas internas y arcos
 	var btn_doors := MenuButton.new()
-	btn_doors.text = "🚪 Puerta / Arco [P] ▾"
+	btn_doors.text = "🚪 Puerta ▾"
+	btn_doors.tooltip_text = "Puerta / Arco Interno [P]"
 	btn_doors.flat = true
 	btn_doors.focus_mode = FOCUS_NONE
+	btn_doors.add_theme_font_size_override("font_size", 12)
 	var d_popup: PopupMenu = btn_doors.get_popup()
 	d_popup.add_item("🚪 Puerta Estándar", 0)
 	d_popup.add_item("🔒 Puerta Bloqueada (Llave)", 1)
@@ -83,13 +85,13 @@ func _build_ui() -> void:
 			match id:
 				0:
 					state.active_door_type = &"door"
-					btn_doors.text = "🚪 Puerta Estándar [P] ▾"
+					btn_doors.text = "🚪 Puerta ▾"
 				1:
 					state.active_door_type = &"locked_door"
-					btn_doors.text = "🔒 Puerta Llave [P] ▾"
+					btn_doors.text = "🔒 Llave ▾"
 				2:
 					state.active_door_type = &"arch"
-					btn_doors.text = "🏛️ Arco Abierto [P] ▾"
+					btn_doors.text = "🏛️ Arco ▾"
 			state.set_tool(RoomTemplateLabState.Tool.PLACE_DOOR)
 	)
 	btn_doors.pressed.connect(func():
@@ -97,7 +99,7 @@ func _build_ui() -> void:
 			state.set_tool(RoomTemplateLabState.Tool.PLACE_DOOR)
 	)
 
-	btn_anchor = _create_btn("⭐ Anchor [A]", func(): _select_tool(RoomTemplateLabState.Tool.PLACE_ANCHOR))
+	btn_anchor = _create_btn("⭐ Ancla", func(): _select_tool(RoomTemplateLabState.Tool.PLACE_ANCHOR), "Punto de Ancla [A]")
 
 	_tool_buttons = [btn_brush, btn_eraser, btn_rect, btn_entrance, btn_doors, btn_anchor]
 	for b in _tool_buttons:
@@ -105,26 +107,29 @@ func _build_ui() -> void:
 
 	hbox.add_child(VSeparator.new())
 
-	btn_undo = _create_btn("↩ Undo [Ctrl+Z]", func(): _on_undo())
-	btn_redo = _create_btn("↪ Redo [Ctrl+Y]", func(): _on_redo())
+	btn_undo = _create_btn("↩", func(): _on_undo(), "Deshacer [Ctrl+Z]")
+	btn_redo = _create_btn("↪", func(): _on_redo(), "Rehacer [Ctrl+Y]")
 	hbox.add_child(btn_undo)
 	hbox.add_child(btn_redo)
 
 	hbox.add_child(VSeparator.new())
 
-	btn_clear = _create_btn("🗑 Clear", func(): clear_canvas_requested.emit())
-	btn_center = _create_btn("🎯 Center [F]", func(): center_view_requested.emit())
-	btn_zoom_in = _create_btn("🔍 +", func(): zoom_in_requested.emit())
-	btn_zoom_out = _create_btn("🔍 -", func(): zoom_out_requested.emit())
+	btn_clear = _create_btn("🗑️", func(): clear_canvas_requested.emit(), "Limpiar lienzo")
+	btn_center = _create_btn("🎯", func(): center_view_requested.emit(), "Encuadrar vista [F]")
+	btn_zoom_in = _create_btn("➕", func(): zoom_in_requested.emit(), "Acercar zoom")
+	btn_zoom_out = _create_btn("➖", func(): zoom_out_requested.emit(), "Alejar zoom")
 
 	hbox.add_child(btn_clear)
 	hbox.add_child(btn_center)
 	hbox.add_child(btn_zoom_in)
 	hbox.add_child(btn_zoom_out)
 
-func _create_btn(p_text: String, p_callable: Callable) -> Button:
+func _create_btn(p_text: String, p_callable: Callable, p_tooltip: String = "") -> Button:
 	var btn := Button.new()
 	btn.text = p_text
+	btn.add_theme_font_size_override("font_size", 12)
+	if not p_tooltip.is_empty():
+		btn.tooltip_text = p_tooltip
 	btn.flat = true
 	btn.focus_mode = FOCUS_NONE
 	btn.pressed.connect(p_callable)

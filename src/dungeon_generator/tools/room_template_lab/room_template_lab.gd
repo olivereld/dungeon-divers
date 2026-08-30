@@ -165,12 +165,12 @@ func _build_master_layout() -> void:
 	canvas_container.add_child(simulator)
 	simulator.setup(state)
 
-	# Floating Bottom Toolbar
+	# Floating Bottom Toolbar (Centered in canvas workspace)
 	toolbar = _ToolbarScript.new()
-	toolbar.anchor_left = 0.15
-	toolbar.anchor_right = 0.85
-	toolbar.anchor_top = 0.88
-	toolbar.anchor_bottom = 0.98
+	toolbar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	toolbar.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	toolbar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	toolbar.offset_bottom = -16
 	toolbar.center_view_requested.connect(_center_canvas_view)
 	toolbar.zoom_in_requested.connect(func(): if canvas_view: canvas_view._zoom_at_point(canvas_view.size * 0.5, 1.25))
 	toolbar.zoom_out_requested.connect(func(): if canvas_view: canvas_view._zoom_at_point(canvas_view.size * 0.5, 0.8))
