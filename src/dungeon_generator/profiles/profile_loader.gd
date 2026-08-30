@@ -20,6 +20,7 @@ const _ProfileCompositionRuleScript = preload("res://src/dungeon_generator/profi
 const _ProfileLightingScript = preload("res://src/dungeon_generator/profiles/profile_lighting.gd")
 const _ProfileLightingSlotScript = preload("res://src/dungeon_generator/profiles/profile_lighting_slot.gd")
 const _ProfileLightSettingsScript = preload("res://src/dungeon_generator/profiles/profile_light_settings.gd")
+const _ArchetypeLightingProfileScript = preload("res://src/dungeon_generator/profiles/archetype_lighting_profile.gd")
 const _ProfileRelationshipScript = preload("res://src/dungeon_generator/profiles/profile_relationship.gd")
 const _ProfileBundleScript = preload("res://src/dungeon_generator/profiles/profile_bundle.gd")
 const _AssetRegistryScript = preload("res://src/dungeon_generator/profiles/asset_registry.gd")
@@ -350,9 +351,17 @@ func load_archetype(archetype_id: Variant) -> _ProfileArchetypeScript:
 	if corr_light_raw is Dictionary and not corr_light_raw.is_empty():
 		corr_lighting = _parse_lighting(corr_light_raw)
 
+	# Global Architectural Lighting
+	var light_raw = dict.get("lighting", {})
+	var arch_lighting: _ArchetypeLightingProfileScript = null
+	if light_raw is Dictionary and not light_raw.is_empty():
+		arch_lighting = _ArchetypeLightingProfileScript.from_dict(light_raw)
+	else:
+		arch_lighting = _ArchetypeLightingProfileScript.new()
+
 	return _ProfileArchetypeScript.new(
 		id, display_name, version, weights, gameplay_map, dist,
-		global_settings, arch_style, room_rules, rooms_dict, corr_lighting
+		global_settings, arch_style, room_rules, rooms_dict, corr_lighting, arch_lighting
 	)
 
 ## Parsea un perfil de sala desde un string JSON

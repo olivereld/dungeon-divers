@@ -7,6 +7,8 @@ const _ProfileArchetypeGlobalSettingsScript = preload("res://src/dungeon_generat
 const _ProfileArchetypeStyleScript = preload("res://src/dungeon_generator/profiles/profile_archetype_style.gd")
 const _ProfileArchetypeRoomRulesScript = preload("res://src/dungeon_generator/profiles/profile_archetype_room_rules.gd")
 
+const _ArchetypeLightingProfileScript = preload("res://src/dungeon_generator/profiles/archetype_lighting_profile.gd")
+
 var id: StringName = &""
 var display_name: String = ""
 var schema_version: int = 1
@@ -24,6 +26,7 @@ var architectural_style: _ProfileArchetypeStyleScript = null
 var room_rules: _ProfileArchetypeRoomRulesScript = null
 var rooms: Dictionary = {} # StringName -> StringName (purpose_id -> filename)
 var corridor_lighting = null # ProfileLighting
+var lighting: _ArchetypeLightingProfileScript = null
 
 func _init(
 	p_id: StringName = &"",
@@ -36,7 +39,8 @@ func _init(
 	p_style: _ProfileArchetypeStyleScript = null,
 	p_rules: _ProfileArchetypeRoomRulesScript = null,
 	p_rooms: Dictionary = {},
-	p_corridor_lighting = null
+	p_corridor_lighting = null,
+	p_lighting: _ArchetypeLightingProfileScript = null
 ) -> void:
 	id = p_id
 	display_name = p_name
@@ -49,6 +53,7 @@ func _init(
 	room_rules = p_rules if p_rules != null else _ProfileArchetypeRoomRulesScript.new()
 	rooms = p_rooms
 	corridor_lighting = p_corridor_lighting
+	lighting = p_lighting if p_lighting != null else _ArchetypeLightingProfileScript.new()
 
 func get_allowed_purposes_for_gameplay(role: StringName) -> Array[StringName]:
 	if gameplay_purpose_map.has(role):

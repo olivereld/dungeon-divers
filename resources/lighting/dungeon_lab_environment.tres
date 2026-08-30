@@ -2,10 +2,10 @@
 
 [resource]
 background_mode = 1
-background_color = Color(0.06, 0.08, 0.11, 1)
+background_color = Color(0, 0, 0, 1)
 ambient_light_source = 2
-ambient_light_color = Color(0.65, 0.72, 0.85, 1)
-ambient_light_energy = 0.85
+ambient_light_color = Color(0.270588, 0.309804, 0.384314, 1)
+ambient_light_energy = 0.15
 tonemap_mode = 3
 tonemap_exposure = 1.0
 glow_enabled = true

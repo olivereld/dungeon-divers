@@ -10,6 +10,8 @@ const _BiomeProfileScript = preload("res://src/dungeon_generator/presentation/bi
 const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometric_camera_rig.gd")
 const _FramingScript = preload("res://src/dungeon_generator/debug/lab/viewer/dungeon_camera_framing.gd")
 const _FocusScript = preload("res://src/dungeon_generator/debug/lab/viewer/dungeon_camera_focus.gd")
+const _LightingControllerScript = preload("res://src/dungeon_generator/presentation/dungeon_lighting_controller.gd")
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
 
 @export var dungeon_root: Node3D = null
 @export var focus_target: Marker3D = null
@@ -22,6 +24,8 @@ var _current_presentation: Node3D = null
 var _current_result: DungeonSemanticResult = null
 var _current_config: DungeonConfig = null
 var _current_biome: BiomeProfile = null
+var _lighting_controller: _LightingControllerScript = _LightingControllerScript.new()
+var _profile_loader: _ProfileLoaderScript = _ProfileLoaderScript.new()
 
 var _is_panning: bool = false
 var _is_orbiting: bool = false
@@ -119,6 +123,12 @@ func load_dungeon(
 	_current_config = config if config != null else DungeonConfig.new()
 	_current_biome = biome if biome != null else _BiomeProfileScript.new()
 	_builder = builder if builder != null else _DungeonPresentationBuilderScript.new()
+
+	# Resolve and apply Archetype LightingProfile
+	var arch_id: StringName = semantic_result.get_archetype_id() if semantic_result.has_method("get_archetype_id") else &"necropolis"
+	var arch_prof = _profile_loader.load_archetype(arch_id)
+	if arch_prof != null and arch_prof.lighting != null:
+		_lighting_controller.apply_lighting(arch_prof.lighting, world_environment, directional_light)
 
 	var presentation_node := Node3D.new()
 	presentation_node.name = "FloorPresentation"

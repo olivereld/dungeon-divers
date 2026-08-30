@@ -57,6 +57,28 @@
         "stairs_style": "necropolis",
         "material_profile": "necropolis_stone"
     },
+    "lighting": {
+        "ambient": {
+            "enabled": true,
+            "color": "#141A29",
+            "energy": 0.22
+        },
+        "directional": {
+            "enabled": true,
+            "color": "#AAB8D6",
+            "energy": 0.40,
+            "shadow_enabled": true
+        },
+        "fog": {
+            "enabled": false,
+            "color": "#10131C",
+            "density": 0.0
+        },
+        "atmosphere": {
+            "exposure": 1.0,
+            "tonemap": "ACES"
+        }
+    },
     "room_rules": {
         "allow_duplicate_purposes": true,
         "max_same_purpose_consecutive": 2,
