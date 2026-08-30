@@ -21,9 +21,9 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="TopBar" type="HBoxContainer" parent="VBox"]
-custom_minimum_size = Vector2(0, 40)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="TitleLabel" type="Label" parent="VBox/TopBar"]
 layout_mode = 2
@@ -34,16 +34,22 @@ layout_mode = 2
 text = "Seed:"
 
 [node name="SeedSpin" type="SpinBox" parent="VBox/TopBar"]
+custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 min_value = 1.0
-max_value = 1e+09
+max_value = 2e+09
 value = 100001.0
+
+[node name="RandomSeedBtn" type="Button" parent="VBox/TopBar"]
+layout_mode = 2
+text = "🎲 Random"
 
 [node name="AlgoLabel" type="Label" parent="VBox/TopBar"]
 layout_mode = 2
 text = "Algo:"
 
 [node name="AlgoOption" type="OptionButton" parent="VBox/TopBar"]
+custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 
 [node name="FloorLabel" type="Label" parent="VBox/TopBar"]
@@ -57,48 +63,87 @@ max_value = 10.0
 value = 1.0
 
 [node name="FloorSelectOption" type="OptionButton" parent="VBox/TopBar"]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 
 [node name="GenerateBtn" type="Button" parent="VBox/TopBar"]
 layout_mode = 2
-text = "  ⚡ Generate  "
+text = "  ⚡ GENERATE  "
 
 [node name="StatusLabel" type="Label" parent="VBox/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Ready"
 
-[node name="HBox" type="HBoxContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = 44.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="HBox" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_vertical = 3
 
-[node name="LeftPanel" type="VBoxContainer" parent="HBox"]
-custom_minimum_size = Vector2(240, 0)
+[node name="LeftPanel" type="VBoxContainer" parent="VBox/HBox"]
+custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 
-[node name="ModeTabs" type="TabBar" parent="HBox/LeftPanel"]
+[node name="ModeTabs" type="TabBar" parent="VBox/HBox/LeftPanel"]
 layout_mode = 2
 tab_count = 5
-tab_0/title = "🏰 Generate"
-tab_1/title = "🧩 Room Template"
-tab_2/title = "🖼️ Showcase"
-tab_3/title = "📊 Coverage"
-tab_4/title = "🛡️ Regression"
+tab_0/title = "🏰 Gen"
+tab_1/title = "🧩 Room"
+tab_2/title = "🖼️ Show"
+tab_3/title = "📊 Cov"
+tab_4/title = "🛡️ Reg"
 
-[node name="OverlayHeader" type="Label" parent="HBox/LeftPanel"]
+[node name="HSeparator" type="HSeparator" parent="VBox/HBox/LeftPanel"]
 layout_mode = 2
-text = "Overlays:"
 
-[node name="CenterPanel" type="Panel" parent="HBox"]
+[node name="OverlayHeader" type="Label" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+text = " Layer Overlays:"
+
+[node name="CheckRoomBounds" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = true
+text = "Room Bounds"
+
+[node name="CheckTemplateFootprint" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = true
+text = "Template Footprint"
+
+[node name="CheckEntrances" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = true
+text = "Entrances"
+
+[node name="CheckCorridors" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = true
+text = "Corridors"
+
+[node name="CheckInternalDoors" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = true
+text = "Internal Doors"
+
+[node name="CheckSemanticLabels" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = true
+text = "Semantic Labels"
+
+[node name="CheckTemplateId" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = true
+text = "Template IDs"
+
+[node name="CheckStairs" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = true
+text = "Stairs"
+
+[node name="CenterPanel" type="Panel" parent="VBox/HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Renderer" type="Control" parent="HBox/CenterPanel"]
+[node name="Renderer" type="Control" parent="VBox/HBox/CenterPanel"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -107,19 +152,19 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2_renderer")
 
-[node name="RightPanel" type="VBoxContainer" parent="HBox"]
-custom_minimum_size = Vector2(300, 0)
+[node name="RightPanel" type="VBoxContainer" parent="VBox/HBox"]
+custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 
-[node name="InspectorHeader" type="Label" parent="HBox/RightPanel"]
+[node name="InspectorHeader" type="Label" parent="VBox/HBox/RightPanel"]
 layout_mode = 2
 text = "📋 Inspector & Metrics"
 
-[node name="ProgressBar" type="ProgressBar" parent="HBox/RightPanel"]
+[node name="ProgressBar" type="ProgressBar" parent="VBox/HBox/RightPanel"]
 visible = false
 layout_mode = 2
 
-[node name="InspectorText" type="RichTextLabel" parent="HBox/RightPanel"]
+[node name="InspectorText" type="RichTextLabel" parent="VBox/HBox/RightPanel"]
 layout_mode = 2
 size_flags_vertical = 3
 bbcode_enabled = true

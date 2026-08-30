@@ -30,22 +30,25 @@ var coverage: _CoverageScript = _CoverageScript.new()
 var golden_runner: _GoldenRunnerScript = _GoldenRunnerScript.new()
 
 # Sub-nodes
-@onready var renderer: _RendererScript = $HBox/CenterPanel/Renderer
-@onready var seed_input: SpinBox = $VBox/TopBar/SeedSpin
-@onready var algo_option: OptionButton = $VBox/TopBar/AlgoOption
-@onready var floor_spin: SpinBox = $VBox/TopBar/FloorSpin
-@onready var floor_selector: OptionButton = $VBox/TopBar/FloorSelectOption
-@onready var generate_btn: Button = $VBox/TopBar/GenerateBtn
-@onready var mode_tabs: TabBar = $HBox/LeftPanel/ModeTabs
-@onready var status_label: Label = $VBox/TopBar/StatusLabel
-@onready var inspector_text: RichTextLabel = $HBox/RightPanel/InspectorText
-@onready var progress_bar: ProgressBar = $HBox/RightPanel/ProgressBar
+var renderer: _RendererScript
+var seed_input: SpinBox
+var random_seed_btn: Button
+var algo_option: OptionButton
+var floor_spin: SpinBox
+var floor_selector: OptionButton
+var generate_btn: Button
+var mode_tabs: TabBar
+var status_label: Label
+var inspector_text: RichTextLabel
+var progress_bar: ProgressBar
 
 func _ensure_nodes() -> void:
 	if renderer == null:
 		renderer = find_child("Renderer", true, false) as _RendererScript
 	if seed_input == null:
 		seed_input = find_child("SeedSpin", true, false) as SpinBox
+	if random_seed_btn == null:
+		random_seed_btn = find_child("RandomSeedBtn", true, false) as Button
 	if algo_option == null:
 		algo_option = find_child("AlgoOption", true, false) as OptionButton
 	if floor_spin == null:
@@ -92,31 +95,71 @@ func _ready() -> void:
 
 	_setup_topbar_ui()
 	_setup_mode_tabs()
+	_setup_overlay_checkboxes()
+
+	# Generar mazmorra inicial
+	generate_current()
 
 func _setup_topbar_ui() -> void:
-	if algo_option != null:
+	if algo_option != null and algo_option.item_count == 0:
 		algo_option.clear()
 		algo_option.add_item("Hybrid")
 		algo_option.add_item("CellularAutomata")
 		algo_option.add_item("BSP")
 		algo_option.add_item("Template")
+		algo_option.selected = 0
 
 	if generate_btn != null and not generate_btn.pressed.is_connected(generate_current):
 		generate_btn.pressed.connect(generate_current)
 
-	if floor_selector != null:
-		floor_selector.clear()
+	if random_seed_btn != null and not random_seed_btn.pressed.is_connected(_on_random_seed_pressed):
+		random_seed_btn.pressed.connect(_on_random_seed_pressed)
+
+	if seed_input != null:
+		var le = seed_input.get_line_edit()
+		if le != null and not le.text_submitted.is_connected(func(_t): generate_current()):
+			le.text_submitted.connect(func(_t): generate_current())
+
+	if floor_selector != null and not floor_selector.item_selected.is_connected(_on_floor_selector_item_selected):
+		floor_selector.item_selected.connect(_on_floor_selector_item_selected)
+
+func _on_floor_selector_item_selected(idx: int) -> void:
+	controller.set_current_floor(idx)
+
+func _setup_overlay_checkboxes() -> void:
+	_bind_checkbox("CheckRoomBounds", func(v: bool): overlay.show_room_bounds = v)
+	_bind_checkbox("CheckTemplateFootprint", func(v: bool): overlay.show_template_footprint = v)
+	_bind_checkbox("CheckEntrances", func(v: bool): overlay.show_entrances = v)
+	_bind_checkbox("CheckCorridors", func(v: bool): overlay.show_corridors = v)
+	_bind_checkbox("CheckInternalDoors", func(v: bool): overlay.show_internal_doors = v)
+	_bind_checkbox("CheckSemanticLabels", func(v: bool): overlay.show_semantic_labels = v)
+	_bind_checkbox("CheckTemplateId", func(v: bool): overlay.show_template_id = v)
+	_bind_checkbox("CheckStairs", func(v: bool): overlay.show_stairs = v)
+
+func _bind_checkbox(node_name: String, setter: Callable) -> void:
+	var cb = find_child(node_name, true, false) as CheckBox
+	if cb != null and not cb.toggled.is_connected(setter):
+		cb.toggled.connect(setter)
 
 func _setup_mode_tabs() -> void:
 	if mode_tabs != null:
 		mode_tabs.clear_tabs()
-		mode_tabs.add_tab("🏰 Generate")
-		mode_tabs.add_tab("🧩 Room Template")
-		mode_tabs.add_tab("🖼️ Showcase")
-		mode_tabs.add_tab("📊 Coverage")
-		mode_tabs.add_tab("🛡️ Regression")
+		mode_tabs.add_tab("🏰 Gen")
+		mode_tabs.add_tab("🧩 Room")
+		mode_tabs.add_tab("🖼️ Show")
+		mode_tabs.add_tab("📊 Cov")
+		mode_tabs.add_tab("🛡️ Reg")
 		if not mode_tabs.tab_changed.is_connected(_on_mode_tab_changed):
 			mode_tabs.tab_changed.connect(_on_mode_tab_changed)
+
+func _on_random_seed_pressed() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var new_seed := rng.randi_range(100000, 999999999)
+	if seed_input != null:
+		seed_input.value = new_seed
+	config.seed = new_seed
+	generate_current()
 
 func _on_mode_tab_changed(tab_idx: int) -> void:
 	current_mode = tab_idx as LabMode
@@ -133,29 +176,38 @@ func _update_ui_for_mode() -> void:
 			_run_showcase(&"crypt")
 		LabMode.COVERAGE:
 			_set_status("Mode: 100-Seed Coverage Analysis")
+			run_coverage_mode(10)
 		LabMode.REGRESSION:
 			_set_status("Mode: Golden Fixtures Regression")
+			run_regression_mode()
 
 func generate_current() -> void:
 	_sync_config_from_ui()
 	controller.generate_dungeon(config)
 
 func _sync_config_from_ui() -> void:
+	_ensure_nodes()
 	if seed_input != null:
-		config.seed = int(seed_input.value)
-	if algo_option != null:
+		seed_input.apply()
+		var le = seed_input.get_line_edit()
+		if le != null and not le.text.is_empty() and le.text.is_valid_int():
+			config.seed = le.text.to_int()
+		else:
+			config.seed = int(seed_input.value)
+	if algo_option != null and algo_option.selected >= 0:
 		config.generator_type = algo_option.get_item_text(algo_option.selected)
 	if floor_spin != null:
+		floor_spin.apply()
 		config.floor_count = int(floor_spin.value)
 
 func _on_generation_started() -> void:
-	_set_status("Generating dungeon...")
+	_set_status("Generating dungeon (seed %d)..." % config.seed)
 	if progress_bar != null:
 		progress_bar.visible = true
 		progress_bar.value = 0
 
 func _on_generation_completed(result: Dictionary) -> void:
-	_set_status("Generation complete!")
+	_set_status("Generation complete (seed %d)!" % config.seed)
 	if progress_bar != null:
 		progress_bar.visible = false
 
@@ -164,7 +216,8 @@ func _on_generation_completed(result: Dictionary) -> void:
 		var floors: Array = result.get("floors", [])
 		for i in range(floors.size()):
 			floor_selector.add_item("Floor %d" % (i + 1))
-		floor_selector.selected = 0
+		if floors.size() > 0:
+			floor_selector.selected = 0
 
 	var floor_data = controller.get_current_floor_result()
 	if renderer != null:
@@ -177,7 +230,7 @@ func _on_generation_failed(reason: String) -> void:
 	if renderer != null:
 		renderer.render_failure(reason)
 
-func _on_floor_changed(floor_idx: int) -> void:
+func _on_floor_changed(_floor_idx: int) -> void:
 	var floor_data = controller.get_current_floor_result()
 	if renderer != null:
 		renderer.render_floor(floor_data, overlay)
