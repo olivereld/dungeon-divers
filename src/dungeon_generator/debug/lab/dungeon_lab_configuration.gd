@@ -18,6 +18,7 @@ var forced_template_id: StringName = &""
 func to_dungeon_config() -> DungeonConfig:
 	var cfg := DungeonConfig.new()
 	cfg.seed = seed
+	cfg.use_fixed_seed = true
 	cfg.algorithm = generator_type
 	cfg.archetype_id = archetype_id
 	cfg.grid_width = grid_size.x

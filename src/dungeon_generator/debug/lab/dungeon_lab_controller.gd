@@ -29,6 +29,8 @@ func generate_dungeon(config: _ConfigScript) -> Dictionary:
 
 	generation_started.emit()
 	var d_cfg = config.to_dungeon_config()
+	if _pipeline != null and _pipeline.get_seed_registry() != null:
+		_pipeline.get_seed_registry().clear_all()
 
 	var result: Dictionary = {}
 	if config.floor_count > 1:
