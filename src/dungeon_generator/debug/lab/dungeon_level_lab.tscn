@@ -1,0 +1,126 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/dungeon_level_lab.gd" id="1_lab"]
+[ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/dungeon_lab_renderer.gd" id="2_renderer"]
+
+[node name="DungeonLevelLab" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lab")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TopBar" type="HBoxContainer" parent="VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="VBox/TopBar"]
+layout_mode = 2
+text = "  🧪 DungeonLevelLab  "
+
+[node name="SeedLabel" type="Label" parent="VBox/TopBar"]
+layout_mode = 2
+text = "Seed:"
+
+[node name="SeedSpin" type="SpinBox" parent="VBox/TopBar"]
+layout_mode = 2
+min_value = 1.0
+max_value = 1e+09
+value = 100001.0
+
+[node name="AlgoLabel" type="Label" parent="VBox/TopBar"]
+layout_mode = 2
+text = "Algo:"
+
+[node name="AlgoOption" type="OptionButton" parent="VBox/TopBar"]
+layout_mode = 2
+
+[node name="FloorLabel" type="Label" parent="VBox/TopBar"]
+layout_mode = 2
+text = "Floors:"
+
+[node name="FloorSpin" type="SpinBox" parent="VBox/TopBar"]
+layout_mode = 2
+min_value = 1.0
+max_value = 10.0
+value = 1.0
+
+[node name="FloorSelectOption" type="OptionButton" parent="VBox/TopBar"]
+layout_mode = 2
+
+[node name="GenerateBtn" type="Button" parent="VBox/TopBar"]
+layout_mode = 2
+text = "  ⚡ Generate  "
+
+[node name="StatusLabel" type="Label" parent="VBox/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Ready"
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 44.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LeftPanel" type="VBoxContainer" parent="HBox"]
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+
+[node name="ModeTabs" type="TabBar" parent="HBox/LeftPanel"]
+layout_mode = 2
+tab_count = 5
+tab_0/title = "🏰 Generate"
+tab_1/title = "🧩 Room Template"
+tab_2/title = "🖼️ Showcase"
+tab_3/title = "📊 Coverage"
+tab_4/title = "🛡️ Regression"
+
+[node name="OverlayHeader" type="Label" parent="HBox/LeftPanel"]
+layout_mode = 2
+text = "Overlays:"
+
+[node name="CenterPanel" type="Panel" parent="HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Renderer" type="Control" parent="HBox/CenterPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_renderer")
+
+[node name="RightPanel" type="VBoxContainer" parent="HBox"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+
+[node name="InspectorHeader" type="Label" parent="HBox/RightPanel"]
+layout_mode = 2
+text = "📋 Inspector & Metrics"
+
+[node name="ProgressBar" type="ProgressBar" parent="HBox/RightPanel"]
+visible = false
+layout_mode = 2
+
+[node name="InspectorText" type="RichTextLabel" parent="HBox/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+text = "Select a room or run a mode to view details."
