@@ -27,8 +27,18 @@
         ]
     },
     "templates": {
-        "allowed": [],
-        "preferred": [],
+        "allowed": [
+            "crypt_v1",
+            "crypt_v2",
+            "crypt_v3",
+            "crypt_v4"
+        ],
+        "preferred": [
+            "crypt_v1",
+            "crypt_v2",
+            "crypt_v3",
+            "crypt_v4"
+        ],
         "forbidden": [],
         "required_tags": [
             "crypt"
