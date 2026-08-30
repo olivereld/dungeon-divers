@@ -22,6 +22,18 @@
             "seating"
         ]
     },
+    "templates": {
+        "allowed": [
+            "chamber_v1"
+        ],
+        "preferred": [
+            "chamber_v1"
+        ],
+        "forbidden": [],
+        "required_tags": [
+            "chamber"
+        ]
+    },
     "architecture": {
         "floor": "smooth_slabs",
         "walls": "dark_stone",

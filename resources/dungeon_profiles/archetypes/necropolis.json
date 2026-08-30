@@ -60,22 +60,22 @@
     "lighting": {
         "ambient": {
             "enabled": true,
-            "color": "#141A29",
-            "energy": 0.22
+            "color": "#0A111F",
+            "energy": 0.15
         },
         "directional": {
             "enabled": true,
-            "color": "#AAB8D6",
-            "energy": 0.40,
+            "color": "#6E8CA3",
+            "energy": 1.35,
             "shadow_enabled": true
         },
         "fog": {
-            "enabled": false,
-            "color": "#10131C",
-            "density": 0.0
+            "enabled": true,
+            "color": "#0B101D",
+            "density": 0.035
         },
         "atmosphere": {
-            "exposure": 1.0,
+            "exposure": 1.15,
             "tonemap": "ACES"
         }
     },
@@ -104,9 +104,9 @@
         "lighting": {
             "budget": 20.0,
             "spacing": 4,
-            "color": "#D6B36A",
-            "energy": 0.90,
-            "range": 6.5,
+            "color": "#F3832B",
+            "energy": 1.80,
+            "range": 4.5,
             "fixtures": {
                 "wall": {
                     "min": 4,
