@@ -1,0 +1,215 @@
+{
+    "clearances": {
+        "circulation": 1,
+        "entrance": 1,
+        "focal": 1,
+        "walls": 0
+    },
+    "custom_layout": {
+        "anchors": {
+
+        },
+        "cells": [
+            [
+                3,
+                0
+            ],
+            [
+                3,
+                4
+            ],
+            [
+                1,
+                2
+            ],
+            [
+                2,
+                2
+            ],
+            [
+                4,
+                2
+            ],
+            [
+                5,
+                2
+            ],
+            [
+                2,
+                1
+            ],
+            [
+                4,
+                1
+            ],
+            [
+                3,
+                5
+            ],
+            [
+                2,
+                4
+            ],
+            [
+                1,
+                3
+            ],
+            [
+                1,
+                1
+            ],
+            [
+                2,
+                0
+            ],
+            [
+                4,
+                0
+            ],
+            [
+                5,
+                1
+            ],
+            [
+                5,
+                3
+            ],
+            [
+                4,
+                4
+            ],
+            [
+                1,
+                4
+            ],
+            [
+                1,
+                5
+            ],
+            [
+                5,
+                4
+            ],
+            [
+                5,
+                5
+            ],
+            [
+                0,
+                4
+            ],
+            [
+                6,
+                4
+            ],
+            [
+                1,
+                0
+            ],
+            [
+                5,
+                0
+            ],
+            [
+                0,
+                2
+            ],
+            [
+                0,
+                1
+            ],
+            [
+                0,
+                0
+            ],
+            [
+                6,
+                2
+            ],
+            [
+                6,
+                1
+            ],
+            [
+                6,
+                0
+            ]
+        ],
+        "entrances": [
+            [
+                3,
+                5
+            ]
+        ],
+        "height": 6,
+        "internal_doors": [
+            {
+                "type": "door",
+                "x": 1,
+                "y": 3
+            },
+            {
+                "type": "door",
+                "x": 5,
+                "y": 3
+            }
+        ],
+        "width": 7
+    },
+    "display_name": "Crypt V8",
+    "entrances": {
+        "allow_corner": true,
+        "allowed_sides": [
+            "north",
+            "south",
+            "east",
+            "west"
+        ],
+        "max": 4,
+        "min": 1,
+        "min_spacing": 2
+    },
+    "geometry": {
+        "area": {
+            "max": 256,
+            "min": 42
+        },
+        "aspect_ratio": {
+            "max": 2.0,
+            "min": 0.5
+        },
+        "depth": {
+            "max": 16,
+            "min": 6
+        },
+        "shape": {
+            "allowed": [
+                "rectangle"
+            ]
+        },
+        "width": {
+            "max": 16,
+            "min": 7
+        }
+    },
+    "id": "crypt_v8",
+    "purposes": {
+        "allowed": [
+            "crypt"
+        ],
+        "preferred": [
+            "crypt"
+        ]
+    },
+    "symmetry": {
+        "axis": "none",
+        "required": false
+    },
+    "tags": [
+        "custom",
+        "crypt",
+        "burial",
+        "pillar",
+        "structural"
+    ]
+}

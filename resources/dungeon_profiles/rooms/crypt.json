@@ -31,13 +31,25 @@
             "crypt_v1",
             "crypt_v2",
             "crypt_v3",
-            "crypt_v4"
+            "crypt_v4",
+            "crypt_v5",
+            "crypt_v6",
+            "crypt_v7",
+            "crypt_v8",
+            "crypt_v9",
+            "crypt_v10"
         ],
         "preferred": [
             "crypt_v1",
             "crypt_v2",
             "crypt_v3",
-            "crypt_v4"
+            "crypt_v4",
+            "crypt_v5",
+            "crypt_v6",
+            "crypt_v7",
+            "crypt_v8",
+            "crypt_v9",
+            "crypt_v10"
         ],
         "forbidden": [],
         "required_tags": [

@@ -9,7 +9,7 @@ func _init() -> void:
 	assert(val_res.is_valid, "FAIL: necropolis bundle must be valid")
 
 	var bundle = pipeline.get_profile_bundle()
-	for v in ["crypt_v1", "crypt_v2", "crypt_v3", "crypt_v4"]:
+	for v in ["crypt_v1", "crypt_v2", "crypt_v3", "crypt_v4", "crypt_v5", "crypt_v6", "crypt_v7", "crypt_v8", "crypt_v9", "crypt_v10"]:
 		assert(bundle.template_registry.has_template(StringName(v)), "FAIL: %s must be in template registry" % v)
 
 	var crypt_profile = bundle.get_room(&"crypt")

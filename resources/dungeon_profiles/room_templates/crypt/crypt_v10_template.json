@@ -1,0 +1,147 @@
+{
+    "clearances": {
+        "circulation": 1,
+        "entrance": 1,
+        "focal": 1,
+        "walls": 0
+    },
+    "custom_layout": {
+        "anchors": {
+
+        },
+        "cells": [
+            [
+                0,
+                0
+            ],
+            [
+                1,
+                0
+            ],
+            [
+                3,
+                0
+            ],
+            [
+                4,
+                0
+            ],
+            [
+                0,
+                1
+            ],
+            [
+                4,
+                1
+            ],
+            [
+                0,
+                2
+            ],
+            [
+                1,
+                2
+            ],
+            [
+                3,
+                2
+            ],
+            [
+                4,
+                2
+            ],
+            [
+                0,
+                3
+            ],
+            [
+                2,
+                3
+            ],
+            [
+                4,
+                3
+            ],
+            [
+                0,
+                4
+            ],
+            [
+                1,
+                4
+            ],
+            [
+                2,
+                4
+            ],
+            [
+                3,
+                4
+            ],
+            [
+                4,
+                4
+            ]
+        ],
+        "entrances": [],
+        "height": 5,
+        "internal_doors": [],
+        "width": 5
+    },
+    "display_name": "Crypt V10",
+    "entrances": {
+        "allow_corner": true,
+        "allowed_sides": [
+            "north",
+            "south",
+            "east",
+            "west"
+        ],
+        "max": 4,
+        "min": 1,
+        "min_spacing": 2
+    },
+    "geometry": {
+        "area": {
+            "max": 256,
+            "min": 25
+        },
+        "aspect_ratio": {
+            "max": 2.0,
+            "min": 0.5
+        },
+        "depth": {
+            "max": 16,
+            "min": 5
+        },
+        "shape": {
+            "allowed": [
+                "rectangle"
+            ]
+        },
+        "width": {
+            "max": 16,
+            "min": 5
+        }
+    },
+    "id": "crypt_v10",
+    "purposes": {
+        "allowed": [
+            "crypt"
+        ],
+        "preferred": [
+            "crypt"
+        ]
+    },
+    "symmetry": {
+        "axis": "none",
+        "required": false
+    },
+    "tags": [
+        "custom",
+        "crypt",
+        "burial",
+        "pillar",
+        "structural"
+    ]
+}
