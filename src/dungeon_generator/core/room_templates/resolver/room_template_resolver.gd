@@ -139,3 +139,55 @@ func resolve_template(
 	rng.seed = p_seed
 	var chosen_idx := rng.randi_range(0, top_candidates.size() - 1)
 	return top_candidates[chosen_idx]
+
+## Resuelve la plantilla y devuelve un reporte diagnóstico completo sin alterar el resultado.
+func resolve_with_diagnostics(
+	room: RoomData,
+	profile: _ProfileRoomScript = null,
+	entrances: Array[Vector2i] = [],
+	p_seed: int = 0
+) -> Dictionary:
+	var chosen = resolve_template(room, profile, entrances, p_seed)
+	var is_fb: bool = (chosen == null or chosen.id == &"procedural_fallback")
+
+	var cand_ids: Array[StringName] = []
+	var comp_ids: Array[StringName] = []
+	var rejected: Dictionary = {} # StringName -> Array[String]
+	var scores: Dictionary = {} # StringName -> int
+
+	if room != null and _registry != null:
+		var all_candidates: Array[_RoomTemplateScript] = []
+		if profile != null and profile.template_constraints != null:
+			var tc = profile.template_constraints
+			if not tc.allowed_templates.is_empty():
+				for t_id in tc.allowed_templates:
+					if not tc.is_template_forbidden(t_id):
+						var tpl = _registry.get_template(t_id)
+						if tpl != null:
+							all_candidates.append(tpl)
+			else:
+				for tpl in _registry.get_all_templates():
+					if not tc.is_template_forbidden(tpl.id):
+						all_candidates.append(tpl)
+		else:
+			all_candidates = _registry.get_all_templates()
+
+		for tpl in all_candidates:
+			cand_ids.append(tpl.id)
+			var reasons = _matcher.explain_compatibility(tpl, room, profile, entrances)
+			if reasons.is_empty():
+				comp_ids.append(tpl.id)
+			else:
+				rejected[tpl.id] = reasons
+
+	return {
+		"resolved_template": chosen,
+		"resolved_template_id": chosen.id if chosen != null else &"procedural_fallback",
+		"is_fallback": is_fb,
+		"candidate_templates": cand_ids,
+		"compatible_templates": comp_ids,
+		"rejected_templates": rejected,
+		"room_size": room.rect.size if room != null else Vector2i.ZERO,
+		"purpose": room.room_type if room != null else &"unknown",
+		"profile_id": profile.id if profile != null else &"none"
+	}

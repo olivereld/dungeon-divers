@@ -45,6 +45,43 @@ func is_compatible(
 	var val_res = _validator.validate_all(template, room.rect, entrances)
 	return val_res.is_valid
 
+## Explica detalladamente las razones de incompatibilidad de una plantilla (si las hay).
+func explain_compatibility(
+	template: _RoomTemplateScript,
+	room: RoomData,
+	profile: _ProfileRoomScript = null,
+	entrances: Array[Vector2i] = []
+) -> Array[String]:
+	var reasons: Array[String] = []
+	if template == null:
+		reasons.append("Template is null")
+		return reasons
+	if room == null:
+		reasons.append("Room is null")
+		return reasons
+
+	var effective_purpose: StringName = profile.id if profile != null else room.room_type
+	if not template.allowed_purposes.is_empty():
+		if not template.allowed_purposes.has(effective_purpose):
+			reasons.append("Purpose '%s' not in allowed: %s" % [effective_purpose, str(template.allowed_purposes)])
+
+	if profile != null and profile.template_constraints != null:
+		var tc = profile.template_constraints
+		if tc.is_template_forbidden(template.id):
+			reasons.append("Template '%s' is explicitly forbidden in profile" % template.id)
+		if not tc.allowed_templates.is_empty() and not tc.is_template_allowed(template.id):
+			reasons.append("Template '%s' not in profile allowed list" % template.id)
+		for req_tag in tc.required_tags:
+			if not template.tags.has(req_tag):
+				reasons.append("Missing required profile tag '%s'" % req_tag)
+
+	var val_res = _validator.validate_all(template, room.rect, entrances)
+	if not val_res.is_valid:
+		for err in val_res.errors:
+			reasons.append("Geometry/Entrance validation: %s" % err)
+
+	return reasons
+
 ## Filtra y devuelve únicamente las plantillas compatibles de una lista.
 func filter_compatible_templates(
 	templates: Array[_RoomTemplateScript],
