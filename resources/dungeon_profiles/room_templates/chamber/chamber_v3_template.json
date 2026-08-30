@@ -171,7 +171,9 @@
         "allow_corner": true,
         "allowed_sides": [
             "north",
-            "south"
+            "south",
+            "east",
+            "west"
         ],
         "max": 4,
         "min": 1,

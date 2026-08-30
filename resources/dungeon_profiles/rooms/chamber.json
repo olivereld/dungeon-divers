@@ -24,10 +24,14 @@
     },
     "templates": {
         "allowed": [
-            "chamber_v1"
+            "chamber_v1",
+            "chamber_v2",
+            "chamber_v3"
         ],
         "preferred": [
-            "chamber_v1"
+            "chamber_v1",
+            "chamber_v2",
+            "chamber_v3"
         ],
         "forbidden": [],
         "required_tags": [
