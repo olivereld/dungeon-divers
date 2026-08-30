@@ -95,10 +95,11 @@
                     "storage"
                 ],
                 "placement": {
-                    "mode": "floor",
-                    "orientation": "free",
+                    "mode": "corner",
+                    "orientation": "face_room",
                     "min_count": 4,
-                    "max_count": 4
+                    "max_count": 4,
+                    "clearance": 2
                 }
             },
             {
@@ -113,10 +114,11 @@
                     "seating"
                 ],
                 "placement": {
-                    "mode": "corner",
+                    "mode": "wall",
                     "orientation": "face_room",
                     "min_count": 1,
-                    "max_count": 2
+                    "max_count": 2,
+                    "clearance": 1
                 }
             },
             {
