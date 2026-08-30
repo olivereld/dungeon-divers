@@ -25,10 +25,14 @@
     },
     "templates": {
         "allowed": [
-            "sacristy_v1"
+            "sacristy_v1",
+            "sacristy_v2",
+            "sacristy_v3",
+            "sacristy_v4"
         ],
         "preferred": [
-            "sacristy_v1"
+            "sacristy_v1",
+            "sacristy_v3"
         ],
         "forbidden": [],
         "required_tags": [

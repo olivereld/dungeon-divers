@@ -75,9 +75,8 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 
 func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonConfig, rng: RandomNumberGenerator, ctx: DungeonGenerationContext) -> void:
 	var algo: String = config.algorithm if config != null else "Hybrid"
-	var is_template_algo: bool = (algo == "Template")
 	var template_resolver: _RoomTemplateResolverScript = null
-	if is_template_algo and ctx != null and ctx.profile_bundle != null and ctx.profile_bundle.template_registry != null:
+	if ctx != null and ctx.profile_bundle != null and ctx.profile_bundle.template_registry != null:
 		template_resolver = _RoomTemplateResolverScript.new(ctx.profile_bundle.template_registry)
 
 	for room in rooms:
@@ -92,63 +91,42 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 				var g_map: Dictionary = ctx.profile_bundle.archetype.gameplay_purpose_map
 				var key: String = str(room.room_type).to_upper()
 				if g_map.has(key) and not g_map[key].is_empty():
-					var mapped_purpose = g_map[key][0]
+					var candidates_list: Array = g_map[key]
+					var mapped_purpose = candidates_list[room_rng.randi_range(0, candidates_list.size() - 1)]
 					room_profile = ctx.profile_bundle.get_room(mapped_purpose)
 
-		if is_template_algo and template_resolver != null:
-			var resolved_tpl = template_resolver.resolve_template(room, room_profile, [], room_seed)
-			if resolved_tpl != null and resolved_tpl.id != &"procedural_fallback":
-				var zone_map = _RoomTemplateShapeCarverScript.carve_room_shape(grid, room, resolved_tpl, [], room_rng)
-				if "custom_data" in room and room.custom_data is Dictionary:
-					room.custom_data["zone_map"] = zone_map
-					room.custom_data["resolved_template_id"] = resolved_tpl.id
-			else:
-				# Variedad procedimental estándar gobernada por la semilla de la sala
-				var roll: float = room_rng.randf()
-				if roll < 0.50:
-					_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, room_rng)
-				elif roll < 0.75:
-					_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OCTAGONAL_CHAMBER, room_rng)
-				elif roll < 0.90:
-					_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.CRUCIFORM_SANCTUARY, room_rng)
-				else:
-					_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.PILLARED_HALL, room_rng)
+		var resolved_tpl: RoomTemplate = null
+		if template_resolver != null:
+			resolved_tpl = template_resolver.resolve_template(room, room_profile, [], room_seed)
 
-				var zm := _ZoneMapScript.new(room.rect)
-				zm.set_zone(room.get_center(), &"focal")
-				for cy in range(room.rect.position.y, room.rect.end.y):
-					for cx in range(room.rect.position.x, room.rect.end.x):
-						var cpos := Vector2i(cx, cy)
-						if grid.is_walkable(cpos) and zm.get_zone(cpos) == &"unassigned":
-							zm.set_zone(cpos, &"circulation")
-				if "custom_data" in room and room.custom_data is Dictionary:
-					room.custom_data["zone_map"] = zm
-					room.custom_data["resolved_template_id"] = &"procedural_shape"
+		if resolved_tpl != null and resolved_tpl.id != &"procedural_fallback":
+			var zone_map = _RoomTemplateShapeCarverScript.carve_room_shape(grid, room, resolved_tpl, [], room_rng)
+			if "custom_data" in room and room.custom_data is Dictionary:
+				room.custom_data["zone_map"] = zone_map
+				room.custom_data["resolved_template_id"] = resolved_tpl.id
 		else:
 			match algo:
 				"CellularAutomata":
 					if room.rect.size.x >= 12 and room.rect.size.y >= 12:
-						_cellular_automata.apply(grid, room.rect, rng)
+						_cellular_automata.apply(grid, room.rect, room_rng)
 						grid.set_cell(room.get_center(), CellGrid.CellType.FLOOR)
 					else:
-						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OCTAGONAL_CHAMBER, rng)
+						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OCTAGONAL_CHAMBER, room_rng)
 				"BSP":
 					grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
-				"Hybrid":
+				"Hybrid", "Template", _:
 					if room.room_type == &"start" or room.room_type == &"goal":
-						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, rng)
+						_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, room_rng)
 					else:
-						var roll: float = rng.randf()
+						var roll: float = room_rng.randf()
 						if roll < 0.60:
-							_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, rng)
+							_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, room_rng)
 						elif roll < 0.78:
-							_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OCTAGONAL_CHAMBER, rng)
+							_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OCTAGONAL_CHAMBER, room_rng)
 						elif roll < 0.89:
-							_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.CRUCIFORM_SANCTUARY, rng)
+							_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.CRUCIFORM_SANCTUARY, room_rng)
 						else:
-							_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.PILLARED_HALL, rng)
-				_:
-					grid.fill_rect(room.rect, CellGrid.CellType.FLOOR)
+							_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.PILLARED_HALL, room_rng)
 
 			# Adjuntar zone_map por defecto sin mutar celdas
 			var zm := _ZoneMapScript.new(room.rect)
