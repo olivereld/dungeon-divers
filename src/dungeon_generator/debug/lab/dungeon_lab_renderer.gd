@@ -15,19 +15,18 @@ var _error_message: String = ""
 var _is_panning: bool = false
 var _last_mouse_pos: Vector2 = Vector2.ZERO
 
-# Colors
-const COLOR_BG := Color(0.08, 0.09, 0.11, 1.0)
-const COLOR_GRID_LINE := Color(0.15, 0.17, 0.20, 0.5)
-const COLOR_WALL := Color(0.20, 0.22, 0.25, 1.0)
-const COLOR_FLOOR := Color(0.35, 0.38, 0.42, 1.0)
-const COLOR_CORRIDOR := Color(0.45, 0.48, 0.52, 1.0)
-const COLOR_ROOM_BOUNDS := Color(0.2, 0.7, 0.9, 0.8)
-const COLOR_TEMPLATE_FOOTPRINT := Color(0.3, 0.9, 0.5, 0.7)
-const COLOR_ENTRANCE := Color(0.95, 0.85, 0.2, 0.9)
-const COLOR_DOOR := Color(0.9, 0.4, 0.1, 0.9)
-const COLOR_ARCH := Color(0.6, 0.4, 0.9, 0.9)
-const COLOR_STAIR := Color(0.9, 0.2, 0.6, 0.9)
-const COLOR_SELECTED_ROOM := Color(1.0, 0.9, 0.2, 0.9)
+# Vibrant and contrasting palette
+const COLOR_BG := Color(0.06, 0.07, 0.09, 1.0)
+const COLOR_GRID_LINE := Color(0.12, 0.14, 0.18, 0.35)
+const COLOR_WALL := Color(0.13, 0.15, 0.18, 1.0)
+const COLOR_FLOOR := Color(0.22, 0.26, 0.32, 1.0)
+const COLOR_CORRIDOR := Color(0.35, 0.44, 0.56, 1.0)
+const COLOR_DOOR := Color(0.95, 0.65, 0.15, 1.0)
+const COLOR_LOCKED_DOOR := Color(0.95, 0.25, 0.25, 1.0)
+const COLOR_COLUMN := Color(0.10, 0.11, 0.14, 1.0)
+const COLOR_STAIR := Color(0.85, 0.25, 0.85, 1.0)
+const COLOR_ROOM_BOUNDS := Color(0.2, 0.75, 0.95, 0.85)
+const COLOR_SELECTED_ROOM := Color(1.0, 0.95, 0.2, 0.95)
 
 func _init() -> void:
 	transform = _TransformScript.new()
@@ -126,7 +125,7 @@ func _draw() -> void:
 	var start_y = clampi(vis_cells.position.y, 0, grid.height)
 	var end_y = clampi(vis_cells.end.y, 0, grid.height)
 
-	# 2. Draw Cells
+	# 2. Draw Grid Cells based on CellGrid.CellType exact enum values
 	for cy in range(start_y, end_y):
 		for cx in range(start_x, end_x):
 			var cell_pos := Vector2i(cx, cy)
@@ -134,14 +133,23 @@ func _draw() -> void:
 			var rect = transform.cell_to_screen_rect(cell_pos)
 
 			match ctype:
-				1: # CellGrid.CellType.WALL
+				0: # CellGrid.CellType.WALL
 					draw_rect(rect, COLOR_WALL, true)
-				2: # CellGrid.CellType.FLOOR
+				1: # CellGrid.CellType.FLOOR
 					draw_rect(rect, COLOR_FLOOR, true)
-				3: # CellGrid.CellType.CORRIDOR
-					draw_rect(rect, COLOR_CORRIDOR, true)
-				4: # CellGrid.CellType.DOOR
+				2: # CellGrid.CellType.DOOR
 					draw_rect(rect, COLOR_DOOR, true)
+				3: # CellGrid.CellType.LOCKED_DOOR
+					draw_rect(rect, COLOR_LOCKED_DOOR, true)
+				4, 5: # STAIRS_DOWN, STAIRS_UP
+					draw_rect(rect, COLOR_STAIR, true)
+				8: # CellGrid.CellType.CORRIDOR
+					if overlay.show_corridors:
+						draw_rect(rect, COLOR_CORRIDOR, true)
+					else:
+						draw_rect(rect, COLOR_WALL, true)
+				9: # CellGrid.CellType.COLUMN
+					draw_rect(rect, COLOR_COLUMN, true)
 				_:
 					pass
 
@@ -175,7 +183,7 @@ func _draw() -> void:
 					var tpl_col = Color.GREEN_YELLOW if tpl_id != "procedural_fallback" else Color.LIGHT_CORAL
 					draw_string(font, tpl_pos, tpl_id, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, tpl_col)
 
-	# 4. Draw Stairs
+	# 4. Draw Stairs Overlay
 	if overlay.show_stairs and "stairs" in _current_floor_data and _current_floor_data.stairs != null:
 		for stair in _current_floor_data.stairs:
 			var s_cell: Vector2i = stair.cell if "cell" in stair else Vector2i.ZERO

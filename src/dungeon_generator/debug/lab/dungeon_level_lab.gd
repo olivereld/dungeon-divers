@@ -116,12 +116,18 @@ func _setup_topbar_ui() -> void:
 		random_seed_btn.pressed.connect(_on_random_seed_pressed)
 
 	if seed_input != null:
+		if not seed_input.value_changed.is_connected(_on_seed_value_changed):
+			seed_input.value_changed.connect(_on_seed_value_changed)
 		var le = seed_input.get_line_edit()
-		if le != null and not le.text_submitted.is_connected(func(_t): generate_current()):
-			le.text_submitted.connect(func(_t): generate_current())
+		if le != null:
+			if not le.text_submitted.is_connected(func(_t): generate_current()):
+				le.text_submitted.connect(func(_t): generate_current())
 
 	if floor_selector != null and not floor_selector.item_selected.is_connected(_on_floor_selector_item_selected):
 		floor_selector.item_selected.connect(_on_floor_selector_item_selected)
+
+func _on_seed_value_changed(val: float) -> void:
+	config.seed = int(val)
 
 func _on_floor_selector_item_selected(idx: int) -> void:
 	controller.set_current_floor(idx)
@@ -156,9 +162,12 @@ func _on_random_seed_pressed() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var new_seed := rng.randi_range(100000, 999999999)
-	if seed_input != null:
-		seed_input.value = new_seed
 	config.seed = new_seed
+	if seed_input != null:
+		seed_input.set_value_no_signal(new_seed)
+		var le = seed_input.get_line_edit()
+		if le != null:
+			le.text = str(new_seed)
 	generate_current()
 
 func _on_mode_tab_changed(tab_idx: int) -> void:
@@ -189,11 +198,7 @@ func _sync_config_from_ui() -> void:
 	_ensure_nodes()
 	if seed_input != null:
 		seed_input.apply()
-		var le = seed_input.get_line_edit()
-		if le != null and not le.text.is_empty() and le.text.is_valid_int():
-			config.seed = le.text.to_int()
-		else:
-			config.seed = int(seed_input.value)
+		config.seed = int(seed_input.value)
 	if algo_option != null and algo_option.selected >= 0:
 		config.generator_type = algo_option.get_item_text(algo_option.selected)
 	if floor_spin != null:
