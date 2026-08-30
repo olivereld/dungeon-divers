@@ -99,11 +99,16 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 		if template_resolver != null:
 			resolved_tpl = template_resolver.resolve_template(room, room_profile, [], room_seed)
 
-		if resolved_tpl != null and resolved_tpl.id != &"procedural_fallback":
+		var is_fallback: bool = (resolved_tpl == null or resolved_tpl.id == &"procedural_fallback")
+		var prof_id: StringName = room_profile.id if room_profile != null else &"none"
+
+		if not is_fallback:
 			var zone_map = _RoomTemplateShapeCarverScript.carve_room_shape(grid, room, resolved_tpl, [], room_rng)
 			if "custom_data" in room and room.custom_data is Dictionary:
 				room.custom_data["zone_map"] = zone_map
 				room.custom_data["resolved_template_id"] = resolved_tpl.id
+				room.custom_data["profile_id"] = prof_id
+				room.custom_data["is_template_fallback"] = false
 		else:
 			match algo:
 				"CellularAutomata":
@@ -139,6 +144,15 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 			if "custom_data" in room and room.custom_data is Dictionary:
 				room.custom_data["zone_map"] = zm
 				room.custom_data["resolved_template_id"] = &"procedural_fallback"
+				room.custom_data["profile_id"] = prof_id
+				room.custom_data["is_template_fallback"] = true
+
+		if ctx != null and ctx.diagnostics_enabled:
+			print("[DungeonRoomStage] Room %d: type=%s, profile=%s, size=%s, template=%s, fallback=%s" % [
+				room.id, room.room_type, prof_id, str(room.rect.size),
+				str(room.custom_data.get("resolved_template_id", "none")),
+				str(room.custom_data.get("is_template_fallback", true))
+			])
 
 		# Asignar Room Ownership explícito a todas las celdas interiores de la sala
 		for y in range(room.rect.position.y, room.rect.end.y):
