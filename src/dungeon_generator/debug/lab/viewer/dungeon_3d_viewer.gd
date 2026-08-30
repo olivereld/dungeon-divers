@@ -66,8 +66,8 @@ func _ensure_components() -> void:
 				Vector3(0.5, 0.707107, 0.5),
 				Vector3(0, 20, 0)
 			)
-			directional_light.light_color = Color(0.4, 0.55, 0.75, 1.0)
-			directional_light.light_energy = 0.18
+			directional_light.light_color = Color(0.85, 0.9, 1.0, 1.0)
+			directional_light.light_energy = 0.65
 			directional_light.shadow_enabled = false
 			add_child(directional_light)
 
