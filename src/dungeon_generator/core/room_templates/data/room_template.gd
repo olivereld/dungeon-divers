@@ -135,19 +135,30 @@ static func from_dictionary(dict: Dictionary) -> RoomTemplate:
 		var c_wall := int(clr_dict.get("walls", 0))
 		clr_policy = _ClearancePolicyScript.new(c_ent, c_foc, c_circ, c_wall)
 
-	# Semantic Constraints
+	# Semantic Constraints / Purposes
 	var allowed_p: Array[StringName] = []
 	var pref_p: Array[StringName] = []
-	var sem = dict.get("semantic_constraints", {})
-	if sem is Dictionary:
-		for p in sem.get("allowed_purposes", []):
+	var purp_dict = dict.get("purposes", {})
+	if purp_dict is Dictionary and not purp_dict.is_empty():
+		for p in purp_dict.get("allowed", []):
 			allowed_p.append(StringName(p))
-		for p in sem.get("preferred_purposes", []):
+		for p in purp_dict.get("preferred", []):
 			pref_p.append(StringName(p))
-	else:
-		for p in dict.get("allowed_purposes", []):
+
+	var sem = dict.get("semantic_constraints", {})
+	if sem is Dictionary and not sem.is_empty():
+		for p in sem.get("allowed_purposes", []):
+			if not allowed_p.has(StringName(p)):
+				allowed_p.append(StringName(p))
+		for p in sem.get("preferred_purposes", []):
+			if not pref_p.has(StringName(p)):
+				pref_p.append(StringName(p))
+
+	for p in dict.get("allowed_purposes", []):
+		if not allowed_p.has(StringName(p)):
 			allowed_p.append(StringName(p))
-		for p in dict.get("preferred_purposes", []):
+	for p in dict.get("preferred_purposes", []):
+		if not pref_p.has(StringName(p)):
 			pref_p.append(StringName(p))
 
 	var tpl = RoomTemplate.new(

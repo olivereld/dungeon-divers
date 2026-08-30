@@ -97,10 +97,33 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 
 		if is_template_algo and template_resolver != null:
 			var resolved_tpl = template_resolver.resolve_template(room, room_profile, [], room_seed)
-			var zone_map = _RoomTemplateShapeCarverScript.carve_room_shape(grid, room, resolved_tpl, [], room_rng)
-			if "custom_data" in room and room.custom_data is Dictionary:
-				room.custom_data["zone_map"] = zone_map
-				room.custom_data["resolved_template_id"] = resolved_tpl.id if resolved_tpl != null else &"procedural_fallback"
+			if resolved_tpl != null and resolved_tpl.id != &"procedural_fallback":
+				var zone_map = _RoomTemplateShapeCarverScript.carve_room_shape(grid, room, resolved_tpl, [], room_rng)
+				if "custom_data" in room and room.custom_data is Dictionary:
+					room.custom_data["zone_map"] = zone_map
+					room.custom_data["resolved_template_id"] = resolved_tpl.id
+			else:
+				# Variedad procedimental estándar gobernada por la semilla de la sala
+				var roll: float = room_rng.randf()
+				if roll < 0.50:
+					_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OPEN_HALL, room_rng)
+				elif roll < 0.75:
+					_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.OCTAGONAL_CHAMBER, room_rng)
+				elif roll < 0.90:
+					_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.CRUCIFORM_SANCTUARY, room_rng)
+				else:
+					_RoomShapeGeneratorScript.apply_room_shape(grid, room, _RoomShapeGeneratorScript.ShapeType.PILLARED_HALL, room_rng)
+
+				var zm := _ZoneMapScript.new(room.rect)
+				zm.set_zone(room.get_center(), &"focal")
+				for cy in range(room.rect.position.y, room.rect.end.y):
+					for cx in range(room.rect.position.x, room.rect.end.x):
+						var cpos := Vector2i(cx, cy)
+						if grid.is_walkable(cpos) and zm.get_zone(cpos) == &"unassigned":
+							zm.set_zone(cpos, &"circulation")
+				if "custom_data" in room and room.custom_data is Dictionary:
+					room.custom_data["zone_map"] = zm
+					room.custom_data["resolved_template_id"] = &"procedural_shape"
 		else:
 			match algo:
 				"CellularAutomata":
