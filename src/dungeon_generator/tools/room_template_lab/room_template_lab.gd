@@ -226,14 +226,39 @@ func _preview_template_shape_on_canvas(tpl: _RoomTemplateScript) -> void:
 		var custom_a = tpl.custom_layout.get("anchors", {})
 		if custom_a is Dictionary:
 			for a_id in custom_a:
-				var a_pos := base_pos + Vector2i(int(custom_a[a_id][0]), int(custom_a[a_id][1]))
+				var val = custom_a[a_id]
+				var a_x: int = 0
+				var a_y: int = 0
+				if val is Array and val.size() >= 2:
+					a_x = int(val[0])
+					a_y = int(val[1])
+				elif val is Vector2i:
+					a_x = val.x
+					a_y = val.y
+				elif val is Dictionary:
+					if val.has("grid_position") and val["grid_position"] is Array:
+						a_x = int(val["grid_position"][0])
+						a_y = int(val["grid_position"][1])
+					elif val.has("position") and val["position"] is Array:
+						a_x = int(val["position"][0])
+						a_y = int(val["position"][1])
+					else:
+						a_x = int(val.get("x", 0))
+						a_y = int(val.get("y", 0))
+				var a_pos := base_pos + Vector2i(a_x, a_y)
 				state.set_anchor(StringName(a_id), a_pos)
 
 		var custom_e = tpl.custom_layout.get("entrances", [])
 		if custom_e is Array:
-			for e_arr in custom_e:
-				var e_pos := base_pos + Vector2i(int(e_arr[0]), int(e_arr[1]))
-				state.add_entrance(e_pos)
+			for e_val in custom_e:
+				if e_val is Array and e_val.size() >= 2:
+					var e_pos := base_pos + Vector2i(int(e_val[0]), int(e_val[1]))
+					state.add_entrance(e_pos)
+				elif e_val is Vector2i:
+					state.add_entrance(base_pos + e_val)
+				elif e_val is Dictionary:
+					var e_pos := base_pos + Vector2i(int(e_val.get("x", 0)), int(e_val.get("y", 0)))
+					state.add_entrance(e_pos)
 
 		var custom_d = tpl.custom_layout.get("internal_doors", [])
 		if custom_d is Array:
