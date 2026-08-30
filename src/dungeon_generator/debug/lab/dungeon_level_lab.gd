@@ -252,12 +252,10 @@ func generate_current() -> void:
 func _sync_config_from_ui() -> void:
 	_ensure_nodes()
 	if seed_input != null:
-		seed_input.apply()
 		config.seed = int(seed_input.value)
 	if algo_option != null and algo_option.selected >= 0:
 		config.generator_type = algo_option.get_item_text(algo_option.selected)
 	if floor_spin != null:
-		floor_spin.apply()
 		config.floor_count = int(floor_spin.value)
 
 func _on_generation_started() -> void:
@@ -346,6 +344,9 @@ func _on_floor_changed(_floor_idx: int) -> void:
 func _on_room_selected(room: RefCounted) -> void:
 	if room == null or inspector_text == null:
 		return
+
+	if viewer_3d != null:
+		viewer_3d.focus_room(room)
 
 	var bundle = controller._pipeline.get_profile_bundle()
 	var diag = inspector.inspect_room(room, bundle, config.seed)

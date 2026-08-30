@@ -2,15 +2,17 @@ class_name Dungeon3DViewer
 extends Node3D
 
 ## Dedicated 3D presentation viewer for DungeonLevelLab.
-## Purely consumes DungeonSemanticResult / PresentationBuilder and renders/frames the 3D scene.
+## Directly integrates IsometricCameraRig for production-faithful camera presentation.
 
 const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
 const _BiomeProfileScript = preload("res://src/dungeon_generator/presentation/biome_profile.gd")
-const _CameraRigScript = preload("res://src/dungeon_generator/debug/lab/viewer/dungeon_camera_rig.gd")
+const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometric_camera_rig.gd")
 const _FramingScript = preload("res://src/dungeon_generator/debug/lab/viewer/dungeon_camera_framing.gd")
+const _FocusScript = preload("res://src/dungeon_generator/debug/lab/viewer/dungeon_camera_focus.gd")
 
 @export var dungeon_root: Node3D = null
-@export var camera_rig: _CameraRigScript = null
+@export var focus_target: Marker3D = null
+@export var camera_rig: _IsometricCameraRigScript = null
 @export var world_environment: WorldEnvironment = null
 @export var directional_light: DirectionalLight3D = null
 
@@ -32,16 +34,30 @@ func _ensure_components() -> void:
 			dungeon_root = Node3D.new()
 			dungeon_root.name = "DungeonRoot"
 			add_child(dungeon_root)
-	
-	if camera_rig == null:
-		var found_rig = get_node_or_null("CameraRig")
-		if found_rig != null:
-			camera_rig = found_rig as _CameraRigScript
+
+	if focus_target == null:
+		var found_target = get_node_or_null("CameraFocusTarget")
+		if found_target != null:
+			focus_target = found_target as Marker3D
 		else:
-			camera_rig = _CameraRigScript.new()
-			camera_rig.name = "CameraRig"
+			focus_target = Marker3D.new()
+			focus_target.name = "CameraFocusTarget"
+			add_child(focus_target)
+
+	if camera_rig == null:
+		var found_rig = get_node_or_null("IsometricCameraRig")
+		if found_rig != null:
+			camera_rig = found_rig as _IsometricCameraRigScript
+		else:
+			camera_rig = _IsometricCameraRigScript.new()
+			camera_rig.name = "IsometricCameraRig"
 			add_child(camera_rig)
-	
+
+	if camera_rig != null:
+		camera_rig.zoom_min = 4.0
+		camera_rig.zoom_max = 250.0
+		camera_rig.zoom_step = 2.0
+
 	if world_environment == null:
 		var found_env = get_node_or_null("WorldEnvironment")
 		if found_env != null:
@@ -52,7 +68,7 @@ func _ensure_components() -> void:
 			if ResourceLoader.exists("res://resources/lighting/dungeon_lab_environment.tres"):
 				world_environment.environment = load("res://resources/lighting/dungeon_lab_environment.tres")
 			add_child(world_environment)
-	
+
 	if directional_light == null:
 		var found_light = get_node_or_null("DirectionalLight3D")
 		if found_light != null:
@@ -89,21 +105,22 @@ func load_dungeon(
 ) -> DungeonPresentationResult:
 	_ensure_components()
 	clear()
-	
+
 	if semantic_result == null:
-		frame_dungeon()
+		if camera_rig != null:
+			camera_rig.clear_target()
 		return null
-	
+
 	_current_result = semantic_result
 	_current_config = config if config != null else DungeonConfig.new()
 	_current_biome = biome if biome != null else _BiomeProfileScript.new()
 	_builder = builder if builder != null else _DungeonPresentationBuilderScript.new()
-	
+
 	var presentation_node := Node3D.new()
 	presentation_node.name = "FloorPresentation"
 	dungeon_root.add_child(presentation_node)
 	_current_presentation = presentation_node
-	
+
 	var pres_result = _builder.build_presentation(
 		_current_result,
 		presentation_node,
@@ -112,32 +129,54 @@ func load_dungeon(
 		null,
 		true
 	)
-	
-	frame_dungeon()
+
+	frame_dungeon(true)
 	return pres_result
 
 ## Re-frames the camera around the active dungeon presentation.
-func frame_dungeon() -> void:
+func frame_dungeon(instant_teleport: bool = true) -> void:
 	_ensure_components()
-	if _current_presentation != null:
-		camera_rig.frame_node(_current_presentation)
-	else:
-		camera_rig.frame_aabb(Vector3.ZERO, Vector3.ZERO)
+	if _current_presentation == null:
+		if camera_rig != null:
+			camera_rig.clear_target()
+		return
+
+	var aabb_data: Dictionary = _FramingScript.compute_hierarchy_aabb(_current_presentation)
+	var center: Vector3 = _FocusScript.compute_center(aabb_data["min"], aabb_data["max"])
+	var framing: Dictionary = _FramingScript.compute_framing(aabb_data["min"], aabb_data["max"])
+
+	focus_target.global_position = center
+	camera_rig.set_target(focus_target)
+	camera_rig.set_zoom(framing["ortho_size"])
+
+	if instant_teleport:
+		camera_rig.teleport_to_target()
+
+## Smoothly focuses the camera on a specific room.
+func focus_room(room: RefCounted, cell_size: float = 2.0) -> void:
+	_ensure_components()
+	if room == null or camera_rig == null:
+		return
+
+	var room_pos: Vector3 = _FocusScript.compute_room_focus(room, cell_size)
+	focus_target.global_position = room_pos
+	camera_rig.set_target(focus_target)
+	camera_rig.set_follow_enabled(true)
 
 ## Returns computed bounding box of the active presentation.
 func get_dungeon_bounds() -> Dictionary:
 	if _current_presentation == null:
 		return {"min": Vector3.ZERO, "max": Vector3.ZERO, "center": Vector3.ZERO}
-	
+
 	var aabb_data: Dictionary = _FramingScript.compute_hierarchy_aabb(_current_presentation)
-	var center_val: Vector3 = (aabb_data["min"] + aabb_data["max"]) * 0.5 if aabb_data["valid"] else Vector3.ZERO
+	var center_val: Vector3 = _FocusScript.compute_center(aabb_data["min"], aabb_data["max"])
 	return {
 		"min": aabb_data["min"] if aabb_data["valid"] else Vector3.ZERO,
 		"max": aabb_data["max"] if aabb_data["valid"] else Vector3.ZERO,
 		"center": center_val
 	}
 
-## Multi-floor reaction: rebuilds active floor presentation.
+## Multi-floor reaction: rebuilds active floor presentation and teleports to new floor bounds.
 func on_floor_changed(
 	floor_idx: int,
 	multi_result: DungeonMultiFloorResult,
@@ -147,21 +186,39 @@ func on_floor_changed(
 ) -> void:
 	if multi_result == null:
 		clear()
+		if camera_rig != null:
+			camera_rig.clear_target()
 		return
-	
+
 	var floor_numbers: Array[int] = multi_result.get_floor_numbers()
 	if floor_idx < 0 or floor_idx >= floor_numbers.size():
 		clear()
+		if camera_rig != null:
+			camera_rig.clear_target()
 		return
-	
+
 	var fn: int = floor_numbers[floor_idx]
 	var floor_data = multi_result.get_floor(fn)
 	if floor_data != null and floor_data.semantic_result != null:
 		load_dungeon(floor_data.semantic_result, builder, config, biome)
 	else:
 		clear()
+		if camera_rig != null:
+			camera_rig.clear_target()
 
-## Generation failure reaction: clear scene and show empty state.
-func on_generation_failed(error_message: String = "") -> void:
+## Generation failure reaction: clear scene, clear target, show empty state.
+func on_generation_failed(_error_message: String = "") -> void:
 	clear()
-	frame_dungeon()
+	if camera_rig != null:
+		camera_rig.clear_target()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_visible_in_tree() or camera_rig == null:
+		return
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb.is_pressed():
+			if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+				camera_rig.zoom_in()
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				camera_rig.zoom_out()
