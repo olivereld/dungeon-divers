@@ -1,0 +1,105 @@
+extends SceneTree
+
+## Test Suite para DungeonDiagnostics — sistema de métricas y diagnóstico.
+## Verifica que el orquestador ejecute el generador con múltiples seeds,
+## produzca snapshots completos, genere reportes y resúmenes válidos.
+
+const _DungeonDiagnosticsScript = preload("res://src/dungeon_generator/diagnostics/dungeon_diagnostics.gd")
+const _DungeonMetricSnapshotScript = preload("res://src/dungeon_generator/diagnostics/dungeon_metric_snapshot.gd")
+const _DungeonConfigScript = preload("res://src/dungeon_generator/config/dungeon_config.gd")
+
+func _init() -> void:
+	print("--- Running test_dungeon_diagnostics ---")
+	test_single_seed_run()
+	test_multiple_seeds()
+	test_report_generation()
+	test_summary_generation()
+	test_build_config_static()
+	test_snapshot_to_dict()
+	print("[PASS] test_dungeon_diagnostics completed successfully!")
+	quit(0)
+
+func test_single_seed_run() -> void:
+	print("  -> Testing single seed run...")
+	var diag := _DungeonDiagnosticsScript.new()
+	var snap = diag.run(12345)
+	assert(snap != null, "Snapshot must not be null")
+	assert(snap.room_count > 0, "Must have at least one room")
+	assert(snap.generation_success == "PASS" or snap.generation_success == "FAIL", "Generation success must be PASS or FAIL")
+	assert(snap.connectivity_status == "PASS" or snap.connectivity_status == "FAIL", "Connectivity status must be PASS or FAIL")
+	assert(snap.validation_room_overlap == "PASS" or snap.validation_room_overlap == "FAIL", "Room overlap must be PASS or FAIL")
+	assert(snap.generation_seed_used == 12345, "Seed must match")
+	print("    [OK] Single seed run produced valid snapshot")
+
+func test_multiple_seeds() -> void:
+	print("  -> Testing multiple seeds...")
+	var diag := _DungeonDiagnosticsScript.new()
+	var snapshots = diag.run_seeds([42, 999])
+	assert(snapshots.size() == 2, "Must have two snapshots")
+	assert(snapshots[0].generation_seed_used == 42, "First snapshot seed must be 42")
+	assert(snapshots[1].generation_seed_used == 999, "Second snapshot seed must be 999")
+	for snap in snapshots:
+		assert(snap != null, "Each snapshot must not be null")
+		assert(snap.room_count > 0, "Each snapshot must have rooms")
+	print("    [OK] Multiple seeds produced correct snapshots")
+
+func test_report_generation() -> void:
+	print("  -> Testing report generation...")
+	var diag := _DungeonDiagnosticsScript.new()
+	var snap = diag.run(1337)
+	var report: String = diag.generate_report(snap)
+	assert(report.length() > 0, "Report must not be empty")
+	assert(report.find("Dungeon Generation Report") >= 0, "Report must contain header")
+	assert(report.find("Seed: 1337") >= 0, "Report must contain seed")
+	assert(report.find("Rooms") >= 0, "Report must contain Rooms section")
+	assert(report.find("Connections") >= 0, "Report must contain Connections section")
+	assert(report.find("Spatial") >= 0, "Report must contain Spatial section")
+	assert(report.find("Corridors") >= 0, "Report must contain Corridors section")
+	assert(report.find("Validation") >= 0, "Report must contain Validation section")
+	assert(report.find("Generation") >= 0, "Report must contain Generation section")
+	print("    [OK] Report generated with all required sections")
+
+func test_summary_generation() -> void:
+	print("  -> Testing summary generation...")
+	var diag := _DungeonDiagnosticsScript.new()
+	var snapshots = diag.run_seeds([100, 200, 300])
+	var summary: Dictionary = diag.generate_summary(snapshots)
+	assert(summary.size() > 0, "Summary must not be empty")
+	assert(summary.has("seeds_evaluated"), "Summary must have seeds_evaluated")
+	assert(summary.has("generations_successful"), "Summary must have generations_successful")
+	assert(summary.has("generations_failed"), "Summary must have generations_failed")
+	assert(summary.has("avg_rooms"), "Summary must have avg_rooms")
+	assert(summary.has("avg_connections"), "Summary must have avg_connections")
+	assert(summary.has("avg_corridors"), "Summary must have avg_corridors")
+	assert(summary.has("connectivity_pass_rate"), "Summary must have connectivity_pass_rate")
+	assert(summary.has("overlap_pass_rate"), "Summary must have overlap_pass_rate")
+	assert(summary["seeds_evaluated"] == 3, "Must have evaluated 3 seeds")
+	print("    [OK] Summary generated with all required keys")
+
+func test_build_config_static() -> void:
+	print("  -> Testing build_config static method...")
+	var cfg = _DungeonDiagnosticsScript.build_config(55555)
+	assert(cfg != null, "Config must not be null")
+	assert(cfg.seed == 55555, "Seed must be 55555")
+	assert(cfg.use_fixed_seed == true, "use_fixed_seed must be true")
+	print("    [OK] build_config produced correct DungeonConfig")
+
+func test_snapshot_to_dict() -> void:
+	print("  -> Testing snapshot to_dict...")
+	var diag := _DungeonDiagnosticsScript.new()
+	var snap = diag.run(7777)
+	var dict: Dictionary = snap.to_dict()
+	assert(dict.size() > 0, "to_dict must return non-empty dictionary")
+	assert(dict.has("room_count"), "Dict must have room_count")
+	assert(dict.has("connection_count"), "Dict must have connection_count")
+	assert(dict.has("corridor_count"), "Dict must have corridor_count")
+	assert(dict.has("spatial_start_centrality"), "Dict must have spatial_start_centrality")
+	assert(dict.has("spatial_angular_uniformity"), "Dict must have spatial_angular_uniformity")
+	assert(dict.has("spatial_radial_distance_variance"), "Dict must have spatial_radial_distance_variance")
+	assert(dict.has("spatial_radiality_provisional"), "Dict must have spatial_radiality_provisional")
+	assert(dict.has("connectivity_status"), "Dict must have connectivity_status")
+	assert(dict.has("validation_room_overlap"), "Dict must have validation_room_overlap")
+	assert(dict.has("generation_success"), "Dict must have generation_success")
+	assert(dict.has("generation_seed_used"), "Dict must have generation_seed_used")
+	assert(dict["room_count"] == snap.room_count, "Dict room_count must match snapshot")
+	print("    [OK] to_dict produced correct dictionary")
