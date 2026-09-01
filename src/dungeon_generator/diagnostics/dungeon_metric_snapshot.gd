@@ -24,7 +24,7 @@ var corridor_short_count: int = 0  # Frequency count of corridors <=3 cells (MVP
 # ── Spatial ────────────────────────────────────────────
 var spatial_average_center_distance: float = 0.0
 var spatial_minimum_center_distance: float = 0.0
-var spatial_start_centrality: float = 0.0
+var start_to_centroid_distance: float = 0.0
 # BASELINE OBSERVATION: `start` rooms exhibit different `profile` values
 # (`entrance`, `sacristy`, `none`). If start rooms have special spatial/topological
 # implications for radiality, this must be understood before interpreting the metric.
@@ -86,7 +86,7 @@ func to_dict() -> Dictionary:
 		"corridor_short_count": corridor_short_count,
 		"spatial_average_center_distance": roundf(spatial_average_center_distance * 100.0) / 100.0,
 		"spatial_minimum_center_distance": roundf(spatial_minimum_center_distance * 100.0) / 100.0,
-		"spatial_start_centrality": roundf(spatial_start_centrality * 100.0) / 100.0,
+		"start_to_centroid_distance": roundf(start_to_centroid_distance * 100.0) / 100.0,
 		"spatial_angular_uniformity": roundf(spatial_angular_uniformity * 100.0) / 100.0,
 		"spatial_radial_distance_variance": roundf(spatial_radial_distance_variance * 100.0) / 100.0,
 		"spatial_bbox_min_x": spatial_bbox_min_x,

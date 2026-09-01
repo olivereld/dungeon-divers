@@ -195,7 +195,7 @@ func _compute_spatial_metrics_dict(rooms: Array[RoomData]) -> Dictionary:
 	var result: Dictionary = {}
 
 	if rooms.is_empty():
-		result["spatial_start_centrality"] = 0.0
+		result["start_to_centroid_distance"] = 0.0
 		result["spatial_angular_uniformity"] = 0.0
 		result["spatial_radial_distance_variance"] = 0.0
 		result["spatial_radiality_provisional"] = 0.0
@@ -256,7 +256,7 @@ func _compute_spatial_metrics_dict(rooms: Array[RoomData]) -> Dictionary:
 
 	# Start centrality
 	var centroid: Vector2i = _compute_centroid(centers)
-	result["spatial_start_centrality"] = start_center.distance_to(centroid)
+	result["start_to_centroid_distance"] = start_center.distance_to(centroid)
 
 	# Angular uniformity around START
 	var angles: Array[float] = []
@@ -293,8 +293,11 @@ func _compute_spatial_metrics_dict(rooms: Array[RoomData]) -> Dictionary:
 	else:
 		result["spatial_radial_distance_variance"] = 0.0
 
-	# Provisional radiality
-	var c_norm: float = minf(result["spatial_start_centrality"] / 20.0, 1.0)
+	# Provisional radiality — DIAGNOSTIC ONLY, NOT A CANONICAL METRIC.
+	# Normalizes three spatial measurements and averages them. Mixed magnitudes
+	# with arbitrary thresholds. Do NOT use for baseline decisions or comparisons.
+	# Only for quick inspection until a definitive composite is defined later.
+	var c_norm: float = minf(result["start_to_centroid_distance"] / 20.0, 1.0)
 	var a_norm: float = result["spatial_angular_uniformity"]
 	var v_norm: float = minf(result["spatial_radial_distance_variance"] / 100.0, 1.0)
 	result["spatial_radiality_provisional"] = (c_norm + a_norm + v_norm) / 3.0
