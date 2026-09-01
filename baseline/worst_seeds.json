@@ -14,7 +14,7 @@
 		},
 		"delta_angular_uniformity": 0.0,
 		"delta_bbox_area": 0,
-		"delta_nearest_neighbor_mean": 14.3505016757202,
+		"delta_nearest_neighbor_mean": 0.0,
 		"delta_pairwise_spacing_mean": 0.0,
 		"delta_radial_variance": 0.0,
 		"delta_spacing_min": 0.0,
@@ -26,10 +26,10 @@
 			"stddev": 3.61429130745592
 		},
 		"nearest_neighbor_before": {
-			"max": 0.0,
-			"mean": 0.0,
-			"min": 0.0,
-			"stddev": 0.0
+			"max": 23.0867927612304,
+			"mean": 14.3505016757202,
+			"min": 12.1655250605964,
+			"stddev": 3.61429130745592
 		},
 		"overlap_count": 0,
 		"overlap_rooms": [],
@@ -80,7 +80,7 @@
 		},
 		"delta_angular_uniformity": 0.0,
 		"delta_bbox_area": 0,
-		"delta_nearest_neighbor_mean": 18.1231497525454,
+		"delta_nearest_neighbor_mean": 0.0,
 		"delta_pairwise_spacing_mean": 0.0,
 		"delta_radial_variance": 0.0,
 		"delta_spacing_min": 0.0,
@@ -92,10 +92,10 @@
 			"stddev": 4.18944424080492
 		},
 		"nearest_neighbor_before": {
-			"max": 0.0,
-			"mean": 0.0,
-			"min": 0.0,
-			"stddev": 0.0
+			"max": 25.9422435421457,
+			"mean": 18.1231497525454,
+			"min": 14.142135623731,
+			"stddev": 4.18944424080492
 		},
 		"overlap_count": 0,
 		"overlap_rooms": [],
@@ -147,7 +147,7 @@
 		},
 		"delta_angular_uniformity": 0.0,
 		"delta_bbox_area": 0,
-		"delta_nearest_neighbor_mean": 18.1198891233528,
+		"delta_nearest_neighbor_mean": 0.0,
 		"delta_pairwise_spacing_mean": 0.0,
 		"delta_radial_variance": 0.0,
 		"delta_spacing_min": 0.0,
@@ -159,10 +159,10 @@
 			"stddev": 5.46008015511298
 		},
 		"nearest_neighbor_before": {
-			"max": 0.0,
-			"mean": 0.0,
-			"min": 0.0,
-			"stddev": 0.0
+			"max": 28.4253408071038,
+			"mean": 18.1198891233528,
+			"min": 11.4017542509914,
+			"stddev": 5.46008015511298
 		},
 		"overlap_count": 0,
 		"overlap_rooms": [],
@@ -213,7 +213,7 @@
 		},
 		"delta_angular_uniformity": 0.0,
 		"delta_bbox_area": 0,
-		"delta_nearest_neighbor_mean": 15.026841460284,
+		"delta_nearest_neighbor_mean": 0.0,
 		"delta_pairwise_spacing_mean": 0.0,
 		"delta_radial_variance": 0.0,
 		"delta_spacing_min": 0.0,
@@ -225,10 +225,10 @@
 			"stddev": 4.36476558186497
 		},
 		"nearest_neighbor_before": {
-			"max": 0.0,
-			"mean": 0.0,
-			"min": 0.0,
-			"stddev": 0.0
+			"max": 25.4950975679639,
+			"mean": 15.026841460284,
+			"min": 12.0415945787923,
+			"stddev": 4.36476558186497
 		},
 		"overlap_count": 0,
 		"overlap_rooms": [],
@@ -279,7 +279,7 @@
 		},
 		"delta_angular_uniformity": 0.0,
 		"delta_bbox_area": 0,
-		"delta_nearest_neighbor_mean": 16.5154109324422,
+		"delta_nearest_neighbor_mean": 0.0,
 		"delta_pairwise_spacing_mean": 0.0,
 		"delta_radial_variance": 0.0,
 		"delta_spacing_min": 0.0,
@@ -291,10 +291,10 @@
 			"stddev": 4.90900647684563
 		},
 		"nearest_neighbor_before": {
-			"max": 0.0,
-			"mean": 0.0,
-			"min": 0.0,
-			"stddev": 0.0
+			"max": 24.738633753706,
+			"mean": 16.5154109324422,
+			"min": 11.4017542509914,
+			"stddev": 4.90900647684563
 		},
 		"overlap_count": 0,
 		"overlap_rooms": [],
@@ -345,7 +345,7 @@
 		},
 		"delta_angular_uniformity": 0.0,
 		"delta_bbox_area": 0,
-		"delta_nearest_neighbor_mean": 17.3599416815674,
+		"delta_nearest_neighbor_mean": 0.0,
 		"delta_pairwise_spacing_mean": 0.0,
 		"delta_radial_variance": 0.0,
 		"delta_spacing_min": 0.0,
@@ -357,10 +357,10 @@
 			"stddev": 5.88493201427001
 		},
 		"nearest_neighbor_before": {
-			"max": 0.0,
-			"mean": 0.0,
-			"min": 0.0,
-			"stddev": 0.0
+			"max": 25.7099202643649,
+			"mean": 17.3599416815674,
+			"min": 12.0,
+			"stddev": 5.88493201427001
 		},
 		"overlap_count": 0,
 		"overlap_rooms": [],
@@ -411,7 +411,7 @@
 		},
 		"delta_angular_uniformity": 0.0,
 		"delta_bbox_area": 0,
-		"delta_nearest_neighbor_mean": 12.0896648624186,
+		"delta_nearest_neighbor_mean": 0.0,
 		"delta_pairwise_spacing_mean": 0.0,
 		"delta_radial_variance": 0.0,
 		"delta_spacing_min": 0.0,
@@ -423,10 +423,10 @@
 			"stddev": 3.13687798844661
 		},
 		"nearest_neighbor_before": {
-			"max": 0.0,
-			"mean": 0.0,
-			"min": 0.0,
-			"stddev": 0.0
+			"max": 16.5529453572468,
+			"mean": 12.0896648624186,
+			"min": 8.06225774829855,
+			"stddev": 3.13687798844661
 		},
 		"overlap_count": 0,
 		"overlap_rooms": [],
@@ -477,7 +477,7 @@
 		},
 		"delta_angular_uniformity": 0.0,
 		"delta_bbox_area": 0,
-		"delta_nearest_neighbor_mean": 16.578611596534,
+		"delta_nearest_neighbor_mean": 0.0,
 		"delta_pairwise_spacing_mean": 0.0,
 		"delta_radial_variance": 0.0,
 		"delta_spacing_min": 0.0,
@@ -489,10 +489,10 @@
 			"stddev": 4.69113849597421
 		},
 		"nearest_neighbor_before": {
-			"max": 0.0,
-			"mean": 0.0,
-			"min": 0.0,
-			"stddev": 0.0
+			"max": 21.4709105535839,
+			"mean": 16.578611596534,
+			"min": 9.48683298050514,
+			"stddev": 4.69113849597421
 		},
 		"overlap_count": 0,
 		"overlap_rooms": [],
@@ -543,7 +543,7 @@
 		},
 		"delta_angular_uniformity": 0.0,
 		"delta_bbox_area": 0,
-		"delta_nearest_neighbor_mean": 16.6470482290271,
+		"delta_nearest_neighbor_mean": 0.0,
 		"delta_pairwise_spacing_mean": 0.0,
 		"delta_radial_variance": 0.0,
 		"delta_spacing_min": 0.0,
@@ -555,10 +555,10 @@
 			"stddev": 2.42400191015684
 		},
 		"nearest_neighbor_before": {
-			"max": 0.0,
-			"mean": 0.0,
-			"min": 0.0,
-			"stddev": 0.0
+			"max": 21.095023109729,
+			"mean": 16.6470482290271,
+			"min": 14.560219778561,
+			"stddev": 2.42400191015684
 		},
 		"overlap_count": 0,
 		"overlap_rooms": [],
@@ -610,7 +610,7 @@
 		},
 		"delta_angular_uniformity": 0.0,
 		"delta_bbox_area": 0,
-		"delta_nearest_neighbor_mean": 15.8786153113385,
+		"delta_nearest_neighbor_mean": 0.0,
 		"delta_pairwise_spacing_mean": 0.0,
 		"delta_radial_variance": 0.0,
 		"delta_spacing_min": 0.0,
@@ -622,10 +622,10 @@
 			"stddev": 3.66619753504317
 		},
 		"nearest_neighbor_before": {
-			"max": 0.0,
-			"mean": 0.0,
-			"min": 0.0,
-			"stddev": 0.0
+			"max": 21.0237960416286,
+			"mean": 15.8786153113385,
+			"min": 12.6491106406735,
+			"stddev": 3.66619753504317
 		},
 		"overlap_count": 0,
 		"overlap_rooms": [],
