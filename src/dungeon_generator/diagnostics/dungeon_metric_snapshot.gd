@@ -9,6 +9,7 @@ var rooms: Array[RoomData] = []
 var room_average_area: float = 0.0
 var room_area_min: int = 0
 var room_area_max: int = 0
+var room_type_distribution: Dictionary = {}
 
 # ── Connections ────────────────────────────────────────
 var connection_count: int = 0
@@ -86,6 +87,7 @@ var generation_checksum: String = ""
 func to_dict() -> Dictionary:
 	return {
 		"room_count": room_count,
+		"room_type_distribution": room_type_distribution,
 		"room_average_area": roundf(room_average_area * 100.0) / 100.0,
 		"room_area_min": room_area_min,
 		"room_area_max": room_area_max,

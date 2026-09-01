@@ -327,6 +327,7 @@ func _compute_room_metrics(snap, rooms: Array[RoomData]) -> void:
 	var total_area: int = 0
 	var room_area_min: int = 999999
 	var room_area_max: int = 0
+	snap.room_type_distribution = {}
 	for r in rooms:
 		var a: int = r.get_area()
 		total_area += a
@@ -334,6 +335,7 @@ func _compute_room_metrics(snap, rooms: Array[RoomData]) -> void:
 			room_area_min = a
 		if a > room_area_max:
 			room_area_max = a
+		snap.room_type_distribution[r.room_type] = snap.room_type_distribution.get(r.room_type, 0) + 1
 	snap.room_area_min = room_area_min
 	snap.room_area_max = room_area_max
 	snap.room_average_area = float(total_area) / float(rooms.size()) if rooms.size() > 0 else 0.0
