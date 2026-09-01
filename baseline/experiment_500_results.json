@@ -39,10 +39,10 @@
 			"stddev": 9.32184247980921
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.7546789102438,
 			"mean": 26.4981295911474,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 9.32184247980921
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -96,10 +96,10 @@
 			"stddev": 12.8199607753588
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.6941223633168,
 			"mean": 30.479595610431,
 			"min": 8.0,
-			"stddev": 0.0
+			"stddev": 12.8199607753588
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -153,10 +153,10 @@
 			"stddev": 10.0168783823185
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.5782210249622,
 			"mean": 27.3590805827057,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 10.0168783823185
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -210,10 +210,10 @@
 			"stddev": 10.2017048743062
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.5078940808788,
 			"mean": 28.1631552368632,
 			"min": 12.2065556157337,
-			"stddev": 0.0
+			"stddev": 10.2017048743062
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -267,10 +267,10 @@
 			"stddev": 12.1871534598385
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.0,
 			"mean": 30.0102673711715,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 12.1871534598385
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -324,10 +324,10 @@
 			"stddev": 12.043897895314
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.8144961882948,
 			"mean": 28.8772731475746,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 12.043897895314
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -381,10 +381,10 @@
 			"stddev": 9.32535011008721
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.9110231457712,
 			"mean": 24.0948470600688,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 9.32535011008721
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -438,10 +438,10 @@
 			"stddev": 9.85439575120041
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.0881590977792,
 			"mean": 28.1075388734336,
 			"min": 14.422205101856,
-			"stddev": 0.0
+			"stddev": 9.85439575120041
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -495,10 +495,10 @@
 			"stddev": 12.9074885685658
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.0363516232681,
 			"mean": 30.2873787291161,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 12.9074885685658
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -552,10 +552,10 @@
 			"stddev": 10.0379301548525
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.2442890089805,
 			"mean": 27.6612494314892,
 			"min": 12.5299640861417,
-			"stddev": 0.0
+			"stddev": 10.0379301548525
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -609,10 +609,10 @@
 			"stddev": 10.2200269195415
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.0977222864644,
 			"mean": 27.6582649707536,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 10.2200269195415
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -666,10 +666,10 @@
 			"stddev": 10.1265922720243
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.0434577328854,
 			"mean": 25.9179058421373,
 			"min": 9.4339811320566,
-			"stddev": 0.0
+			"stddev": 10.1265922720243
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -723,10 +723,10 @@
 			"stddev": 11.849068599078
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.6003412959344,
 			"mean": 32.3666429110951,
 			"min": 12.2065556157337,
-			"stddev": 0.0
+			"stddev": 11.849068599078
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -780,10 +780,10 @@
 			"stddev": 12.0396606865385
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.0,
 			"mean": 29.1645397713873,
 			"min": 13.6014705087354,
-			"stddev": 0.0
+			"stddev": 12.0396606865385
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -837,10 +837,10 @@
 			"stddev": 11.5838892225871
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.2800139664787,
 			"mean": 30.8259968518035,
 			"min": 11.7046999107196,
-			"stddev": 0.0
+			"stddev": 11.5838892225871
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -894,10 +894,10 @@
 			"stddev": 9.97502901126776
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0,
 			"mean": 28.1564292926159,
 			"min": 14.3178210632764,
-			"stddev": 0.0
+			"stddev": 9.97502901126776
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -951,10 +951,10 @@
 			"stddev": 11.4240737450612
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.8013840664737,
 			"mean": 30.8971422013471,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 11.4240737450612
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -1008,10 +1008,10 @@
 			"stddev": 11.082751663644
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.1724568965349,
 			"mean": 30.1382725567484,
 			"min": 14.0356688476182,
-			"stddev": 0.0
+			"stddev": 11.082751663644
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -1065,10 +1065,10 @@
 			"stddev": 10.6554065448422
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.5176736125598,
 			"mean": 28.2772906854067,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 10.6554065448422
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1122,10 +1122,10 @@
 			"stddev": 8.8980742169103
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.0475920832573,
 			"mean": 25.7620150238194,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 8.8980742169103
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1179,10 +1179,10 @@
 			"stddev": 10.1730364843451
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.5077313425396,
 			"mean": 29.2873253119208,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 10.1730364843451
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1236,10 +1236,10 @@
 			"stddev": 10.3633557752575
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.6004115208915,
 			"mean": 27.4433338237385,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 10.3633557752575
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -1293,10 +1293,10 @@
 			"stddev": 9.87748654931858
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.6340214552582,
 			"mean": 27.2703750378708,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 9.87748654931858
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1350,10 +1350,10 @@
 			"stddev": 10.2715998857377
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.1663783151692,
 			"mean": 26.6765270027822,
 			"min": 12.1655250605964,
-			"stddev": 0.0
+			"stddev": 10.2715998857377
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1407,10 +1407,10 @@
 			"stddev": 11.398947540425
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 59.8163857149527,
 			"mean": 30.9587620448814,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 11.398947540425
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1464,10 +1464,10 @@
 			"stddev": 12.0072299623974
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0899191454728,
 			"mean": 27.9969003396823,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 12.0072299623974
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1521,10 +1521,10 @@
 			"stddev": 9.88743048311314
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.8614980554399,
 			"mean": 27.9514997359574,
 			"min": 11.0,
-			"stddev": 0.0
+			"stddev": 9.88743048311314
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1578,10 +1578,10 @@
 			"stddev": 11.542655602516
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.773099207835,
 			"mean": 27.5215146441538,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 11.542655602516
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1635,10 +1635,10 @@
 			"stddev": 8.0218347088465
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 38.1837661840736,
 			"mean": 22.3485948487476,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 8.0218347088465
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1692,10 +1692,10 @@
 			"stddev": 10.8277367496355
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.7083174663597,
 			"mean": 27.6542965356306,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 10.8277367496355
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -1749,10 +1749,10 @@
 			"stddev": 10.9836579087355
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.9901951359278,
 			"mean": 28.1902925184753,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 10.9836579087355
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1806,10 +1806,10 @@
 			"stddev": 8.98522241677206
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.5440947723653,
 			"mean": 24.598278434286,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 8.98522241677206
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1863,10 +1863,10 @@
 			"stddev": 11.2664369391014
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.7401153701776,
 			"mean": 28.4022260802969,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 11.2664369391014
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1920,10 +1920,10 @@
 			"stddev": 10.6169514897944
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.0407993409569,
 			"mean": 26.0684877840865,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 10.6169514897944
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -1977,10 +1977,10 @@
 			"stddev": 10.4723083417779
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.1774279923061,
 			"mean": 28.2581180227064,
 			"min": 11.7046999107196,
-			"stddev": 0.0
+			"stddev": 10.4723083417779
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2034,10 +2034,10 @@
 			"stddev": 9.34261839261214
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.2781700167648,
 			"mean": 27.838843292345,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 9.34261839261214
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2091,10 +2091,10 @@
 			"stddev": 10.5186239692462
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.1934955049954,
 			"mean": 27.1262739842719,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 10.5186239692462
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2148,10 +2148,10 @@
 			"stddev": 13.3879853583442
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 60.1414998150196,
 			"mean": 30.2355820098329,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 13.3879853583442
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2205,10 +2205,10 @@
 			"stddev": 10.8921049447492
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.0370243444252,
 			"mean": 29.7278152956709,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 10.8921049447492
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2262,10 +2262,10 @@
 			"stddev": 9.98084278408134
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.6487663492256,
 			"mean": 27.9046320815231,
 			"min": 12.5299640861417,
-			"stddev": 0.0
+			"stddev": 9.98084278408134
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2319,10 +2319,10 @@
 			"stddev": 13.0024642277141
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 59.6657355607052,
 			"mean": 30.053051825181,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 13.0024642277141
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -2376,10 +2376,10 @@
 			"stddev": 10.540194532595
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0099990001999,
 			"mean": 29.3995386127678,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 10.540194532595
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2433,10 +2433,10 @@
 			"stddev": 10.7403632768892
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.3545604508337,
 			"mean": 31.0219097154694,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 10.7403632768892
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2490,10 +2490,10 @@
 			"stddev": 9.46902820611566
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.1021541423999,
 			"mean": 25.4531199336269,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 9.46902820611566
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2547,10 +2547,10 @@
 			"stddev": 12.5405263686121
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.0802995712398,
 			"mean": 26.3776954536549,
 			"min": 9.0,
-			"stddev": 0.0
+			"stddev": 12.5405263686121
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2604,10 +2604,10 @@
 			"stddev": 10.9138220611742
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.4976189936268,
 			"mean": 29.5237259298167,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 10.9138220611742
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2661,10 +2661,10 @@
 			"stddev": 10.1589220282966
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.3814309619285,
 			"mean": 24.3496087459354,
 			"min": 8.24621125123532,
-			"stddev": 0.0
+			"stddev": 10.1589220282966
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -2718,10 +2718,10 @@
 			"stddev": 10.3437337697505
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.3896540189728,
 			"mean": 27.6053398955373,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 10.3437337697505
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2775,10 +2775,10 @@
 			"stddev": 10.6352896855578
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.2634959423431,
 			"mean": 28.5912931130387,
 			"min": 13.0384048104053,
-			"stddev": 0.0
+			"stddev": 10.6352896855578
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2832,10 +2832,10 @@
 			"stddev": 10.6176224638388
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.690470119715,
 			"mean": 26.3462186294832,
 			"min": 11.7046999107196,
-			"stddev": 0.0
+			"stddev": 10.6176224638388
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2889,10 +2889,10 @@
 			"stddev": 10.6555077982788
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.4341649025257,
 			"mean": 27.0481609486427,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 10.6555077982788
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -2946,10 +2946,10 @@
 			"stddev": 12.1398778536037
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.2177507691141,
 			"mean": 31.3179476002189,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 12.1398778536037
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3003,10 +3003,10 @@
 			"stddev": 12.1025636990147
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 61.0737259384099,
 			"mean": 31.2913246688334,
 			"min": 15.6524758424985,
-			"stddev": 0.0
+			"stddev": 12.1025636990147
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3060,10 +3060,10 @@
 			"stddev": 11.5645828158021
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0,
 			"mean": 30.6108204571253,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 11.5645828158021
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3117,10 +3117,10 @@
 			"stddev": 9.01114772830533
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.1856457633784,
 			"mean": 26.7659908136745,
 			"min": 12.8062484748657,
-			"stddev": 0.0
+			"stddev": 9.01114772830533
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3174,10 +3174,10 @@
 			"stddev": 11.2121797270969
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.4772675074119,
 			"mean": 28.3330763639155,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 11.2121797270969
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3231,10 +3231,10 @@
 			"stddev": 11.3519052424411
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.1401785086466,
 			"mean": 32.4769656061906,
 			"min": 17.0293863659264,
-			"stddev": 0.0
+			"stddev": 11.3519052424411
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3288,10 +3288,10 @@
 			"stddev": 9.19061154367991
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.7930125674212,
 			"mean": 27.0186759470069,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 9.19061154367991
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3345,10 +3345,10 @@
 			"stddev": 11.0428271761573
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.9732078766261,
 			"mean": 27.6484524040402,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 11.0428271761573
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3402,10 +3402,10 @@
 			"stddev": 9.36354703290085
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.139309220246,
 			"mean": 27.6687925685374,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 9.36354703290085
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3459,10 +3459,10 @@
 			"stddev": 11.6061863642675
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.4479930225178,
 			"mean": 30.1166187310624,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 11.6061863642675
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3516,10 +3516,10 @@
 			"stddev": 9.81457604844255
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.2216762183801,
 			"mean": 26.4769945395334,
 			"min": 11.0,
-			"stddev": 0.0
+			"stddev": 9.81457604844255
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -3573,10 +3573,10 @@
 			"stddev": 12.4101120064304
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.9073278877742,
 			"mean": 29.3418046639983,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 12.4101120064304
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3630,10 +3630,10 @@
 			"stddev": 10.1927434779483
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.0407993409569,
 			"mean": 27.4332675937252,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 10.1927434779483
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3687,10 +3687,10 @@
 			"stddev": 12.6603254865289
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 64.2028036770981,
 			"mean": 31.2427434089582,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 12.6603254865289
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -3744,10 +3744,10 @@
 			"stddev": 11.6881138157361
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.561891462815,
 			"mean": 27.4570208768249,
 			"min": 8.0,
-			"stddev": 0.0
+			"stddev": 11.6881138157361
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -3801,10 +3801,10 @@
 			"stddev": 10.5180760005483
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.3963561409139,
 			"mean": 28.038045260121,
 			"min": 9.48683298050514,
-			"stddev": 0.0
+			"stddev": 10.5180760005483
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3858,10 +3858,10 @@
 			"stddev": 9.33063240068942
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.4165866921848,
 			"mean": 24.9816363784693,
 			"min": 10.816653826392,
-			"stddev": 0.0
+			"stddev": 9.33063240068942
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3915,10 +3915,10 @@
 			"stddev": 11.4539991202101
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.1294744108974,
 			"mean": 28.8732237031366,
 			"min": 12.2065556157337,
-			"stddev": 0.0
+			"stddev": 11.4539991202101
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -3972,10 +3972,10 @@
 			"stddev": 9.98639789416451
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.0106370941726,
 			"mean": 28.1929651805349,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 9.98639789416451
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -4029,10 +4029,10 @@
 			"stddev": 11.4224482221333
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.9313263129874,
 			"mean": 31.0361396170169,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 11.4224482221333
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4086,10 +4086,10 @@
 			"stddev": 10.9549258668219
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.0407993409569,
 			"mean": 28.262192130377,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 10.9549258668219
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4143,10 +4143,10 @@
 			"stddev": 10.4178366178902
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.7397332811061,
 			"mean": 27.3189645312572,
 			"min": 13.9283882771841,
-			"stddev": 0.0
+			"stddev": 10.4178366178902
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4200,10 +4200,10 @@
 			"stddev": 10.2683986167838
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.3289181286465,
 			"mean": 28.9365149008781,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 10.2683986167838
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4257,10 +4257,10 @@
 			"stddev": 10.1824891182024
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.2195181179589,
 			"mean": 30.5307458010317,
 			"min": 13.0384048104053,
-			"stddev": 0.0
+			"stddev": 10.1824891182024
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4314,10 +4314,10 @@
 			"stddev": 12.9954267544163
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.7962583843564,
 			"mean": 31.8923013197637,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 12.9954267544163
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4371,10 +4371,10 @@
 			"stddev": 10.0991606207764
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.9444101084885,
 			"mean": 25.5213692440099,
 			"min": 8.94427190999916,
-			"stddev": 0.0
+			"stddev": 10.0991606207764
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4428,10 +4428,10 @@
 			"stddev": 9.36971952782237
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.4974746830583,
 			"mean": 27.7114171720652,
 			"min": 15.8113883008419,
-			"stddev": 0.0
+			"stddev": 9.36971952782237
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4485,10 +4485,10 @@
 			"stddev": 10.4543205181166
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.0917508345343,
 			"mean": 28.679552059159,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 10.4543205181166
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4542,10 +4542,10 @@
 			"stddev": 9.71184328627214
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.0832611206852,
 			"mean": 27.2931895391687,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 9.71184328627214
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4599,10 +4599,10 @@
 			"stddev": 8.35400641086384
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 41.2310562561766,
 			"mean": 21.3412434531201,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 8.35400641086384
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4656,10 +4656,10 @@
 			"stddev": 14.3163304369884
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 60.1082357085949,
 			"mean": 30.8945181908948,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 14.3163304369884
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4713,10 +4713,10 @@
 			"stddev": 14.1308826067976
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.6281181368956,
 			"mean": 31.6879737528676,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 14.1308826067976
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4770,10 +4770,10 @@
 			"stddev": 11.0751918401299
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.2891638427206,
 			"mean": 29.8872027397862,
 			"min": 13.0384048104053,
-			"stddev": 0.0
+			"stddev": 11.0751918401299
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4827,10 +4827,10 @@
 			"stddev": 9.28431256500814
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.4862616621766,
 			"mean": 25.1148147743043,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 9.28431256500814
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4884,10 +4884,10 @@
 			"stddev": 8.91892956123958
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.2831796509691,
 			"mean": 25.5506095399425,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 8.91892956123958
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4941,10 +4941,10 @@
 			"stddev": 9.8777461000401
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.2385120867876,
 			"mean": 26.9594340512574,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 9.8777461000401
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -4998,10 +4998,10 @@
 			"stddev": 9.3458849944148
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.0651712251241,
 			"mean": 24.8497802108653,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 9.3458849944148
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5055,10 +5055,10 @@
 			"stddev": 12.3873621076103
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.2634959423431,
 			"mean": 29.6548546257115,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 12.3873621076103
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5112,10 +5112,10 @@
 			"stddev": 10.5988194010442
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.4295634824952,
 			"mean": 30.4935321583861,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 10.5988194010442
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5169,10 +5169,10 @@
 			"stddev": 10.7773709971819
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.4974746830583,
 			"mean": 28.2006532870725,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 10.7773709971819
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5226,10 +5226,10 @@
 			"stddev": 12.4559590475921
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.8237865631916,
 			"mean": 31.1569229242791,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 12.4559590475921
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5283,10 +5283,10 @@
 			"stddev": 9.23397259333994
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.5660418215839,
 			"mean": 24.9259940366854,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 9.23397259333994
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5340,10 +5340,10 @@
 			"stddev": 9.70474092476334
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.2666153055679,
 			"mean": 26.7138078040692,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 9.70474092476334
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5397,10 +5397,10 @@
 			"stddev": 11.100364639846
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.1507290636732,
 			"mean": 29.1942753701178,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 11.100364639846
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5454,10 +5454,10 @@
 			"stddev": 9.44062727394126
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.8614980554399,
 			"mean": 27.5563195501632,
 			"min": 13.8924439894498,
-			"stddev": 0.0
+			"stddev": 9.44062727394126
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5511,10 +5511,10 @@
 			"stddev": 10.0750974065056
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.6004115208915,
 			"mean": 27.0997633597452,
 			"min": 8.0,
-			"stddev": 0.0
+			"stddev": 10.0750974065056
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5568,10 +5568,10 @@
 			"stddev": 10.7416653004437
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.6154480832267,
 			"mean": 28.479691308886,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 10.7416653004437
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5625,10 +5625,10 @@
 			"stddev": 11.5537672473314
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.817880294663,
 			"mean": 29.9926337863501,
 			"min": 14.7648230602334,
-			"stddev": 0.0
+			"stddev": 11.5537672473314
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5682,10 +5682,10 @@
 			"stddev": 11.9182603032551
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.2634959423431,
 			"mean": 31.8680736625686,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 11.9182603032551
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5739,10 +5739,10 @@
 			"stddev": 11.102627490437
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.0754180388624,
 			"mean": 31.8789488078623,
 			"min": 15.0332963783729,
-			"stddev": 0.0
+			"stddev": 11.102627490437
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -5796,10 +5796,10 @@
 			"stddev": 8.46357333625132
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 41.182520563948,
 			"mean": 24.3444786485069,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 8.46357333625132
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5853,10 +5853,10 @@
 			"stddev": 11.0616045504651
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.4885309033011,
 			"mean": 30.3861724506016,
 			"min": 13.0384048104053,
-			"stddev": 0.0
+			"stddev": 11.0616045504651
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -5910,10 +5910,10 @@
 			"stddev": 10.6098093151675
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.2597140480546,
 			"mean": 29.5844802236799,
 			"min": 12.2065556157337,
-			"stddev": 0.0
+			"stddev": 10.6098093151675
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -5967,10 +5967,10 @@
 			"stddev": 10.4855722313668
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.9221548904324,
 			"mean": 28.3138097507177,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 10.4855722313668
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6024,10 +6024,10 @@
 			"stddev": 11.2314627279388
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.6392090340252,
 			"mean": 31.333033796549,
 			"min": 16.2788205960997,
-			"stddev": 0.0
+			"stddev": 11.2314627279388
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6081,10 +6081,10 @@
 			"stddev": 9.86214500541304
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.6508488420533,
 			"mean": 26.9121144731516,
 			"min": 11.0,
-			"stddev": 0.0
+			"stddev": 9.86214500541304
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6138,10 +6138,10 @@
 			"stddev": 9.72463336503612
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.8721665810319,
 			"mean": 25.4109665341825,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 9.72463336503612
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6195,10 +6195,10 @@
 			"stddev": 10.0156927369753
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.0881590977792,
 			"mean": 25.1144085744841,
 			"min": 11.6619037896906,
-			"stddev": 0.0
+			"stddev": 10.0156927369753
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6252,10 +6252,10 @@
 			"stddev": 12.513827135887
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.6888204074238,
 			"mean": 28.4985268948246,
 			"min": 11.0,
-			"stddev": 0.0
+			"stddev": 12.513827135887
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6309,10 +6309,10 @@
 			"stddev": 10.7376210173914
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.0094331227943,
 			"mean": 26.3915330872687,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 10.7376210173914
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6366,10 +6366,10 @@
 			"stddev": 10.8076110055913
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.5862174031804,
 			"mean": 32.0692007943746,
 			"min": 15.6204993518133,
-			"stddev": 0.0
+			"stddev": 10.8076110055913
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6423,10 +6423,10 @@
 			"stddev": 11.7301258508383
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.2227711874824,
 			"mean": 30.341302274523,
 			"min": 10.816653826392,
-			"stddev": 0.0
+			"stddev": 11.7301258508383
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6480,10 +6480,10 @@
 			"stddev": 9.96255380372525
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.6789693934969,
 			"mean": 27.4917285879862,
 			"min": 12.2065556157337,
-			"stddev": 0.0
+			"stddev": 9.96255380372525
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6537,10 +6537,10 @@
 			"stddev": 9.52424771685039
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.5394572960189,
 			"mean": 26.8000202682843,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 9.52424771685039
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6594,10 +6594,10 @@
 			"stddev": 12.2060933790749
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.8237865631916,
 			"mean": 32.6330514406187,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 12.2060933790749
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6651,10 +6651,10 @@
 			"stddev": 8.77367990317901
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 40.2243707222375,
 			"mean": 24.8015680764703,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 8.77367990317901
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6708,10 +6708,10 @@
 			"stddev": 9.55256916837971
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.8039299623951,
 			"mean": 25.7383509183787,
 			"min": 8.54400374531753,
-			"stddev": 0.0
+			"stddev": 9.55256916837971
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6765,10 +6765,10 @@
 			"stddev": 10.5804029642153
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.6972485050216,
 			"mean": 29.2535358346493,
 			"min": 16.1245154965971,
-			"stddev": 0.0
+			"stddev": 10.5804029642153
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6822,10 +6822,10 @@
 			"stddev": 9.63986850680056
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.4499705535822,
 			"mean": 27.2558701747187,
 			"min": 11.0,
-			"stddev": 0.0
+			"stddev": 9.63986850680056
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6879,10 +6879,10 @@
 			"stddev": 9.43400664313537
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.4184646290256,
 			"mean": 25.7413784843843,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 9.43400664313537
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -6936,10 +6936,10 @@
 			"stddev": 11.6642441874891
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.4664832642105,
 			"mean": 28.909632237475,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 11.6642441874891
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -6993,10 +6993,10 @@
 			"stddev": 11.7427056549325
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.7274184147313,
 			"mean": 30.5974525409691,
 			"min": 13.6014705087354,
-			"stddev": 0.0
+			"stddev": 11.7427056549325
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7050,10 +7050,10 @@
 			"stddev": 14.8248812724652
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 68.5930025585701,
 			"mean": 34.1737025046505,
 			"min": 9.48683298050514,
-			"stddev": 0.0
+			"stddev": 14.8248812724652
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7107,10 +7107,10 @@
 			"stddev": 12.4659106037879
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.7274184147313,
 			"mean": 32.8246586528407,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 12.4659106037879
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7164,10 +7164,10 @@
 			"stddev": 13.0112452609363
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 60.4648658313239,
 			"mean": 30.3902063108644,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 13.0112452609363
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7221,10 +7221,10 @@
 			"stddev": 9.34957331747912
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.6340214552582,
 			"mean": 26.7548794431815,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 9.34957331747912
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7278,10 +7278,10 @@
 			"stddev": 10.068094089185
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.7393204617835,
 			"mean": 30.0422742700362,
 			"min": 14.560219778561,
-			"stddev": 0.0
+			"stddev": 10.068094089185
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7335,10 +7335,10 @@
 			"stddev": 9.2799307979427
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.0116263352131,
 			"mean": 24.4146136683723,
 			"min": 9.0,
-			"stddev": 0.0
+			"stddev": 9.2799307979427
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7392,10 +7392,10 @@
 			"stddev": 13.7508687429416
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 63.7808748764079,
 			"mean": 34.0903462002439,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 13.7508687429416
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7449,10 +7449,10 @@
 			"stddev": 9.73913531219866
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.3243580448689,
 			"mean": 28.0765400381447,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 9.73913531219866
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7506,10 +7506,10 @@
 			"stddev": 11.2514792390153
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.2249938994628,
 			"mean": 26.8234869662624,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 11.2514792390153
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7563,10 +7563,10 @@
 			"stddev": 10.2680352243137
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.5667875190821,
 			"mean": 27.4017000734985,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 10.2680352243137
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7620,10 +7620,10 @@
 			"stddev": 12.8651595194067
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.859475903318,
 			"mean": 35.0905231280094,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 12.8651595194067
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7677,10 +7677,10 @@
 			"stddev": 12.1620323961015
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.7281874401041,
 			"mean": 32.0057913865896,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 12.1620323961015
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7734,10 +7734,10 @@
 			"stddev": 11.0315823630456
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.9181208709839,
 			"mean": 29.7228371409965,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 11.0315823630456
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7791,10 +7791,10 @@
 			"stddev": 9.96128642731199
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.4974746830583,
 			"mean": 28.9237324099531,
 			"min": 13.6014705087354,
-			"stddev": 0.0
+			"stddev": 9.96128642731199
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7848,10 +7848,10 @@
 			"stddev": 11.2224366167571
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.3172667437573,
 			"mean": 32.002377325413,
 			"min": 16.0312195418814,
-			"stddev": 0.0
+			"stddev": 11.2224366167571
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7905,10 +7905,10 @@
 			"stddev": 11.7105115450188
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.2268050859363,
 			"mean": 31.7761083553529,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 11.7105115450188
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -7962,10 +7962,10 @@
 			"stddev": 11.1084585713547
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.0917508345343,
 			"mean": 29.7518667773961,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 11.1084585713547
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8019,10 +8019,10 @@
 			"stddev": 9.08823952744947
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.9089968002003,
 			"mean": 24.6709120685009,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 9.08823952744947
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -8076,10 +8076,10 @@
 			"stddev": 12.4972681723299
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.9215082258961,
 			"mean": 27.4331950926387,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 12.4972681723299
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8133,10 +8133,10 @@
 			"stddev": 13.9732961987958
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 64.5368112010502,
 			"mean": 31.8715329469472,
 			"min": 15.0332963783729,
-			"stddev": 0.0
+			"stddev": 13.9732961987958
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8190,10 +8190,10 @@
 			"stddev": 10.2196577573406
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.5184174820669,
 			"mean": 26.7890618241488,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 10.2196577573406
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8247,10 +8247,10 @@
 			"stddev": 8.88687286047848
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.1856457633784,
 			"mean": 24.4399100867292,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 8.88687286047848
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8304,10 +8304,10 @@
 			"stddev": 11.9042917458315
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0,
 			"mean": 29.5506382161622,
 			"min": 8.94427190999916,
-			"stddev": 0.0
+			"stddev": 11.9042917458315
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8361,10 +8361,10 @@
 			"stddev": 9.43279815966097
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 39.8246155034798,
 			"mean": 24.7304214976317,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 9.43279815966097
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8418,10 +8418,10 @@
 			"stddev": 10.5505244453689
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.8393792544916,
 			"mean": 31.1894480878215,
 			"min": 15.6524758424985,
-			"stddev": 0.0
+			"stddev": 10.5505244453689
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8475,10 +8475,10 @@
 			"stddev": 11.5687748450601
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.7083174663597,
 			"mean": 31.3258089397092,
 			"min": 13.6014705087354,
-			"stddev": 0.0
+			"stddev": 11.5687748450601
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8532,10 +8532,10 @@
 			"stddev": 10.616850051337
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.7544869729956,
 			"mean": 27.399107036836,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 10.616850051337
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8589,10 +8589,10 @@
 			"stddev": 11.2955314866549
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.2268050859363,
 			"mean": 31.5720116688015,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 11.2955314866549
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8646,10 +8646,10 @@
 			"stddev": 13.191737861225
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 63.1268564083465,
 			"mean": 33.8072541498582,
 			"min": 13.0384048104053,
-			"stddev": 0.0
+			"stddev": 13.191737861225
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8703,10 +8703,10 @@
 			"stddev": 12.1059686611983
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 59.8163857149527,
 			"mean": 29.2170497991252,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 12.1059686611983
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8760,10 +8760,10 @@
 			"stddev": 12.8767161373424
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.4976189936268,
 			"mean": 32.3595822357256,
 			"min": 8.54400374531753,
-			"stddev": 0.0
+			"stddev": 12.8767161373424
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8817,10 +8817,10 @@
 			"stddev": 10.3638455391924
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.0108682813094,
 			"mean": 27.7612309477624,
 			"min": 11.3137084989848,
-			"stddev": 0.0
+			"stddev": 10.3638455391924
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8874,10 +8874,10 @@
 			"stddev": 10.7928599624521
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.3963561409139,
 			"mean": 31.1889767236598,
 			"min": 15.0332963783729,
-			"stddev": 0.0
+			"stddev": 10.7928599624521
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8931,10 +8931,10 @@
 			"stddev": 10.5526000876829
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.6690475583121,
 			"mean": 24.9985668724259,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 10.5526000876829
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -8988,10 +8988,10 @@
 			"stddev": 13.5708401402816
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 62.00806399171,
 			"mean": 32.6922724636771,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 13.5708401402816
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9045,10 +9045,10 @@
 			"stddev": 11.0537553167704
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.6487663492256,
 			"mean": 29.7194055261127,
 			"min": 14.8660687473185,
-			"stddev": 0.0
+			"stddev": 11.0537553167704
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9102,10 +9102,10 @@
 			"stddev": 10.1268625066839
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.453272709454,
 			"mean": 25.7907142492217,
 			"min": 9.48683298050514,
-			"stddev": 0.0
+			"stddev": 10.1268625066839
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9159,10 +9159,10 @@
 			"stddev": 11.3088894037019
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.0357029044876,
 			"mean": 28.8776478312269,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 11.3088894037019
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9216,10 +9216,10 @@
 			"stddev": 10.8637294340869
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.8016736108685,
 			"mean": 31.0710146955571,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 10.8637294340869
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9273,10 +9273,10 @@
 			"stddev": 11.3276704189821
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.1957029446808,
 			"mean": 31.4016693068994,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 11.3276704189821
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9330,10 +9330,10 @@
 			"stddev": 11.5360287776998
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.2177507691141,
 			"mean": 32.3060666872646,
 			"min": 15.8113883008419,
-			"stddev": 0.0
+			"stddev": 11.5360287776998
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9387,10 +9387,10 @@
 			"stddev": 10.3475823856991
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.169905660283,
 			"mean": 26.5271454086766,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 10.3475823856991
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9444,10 +9444,10 @@
 			"stddev": 11.0058227686402
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.0881590977792,
 			"mean": 24.1604844331074,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 11.0058227686402
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9501,10 +9501,10 @@
 			"stddev": 10.6022708788419
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.8016736108685,
 			"mean": 28.1453953744319,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 10.6022708788419
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9558,10 +9558,10 @@
 			"stddev": 7.22930436118823
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 34.7131099154196,
 			"mean": 20.5269629042475,
 			"min": 7.61577310586391,
-			"stddev": 0.0
+			"stddev": 7.22930436118823
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9615,10 +9615,10 @@
 			"stddev": 8.49214450817628
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 39.9249295553543,
 			"mean": 25.1316089291262,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 8.49214450817628
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9672,10 +9672,10 @@
 			"stddev": 13.54985274707
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 63.0317380372777,
 			"mean": 31.6637326719892,
 			"min": 11.0,
-			"stddev": 0.0
+			"stddev": 13.54985274707
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9729,10 +9729,10 @@
 			"stddev": 9.80661058234087
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.6070170039655,
 			"mean": 26.9447743556482,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 9.80661058234087
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9786,10 +9786,10 @@
 			"stddev": 10.8218563886973
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.6307894677631,
 			"mean": 29.4932485497393,
 			"min": 15.1327459504216,
-			"stddev": 0.0
+			"stddev": 10.8218563886973
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -9843,10 +9843,10 @@
 			"stddev": 8.96751608466646
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.453272709454,
 			"mean": 25.8781547519619,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 8.96751608466646
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9900,10 +9900,10 @@
 			"stddev": 8.78916863067059
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.3100430368368,
 			"mean": 26.9777340380777,
 			"min": 15.6204993518133,
-			"stddev": 0.0
+			"stddev": 8.78916863067059
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -9957,10 +9957,10 @@
 			"stddev": 12.2410139631994
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.0087712549569,
 			"mean": 30.8199912859664,
 			"min": 15.2315462117278,
-			"stddev": 0.0
+			"stddev": 12.2410139631994
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10014,10 +10014,10 @@
 			"stddev": 9.19078702700528
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.9534631898291,
 			"mean": 25.7553675499643,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 9.19078702700528
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10071,10 +10071,10 @@
 			"stddev": 9.35878590583161
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.4165866921848,
 			"mean": 24.5479857128703,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 9.35878590583161
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10128,10 +10128,10 @@
 			"stddev": 9.90738015737362
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0,
 			"mean": 28.5112510680415,
 			"min": 14.560219778561,
-			"stddev": 0.0
+			"stddev": 9.90738015737362
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10185,10 +10185,10 @@
 			"stddev": 10.5648638127331
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.9317652729776,
 			"mean": 24.9552520524108,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 10.5648638127331
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10242,10 +10242,10 @@
 			"stddev": 11.6510063789547
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.2493781056045,
 			"mean": 28.4272966216399,
 			"min": 10.295630140987,
-			"stddev": 0.0
+			"stddev": 11.6510063789547
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -10299,10 +10299,10 @@
 			"stddev": 9.05143834147781
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.8018691180654,
 			"mean": 24.8706182960258,
 			"min": 13.4536240470737,
-			"stddev": 0.0
+			"stddev": 9.05143834147781
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10356,10 +10356,10 @@
 			"stddev": 9.44598789588743
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.8614980554399,
 			"mean": 29.4280717667475,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 9.44598789588743
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10413,10 +10413,10 @@
 			"stddev": 9.9268690736255
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.4236228055175,
 			"mean": 24.5982990878261,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 9.9268690736255
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10470,10 +10470,10 @@
 			"stddev": 8.85297944566802
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.2216762183801,
 			"mean": 23.1353366639353,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 8.85297944566802
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10527,10 +10527,10 @@
 			"stddev": 10.8648675875338
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.3545604508337,
 			"mean": 28.4295685262909,
 			"min": 12.5299640861417,
-			"stddev": 0.0
+			"stddev": 10.8648675875338
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10584,10 +10584,10 @@
 			"stddev": 9.7229920184401
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.7930125674212,
 			"mean": 29.0457208965422,
 			"min": 12.5299640861417,
-			"stddev": 0.0
+			"stddev": 9.7229920184401
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10641,10 +10641,10 @@
 			"stddev": 12.2997144929004
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.309518948453,
 			"mean": 32.5543922069598,
 			"min": 13.8924439894498,
-			"stddev": 0.0
+			"stddev": 12.2997144929004
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -10698,10 +10698,10 @@
 			"stddev": 10.7110588805933
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.7954915950234,
 			"mean": 25.2537008799236,
 			"min": 9.48683298050514,
-			"stddev": 0.0
+			"stddev": 10.7110588805933
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10755,10 +10755,10 @@
 			"stddev": 11.671104027861
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.0370243444252,
 			"mean": 29.6740161678993,
 			"min": 10.295630140987,
-			"stddev": 0.0
+			"stddev": 11.671104027861
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10812,10 +10812,10 @@
 			"stddev": 11.7045610974588
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.8242905807015,
 			"mean": 30.6042856007929,
 			"min": 9.0,
-			"stddev": 0.0
+			"stddev": 11.7045610974588
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10869,10 +10869,10 @@
 			"stddev": 11.1700558756557
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.0881590977792,
 			"mean": 29.3321105425025,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 11.1700558756557
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -10926,10 +10926,10 @@
 			"stddev": 9.69333328094591
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.2709412050371,
 			"mean": 24.240683127254,
 			"min": 8.06225774829855,
-			"stddev": 0.0
+			"stddev": 9.69333328094591
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -10983,10 +10983,10 @@
 			"stddev": 10.9098181144522
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.9299509312797,
 			"mean": 27.7510130599304,
 			"min": 10.816653826392,
-			"stddev": 0.0
+			"stddev": 10.9098181144522
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -11040,10 +11040,10 @@
 			"stddev": 11.3746367431752
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.8015151297763,
 			"mean": 32.4763433449033,
 			"min": 14.0356688476182,
-			"stddev": 0.0
+			"stddev": 11.3746367431752
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11097,10 +11097,10 @@
 			"stddev": 10.1053330077546
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.6951674225463,
 			"mean": 27.3265326680779,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 10.1053330077546
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11154,10 +11154,10 @@
 			"stddev": 9.39936315005928
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 41.6173040933696,
 			"mean": 25.2310196648033,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 9.39936315005928
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11211,10 +11211,10 @@
 			"stddev": 10.7906020959374
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.8844870842914,
 			"mean": 28.4511452899864,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 10.7906020959374
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11268,10 +11268,10 @@
 			"stddev": 11.350299184266
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.2494635168428,
 			"mean": 30.8595781819925,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 11.350299184266
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11325,10 +11325,10 @@
 			"stddev": 11.6187640840587
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.0,
 			"mean": 29.1393129509641,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 11.6187640840587
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11382,10 +11382,10 @@
 			"stddev": 10.7776934443227
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.6004115208915,
 			"mean": 28.6047929753575,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 10.7776934443227
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -11439,10 +11439,10 @@
 			"stddev": 11.0987181235379
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.7397332811061,
 			"mean": 31.2388552136898,
 			"min": 14.0356688476182,
-			"stddev": 0.0
+			"stddev": 11.0987181235379
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11496,10 +11496,10 @@
 			"stddev": 10.8557337155718
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.0096144957834,
 			"mean": 30.467167305016,
 			"min": 16.0,
-			"stddev": 0.0
+			"stddev": 10.8557337155718
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11553,10 +11553,10 @@
 			"stddev": 10.7031007294963
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.4236228055175,
 			"mean": 30.0034254633727,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 10.7031007294963
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11610,10 +11610,10 @@
 			"stddev": 11.6013875694282
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.8773976393997,
 			"mean": 27.3596539379937,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 11.6013875694282
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11667,10 +11667,10 @@
 			"stddev": 11.7446917488773
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.4777178564959,
 			"mean": 31.0692824339724,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 11.7446917488773
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11724,10 +11724,10 @@
 			"stddev": 10.1601653995533
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.3450093132096,
 			"mean": 28.2995808652524,
 			"min": 15.0,
-			"stddev": 0.0
+			"stddev": 10.1601653995533
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11781,10 +11781,10 @@
 			"stddev": 10.2394503473277
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.1663783151692,
 			"mean": 27.6217881462105,
 			"min": 8.24621125123532,
-			"stddev": 0.0
+			"stddev": 10.2394503473277
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11838,10 +11838,10 @@
 			"stddev": 9.25701352403089
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.690470119715,
 			"mean": 27.5304694517721,
 			"min": 12.2065556157337,
-			"stddev": 0.0
+			"stddev": 9.25701352403089
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11895,10 +11895,10 @@
 			"stddev": 11.8590489789098
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.2033209314706,
 			"mean": 31.7314791152198,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 11.8590489789098
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -11952,10 +11952,10 @@
 			"stddev": 11.1995953885129
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.7121960079831,
 			"mean": 28.0763841840057,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 11.1995953885129
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12009,10 +12009,10 @@
 			"stddev": 11.2716837147709
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.8555686498567,
 			"mean": 29.6615287719853,
 			"min": 10.6301458127347,
-			"stddev": 0.0
+			"stddev": 11.2716837147709
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12066,10 +12066,10 @@
 			"stddev": 10.9549373207362
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.4309069156733,
 			"mean": 26.7544178054441,
 			"min": 8.24621125123532,
-			"stddev": 0.0
+			"stddev": 10.9549373207362
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12123,10 +12123,10 @@
 			"stddev": 12.5101695727243
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 59.39696961967,
 			"mean": 33.6065532175861,
 			"min": 14.8660687473185,
-			"stddev": 0.0
+			"stddev": 12.5101695727243
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12180,10 +12180,10 @@
 			"stddev": 12.2857715484501
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 59.464274989274,
 			"mean": 28.2356210069793,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 12.2857715484501
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12237,10 +12237,10 @@
 			"stddev": 10.8627407964757
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.5078940808788,
 			"mean": 28.6040440948314,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 10.8627407964757
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12294,10 +12294,10 @@
 			"stddev": 9.66964353399176
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.8016736108685,
 			"mean": 27.6288822934022,
 			"min": 12.1655250605964,
-			"stddev": 0.0
+			"stddev": 9.66964353399176
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12351,10 +12351,10 @@
 			"stddev": 9.69156352835689
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.5533388198909,
 			"mean": 26.5541186150744,
 			"min": 10.295630140987,
-			"stddev": 0.0
+			"stddev": 9.69156352835689
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12408,10 +12408,10 @@
 			"stddev": 8.85777465237
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.5660418215839,
 			"mean": 26.4380105082891,
 			"min": 13.0384048104053,
-			"stddev": 0.0
+			"stddev": 8.85777465237
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -12465,10 +12465,10 @@
 			"stddev": 9.88221391913143
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.2709412050371,
 			"mean": 28.1688605591242,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 9.88221391913143
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12522,10 +12522,10 @@
 			"stddev": 8.92392580053816
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.5440947723653,
 			"mean": 26.6437114124571,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 8.92392580053816
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12579,10 +12579,10 @@
 			"stddev": 10.6871778944623
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0,
 			"mean": 26.5040147917384,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 10.6871778944623
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -12636,10 +12636,10 @@
 			"stddev": 12.841058008944
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 61.7170964968379,
 			"mean": 30.2696231617408,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 12.841058008944
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12693,10 +12693,10 @@
 			"stddev": 8.63897239211556
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.4381903478459,
 			"mean": 23.0927026983207,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 8.63897239211556
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12750,10 +12750,10 @@
 			"stddev": 9.29147551426309
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.081318457076,
 			"mean": 25.3893848629743,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 9.29147551426309
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12807,10 +12807,10 @@
 			"stddev": 9.51593786639115
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.7393204617835,
 			"mean": 27.0716733496759,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 9.51593786639115
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12864,10 +12864,10 @@
 			"stddev": 10.5244938862448
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.4885309033011,
 			"mean": 28.1322858052607,
 			"min": 12.1655250605964,
-			"stddev": 0.0
+			"stddev": 10.5244938862448
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12921,10 +12921,10 @@
 			"stddev": 11.2457031979472
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.7397332811061,
 			"mean": 25.3773590048269,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 11.2457031979472
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -12978,10 +12978,10 @@
 			"stddev": 10.002208399445
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.1856457633784,
 			"mean": 24.902736864139,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 10.002208399445
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13035,10 +13035,10 @@
 			"stddev": 11.0907868752649
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.5350352572967,
 			"mean": 30.3337650750827,
 			"min": 14.0,
-			"stddev": 0.0
+			"stddev": 11.0907868752649
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13092,10 +13092,10 @@
 			"stddev": 11.9782759864288
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.0,
 			"mean": 26.2795765279462,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 11.9782759864288
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13149,10 +13149,10 @@
 			"stddev": 10.4538939935408
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.3385414123783,
 			"mean": 28.5799114496013,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 10.4538939935408
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13206,10 +13206,10 @@
 			"stddev": 10.0967509357894
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.2493781056045,
 			"mean": 28.3944729961856,
 			"min": 16.1554944214035,
-			"stddev": 0.0
+			"stddev": 10.0967509357894
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13263,10 +13263,10 @@
 			"stddev": 10.4216071331685
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.2033209314706,
 			"mean": 28.6931153182545,
 			"min": 13.4164078649987,
-			"stddev": 0.0
+			"stddev": 10.4216071331685
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13320,10 +13320,10 @@
 			"stddev": 10.5285009517602
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.2036584005702,
 			"mean": 27.1890769575582,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 10.5285009517602
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13377,10 +13377,10 @@
 			"stddev": 9.90267175097601
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.9313263129874,
 			"mean": 29.6348242187825,
 			"min": 15.2970585407784,
-			"stddev": 0.0
+			"stddev": 9.90267175097601
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13434,10 +13434,10 @@
 			"stddev": 11.2621410047495
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.0370243444252,
 			"mean": 28.323343712153,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 11.2621410047495
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13491,10 +13491,10 @@
 			"stddev": 9.76236854338108
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.7772263544762,
 			"mean": 25.5441908118603,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 9.76236854338108
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13548,10 +13548,10 @@
 			"stddev": 11.3900125826203
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.7281874401041,
 			"mean": 29.9996983165171,
 			"min": 9.89949493661167,
-			"stddev": 0.0
+			"stddev": 11.3900125826203
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13605,10 +13605,10 @@
 			"stddev": 14.1810927101619
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 60.0,
 			"mean": 31.4981698640395,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 14.1810927101619
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13662,10 +13662,10 @@
 			"stddev": 10.8362205007012
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.8652099195598,
 			"mean": 28.9516039776595,
 			"min": 14.0,
-			"stddev": 0.0
+			"stddev": 10.8362205007012
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13719,10 +13719,10 @@
 			"stddev": 10.0191987290333
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.2652091923859,
 			"mean": 29.6904095413468,
 			"min": 12.2065556157337,
-			"stddev": 0.0
+			"stddev": 10.0191987290333
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13776,10 +13776,10 @@
 			"stddev": 10.2903546935447
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.6789693934969,
 			"mean": 29.5894773814884,
 			"min": 12.2065556157337,
-			"stddev": 0.0
+			"stddev": 10.2903546935447
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13833,10 +13833,10 @@
 			"stddev": 11.6681561558214
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.2033209314706,
 			"mean": 27.9650604882922,
 			"min": 11.6619037896906,
-			"stddev": 0.0
+			"stddev": 11.6681561558214
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -13890,10 +13890,10 @@
 			"stddev": 9.05810269395433
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 40.3608721412211,
 			"mean": 25.5549979151422,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 9.05810269395433
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -13947,10 +13947,10 @@
 			"stddev": 10.0372671047167
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.662365412358,
 			"mean": 29.1631850850806,
 			"min": 14.142135623731,
-			"stddev": 0.0
+			"stddev": 10.0372671047167
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14004,10 +14004,10 @@
 			"stddev": 10.5810927118595
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.2195181179589,
 			"mean": 29.7680317642647,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 10.5810927118595
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14061,10 +14061,10 @@
 			"stddev": 10.6336809453056
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.7393204617835,
 			"mean": 28.6501237599108,
 			"min": 11.7046999107196,
-			"stddev": 0.0
+			"stddev": 10.6336809453056
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14118,10 +14118,10 @@
 			"stddev": 10.1581701638607
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.2709412050371,
 			"mean": 27.1653167856535,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 10.1581701638607
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14175,10 +14175,10 @@
 			"stddev": 10.9604247646504
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.2033209314706,
 			"mean": 29.649741722594,
 			"min": 13.0384048104053,
-			"stddev": 0.0
+			"stddev": 10.9604247646504
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14232,10 +14232,10 @@
 			"stddev": 12.9414187805025
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 65.1152823843988,
 			"mean": 33.3530274765638,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 12.9414187805025
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14289,10 +14289,10 @@
 			"stddev": 9.44772252259452
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.5489443757534,
 			"mean": 25.419856619671,
 			"min": 8.94427190999916,
-			"stddev": 0.0
+			"stddev": 9.44772252259452
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14346,10 +14346,10 @@
 			"stddev": 11.8037391103427
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.8015151297763,
 			"mean": 30.4099816032533,
 			"min": 14.142135623731,
-			"stddev": 0.0
+			"stddev": 11.8037391103427
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14403,10 +14403,10 @@
 			"stddev": 11.1918320318479
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.1507290636732,
 			"mean": 32.8616151902757,
 			"min": 15.2315462117278,
-			"stddev": 0.0
+			"stddev": 11.1918320318479
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14460,10 +14460,10 @@
 			"stddev": 12.2629008035303
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.2033209314706,
 			"mean": 30.3064086744028,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 12.2629008035303
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14517,10 +14517,10 @@
 			"stddev": 11.0501681859148
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.0802995712398,
 			"mean": 30.5362933512636,
 			"min": 14.8660687473185,
-			"stddev": 0.0
+			"stddev": 11.0501681859148
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14574,10 +14574,10 @@
 			"stddev": 11.8941255440745
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.4891294072192,
 			"mean": 29.2469984852965,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 11.8941255440745
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -14631,10 +14631,10 @@
 			"stddev": 9.94655110111272
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.2718872423573,
 			"mean": 25.6298175913209,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 9.94655110111272
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -14688,10 +14688,10 @@
 			"stddev": 11.0288147866252
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.1507290636732,
 			"mean": 28.0506940177691,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 11.0288147866252
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14745,10 +14745,10 @@
 			"stddev": 11.3733373606909
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.8555686498567,
 			"mean": 31.1918725241949,
 			"min": 13.4164078649987,
-			"stddev": 0.0
+			"stddev": 11.3733373606909
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14802,10 +14802,10 @@
 			"stddev": 11.2666551324356
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.817880294663,
 			"mean": 32.1797867084751,
 			"min": 14.142135623731,
-			"stddev": 0.0
+			"stddev": 11.2666551324356
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14859,10 +14859,10 @@
 			"stddev": 10.42265489394
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.7397332811061,
 			"mean": 30.6460077134258,
 			"min": 14.0356688476182,
-			"stddev": 0.0
+			"stddev": 10.42265489394
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14916,10 +14916,10 @@
 			"stddev": 11.0332754979736
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.3450093132096,
 			"mean": 28.3058158818678,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 11.0332754979736
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -14973,10 +14973,10 @@
 			"stddev": 10.1301483665901
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.2018956920184,
 			"mean": 25.0418525629626,
 			"min": 8.54400374531753,
-			"stddev": 0.0
+			"stddev": 10.1301483665901
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15030,10 +15030,10 @@
 			"stddev": 10.0259699764249
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.7074417675063,
 			"mean": 28.0043180740708,
 			"min": 11.6619037896906,
-			"stddev": 0.0
+			"stddev": 10.0259699764249
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15087,10 +15087,10 @@
 			"stddev": 10.3728446191039
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.3450093132096,
 			"mean": 26.0498478056668,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 10.3728446191039
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15144,10 +15144,10 @@
 			"stddev": 10.6990998483557
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.0,
 			"mean": 30.6827968793537,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 10.6990998483557
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15201,10 +15201,10 @@
 			"stddev": 11.8918989002972
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.0086200490927,
 			"mean": 31.5641731439206,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 11.8918989002972
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15258,10 +15258,10 @@
 			"stddev": 10.6100792546429
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.2259335286851,
 			"mean": 27.6077547615177,
 			"min": 14.8660687473185,
-			"stddev": 0.0
+			"stddev": 10.6100792546429
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15315,10 +15315,10 @@
 			"stddev": 9.48649883670771
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.4165866921848,
 			"mean": 25.566564042984,
 			"min": 10.816653826392,
-			"stddev": 0.0
+			"stddev": 9.48649883670771
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -15372,10 +15372,10 @@
 			"stddev": 11.2266340913506
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.8144961882948,
 			"mean": 31.3818391722994,
 			"min": 12.5299640861417,
-			"stddev": 0.0
+			"stddev": 11.2266340913506
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15429,10 +15429,10 @@
 			"stddev": 10.4126852271707
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.3321838943783,
 			"mean": 30.4545685942951,
 			"min": 12.8062484748657,
-			"stddev": 0.0
+			"stddev": 10.4126852271707
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15486,10 +15486,10 @@
 			"stddev": 10.961423892105
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.851648071345,
 			"mean": 30.4480751689772,
 			"min": 12.2065556157337,
-			"stddev": 0.0
+			"stddev": 10.961423892105
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15543,10 +15543,10 @@
 			"stddev": 12.1145978813533
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.1077293567226,
 			"mean": 27.7213746666937,
 			"min": 11.7046999107196,
-			"stddev": 0.0
+			"stddev": 12.1145978813533
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15600,10 +15600,10 @@
 			"stddev": 11.0658605048934
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0,
 			"mean": 30.3397282822147,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 11.0658605048934
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15657,10 +15657,10 @@
 			"stddev": 10.5799896156113
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.1040538832228,
 			"mean": 28.3459413525487,
 			"min": 8.0,
-			"stddev": 0.0
+			"stddev": 10.5799896156113
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15714,10 +15714,10 @@
 			"stddev": 10.3636756092803
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.4134814442946,
 			"mean": 28.0513803965388,
 			"min": 14.0356688476182,
-			"stddev": 0.0
+			"stddev": 10.3636756092803
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15771,10 +15771,10 @@
 			"stddev": 11.6612203208411
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.9464029227975,
 			"mean": 29.9526091980592,
 			"min": 8.54400374531753,
-			"stddev": 0.0
+			"stddev": 11.6612203208411
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15828,10 +15828,10 @@
 			"stddev": 12.2186718218872
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.4436651025164,
 			"mean": 30.0323517918113,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 12.2186718218872
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15885,10 +15885,10 @@
 			"stddev": 13.4680039792588
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 66.4830805543786,
 			"mean": 30.7531417249933,
 			"min": 15.6204993518133,
-			"stddev": 0.0
+			"stddev": 13.4680039792588
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15942,10 +15942,10 @@
 			"stddev": 8.92659767847856
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.2040722106007,
 			"mean": 22.7456253581694,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 8.92659767847856
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -15999,10 +15999,10 @@
 			"stddev": 11.1548150271912
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.5964425626941,
 			"mean": 26.8673745646065,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 11.1548150271912
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16056,10 +16056,10 @@
 			"stddev": 12.511249239604
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 60.8769250208977,
 			"mean": 30.406837805363,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 12.511249239604
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -16113,10 +16113,10 @@
 			"stddev": 9.83099978581321
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.0407993409569,
 			"mean": 26.1337041161483,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 9.83099978581321
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16170,10 +16170,10 @@
 			"stddev": 11.1992746582767
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.3963561409139,
 			"mean": 27.8346317259445,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 11.1992746582767
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16227,10 +16227,10 @@
 			"stddev": 7.59647018389404
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 38.4707681233427,
 			"mean": 20.9240878001651,
 			"min": 8.94427190999916,
-			"stddev": 0.0
+			"stddev": 7.59647018389404
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16284,10 +16284,10 @@
 			"stddev": 11.040116951182
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.3289181286465,
 			"mean": 31.2925384167115,
 			"min": 13.6014705087354,
-			"stddev": 0.0
+			"stddev": 11.040116951182
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -16341,10 +16341,10 @@
 			"stddev": 11.7501386717601
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.8506816142076,
 			"mean": 26.2901566452637,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 11.7501386717601
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16398,10 +16398,10 @@
 			"stddev": 12.0493436637647
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.6281181368956,
 			"mean": 27.5932010800473,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 12.0493436637647
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16455,10 +16455,10 @@
 			"stddev": 11.1038896540433
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.4976189936268,
 			"mean": 32.1638486248203,
 			"min": 14.3178210632764,
-			"stddev": 0.0
+			"stddev": 11.1038896540433
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16512,10 +16512,10 @@
 			"stddev": 12.9112676808817
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.2634959423431,
 			"mean": 29.2943050733374,
 			"min": 9.4339811320566,
-			"stddev": 0.0
+			"stddev": 12.9112676808817
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16569,10 +16569,10 @@
 			"stddev": 12.2765479026127
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.8144961882948,
 			"mean": 32.8292942670269,
 			"min": 9.0,
-			"stddev": 0.0
+			"stddev": 12.2765479026127
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16626,10 +16626,10 @@
 			"stddev": 13.8795572400214
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 63.8905313798532,
 			"mean": 32.5280214051709,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 13.8795572400214
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -16683,10 +16683,10 @@
 			"stddev": 9.17507133480994
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.0111097397076,
 			"mean": 28.8098688332944,
 			"min": 18.2482875908947,
-			"stddev": 0.0
+			"stddev": 9.17507133480994
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16740,10 +16740,10 @@
 			"stddev": 9.18185394761613
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.0116263352131,
 			"mean": 24.8112538979675,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 9.18185394761613
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16797,10 +16797,10 @@
 			"stddev": 12.9500724294248
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 61.8465843842649,
 			"mean": 31.6018445103067,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 12.9500724294248
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16854,10 +16854,10 @@
 			"stddev": 9.57710225985698
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.4626276242015,
 			"mean": 25.3845297454863,
 			"min": 11.7046999107196,
-			"stddev": 0.0
+			"stddev": 9.57710225985698
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16911,10 +16911,10 @@
 			"stddev": 9.2034599906351
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.2036584005702,
 			"mean": 24.3048327628344,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 9.2034599906351
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -16968,10 +16968,10 @@
 			"stddev": 9.1206915226443
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 41.194659848092,
 			"mean": 25.1368376132795,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 9.1206915226443
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17025,10 +17025,10 @@
 			"stddev": 11.9845650513728
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.4123274660409,
 			"mean": 31.5396758529691,
 			"min": 14.0,
-			"stddev": 0.0
+			"stddev": 11.9845650513728
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17082,10 +17082,10 @@
 			"stddev": 9.53588598690172
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.5295604965274,
 			"mean": 26.1974230351557,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 9.53588598690172
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17139,10 +17139,10 @@
 			"stddev": 13.2162391912566
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 61.0737259384099,
 			"mean": 27.8225255216236,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 13.2162391912566
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17196,10 +17196,10 @@
 			"stddev": 10.2242464036322
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.6487663492256,
 			"mean": 26.7178917180747,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 10.2242464036322
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17253,10 +17253,10 @@
 			"stddev": 13.0639916993098
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.3846669416143,
 			"mean": 30.9632843545904,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 13.0639916993098
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -17310,10 +17310,10 @@
 			"stddev": 9.57836161854265
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.4862616621766,
 			"mean": 27.0654891511338,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 9.57836161854265
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17367,10 +17367,10 @@
 			"stddev": 11.237330833522
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.3259018078045,
 			"mean": 28.6124933672401,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 11.237330833522
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17424,10 +17424,10 @@
 			"stddev": 10.8616730265393
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.2493781056045,
 			"mean": 30.8641456650913,
 			"min": 12.1655250605964,
-			"stddev": 0.0
+			"stddev": 10.8616730265393
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17481,10 +17481,10 @@
 			"stddev": 10.1729235175922
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.5295604965274,
 			"mean": 29.4058175076922,
 			"min": 12.1655250605964,
-			"stddev": 0.0
+			"stddev": 10.1729235175922
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17538,10 +17538,10 @@
 			"stddev": 10.6381478777773
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.8039299623951,
 			"mean": 27.3873676166337,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 10.6381478777773
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17595,10 +17595,10 @@
 			"stddev": 13.007518176093
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 63.7024332345319,
 			"mean": 33.6868590239371,
 			"min": 13.4164078649987,
-			"stddev": 0.0
+			"stddev": 13.007518176093
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -17652,10 +17652,10 @@
 			"stddev": 14.9381512222859
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 71.4212853426764,
 			"mean": 33.4876554364671,
 			"min": 14.0356688476182,
-			"stddev": 0.0
+			"stddev": 14.9381512222859
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17709,10 +17709,10 @@
 			"stddev": 11.1485751031006
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.561891462815,
 			"mean": 26.0675813411994,
 			"min": 10.816653826392,
-			"stddev": 0.0
+			"stddev": 11.1485751031006
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17766,10 +17766,10 @@
 			"stddev": 12.2096749543143
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.8262224629348,
 			"mean": 28.847217071116,
 			"min": 8.06225774829855,
-			"stddev": 0.0
+			"stddev": 12.2096749543143
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17823,10 +17823,10 @@
 			"stddev": 10.1207551594782
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.8035431835222,
 			"mean": 30.8876432490096,
 			"min": 15.8113883008419,
-			"stddev": 0.0
+			"stddev": 10.1207551594782
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17880,10 +17880,10 @@
 			"stddev": 11.9400405262816
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 60.2079728939615,
 			"mean": 30.8933604184627,
 			"min": 13.6014705087354,
-			"stddev": 0.0
+			"stddev": 11.9400405262816
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -17937,10 +17937,10 @@
 			"stddev": 10.1741417442404
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.0106370941726,
 			"mean": 29.3486623651786,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 10.1741417442404
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -17994,10 +17994,10 @@
 			"stddev": 11.5819249309334
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.1543289325507,
 			"mean": 29.5482166996981,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 11.5819249309334
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18051,10 +18051,10 @@
 			"stddev": 8.09320885404216
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 40.4598566482878,
 			"mean": 24.9174822730108,
 			"min": 14.7648230602334,
-			"stddev": 0.0
+			"stddev": 8.09320885404216
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18108,10 +18108,10 @@
 			"stddev": 10.3019845832796
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.1663783151692,
 			"mean": 26.4640379406103,
 			"min": 8.54400374531753,
-			"stddev": 0.0
+			"stddev": 10.3019845832796
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18165,10 +18165,10 @@
 			"stddev": 11.3069908317865
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.0,
 			"mean": 30.7657749896025,
 			"min": 15.2315462117278,
-			"stddev": 0.0
+			"stddev": 11.3069908317865
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18222,10 +18222,10 @@
 			"stddev": 9.83894987820712
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.7598157450382,
 			"mean": 27.6363256216444,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 9.83894987820712
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18279,10 +18279,10 @@
 			"stddev": 9.31888722297579
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.0454310910905,
 			"mean": 26.042387754833,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 9.31888722297579
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18336,10 +18336,10 @@
 			"stddev": 11.3603827811596
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.8652099195598,
 			"mean": 31.0328364987922,
 			"min": 9.4339811320566,
-			"stddev": 0.0
+			"stddev": 11.3603827811596
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18393,10 +18393,10 @@
 			"stddev": 10.1757377335962
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.7074417675063,
 			"mean": 29.1805068603115,
 			"min": 14.560219778561,
-			"stddev": 0.0
+			"stddev": 10.1757377335962
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18450,10 +18450,10 @@
 			"stddev": 10.5123795935846
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.9073278877742,
 			"mean": 29.8003574450344,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 10.5123795935846
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18507,10 +18507,10 @@
 			"stddev": 9.07399794995322
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.2040722106007,
 			"mean": 26.678789314725,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 9.07399794995322
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18564,10 +18564,10 @@
 			"stddev": 11.2462086320757
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.8393792544916,
 			"mean": 28.7169923311388,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 11.2462086320757
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18621,10 +18621,10 @@
 			"stddev": 8.74828220520571
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.7772263544762,
 			"mean": 26.4654480296567,
 			"min": 12.5299640861417,
-			"stddev": 0.0
+			"stddev": 8.74828220520571
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18678,10 +18678,10 @@
 			"stddev": 9.27208635843689
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.2216762183801,
 			"mean": 27.1386183332512,
 			"min": 14.142135623731,
-			"stddev": 0.0
+			"stddev": 9.27208635843689
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18735,10 +18735,10 @@
 			"stddev": 11.4302181275002
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.6392090340252,
 			"mean": 31.1848195553641,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 11.4302181275002
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18792,10 +18792,10 @@
 			"stddev": 10.2234157222726
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.9299509312797,
 			"mean": 28.7411412358838,
 			"min": 12.5299640861417,
-			"stddev": 0.0
+			"stddev": 10.2234157222726
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18849,10 +18849,10 @@
 			"stddev": 10.9243919748064
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.4058820349418,
 			"mean": 28.4084250243081,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 10.9243919748064
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18906,10 +18906,10 @@
 			"stddev": 10.7175047798344
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.0,
 			"mean": 26.347347311292,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 10.7175047798344
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -18963,10 +18963,10 @@
 			"stddev": 9.83673449372708
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.3896540189728,
 			"mean": 25.6087891762057,
 			"min": 13.6014705087354,
-			"stddev": 0.0
+			"stddev": 9.83673449372708
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19020,10 +19020,10 @@
 			"stddev": 12.5118050958152
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.6038867923396,
 			"mean": 34.096885347304,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 12.5118050958152
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19077,10 +19077,10 @@
 			"stddev": 12.2350835489953
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.6392090340252,
 			"mean": 32.2920875916268,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 12.2350835489953
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19134,10 +19134,10 @@
 			"stddev": 10.4174625956858
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.0096144957834,
 			"mean": 30.0335177319141,
 			"min": 14.560219778561,
-			"stddev": 0.0
+			"stddev": 10.4174625956858
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -19191,10 +19191,10 @@
 			"stddev": 11.2480956334563
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.8032257132148,
 			"mean": 29.9436671395385,
 			"min": 9.48683298050514,
-			"stddev": 0.0
+			"stddev": 11.2480956334563
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19248,10 +19248,10 @@
 			"stddev": 7.99067999614238
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 41.4366987102013,
 			"mean": 21.588279114001,
 			"min": 8.06225774829855,
-			"stddev": 0.0
+			"stddev": 7.99067999614238
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19305,10 +19305,10 @@
 			"stddev": 11.8469040332931
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.4282160614449,
 			"mean": 32.8812206943379,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 11.8469040332931
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19362,10 +19362,10 @@
 			"stddev": 11.3198447112222
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.3963561409139,
 			"mean": 29.0132017815783,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 11.3198447112222
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19419,10 +19419,10 @@
 			"stddev": 12.5947902332093
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.4003546088143,
 			"mean": 30.9967712900881,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 12.5947902332093
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19476,10 +19476,10 @@
 			"stddev": 10.63317675229
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.0094331227943,
 			"mean": 29.7718679894818,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 10.63317675229
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19533,10 +19533,10 @@
 			"stddev": 11.2281472098591
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.2033209314706,
 			"mean": 31.6594625250744,
 			"min": 14.142135623731,
-			"stddev": 0.0
+			"stddev": 11.2281472098591
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -19590,10 +19590,10 @@
 			"stddev": 9.82349359839392
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.8721665810319,
 			"mean": 26.7470322732649,
 			"min": 12.1655250605964,
-			"stddev": 0.0
+			"stddev": 9.82349359839392
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19647,10 +19647,10 @@
 			"stddev": 10.5466071149238
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.60632371552,
 			"mean": 30.528792534287,
 			"min": 16.2788205960997,
-			"stddev": 0.0
+			"stddev": 10.5466071149238
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19704,10 +19704,10 @@
 			"stddev": 10.7090505451062
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.2541078227774,
 			"mean": 28.014996804322,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 10.7090505451062
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19761,10 +19761,10 @@
 			"stddev": 10.941476074112
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.9799959983992,
 			"mean": 27.8490541240694,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 10.941476074112
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -19818,10 +19818,10 @@
 			"stddev": 10.555048655419
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.1597448159378,
 			"mean": 26.1665088610799,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 10.555048655419
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19875,10 +19875,10 @@
 			"stddev": 11.9962358675906
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 60.4400529450463,
 			"mean": 30.6919384678435,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 11.9962358675906
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19932,10 +19932,10 @@
 			"stddev": 10.0737236857807
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.0106370941726,
 			"mean": 27.1494294539309,
 			"min": 12.0,
-			"stddev": 0.0
+			"stddev": 10.0737236857807
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -19989,10 +19989,10 @@
 			"stddev": 12.2165407171052
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 60.3075451332584,
 			"mean": 27.9113211294812,
 			"min": 13.0384048104053,
-			"stddev": 0.0
+			"stddev": 12.2165407171052
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20046,10 +20046,10 @@
 			"stddev": 9.10802263554859
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 41.7731971484108,
 			"mean": 26.3979818827095,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 9.10802263554859
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20103,10 +20103,10 @@
 			"stddev": 11.954960518793
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.644304369257,
 			"mean": 29.2435644518797,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 11.954960518793
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -20160,10 +20160,10 @@
 			"stddev": 9.8589986241716
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.4165866921848,
 			"mean": 25.4939797456466,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 9.8589986241716
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20217,10 +20217,10 @@
 			"stddev": 10.8464302200606
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.0881590977792,
 			"mean": 27.2560207250998,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 10.8464302200606
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -20274,10 +20274,10 @@
 			"stddev": 14.0469918464841
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 60.1414998150196,
 			"mean": 35.8344888549199,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 14.0469918464841
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20331,10 +20331,10 @@
 			"stddev": 9.97963548329208
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.8614980554399,
 			"mean": 28.7058517246861,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 9.97963548329208
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20388,10 +20388,10 @@
 			"stddev": 12.1903943796386
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.2541078227774,
 			"mean": 29.4935666772445,
 			"min": 8.06225774829855,
-			"stddev": 0.0
+			"stddev": 12.1903943796386
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20445,10 +20445,10 @@
 			"stddev": 12.6478216068678
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 62.2414652783817,
 			"mean": 30.8318672346044,
 			"min": 9.48683298050514,
-			"stddev": 0.0
+			"stddev": 12.6478216068678
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20502,10 +20502,10 @@
 			"stddev": 11.1546014060978
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.4123274660409,
 			"mean": 30.5123489574246,
 			"min": 11.7046999107196,
-			"stddev": 0.0
+			"stddev": 11.1546014060978
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20559,10 +20559,10 @@
 			"stddev": 12.7924059712568
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.258046654518,
 			"mean": 33.5768070029622,
 			"min": 9.0,
-			"stddev": 0.0
+			"stddev": 12.7924059712568
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20616,10 +20616,10 @@
 			"stddev": 10.4875737635203
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.3289181286465,
 			"mean": 29.335681773672,
 			"min": 14.142135623731,
-			"stddev": 0.0
+			"stddev": 10.4875737635203
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20673,10 +20673,10 @@
 			"stddev": 12.8082653737451
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 62.2896460095897,
 			"mean": 30.5599840286282,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 12.8082653737451
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -20730,10 +20730,10 @@
 			"stddev": 12.0542510119362
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.2033209314706,
 			"mean": 32.2214034775806,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 12.0542510119362
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20787,10 +20787,10 @@
 			"stddev": 9.33782242936615
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.7055795281058,
 			"mean": 27.4459698818208,
 			"min": 11.7046999107196,
-			"stddev": 0.0
+			"stddev": 9.33782242936615
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20844,10 +20844,10 @@
 			"stddev": 12.0123488353342
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.7274184147313,
 			"mean": 29.595505598802,
 			"min": 13.4536240470737,
-			"stddev": 0.0
+			"stddev": 12.0123488353342
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -20901,10 +20901,10 @@
 			"stddev": 11.8190099618256
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.3846669416143,
 			"mean": 28.5198603098559,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 11.8190099618256
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -20958,10 +20958,10 @@
 			"stddev": 10.277176910307
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.2353266168247,
 			"mean": 27.1994155485522,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 10.277176910307
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21015,10 +21015,10 @@
 			"stddev": 11.9371822361926
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.3259018078045,
 			"mean": 29.4437132795525,
 			"min": 8.06225774829855,
-			"stddev": 0.0
+			"stddev": 11.9371822361926
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21072,10 +21072,10 @@
 			"stddev": 12.5460988048391
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.851648071345,
 			"mean": 28.8150948374893,
 			"min": 8.0,
-			"stddev": 0.0
+			"stddev": 12.5460988048391
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21129,10 +21129,10 @@
 			"stddev": 10.0029615530151
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.6070170039655,
 			"mean": 27.0367967632358,
 			"min": 11.0,
-			"stddev": 0.0
+			"stddev": 10.0029615530151
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21186,10 +21186,10 @@
 			"stddev": 11.9362291784194
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.2033209314706,
 			"mean": 33.6480772060888,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 11.9362291784194
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21243,10 +21243,10 @@
 			"stddev": 12.233365902222
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.9181208709839,
 			"mean": 31.4757956386062,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 12.233365902222
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21300,10 +21300,10 @@
 			"stddev": 11.2981239603512
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.1507290636732,
 			"mean": 29.5646187306859,
 			"min": 13.6014705087354,
-			"stddev": 0.0
+			"stddev": 11.2981239603512
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21357,10 +21357,10 @@
 			"stddev": 8.83663731565779
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 40.7062648740952,
 			"mean": 23.9167112924575,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 8.83663731565779
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21414,10 +21414,10 @@
 			"stddev": 10.1872857285787
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.2036584005702,
 			"mean": 31.4344392567938,
 			"min": 16.1245154965971,
-			"stddev": 0.0
+			"stddev": 10.1872857285787
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21471,10 +21471,10 @@
 			"stddev": 9.50459838326237
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.2831796509691,
 			"mean": 26.1633283897525,
 			"min": 11.3137084989848,
-			"stddev": 0.0
+			"stddev": 9.50459838326237
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21528,10 +21528,10 @@
 			"stddev": 7.9985333115547
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 38.0788655293195,
 			"mean": 21.8135964176812,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 7.9985333115547
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21585,10 +21585,10 @@
 			"stddev": 11.7939042057153
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.2016948848238,
 			"mean": 26.4187706495596,
 			"min": 9.48683298050514,
-			"stddev": 0.0
+			"stddev": 11.7939042057153
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21642,10 +21642,10 @@
 			"stddev": 9.99007202195823
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.8401537145215,
 			"mean": 28.5057785962257,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 9.99007202195823
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21699,10 +21699,10 @@
 			"stddev": 7.80198851070281
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 37.0135110466435,
 			"mean": 22.2835712287648,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 7.80198851070281
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21756,10 +21756,10 @@
 			"stddev": 10.192836650554
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.7031826475437,
 			"mean": 29.3308124198018,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 10.192836650554
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21813,10 +21813,10 @@
 			"stddev": 9.87031183264576
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.5078940808788,
 			"mean": 24.5765236710749,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 9.87031183264576
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21870,10 +21870,10 @@
 			"stddev": 9.57670725828061
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.081318457076,
 			"mean": 23.7366706855037,
 			"min": 8.06225774829855,
-			"stddev": 0.0
+			"stddev": 9.57670725828061
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21927,10 +21927,10 @@
 			"stddev": 8.90160203750998
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.0116263352131,
 			"mean": 24.0019752207841,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 8.90160203750998
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -21984,10 +21984,10 @@
 			"stddev": 10.2960974957608
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.2195181179589,
 			"mean": 28.4753844436722,
 			"min": 9.0,
-			"stddev": 0.0
+			"stddev": 10.2960974957608
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22041,10 +22041,10 @@
 			"stddev": 11.8768958816619
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.309518948453,
 			"mean": 31.3640120038567,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 11.8768958816619
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22098,10 +22098,10 @@
 			"stddev": 11.3512803382508
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.6307894677631,
 			"mean": 29.4990856422713,
 			"min": 13.0384048104053,
-			"stddev": 0.0
+			"stddev": 11.3512803382508
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22155,10 +22155,10 @@
 			"stddev": 8.84116137865237
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 41.3400532171888,
 			"mean": 27.8572134584043,
 			"min": 15.1327459504216,
-			"stddev": 0.0
+			"stddev": 8.84116137865237
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22212,10 +22212,10 @@
 			"stddev": 8.77338676627402
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.4264068711929,
 			"mean": 23.9360073227372,
 			"min": 10.816653826392,
-			"stddev": 0.0
+			"stddev": 8.77338676627402
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22269,10 +22269,10 @@
 			"stddev": 11.2301472782559
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.5371150739731,
 			"mean": 30.4267736379236,
 			"min": 12.7279220613579,
-			"stddev": 0.0
+			"stddev": 11.2301472782559
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22326,10 +22326,10 @@
 			"stddev": 12.4239236907699
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 62.4819974072532,
 			"mean": 35.0122893544568,
 			"min": 14.3178210632764,
-			"stddev": 0.0
+			"stddev": 12.4239236907699
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -22383,10 +22383,10 @@
 			"stddev": 12.3302625707272
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.6236379965612,
 			"mean": 29.7363471062375,
 			"min": 9.48683298050514,
-			"stddev": 0.0
+			"stddev": 12.3302625707272
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22440,10 +22440,10 @@
 			"stddev": 11.58156746068
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.3149195236284,
 			"mean": 31.481826350957,
 			"min": 14.2126704035519,
-			"stddev": 0.0
+			"stddev": 11.58156746068
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22497,10 +22497,10 @@
 			"stddev": 12.1672627969295
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 59.4053869611166,
 			"mean": 31.3012338389396,
 			"min": 15.0332963783729,
-			"stddev": 0.0
+			"stddev": 12.1672627969295
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22554,10 +22554,10 @@
 			"stddev": 10.4711963389755
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.9313263129874,
 			"mean": 30.6247915381384,
 			"min": 15.0332963783729,
-			"stddev": 0.0
+			"stddev": 10.4711963389755
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22611,10 +22611,10 @@
 			"stddev": 10.5706018109976
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.5547333738837,
 			"mean": 33.0263314315945,
 			"min": 19.2353840616713,
-			"stddev": 0.0
+			"stddev": 10.5706018109976
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22668,10 +22668,10 @@
 			"stddev": 10.692328650131
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.6789693934969,
 			"mean": 32.6213166275333,
 			"min": 19.2353840616713,
-			"stddev": 0.0
+			"stddev": 10.692328650131
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22725,10 +22725,10 @@
 			"stddev": 8.76006643655291
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.5440947723653,
 			"mean": 25.2949138088788,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 8.76006643655291
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22782,10 +22782,10 @@
 			"stddev": 10.7957071313223
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.2493781056045,
 			"mean": 27.8161539724749,
 			"min": 11.7046999107196,
-			"stddev": 0.0
+			"stddev": 10.7957071313223
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22839,10 +22839,10 @@
 			"stddev": 11.3682679303884
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.2493781056045,
 			"mean": 28.5807229152473,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 11.3682679303884
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22896,10 +22896,10 @@
 			"stddev": 8.45829496592669
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 39.9624824053762,
 			"mean": 26.0179445142304,
 			"min": 13.1529464379659,
-			"stddev": 0.0
+			"stddev": 8.45829496592669
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -22953,10 +22953,10 @@
 			"stddev": 10.1105575991474
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.0104155366312,
 			"mean": 28.944371215045,
 			"min": 13.0384048104053,
-			"stddev": 0.0
+			"stddev": 10.1105575991474
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23010,10 +23010,10 @@
 			"stddev": 8.74837567891458
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.407206622349,
 			"mean": 24.3592012366033,
 			"min": 13.4164078649987,
-			"stddev": 0.0
+			"stddev": 8.74837567891458
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23067,10 +23067,10 @@
 			"stddev": 11.771253999038
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.1294744108974,
 			"mean": 31.8898320599834,
 			"min": 14.3178210632764,
-			"stddev": 0.0
+			"stddev": 11.771253999038
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23124,10 +23124,10 @@
 			"stddev": 9.1495170743073
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.2666153055679,
 			"mean": 26.0457592594687,
 			"min": 12.0415945787923,
-			"stddev": 0.0
+			"stddev": 9.1495170743073
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23181,10 +23181,10 @@
 			"stddev": 9.75474824434837
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.4148737476408,
 			"mean": 26.4014272886876,
 			"min": 12.8062484748657,
-			"stddev": 0.0
+			"stddev": 9.75474824434837
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23238,10 +23238,10 @@
 			"stddev": 9.29497385202071
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.0108682813094,
 			"mean": 27.2987638677889,
 			"min": 13.9283882771841,
-			"stddev": 0.0
+			"stddev": 9.29497385202071
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23295,10 +23295,10 @@
 			"stddev": 10.7319737474467
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.7954915950234,
 			"mean": 28.6699772693836,
 			"min": 15.2643375224737,
-			"stddev": 0.0
+			"stddev": 10.7319737474467
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23352,10 +23352,10 @@
 			"stddev": 10.7971769624404
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.2015325445527,
 			"mean": 29.1415595576364,
 			"min": 13.4164078649987,
-			"stddev": 0.0
+			"stddev": 10.7971769624404
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23409,10 +23409,10 @@
 			"stddev": 10.7881500746032
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.7694685525172,
 			"mean": 25.0978391949099,
 			"min": 8.24621125123532,
-			"stddev": 0.0
+			"stddev": 10.7881500746032
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23466,10 +23466,10 @@
 			"stddev": 9.54282170117121
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.9221548904324,
 			"mean": 27.6005742120848,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 9.54282170117121
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23523,10 +23523,10 @@
 			"stddev": 10.0101274419419
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.4004310324807,
 			"mean": 29.757547518409,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 10.0101274419419
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23580,10 +23580,10 @@
 			"stddev": 11.3056160501136
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.4309069156733,
 			"mean": 31.4187114102376,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 11.3056160501136
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23637,10 +23637,10 @@
 			"stddev": 11.2118398686091
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.8506816142076,
 			"mean": 32.0001395696168,
 			"min": 12.1655250605964,
-			"stddev": 0.0
+			"stddev": 11.2118398686091
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23694,10 +23694,10 @@
 			"stddev": 10.7829067100565
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.2700735445887,
 			"mean": 30.7712817416674,
 			"min": 14.2126704035519,
-			"stddev": 0.0
+			"stddev": 10.7829067100565
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23751,10 +23751,10 @@
 			"stddev": 11.572489143069
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.5862174031804,
 			"mean": 31.5063314844013,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 11.572489143069
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23808,10 +23808,10 @@
 			"stddev": 12.4691493179571
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 60.2079728939615,
 			"mean": 30.7794973666503,
 			"min": 14.0356688476182,
-			"stddev": 0.0
+			"stddev": 12.4691493179571
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23865,10 +23865,10 @@
 			"stddev": 11.7485841651326
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.5862174031804,
 			"mean": 29.3155136667152,
 			"min": 14.7648230602334,
-			"stddev": 0.0
+			"stddev": 11.7485841651326
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23922,10 +23922,10 @@
 			"stddev": 10.8126146861812
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.3259018078045,
 			"mean": 25.5760626894719,
 			"min": 9.48683298050514,
-			"stddev": 0.0
+			"stddev": 10.8126146861812
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -23979,10 +23979,10 @@
 			"stddev": 9.35927708135563
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.1735855224608,
 			"mean": 23.7110408106421,
 			"min": 8.0,
-			"stddev": 0.0
+			"stddev": 9.35927708135563
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24036,10 +24036,10 @@
 			"stddev": 11.489618410386
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 59.2030404624627,
 			"mean": 30.509765840479,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 11.489618410386
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24093,10 +24093,10 @@
 			"stddev": 10.7721780317694
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.6789693934969,
 			"mean": 28.1992601975648,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 10.7721780317694
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24150,10 +24150,10 @@
 			"stddev": 10.6606916476054
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.6004115208915,
 			"mean": 31.1596065791291,
 			"min": 15.2643375224737,
-			"stddev": 0.0
+			"stddev": 10.6606916476054
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24207,10 +24207,10 @@
 			"stddev": 8.01068280099628
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 39.8246155034798,
 			"mean": 23.9348402983902,
 			"min": 11.3137084989848,
-			"stddev": 0.0
+			"stddev": 8.01068280099628
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24264,10 +24264,10 @@
 			"stddev": 12.3517493838949
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.2268050859363,
 			"mean": 32.1281807988433,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 12.3517493838949
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -24321,10 +24321,10 @@
 			"stddev": 9.52193072103566
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.4165866921848,
 			"mean": 28.0288877701116,
 			"min": 14.142135623731,
-			"stddev": 0.0
+			"stddev": 9.52193072103566
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24378,10 +24378,10 @@
 			"stddev": 8.23346836596214
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.9418211071678,
 			"mean": 24.8676592154786,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 8.23346836596214
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24435,10 +24435,10 @@
 			"stddev": 12.4423905635147
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.0802995712398,
 			"mean": 27.9275638362329,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 12.4423905635147
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24492,10 +24492,10 @@
 			"stddev": 8.56145699463564
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 42.485291572496,
 			"mean": 20.6705801249126,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 8.56145699463564
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24549,10 +24549,10 @@
 			"stddev": 10.3560975875983
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.4004310324807,
 			"mean": 26.8999699927952,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 10.3560975875983
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24606,10 +24606,10 @@
 			"stddev": 9.81414746621458
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.9444101084885,
 			"mean": 28.719773095452,
 			"min": 15.52417469626,
-			"stddev": 0.0
+			"stddev": 9.81414746621458
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24663,10 +24663,10 @@
 			"stddev": 10.1305008705871
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.1597448159378,
 			"mean": 27.1160047576297,
 			"min": 11.0,
-			"stddev": 0.0
+			"stddev": 10.1305008705871
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24720,10 +24720,10 @@
 			"stddev": 12.1923453084722
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.7281874401041,
 			"mean": 29.6328976079101,
 			"min": 11.4017542509914,
-			"stddev": 0.0
+			"stddev": 12.1923453084722
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24777,10 +24777,10 @@
 			"stddev": 10.3765678451258
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.0096144957834,
 			"mean": 29.4382838161673,
 			"min": 14.2126704035519,
-			"stddev": 0.0
+			"stddev": 10.3765678451258
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24834,10 +24834,10 @@
 			"stddev": 11.2556261098744
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.1536192416212,
 			"mean": 26.7986571255326,
 			"min": 12.2065556157337,
-			"stddev": 0.0
+			"stddev": 11.2556261098744
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24891,10 +24891,10 @@
 			"stddev": 10.0066928280603
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.5394572960189,
 			"mean": 26.9454369946995,
 			"min": 10.6301458127347,
-			"stddev": 0.0
+			"stddev": 10.0066928280603
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -24948,10 +24948,10 @@
 			"stddev": 8.94035558471627
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 44.0454310910905,
 			"mean": 24.6436226488097,
 			"min": 10.816653826392,
-			"stddev": 0.0
+			"stddev": 8.94035558471627
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25005,10 +25005,10 @@
 			"stddev": 11.8277483535757
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 59.8163857149527,
 			"mean": 29.7354940597887,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 11.8277483535757
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25062,10 +25062,10 @@
 			"stddev": 9.93037061961576
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.8852795752515,
 			"mean": 30.5918932044629,
 			"min": 17.7200451466693,
-			"stddev": 0.0
+			"stddev": 9.93037061961576
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25119,10 +25119,10 @@
 			"stddev": 10.8309931846032
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.6588360717405,
 			"mean": 28.3334576910464,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 10.8309931846032
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25176,10 +25176,10 @@
 			"stddev": 10.1951212920399
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.4236228055175,
 			"mean": 27.3106028064215,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 10.1951212920399
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25233,10 +25233,10 @@
 			"stddev": 10.4508894107568
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.8555686498567,
 			"mean": 29.4831324828337,
 			"min": 16.1245154965971,
-			"stddev": 0.0
+			"stddev": 10.4508894107568
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25290,10 +25290,10 @@
 			"stddev": 11.6338554809205
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.1077293567226,
 			"mean": 30.0457758219736,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 11.6338554809205
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25347,10 +25347,10 @@
 			"stddev": 11.279421214613
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.6789693934969,
 			"mean": 28.0681719410253,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 11.279421214613
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25404,10 +25404,10 @@
 			"stddev": 10.2786541407386
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.2493781056045,
 			"mean": 26.9773579225922,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 10.2786541407386
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25461,10 +25461,10 @@
 			"stddev": 10.6890734500536
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.7074417675063,
 			"mean": 28.2156811216797,
 			"min": 10.0,
-			"stddev": 0.0
+			"stddev": 10.6890734500536
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25518,10 +25518,10 @@
 			"stddev": 8.83088884366271
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.690470119715,
 			"mean": 25.5513707085944,
 			"min": 15.0332963783729,
-			"stddev": 0.0
+			"stddev": 8.83088884366271
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25575,10 +25575,10 @@
 			"stddev": 11.2502486980606
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.5782210249622,
 			"mean": 29.0681219509551,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 11.2502486980606
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25632,10 +25632,10 @@
 			"stddev": 10.7614114874607
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.7274184147313,
 			"mean": 28.1801453904362,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 10.7614114874607
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -25689,10 +25689,10 @@
 			"stddev": 10.6799851135584
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 48.7954915950234,
 			"mean": 28.3833840371923,
 			"min": 12.1655250605964,
-			"stddev": 0.0
+			"stddev": 10.6799851135584
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -25746,10 +25746,10 @@
 			"stddev": 10.0236135897721
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.5782210249622,
 			"mean": 27.8072194999288,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 10.0236135897721
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25803,10 +25803,10 @@
 			"stddev": 11.5347069544442
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.6487663492256,
 			"mean": 30.6189804540668,
 			"min": 13.6014705087354,
-			"stddev": 0.0
+			"stddev": 11.5347069544442
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25860,10 +25860,10 @@
 			"stddev": 10.0029785143766
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.3431361950185,
 			"mean": 28.3672756112184,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 10.0029785143766
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25917,10 +25917,10 @@
 			"stddev": 11.3614894236382
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 56.2227711874824,
 			"mean": 25.7453164669094,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 11.3614894236382
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -25974,10 +25974,10 @@
 			"stddev": 11.1932529138941
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.9313263129874,
 			"mean": 32.7595372324121,
 			"min": 17.8044938147649,
-			"stddev": 0.0
+			"stddev": 11.1932529138941
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26031,10 +26031,10 @@
 			"stddev": 11.0185355340691
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.4777178564959,
 			"mean": 29.7468920892615,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 11.0185355340691
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -26088,10 +26088,10 @@
 			"stddev": 10.2715433153473
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.5176736125598,
 			"mean": 26.460800618075,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 10.2715433153473
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -26145,10 +26145,10 @@
 			"stddev": 9.8614857411513
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.3100430368368,
 			"mean": 27.1045357990472,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 9.8614857411513
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26202,10 +26202,10 @@
 			"stddev": 13.23034022904
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 58.0086200490927,
 			"mean": 32.6584926939823,
 			"min": 9.21954445729289,
-			"stddev": 0.0
+			"stddev": 13.23034022904
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26259,10 +26259,10 @@
 			"stddev": 9.79981428098654
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.8634243989226,
 			"mean": 27.3628497203796,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 9.79981428098654
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26316,10 +26316,10 @@
 			"stddev": 11.4537759794572
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.3963561409139,
 			"mean": 29.6575946525391,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 11.4537759794572
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26373,10 +26373,10 @@
 			"stddev": 13.3463887356172
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 59.4138031100518,
 			"mean": 34.8707491432724,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 13.3463887356172
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26430,10 +26430,10 @@
 			"stddev": 12.1332970278094
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.1507290636732,
 			"mean": 29.5396788581812,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 12.1332970278094
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26487,10 +26487,10 @@
 			"stddev": 11.3965306205685
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.5350352572967,
 			"mean": 28.6493587446755,
 			"min": 10.6301458127347,
-			"stddev": 0.0
+			"stddev": 11.3965306205685
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26544,10 +26544,10 @@
 			"stddev": 11.5336654358694
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.2015325445527,
 			"mean": 29.399113846284,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 11.5336654358694
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26601,10 +26601,10 @@
 			"stddev": 9.46389854312617
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 43.4626276242015,
 			"mean": 24.2105123877976,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 9.46389854312617
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26658,10 +26658,10 @@
 			"stddev": 9.91436546734427
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.254441424099,
 			"mean": 27.6423265034401,
 			"min": 13.3416640641263,
-			"stddev": 0.0
+			"stddev": 9.91436546734427
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -26715,10 +26715,10 @@
 			"stddev": 11.9513623704341
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.0977222864644,
 			"mean": 26.3515280909603,
 			"min": 10.1980390271856,
-			"stddev": 0.0
+			"stddev": 11.9513623704341
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26772,10 +26772,10 @@
 			"stddev": 11.5319092951684
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.3783044972901,
 			"mean": 29.1758350989701,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 11.5319092951684
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -26829,10 +26829,10 @@
 			"stddev": 9.24861030034718
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 45.2769256906871,
 			"mean": 25.5675830447543,
 			"min": 11.0453610171873,
-			"stddev": 0.0
+			"stddev": 9.24861030034718
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26886,10 +26886,10 @@
 			"stddev": 9.09998626789563
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.5295604965274,
 			"mean": 26.9258198340113,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 9.09998626789563
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -26943,10 +26943,10 @@
 			"stddev": 10.9931254495334
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.4777178564959,
 			"mean": 27.0169039235203,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 10.9931254495334
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27000,10 +27000,10 @@
 			"stddev": 10.4558701508792
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 52.0096144957834,
 			"mean": 28.7960152395026,
 			"min": 12.5299640861417,
-			"stddev": 0.0
+			"stddev": 10.4558701508792
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -27057,10 +27057,10 @@
 			"stddev": 10.0002010634296
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 49.1934955049954,
 			"mean": 24.3524864795897,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 10.0002010634296
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27114,10 +27114,10 @@
 			"stddev": 12.3873488448466
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 55.8032257132148,
 			"mean": 31.7712248969602,
 			"min": 10.770329614269,
-			"stddev": 0.0
+			"stddev": 12.3873488448466
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27171,10 +27171,10 @@
 			"stddev": 10.8264872789492
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.3289181286465,
 			"mean": 30.0986715710446,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 10.8264872789492
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27228,10 +27228,10 @@
 			"stddev": 9.88955913015743
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.662365412358,
 			"mean": 26.3277230531526,
 			"min": 12.8062484748657,
-			"stddev": 0.0
+			"stddev": 9.88955913015743
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27285,10 +27285,10 @@
 			"stddev": 10.4687936236399
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.5964425626941,
 			"mean": 31.151313938029,
 			"min": 14.3178210632764,
-			"stddev": 0.0
+			"stddev": 10.4687936236399
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27342,10 +27342,10 @@
 			"stddev": 11.6482281905246
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 59.464274989274,
 			"mean": 29.8302294584751,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 11.6482281905246
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27399,10 +27399,10 @@
 			"stddev": 13.0307960650917
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 57.3149195236284,
 			"mean": 31.4373264888593,
 			"min": 9.05538513813742,
-			"stddev": 0.0
+			"stddev": 13.0307960650917
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 8,
@@ -27456,10 +27456,10 @@
 			"stddev": 10.7810493794817
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.6236379965612,
 			"mean": 28.8997845269779,
 			"min": 11.1803398874989,
-			"stddev": 0.0
+			"stddev": 10.7810493794817
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27513,10 +27513,10 @@
 			"stddev": 8.27198649833636
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 41.0121933088198,
 			"mean": 24.1888000714205,
 			"min": 9.8488578017961,
-			"stddev": 0.0
+			"stddev": 8.27198649833636
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27570,10 +27570,10 @@
 			"stddev": 11.444208038348
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0899191454728,
 			"mean": 29.5648054521357,
 			"min": 13.9283882771841,
-			"stddev": 0.0
+			"stddev": 11.444208038348
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27627,10 +27627,10 @@
 			"stddev": 12.5366173549056
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 61.6116872029975,
 			"mean": 29.1412796163386,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 12.5366173549056
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27684,10 +27684,10 @@
 			"stddev": 10.3400961041472
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 51.8652099195598,
 			"mean": 27.8608196164409,
 			"min": 15.0332963783729,
-			"stddev": 0.0
+			"stddev": 10.3400961041472
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27741,10 +27741,10 @@
 			"stddev": 12.2913202322562
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 61.6198020120156,
 			"mean": 32.3311676146885,
 			"min": 12.6491106406735,
-			"stddev": 0.0
+			"stddev": 12.2913202322562
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27798,10 +27798,10 @@
 			"stddev": 9.88683989225802
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.3289181286465,
 			"mean": 28.5684294081704,
 			"min": 12.369316876853,
-			"stddev": 0.0
+			"stddev": 9.88683989225802
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27855,10 +27855,10 @@
 			"stddev": 10.3437214880385
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.1198563445667,
 			"mean": 28.7362024376882,
 			"min": 16.1554944214035,
-			"stddev": 0.0
+			"stddev": 10.3437214880385
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27912,10 +27912,10 @@
 			"stddev": 11.3733131878562
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 53.2634959423431,
 			"mean": 31.2985643134524,
 			"min": 13.4536240470737,
-			"stddev": 0.0
+			"stddev": 11.3733131878562
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -27969,10 +27969,10 @@
 			"stddev": 10.7378879121145
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 46.4865571966778,
 			"mean": 29.3814429829152,
 			"min": 14.7648230602334,
-			"stddev": 0.0
+			"stddev": 10.7378879121145
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -28026,10 +28026,10 @@
 			"stddev": 10.7370663432137
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.9313263129874,
 			"mean": 25.7506574425272,
 			"min": 10.4403065089106,
-			"stddev": 0.0
+			"stddev": 10.7370663432137
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -28083,10 +28083,10 @@
 			"stddev": 10.118004892702
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0099990001999,
 			"mean": 27.0995919111924,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 10.118004892702
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -28140,10 +28140,10 @@
 			"stddev": 10.581819466066
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.169905660283,
 			"mean": 28.5711534781727,
 			"min": 13.0,
-			"stddev": 0.0
+			"stddev": 10.581819466066
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -28197,10 +28197,10 @@
 			"stddev": 11.8536845586758
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.5371150739731,
 			"mean": 30.385846807238,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 11.8536845586758
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -28254,10 +28254,10 @@
 			"stddev": 11.6067851521517
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 54.4518135602479,
 			"mean": 24.4860828373487,
 			"min": 9.48683298050514,
-			"stddev": 0.0
+			"stddev": 11.6067851521517
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -28311,10 +28311,10 @@
 			"stddev": 11.2240704881467
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 50.0899191454728,
 			"mean": 30.0066858226307,
 			"min": 8.54400374531753,
-			"stddev": 0.0
+			"stddev": 11.2240704881467
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -28368,10 +28368,10 @@
 			"stddev": 9.71038444416712
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 41.146081222882,
 			"mean": 24.6053392510805,
 			"min": 10.0498756211209,
-			"stddev": 0.0
+			"stddev": 9.71038444416712
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -28425,10 +28425,10 @@
 			"stddev": 9.16854802722728
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 41.7731971484108,
 			"mean": 25.3834331691633,
 			"min": 12.0830459735946,
-			"stddev": 0.0
+			"stddev": 9.16854802722728
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
@@ -28482,10 +28482,10 @@
 			"stddev": 9.7241672514755
 		},
 		"pairwise_spacing_before": {
-			"max": 0.0,
+			"max": 47.4341649025257,
 			"mean": 28.3265414799921,
 			"min": 14.0356688476182,
-			"stddev": 0.0
+			"stddev": 9.7241672514755
 		},
 		"placement_fallback": {
 			"tier_0_1_2": 7,
