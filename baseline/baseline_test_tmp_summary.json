@@ -1,0 +1,49 @@
+{
+	"avg_angular_uniformity": 0.733424696651625,
+	"avg_connections": 7.8,
+	"avg_corridor_length": 8.36507936507936,
+	"avg_corridors": 7.8,
+	"avg_dead_ends": 1.8,
+	"avg_loops": 1.4,
+	"avg_placement_tier_3": 0.0,
+	"avg_placement_tier_4": 0.0,
+	"avg_radial_variance": 39.6899585343516,
+	"avg_radiality": 0.482776325587794,
+	"avg_radiality_after_separator": 0.482776325587794,
+	"avg_radiality_before_separator": 0.482776325587794,
+	"avg_rooms": 7.4,
+	"avg_start_to_centroid_distance": 6.36009389536479,
+	"connectivity_pass_rate": 1.0,
+	"generation_failures": 0,
+	"generations_failed": 0,
+	"generations_successful": 5,
+	"highest_angular_pattern": {
+		"seed": 10001,
+		"value": 0.924797441642402
+	},
+	"highest_radial_distance_variance": {
+		"seed": 10002,
+		"value": 56.5141388159033
+	},
+	"highest_start_to_centroid_distance": {
+		"seed": 10002,
+		"value": 10.0
+	},
+	"overlap_pass_rate": 1.0,
+	"reachable_cells_total": 3525,
+	"seeds_evaluated": 5,
+	"short_corridor_rate": 0.153846153846154,
+	"walkable_cells_total": 3525,
+	"worst_short_corridors": {
+		"seed": 10003,
+		"value": 0.285714285714286
+	},
+	"worst_topology": {
+		"seed": 10002,
+		"value": 4
+	},
+	"worst_topology_checksum": {
+		"seed": 10002,
+		"value": ""
+	}
+}
