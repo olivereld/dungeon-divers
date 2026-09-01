@@ -16,12 +16,13 @@ func _init() -> void:
 	test_summary_generation()
 	test_build_config_static()
 	test_snapshot_to_dict()
+	test_baseline_save()
 	print("[PASS] test_dungeon_diagnostics completed successfully!")
 	quit(0)
 
 func test_single_seed_run() -> void:
 	print("  -> Testing single seed run...")
-	var diag := _DungeonDiagnosticsScript.new()
+	var diag = _DungeonDiagnosticsScript.new()
 	var snap = diag.run(12345)
 	assert(snap != null, "Snapshot must not be null")
 	assert(snap.room_count > 0, "Must have at least one room")
@@ -33,7 +34,7 @@ func test_single_seed_run() -> void:
 
 func test_multiple_seeds() -> void:
 	print("  -> Testing multiple seeds...")
-	var diag := _DungeonDiagnosticsScript.new()
+	var diag = _DungeonDiagnosticsScript.new()
 	var snapshots = diag.run_seeds([42, 999])
 	assert(snapshots.size() == 2, "Must have two snapshots")
 	assert(snapshots[0].generation_seed_used == 42, "First snapshot seed must be 42")
@@ -45,7 +46,7 @@ func test_multiple_seeds() -> void:
 
 func test_report_generation() -> void:
 	print("  -> Testing report generation...")
-	var diag := _DungeonDiagnosticsScript.new()
+	var diag = _DungeonDiagnosticsScript.new()
 	var snap = diag.run(1337)
 	var report: String = diag.generate_report(snap)
 	assert(report.length() > 0, "Report must not be empty")
@@ -61,7 +62,7 @@ func test_report_generation() -> void:
 
 func test_summary_generation() -> void:
 	print("  -> Testing summary generation...")
-	var diag := _DungeonDiagnosticsScript.new()
+	var diag = _DungeonDiagnosticsScript.new()
 	var snapshots = diag.run_seeds([100, 200, 300])
 	var summary: Dictionary = diag.generate_summary(snapshots)
 	assert(summary.size() > 0, "Summary must not be empty")
@@ -86,7 +87,7 @@ func test_build_config_static() -> void:
 
 func test_snapshot_to_dict() -> void:
 	print("  -> Testing snapshot to_dict...")
-	var diag := _DungeonDiagnosticsScript.new()
+	var diag = _DungeonDiagnosticsScript.new()
 	var snap = diag.run(7777)
 	var dict: Dictionary = snap.to_dict()
 	assert(dict.size() > 0, "to_dict must return non-empty dictionary")
@@ -97,9 +98,38 @@ func test_snapshot_to_dict() -> void:
 	assert(dict.has("spatial_angular_uniformity"), "Dict must have spatial_angular_uniformity")
 	assert(dict.has("spatial_radial_distance_variance"), "Dict must have spatial_radial_distance_variance")
 	assert(dict.has("spatial_radiality_provisional"), "Dict must have spatial_radiality_provisional")
+	assert(dict.has("spatial_bbox_min_x"), "Dict must have spatial_bbox_min_x")
+	assert(dict.has("spatial_bbox_max_x"), "Dict must have spatial_bbox_max_x")
+	assert(dict.has("spatial_bbox_min_y"), "Dict must have spatial_bbox_min_y")
+	assert(dict.has("spatial_bbox_max_y"), "Dict must have spatial_bbox_max_y")
+	assert(dict.has("spatial_bbox_width"), "Dict must have spatial_bbox_width")
+	assert(dict.has("spatial_bbox_height"), "Dict must have spatial_bbox_height")
+	assert(dict.has("spatial_bbox_area"), "Dict must have spatial_bbox_area")
 	assert(dict.has("connectivity_status"), "Dict must have connectivity_status")
 	assert(dict.has("validation_room_overlap"), "Dict must have validation_room_overlap")
 	assert(dict.has("generation_success"), "Dict must have generation_success")
 	assert(dict.has("generation_seed_used"), "Dict must have generation_seed_used")
 	assert(dict["room_count"] == snap.room_count, "Dict room_count must match snapshot")
 	print("    [OK] to_dict produced correct dictionary")
+
+func test_baseline_save() -> void:
+	print("  -> Testing baseline save...")
+	var diag = _DungeonDiagnosticsScript.new()
+	var summary = diag.save_baseline(10000, 5, "baseline_test_tmp")
+	assert(summary.size() > 0, "Summary must not be empty")
+	assert(summary.has("worst_radiality"), "Summary must have worst_radiality")
+	assert(summary.has("worst_short_corridors"), "Summary must have worst_short_corridors")
+	assert(summary.has("worst_spacing"), "Summary must have worst_spacing")
+	assert(summary.has("worst_topology"), "Summary must have worst_topology")
+	assert(summary.has("generation_failures"), "Summary must have generation_failures")
+	assert(summary["worst_radiality"].has("seed"), "worst_radiality must have seed")
+	assert(summary["worst_radiality"].has("value"), "worst_radiality must have value")
+	assert(summary["seeds_evaluated"] == 5, "Must have evaluated 5 seeds")
+	var f = FileAccess.open("baseline_test_tmp_summary.json", FileAccess.READ)
+	assert(f != null, "Summary file must exist")
+	f = null
+	f = FileAccess.open("baseline_test_tmp_seed_10000.json", FileAccess.READ)
+	assert(f != null, "Seed file must exist")
+	f = null
+	print("    [OK] Baseline save produced summary with worst-case metrics and files")
+

@@ -19,20 +19,35 @@ var connection_loops: int = 0
 var corridor_count: int = 0
 var corridor_average_length: float = 0.0
 var corridor_minimum_length: int = 0
-var corridor_short_count: int = 0
+var corridor_short_count: int = 0  # Frequency count of corridors <=3 cells (MVP-0 diagnostic only — NOT a quality judgment)
 
 # ── Spatial ────────────────────────────────────────────
-var spatial_average_room_distance: float = 0.0
-var spatial_minimum_room_distance: float = 0.0
+var spatial_average_center_distance: float = 0.0
+var spatial_minimum_center_distance: float = 0.0
 var spatial_start_centrality: float = 0.0
+# BASELINE OBSERVATION: `start` rooms exhibit different `profile` values
+# (`entrance`, `sacristy`, `none`). If start rooms have special spatial/topological
+# implications for radiality, this must be understood before interpreting the metric.
+# Do not interpret radiality without noting the start room profile.
 var spatial_angular_uniformity: float = 0.0
 var spatial_radial_distance_variance: float = 0.0
 
+# ── Spatial Extent / Bounding Box ────────────────────
+# Covers all rooms via their Rect2i bounds.
+var spatial_bbox_min_x: int = 0
+var spatial_bbox_max_x: int = 0
+var spatial_bbox_min_y: int = 0
+var spatial_bbox_max_y: int = 0
+var spatial_bbox_width: int = 0
+var spatial_bbox_height: int = 0
+var spatial_bbox_area: int = 0
+
 # ── Radiality (provisional MVP-0) ────────────────────
-# Método provisional documentado: media aritmética de las tres
-# mediciones espaciales normalizadas con umbrales empíricos.
-# NO es canónico — se usará para inspección rápida del baseline
-# hasta que se defina un composite definitivo en fases posteriores.
+# PROVISIONAL / DIAGNOSTIC ONLY — NOT A CANONICAL METRIC.
+# Promedio de tres mediciones espaciales normalizadas con umbrales empíricos.
+# NO usar para tomar decisiones ni comparar líneas base.
+# Solo para inspección rápida del baseline hasta que se defina
+# un composite definitivo en fases posteriores.
 var spatial_radiality_provisional: float = 0.0
 
 # ── Connectivity (CellGrid flood-fill) ─────────────────
@@ -63,11 +78,18 @@ func to_dict() -> Dictionary:
 		"corridor_average_length": roundf(corridor_average_length * 100.0) / 100.0,
 		"corridor_minimum_length": corridor_minimum_length,
 		"corridor_short_count": corridor_short_count,
-		"spatial_average_room_distance": roundf(spatial_average_room_distance * 100.0) / 100.0,
-		"spatial_minimum_room_distance": roundf(spatial_minimum_room_distance * 100.0) / 100.0,
+		"spatial_average_center_distance": roundf(spatial_average_center_distance * 100.0) / 100.0,
+		"spatial_minimum_center_distance": roundf(spatial_minimum_center_distance * 100.0) / 100.0,
 		"spatial_start_centrality": roundf(spatial_start_centrality * 100.0) / 100.0,
 		"spatial_angular_uniformity": roundf(spatial_angular_uniformity * 100.0) / 100.0,
 		"spatial_radial_distance_variance": roundf(spatial_radial_distance_variance * 100.0) / 100.0,
+		"spatial_bbox_min_x": spatial_bbox_min_x,
+		"spatial_bbox_max_x": spatial_bbox_max_x,
+		"spatial_bbox_min_y": spatial_bbox_min_y,
+		"spatial_bbox_max_y": spatial_bbox_max_y,
+		"spatial_bbox_width": spatial_bbox_width,
+		"spatial_bbox_height": spatial_bbox_height,
+		"spatial_bbox_area": spatial_bbox_area,
 		"spatial_radiality_provisional": roundf(spatial_radiality_provisional * 100.0) / 100.0,
 		"connectivity_status": connectivity_status,
 		"connectivity_walkable_cells": connectivity_walkable_cells,

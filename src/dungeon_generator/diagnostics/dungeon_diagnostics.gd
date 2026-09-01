@@ -46,18 +46,27 @@ func generate_report(snapshot) -> String:
 	lines.append("  loops: %d" % snapshot.connection_loops)
 	lines.append("")
 	lines.append("Spatial")
-	lines.append("  average room distance: %.1f" % snapshot.spatial_average_room_distance)
-	lines.append("  minimum room distance: %.1f" % snapshot.spatial_minimum_room_distance)
+	lines.append("  average center distance: %.1f" % snapshot.spatial_average_center_distance)
+	lines.append("  minimum center distance: %.1f" % snapshot.spatial_minimum_center_distance)
 	lines.append("  start centrality: %.1f" % snapshot.spatial_start_centrality)
 	lines.append("  angular uniformity: %.2f" % snapshot.spatial_angular_uniformity)
 	lines.append("  radial distance variance: %.1f" % snapshot.spatial_radial_distance_variance)
 	lines.append("  radiality (provisional): %.2f" % snapshot.spatial_radiality_provisional)
 	lines.append("")
+	lines.append("Spatial Extent / Bounding Box")
+	lines.append("  min x: %d" % snapshot.spatial_bbox_min_x)
+	lines.append("  max x: %d" % snapshot.spatial_bbox_max_x)
+	lines.append("  min y: %d" % snapshot.spatial_bbox_min_y)
+	lines.append("  max y: %d" % snapshot.spatial_bbox_max_y)
+	lines.append("  width: %d" % snapshot.spatial_bbox_width)
+	lines.append("  height: %d" % snapshot.spatial_bbox_height)
+	lines.append("  area: %d" % snapshot.spatial_bbox_area)
+	lines.append("")
 	lines.append("Corridors")
 	lines.append("  count: %d" % snapshot.corridor_count)
 	lines.append("  average length: %.1f" % snapshot.corridor_average_length)
 	lines.append("  minimum length: %d" % snapshot.corridor_minimum_length)
-	lines.append("  short corridors (<=3): %d" % snapshot.corridor_short_count)
+	lines.append("  short corridors (<=3): %d" % snapshot.corridor_short_count)  # Frequency count only — not a quality judgment
 	lines.append("")
 	lines.append("Validation")
 	lines.append("  connectivity: %s" % snapshot.connectivity_status)
@@ -86,6 +95,15 @@ func generate_summary(snapshots) -> Dictionary:
 	var connectivity_pass_count: int = 0
 	var overlap_pass_count: int = 0
 
+	var total_radiality: float = 0.0
+	var total_start_centrality: float = 0.0
+	var total_angular_uniformity: float = 0.0
+	var total_radial_variance: float = 0.0
+	var total_dead_ends: int = 0
+	var total_loops: int = 0
+	var total_corridor_length: float = 0.0
+	var total_short_corridors: int = 0
+
 	for snap in snapshots:
 		if snap.generation_success == "PASS":
 			summary["generations_successful"] += 1
@@ -102,13 +120,95 @@ func generate_summary(snapshots) -> Dictionary:
 		if snap.validation_room_overlap == "PASS":
 			overlap_pass_count += 1
 
+		total_radiality += snap.spatial_radiality_provisional
+		total_start_centrality += snap.spatial_start_centrality
+		total_angular_uniformity += snap.spatial_angular_uniformity
+		total_radial_variance += snap.spatial_radial_distance_variance
+		total_dead_ends += snap.connection_dead_ends
+		total_loops += snap.connection_loops
+		total_corridor_length += snap.corridor_average_length
+		total_short_corridors += snap.corridor_short_count
+
 	summary["avg_rooms"] = float(total_room_count) / float(n)
 	summary["avg_connections"] = float(total_connection_count) / float(n)
 	summary["avg_corridors"] = float(total_corridor_count) / float(n)
+	summary["avg_corridor_length"] = float(total_corridor_length) / float(n) if n > 0 else 0.0
 	summary["connectivity_pass_rate"] = float(connectivity_pass_count) / float(n)
 	summary["overlap_pass_rate"] = float(overlap_pass_count) / float(n)
 	summary["walkable_cells_total"] = total_walkable
 	summary["reachable_cells_total"] = total_reachable
+	summary["avg_dead_ends"] = float(total_dead_ends) / float(n)
+	summary["avg_loops"] = float(total_loops) / float(n)
+	summary["avg_radiality"] = float(total_radiality) / float(n)
+	summary["avg_start_centrality"] = float(total_start_centrality) / float(n)
+	summary["avg_angular_uniformity"] = float(total_angular_uniformity) / float(n)
+	summary["avg_radial_variance"] = float(total_radial_variance) / float(n)
+	summary["short_corridor_rate"] = float(total_short_corridors) / float(total_corridor_count) if total_corridor_count > 0 else 0.0
+
+	return summary
+
+## Ejecuta num_seeds generaciones desde seed_start, guarda cada snapshot como JSON
+## y un summary.json con el peor caso de cada métrica diagnóstico.
+func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dictionary:
+	var seeds: Array[int] = []
+	for i in range(num_seeds):
+		seeds.append(seed_start + i)
+	var snapshots = run_seeds(seeds)
+
+	var worst_radiality_seed = 0
+	var worst_radiality_val = 1e9
+	var worst_short_corridors_seed = 0
+	var worst_short_corridors_val = -1.0
+	var worst_spacing_seed = 0
+	var worst_spacing_val = -1.0
+	var worst_topology_seed = 0
+	var worst_topology_val = -1
+	var generation_failures = 0
+
+	for snap in snapshots:
+		var seed = snap.generation_seed_used
+		var snap_dict = snap.to_dict()
+		var json_str = JSON.stringify(snap_dict, "\t")
+
+		var file_path = output_dir + "_seed_%d.json" % seed
+		var file = FileAccess.open(file_path, FileAccess.WRITE)
+		if file:
+			file.store_string(json_str)
+			file = null
+
+		if snap.spatial_radiality_provisional < worst_radiality_val:
+			worst_radiality_val = snap.spatial_radiality_provisional
+			worst_radiality_seed = seed
+
+		var short_rate = float(snap.corridor_short_count) / float(snap.corridor_count) if snap.corridor_count > 0 else 0.0
+		if short_rate > worst_short_corridors_val:
+			worst_short_corridors_val = short_rate
+			worst_short_corridors_seed = seed
+
+		if snap.spatial_radial_distance_variance > worst_spacing_val:
+			worst_spacing_val = snap.spatial_radial_distance_variance
+			worst_spacing_seed = seed
+
+		var topo_score = snap.connection_dead_ends + snap.connection_loops
+		if topo_score > worst_topology_val:
+			worst_topology_val = topo_score
+			worst_topology_seed = seed
+
+		if snap.generation_success != "PASS":
+			generation_failures += 1
+
+	var summary = generate_summary(snapshots)
+	summary["worst_radiality"] = {"seed": worst_radiality_seed, "value": worst_radiality_val}
+	summary["worst_short_corridors"] = {"seed": worst_short_corridors_seed, "value": worst_short_corridors_val}
+	summary["worst_spacing"] = {"seed": worst_spacing_seed, "value": worst_spacing_val}
+	summary["worst_topology"] = {"seed": worst_topology_seed, "value": worst_topology_val}
+	summary["generation_failures"] = generation_failures
+
+	var summary_json = JSON.stringify(summary, "\t")
+	var summary_file = FileAccess.open(output_dir + "_summary.json", FileAccess.WRITE)
+	if summary_file:
+		summary_file.store_string(summary_json)
+		summary_file = null
 
 	return summary
 
@@ -141,6 +241,7 @@ func _snapshot_from_result(result: DungeonResult, config: DungeonConfig):
 	_compute_connection_metrics(snap, result.rooms, result.connections)
 	_compute_corridor_metrics(snap, result.corridor_paths)
 	_compute_spatial_metrics(snap, result.rooms)
+	_compute_bounding_box(snap, result.rooms)
 	_compute_connectivity(snap, result.grid, result.rooms)
 	_compute_validation(snap, result.rooms)
 
@@ -172,18 +273,44 @@ func _compute_connection_metrics(snap, rooms: Array[RoomData], connections: Arra
 	for r in rooms:
 		degree[r.id] = 0
 
-	var loop_count: int = 0
+	# Filter null connections and build adjacency list
+	var valid_connections: Array = []
 	for c in connections:
 		if c == null:
 			continue
+		valid_connections.append(c)
 		if degree.has(c.room_a_id):
 			degree[c.room_a_id] += 1
 		if degree.has(c.room_b_id):
 			degree[c.room_b_id] += 1
-		if not c.is_required:
-			loop_count += 1
 
-	snap.connection_loops = loop_count
+	# Build adjacency list for connected components
+	var adjacency: Dictionary = {}
+	for r in rooms:
+		adjacency[r.id] = []
+	for c in valid_connections:
+		adjacency[c.room_a_id].append(c.room_b_id)
+		adjacency[c.room_b_id].append(c.room_a_id)
+
+	# Count connected components via BFS
+	var visited: Dictionary = {}
+	var num_components: int = 0
+	for r in rooms:
+		if not visited.has(r.id):
+			num_components += 1
+			var queue: Array = [r.id]
+			visited[r.id] = true
+			while not queue.is_empty():
+				var current = queue.pop_front()
+				for neighbor in adjacency[current]:
+					if not visited.has(neighbor):
+						visited[neighbor] = true
+						queue.append(neighbor)
+
+	# Cycle rank: loops = E - V + C
+	var v: int = rooms.size()
+	var e: int = valid_connections.size()
+	snap.connection_loops = maxi(e - v + num_components, 0)
 
 	var total_degree: int = 0
 	var dead_ends: int = 0
@@ -221,8 +348,8 @@ func _compute_corridor_metrics(snap, corridor_paths: Array) -> void:
 
 func _compute_spatial_metrics(snap, rooms: Array[RoomData]) -> void:
 	if rooms.size() < 2:
-		snap.spatial_average_room_distance = 0.0
-		snap.spatial_minimum_room_distance = 0.0
+		snap.spatial_average_center_distance = 0.0
+		snap.spatial_minimum_center_distance = 0.0
 		snap.spatial_start_centrality = 0.0
 		snap.spatial_angular_uniformity = 0.0
 		snap.spatial_radial_distance_variance = 0.0
@@ -251,8 +378,8 @@ func _compute_spatial_metrics(snap, rooms: Array[RoomData]) -> void:
 			if d < min_dist:
 				min_dist = d
 
-	snap.spatial_average_room_distance = float(_sum_array(distances)) / float(distances.size()) if distances.size() > 0 else 0.0
-	snap.spatial_minimum_room_distance = min_dist if min_dist < 1e9 else 0.0
+	snap.spatial_average_center_distance = float(_sum_array(distances)) / float(distances.size()) if distances.size() > 0 else 0.0
+	snap.spatial_minimum_center_distance = min_dist if min_dist < 1e9 else 0.0
 
 	# Start centrality: distance from start room center to centroid of all rooms
 	var centroid: Vector2i = _compute_centroid(centers)
@@ -297,10 +424,12 @@ func _compute_spatial_metrics(snap, rooms: Array[RoomData]) -> void:
 	snap.spatial_radiality_provisional = _compute_provisional_radiality(snap)
 
 func _compute_provisional_radiality(snap) -> float:
-	# Normaliza cada medición al rango [0, 1] usando umbrales empíricos
-	# y promedia. Es provisional — no es una métrica canónica.
+	# DIAGNOSTIC ONLY — not a canonical metric.
+	# Normalizes three spatial measurements to [0,1] with empirical thresholds
+	# and averages them. Mixed magnitudes with arbitrary thresholds.
+	# Do NOT use for baseline decisions or comparisons.
 	var c_norm: float = minf(snap.spatial_start_centrality / 20.0, 1.0)
-	var a_norm: float = snap.spatial_angular_uniformity  # ya está en [0, 1]
+	var a_norm: float = snap.spatial_angular_uniformity  # already in [0, 1]
 	var v_norm: float = minf(snap.spatial_radial_distance_variance / 100.0, 1.0)
 	return (c_norm + a_norm + v_norm) / 3.0
 
@@ -372,6 +501,36 @@ func _compute_validation(snap, rooms: Array[RoomData]) -> void:
 				snap.validation_room_overlap = "FAIL"
 				return
 	snap.validation_room_overlap = "PASS"
+
+func _compute_bounding_box(snap, rooms: Array[RoomData]) -> void:
+	if rooms.is_empty():
+		snap.spatial_bbox_min_x = 0
+		snap.spatial_bbox_max_x = 0
+		snap.spatial_bbox_min_y = 0
+		snap.spatial_bbox_max_y = 0
+		snap.spatial_bbox_width = 0
+		snap.spatial_bbox_height = 0
+		snap.spatial_bbox_area = 0
+		return
+
+	var min_x: int = 999999
+	var max_x: int = -999999
+	var min_y: int = 999999
+	var max_y: int = -999999
+
+	for r in rooms:
+		min_x = mini(min_x, r.rect.position.x)
+		max_x = maxi(max_x, r.rect.end.x)
+		min_y = mini(min_y, r.rect.position.y)
+		max_y = maxi(max_y, r.rect.end.y)
+
+	snap.spatial_bbox_min_x = min_x
+	snap.spatial_bbox_max_x = max_x
+	snap.spatial_bbox_min_y = min_y
+	snap.spatial_bbox_max_y = max_y
+	snap.spatial_bbox_width = max_x - min_x
+	snap.spatial_bbox_height = max_y - min_y
+	snap.spatial_bbox_area = snap.spatial_bbox_width * snap.spatial_bbox_height
 
 static func _compute_centroid(points: Array[Vector2i]) -> Vector2i:
 	if points.is_empty():
