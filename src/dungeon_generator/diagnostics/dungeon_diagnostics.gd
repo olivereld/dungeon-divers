@@ -305,12 +305,28 @@ func _snapshot_from_result(result: DungeonResult, config: DungeonConfig):
 	snap.placement_tier_4 = result.placement_tier_4
 	snap.before_separator_metrics = result.before_separator_metrics
 	if not result.rooms_before_separator.is_empty():
+		var _before_spatial_snap := _DungeonMetricSnapshotScript.new()
+		_compute_pairwise_spacing(_before_spatial_snap, result.rooms_before_separator)
+		snap.before_pairwise_spacing_mean = _before_spatial_snap.pairwise_spacing_mean
+		snap.before_pairwise_spacing_min = _before_spatial_snap.pairwise_spacing_min
+		snap.before_pairwise_spacing_max = _before_spatial_snap.pairwise_spacing_max
+		snap.before_pairwise_spacing_stddev = _before_spatial_snap.pairwise_spacing_stddev
 		var _before_nn_snap := _DungeonMetricSnapshotScript.new()
 		_compute_nearest_neighbor(_before_nn_snap, result.rooms_before_separator)
-		snap.before_separator_metrics["nearest_neighbor_mean"] = _before_nn_snap.nearest_neighbor_mean
-		snap.before_separator_metrics["nearest_neighbor_min"] = _before_nn_snap.nearest_neighbor_min
-		snap.before_separator_metrics["nearest_neighbor_max"] = _before_nn_snap.nearest_neighbor_max
-		snap.before_separator_metrics["nearest_neighbor_stddev"] = _before_nn_snap.nearest_neighbor_stddev
+		snap.before_nearest_neighbor_mean = _before_nn_snap.nearest_neighbor_mean
+		snap.before_nearest_neighbor_min = _before_nn_snap.nearest_neighbor_min
+		snap.before_nearest_neighbor_max = _before_nn_snap.nearest_neighbor_max
+		snap.before_nearest_neighbor_stddev = _before_nn_snap.nearest_neighbor_stddev
+		snap.before_separator_metrics["pairwise_spacing_mean"] = snap.before_pairwise_spacing_mean
+		snap.before_separator_metrics["pairwise_spacing_min"] = snap.before_pairwise_spacing_min
+		snap.before_separator_metrics["pairwise_spacing_max"] = snap.before_pairwise_spacing_max
+		snap.before_separator_metrics["pairwise_spacing_stddev"] = snap.before_pairwise_spacing_stddev
+		snap.before_separator_metrics["nearest_neighbor_mean"] = snap.before_nearest_neighbor_mean
+		snap.before_separator_metrics["nearest_neighbor_min"] = snap.before_nearest_neighbor_min
+		snap.before_separator_metrics["nearest_neighbor_max"] = snap.before_nearest_neighbor_max
+		snap.before_separator_metrics["nearest_neighbor_stddev"] = snap.before_nearest_neighbor_stddev
+		if not _validate_metrics("before", snap.before_pairwise_spacing_mean, snap.before_separator_metrics.get("pairwise_spacing_mean", 0.0), snap.before_pairwise_spacing_stddev, snap.before_separator_metrics.get("pairwise_spacing_stddev", 0.0)):
+			push_error("[DungeonDiagnostics] BEFORE separator metrics validation mismatch for seed %d" % result.seed_used)
 	snap.after_separator_metrics = result.after_separator_metrics
 	snap.rooms = result.rooms
 
@@ -320,26 +336,36 @@ func _snapshot_from_result(result: DungeonResult, config: DungeonConfig):
 	_compute_pairwise_spacing(snap, result.rooms)
 	_compute_nearest_neighbor(snap, result.rooms)
 	_inject_metric_keys(snap)
+	if not result.after_separator_metrics.is_empty():
+		if not _validate_metrics("after", snap.pairwise_spacing_mean, result.after_separator_metrics.get("pairwise_spacing_mean", 0.0), snap.pairwise_spacing_stddev, result.after_separator_metrics.get("pairwise_spacing_stddev", 0.0)):
+			push_error("[DungeonDiagnostics] AFTER separator metrics validation mismatch for seed %d" % result.seed_used)
 
 	return snap
+
+func _validate_metrics(label: String, mean_a: float, mean_b: float, stddev_a: float, stddev_b: float) -> bool:
+	var m_ok: bool = abs(mean_a - mean_b) < 0.01
+	var s_ok: bool = abs(stddev_a - stddev_b) < 0.01
+	if not m_ok or not s_ok:
+		push_error("[DungeonDiagnostics] %s metrics validation FAILED: mean %s vs %s, stddev %s vs %s" % [label, str(mean_a), str(mean_b), str(stddev_a), str(stddev_b)])
+	return m_ok and s_ok
 
 func _inject_metric_keys(snap) -> void:
 	# Add pairwise_spacing_* and nearest_neighbor_* keys to before_separator_metrics
 	# and after_separator_metrics dictionaries so that experiment_500_detailed.gd
 	# and other consumers can read them via dictionary .get() lookups.
+	# before_* fields are populated directly from rooms_before_separator
+	# computation in _snapshot_from_result(), ensuring correct serialization.
 	var before: Dictionary = snap.before_separator_metrics
 	var after: Dictionary = snap.after_separator_metrics
 
-	# pairwise_spacing_mean and pairwise_spacing_min map to existing spatial keys
-	# computed by SpaceGrammar._compute_spatial_metrics_dict() before the separator
-	before["pairwise_spacing_mean"] = before.get("pairwise_spacing_mean", before.get("spatial_average_center_distance", 0.0))
-	before["pairwise_spacing_min"] = before.get("pairwise_spacing_min", before.get("spatial_minimum_center_distance", 0.0))
-	before["pairwise_spacing_max"] = before.get("pairwise_spacing_max", 0.0)
-	before["pairwise_spacing_stddev"] = before.get("pairwise_spacing_stddev", 0.0)
-	before["nearest_neighbor_mean"] = before.get("nearest_neighbor_mean", 0.0)
-	before["nearest_neighbor_min"] = before.get("nearest_neighbor_min", 0.0)
-	before["nearest_neighbor_max"] = before.get("nearest_neighbor_max", 0.0)
-	before["nearest_neighbor_stddev"] = before.get("nearest_neighbor_stddev", 0.0)
+	before["pairwise_spacing_mean"] = snap.before_pairwise_spacing_mean
+	before["pairwise_spacing_min"] = snap.before_pairwise_spacing_min
+	before["pairwise_spacing_max"] = snap.before_pairwise_spacing_max
+	before["pairwise_spacing_stddev"] = snap.before_pairwise_spacing_stddev
+	before["nearest_neighbor_mean"] = snap.before_nearest_neighbor_mean
+	before["nearest_neighbor_min"] = snap.before_nearest_neighbor_min
+	before["nearest_neighbor_max"] = snap.before_nearest_neighbor_max
+	before["nearest_neighbor_stddev"] = snap.before_nearest_neighbor_stddev
 
 	# after_separator_metrics: use computed snap values
 	after["pairwise_spacing_mean"] = snap.pairwise_spacing_mean

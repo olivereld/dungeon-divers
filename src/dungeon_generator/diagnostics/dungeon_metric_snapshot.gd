@@ -70,6 +70,16 @@ var nearest_neighbor_min: float = 0.0
 var nearest_neighbor_max: float = 0.0
 var nearest_neighbor_stddev: float = 0.0
 
+# ── Before-Separator Spatial Metrics (explicit) ────
+var before_pairwise_spacing_mean: float = 0.0
+var before_pairwise_spacing_min: float = 0.0
+var before_pairwise_spacing_max: float = 0.0
+var before_pairwise_spacing_stddev: float = 0.0
+var before_nearest_neighbor_mean: float = 0.0
+var before_nearest_neighbor_min: float = 0.0
+var before_nearest_neighbor_max: float = 0.0
+var before_nearest_neighbor_stddev: float = 0.0
+
 # ── Connectivity (CellGrid flood-fill) ─────────────────
 var connectivity_status: String = "FAIL"
 var connectivity_walkable_cells: int = 0
@@ -133,4 +143,12 @@ func to_dict() -> Dictionary:
 		"nearest_neighbor_min": roundf(nearest_neighbor_min * 100.0) / 100.0,
 		"nearest_neighbor_max": roundf(nearest_neighbor_max * 100.0) / 100.0,
 		"nearest_neighbor_stddev": roundf(nearest_neighbor_stddev * 100.0) / 100.0,
+		"before_pairwise_spacing_mean": roundf(before_pairwise_spacing_mean * 100.0) / 100.0,
+		"before_pairwise_spacing_min": roundf(before_pairwise_spacing_min * 100.0) / 100.0,
+		"before_pairwise_spacing_max": roundf(before_pairwise_spacing_max * 100.0) / 100.0,
+		"before_pairwise_spacing_stddev": roundf(before_pairwise_spacing_stddev * 100.0) / 100.0,
+		"before_nearest_neighbor_mean": roundf(before_nearest_neighbor_mean * 100.0) / 100.0,
+		"before_nearest_neighbor_min": roundf(before_nearest_neighbor_min * 100.0) / 100.0,
+		"before_nearest_neighbor_max": roundf(before_nearest_neighbor_max * 100.0) / 100.0,
+		"before_nearest_neighbor_stddev": roundf(before_nearest_neighbor_stddev * 100.0) / 100.0,
 	}
