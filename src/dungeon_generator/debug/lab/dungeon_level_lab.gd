@@ -30,19 +30,19 @@ enum ViewMode {
 var current_mode: LabMode = LabMode.GENERATE
 var current_view_mode: ViewMode = ViewMode.VIEW_2D
 
-var config: _LabConfigScript = _LabConfigScript.new()
-var controller: _LabControllerScript = _LabControllerScript.new()
-var overlay: _OverlayScript = _OverlayScript.new()
-var inspector: _InspectorScript = _InspectorScript.new()
-var showcase: _ShowcaseScript = _ShowcaseScript.new()
-var coverage: _CoverageScript = _CoverageScript.new()
-var golden_runner: _GoldenRunnerScript = _GoldenRunnerScript.new()
-var presentation_builder: _DungeonPresentationBuilderScript = _DungeonPresentationBuilderScript.new()
+var config: DungeonLabConfiguration = DungeonLabConfiguration.new()
+var controller: DungeonLabController = DungeonLabController.new()
+var overlay: DungeonLabOverlay = DungeonLabOverlay.new()
+var inspector: DungeonLabInspector = DungeonLabInspector.new()
+var showcase: DungeonLabTemplateShowcase = DungeonLabTemplateShowcase.new()
+var coverage: DungeonLabCoverage = DungeonLabCoverage.new()
+var golden_runner: DungeonLabGoldenRunner = DungeonLabGoldenRunner.new()
+var presentation_builder: DungeonPresentationBuilder = DungeonPresentationBuilder.new()
 
 # Sub-nodes
-var renderer: _RendererScript
+var renderer: DungeonLabRenderer
 var viewport_container_3d: SubViewportContainer
-var viewer_3d: _Dungeon3DViewerScript
+var viewer_3d: Dungeon3DViewer
 var seed_input: SpinBox
 var random_seed_btn: Button
 var algo_option: OptionButton

@@ -119,13 +119,13 @@ func _compute_stats(values: Array[float]) -> Dictionary:
 	for v in sorted_vals:
 		variance += (v - mean) * (v - mean)
 	variance /= float(n)
-	var p = func(idx: int) -> float:
-		var i: int = clampi(idx, 0, n - 1)
-		return sorted_vals[i]
+	var p10: float = sorted_vals[clampi(int(round(0.10 * float(n - 1))), 0, n - 1)]
+	var p25: float = sorted_vals[clampi(int(round(0.25 * float(n - 1))), 0, n - 1)]
+	var p75: float = sorted_vals[clampi(int(round(0.75 * float(n - 1))), 0, n - 1)]
+	var p90: float = sorted_vals[clampi(int(round(0.90 * float(n - 1))), 0, n - 1)]
 	return {
 		"mean": mean, "median": median, "min": sorted_vals[0], "max": sorted_vals[n - 1],
-		"p10": p(int(round(0.10 * (n - 1)))), "p25": p(int(round(0.25 * (n - 1)))),
-		"p75": p(int(round(0.75 * (n - 1)))), "p90": p(int(round(0.90 * (n - 1)))),
+		"p10": p10, "p25": p25, "p75": p75, "p90": p90,
 		"stddev": sqrt(variance), "count": n
 	}
 
@@ -194,7 +194,7 @@ func _compute_score(r: Dictionary) -> float:
 func _identify_worst(results: Array, count: int) -> Array:
 	var scored: Array[Dictionary] = []
 	for r in results:
-		var entry := r.duplicate()
+		var entry = r.duplicate()
 		entry["_score"] = _compute_score(r)
 		scored.append(entry)
 	scored.sort_custom(func(a, b): return a["_score"] > b["_score"])
@@ -214,7 +214,7 @@ func _generate_visuals(worst: Array, snapshots) -> Array:
 	for w in worst:
 		var seed: int = w["seed"]
 		var snap = snap_by_seed.get(seed)
-		var entry := w.duplicate()
+		var entry = w.duplicate()
 		entry.erase("_score")
 
 		var room_lines: Array = []

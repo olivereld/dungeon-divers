@@ -1,0 +1,664 @@
+[
+	{
+		"angular_uniformity_after": 0.929551190507027,
+		"angular_uniformity_before": 0.929551190507027,
+		"bbox_after": {
+			"area": 2156,
+			"height": 44,
+			"width": 49
+		},
+		"bbox_before": {
+			"area": 2156,
+			"height": 44,
+			"width": 49
+		},
+		"delta_angular_uniformity": 0.0,
+		"delta_bbox_area": 0,
+		"delta_nearest_neighbor_mean": 0.0,
+		"delta_pairwise_spacing_mean": 0.0,
+		"delta_radial_variance": 0.0,
+		"delta_spacing_min": 0.0,
+		"dungeon_bounds_area": 4096,
+		"nearest_neighbor_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"nearest_neighbor_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"overlap_count": 0,
+		"overlap_rooms": [],
+		"pairwise_spacing_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"pairwise_spacing_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"placement_fallback": {
+			"tier_0_1_2": 7,
+			"tier_3": 0,
+			"tier_4": 0
+		},
+		"radial_variance_after": 14.8485082754487,
+		"radial_variance_before": 14.8485082754487,
+		"rooms": [
+			"  Room 0: rect=(27,32,7x6) type=start area=42",
+			"  Room 1: rect=(47,18,11x11) type=combat area=121",
+			"  Room 2: rect=(24,17,10x8) type=explore area=80",
+			"  Room 3: rect=(33,46,11x11) type=combat area=121",
+			"  Room 4: rect=(9,45,8x8) type=explore area=64",
+			"  Room 5: rect=(19,46,12x11) type=boss area=132",
+			"  Room 6: rect=(14,13,6x7) type=goal area=42"
+		],
+		"seed": 344,
+		"tier_3_count": 0,
+		"tier_4_count": 0
+	},
+	{
+		"angular_uniformity_after": 0.888056678624765,
+		"angular_uniformity_before": 0.888056678624765,
+		"bbox_after": {
+			"area": 3078,
+			"height": 54,
+			"width": 57
+		},
+		"bbox_before": {
+			"area": 3078,
+			"height": 54,
+			"width": 57
+		},
+		"delta_angular_uniformity": 0.0,
+		"delta_bbox_area": 0,
+		"delta_nearest_neighbor_mean": 0.0,
+		"delta_pairwise_spacing_mean": 0.0,
+		"delta_radial_variance": 0.0,
+		"delta_spacing_min": 0.0,
+		"dungeon_bounds_area": 4096,
+		"nearest_neighbor_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"nearest_neighbor_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"overlap_count": 0,
+		"overlap_rooms": [],
+		"pairwise_spacing_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"pairwise_spacing_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"placement_fallback": {
+			"tier_0_1_2": 8,
+			"tier_3": 0,
+			"tier_4": 0
+		},
+		"radial_variance_after": 37.4050939050508,
+		"radial_variance_before": 37.4050939050508,
+		"rooms": [
+			"  Room 0: rect=(25,31,7x7) type=start area=49",
+			"  Room 1: rect=(50,28,10x9) type=explore area=90",
+			"  Room 2: rect=(27,15,10x10) type=explore area=100",
+			"  Room 3: rect=(3,29,13x11) type=explore area=143",
+			"  Room 4: rect=(31,48,8x9) type=combat area=72",
+			"  Room 5: rect=(46,4,5x7) type=treasure area=35",
+			"  Room 6: rect=(5,7,11x11) type=boss area=121",
+			"  Room 7: rect=(18,51,6x7) type=goal area=42"
+		],
+		"seed": 343,
+		"tier_3_count": 0,
+		"tier_4_count": 0
+	},
+	{
+		"angular_uniformity_after": 0.779294960529479,
+		"angular_uniformity_before": 0.779294960529479,
+		"bbox_after": {
+			"area": 2808,
+			"height": 52,
+			"width": 54
+		},
+		"bbox_before": {
+			"area": 2808,
+			"height": 52,
+			"width": 54
+		},
+		"delta_angular_uniformity": 0.0,
+		"delta_bbox_area": 0,
+		"delta_nearest_neighbor_mean": 0.0,
+		"delta_pairwise_spacing_mean": 0.0,
+		"delta_radial_variance": 0.0,
+		"delta_spacing_min": 0.0,
+		"dungeon_bounds_area": 4096,
+		"nearest_neighbor_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"nearest_neighbor_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"overlap_count": 0,
+		"overlap_rooms": [],
+		"pairwise_spacing_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"pairwise_spacing_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"placement_fallback": {
+			"tier_0_1_2": 7,
+			"tier_3": 0,
+			"tier_4": 0
+		},
+		"radial_variance_after": 31.7376224718076,
+		"radial_variance_before": 31.7376224718076,
+		"rooms": [
+			"  Room 0: rect=(28,32,7x7) type=start area=49",
+			"  Room 1: rect=(53,42,7x5) type=treasure area=35",
+			"  Room 2: rect=(35,52,7x7) type=explore area=49",
+			"  Room 3: rect=(44,12,7x8) type=puzzle area=56",
+			"  Room 4: rect=(40,29,5x7) type=treasure area=35",
+			"  Room 5: rect=(7,7,12x13) type=boss area=156",
+			"  Room 6: rect=(6,37,14x11) type=goal area=154"
+		],
+		"seed": 342,
+		"tier_3_count": 0,
+		"tier_4_count": 0
+	},
+	{
+		"angular_uniformity_after": 0.838667727781396,
+		"angular_uniformity_before": 0.838667727781396,
+		"bbox_after": {
+			"area": 3190,
+			"height": 55,
+			"width": 58
+		},
+		"bbox_before": {
+			"area": 3190,
+			"height": 55,
+			"width": 58
+		},
+		"delta_angular_uniformity": 0.0,
+		"delta_bbox_area": 0,
+		"delta_nearest_neighbor_mean": 0.0,
+		"delta_pairwise_spacing_mean": 0.0,
+		"delta_radial_variance": 0.0,
+		"delta_spacing_min": 0.0,
+		"dungeon_bounds_area": 4096,
+		"nearest_neighbor_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"nearest_neighbor_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"overlap_count": 0,
+		"overlap_rooms": [],
+		"pairwise_spacing_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"pairwise_spacing_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"placement_fallback": {
+			"tier_0_1_2": 7,
+			"tier_3": 0,
+			"tier_4": 0
+		},
+		"radial_variance_after": 29.751859075005,
+		"radial_variance_before": 29.751859075005,
+		"rooms": [
+			"  Room 0: rect=(27,33,7x7) type=start area=49",
+			"  Room 1: rect=(50,35,11x12) type=combat area=132",
+			"  Room 2: rect=(14,37,5x7) type=treasure area=35",
+			"  Room 3: rect=(35,15,6x6) type=treasure area=36",
+			"  Room 4: rect=(3,29,8x6) type=puzzle area=48",
+			"  Room 5: rect=(43,3,11x13) type=boss area=143",
+			"  Room 6: rect=(11,51,6x7) type=goal area=42"
+		],
+		"seed": 341,
+		"tier_3_count": 0,
+		"tier_4_count": 0
+	},
+	{
+		"angular_uniformity_after": 0.708094579794534,
+		"angular_uniformity_before": 0.708094579794534,
+		"bbox_after": {
+			"area": 2915,
+			"height": 55,
+			"width": 53
+		},
+		"bbox_before": {
+			"area": 2915,
+			"height": 55,
+			"width": 53
+		},
+		"delta_angular_uniformity": 0.0,
+		"delta_bbox_area": 0,
+		"delta_nearest_neighbor_mean": 0.0,
+		"delta_pairwise_spacing_mean": 0.0,
+		"delta_radial_variance": 0.0,
+		"delta_spacing_min": 0.0,
+		"dungeon_bounds_area": 4096,
+		"nearest_neighbor_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"nearest_neighbor_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"overlap_count": 0,
+		"overlap_rooms": [],
+		"pairwise_spacing_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"pairwise_spacing_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"placement_fallback": {
+			"tier_0_1_2": 7,
+			"tier_3": 0,
+			"tier_4": 0
+		},
+		"radial_variance_after": 7.47413148303713,
+		"radial_variance_before": 7.47413148303713,
+		"rooms": [
+			"  Room 0: rect=(27,27,6x7) type=start area=42",
+			"  Room 1: rect=(50,32,6x5) type=treasure area=30",
+			"  Room 2: rect=(3,20,6x8) type=puzzle area=48",
+			"  Room 3: rect=(35,44,5x7) type=treasure area=35",
+			"  Room 4: rect=(45,47,7x6) type=puzzle area=42",
+			"  Room 5: rect=(21,3,13x12) type=boss area=156",
+			"  Room 6: rect=(21,45,11x13) type=goal area=143"
+		],
+		"seed": 340,
+		"tier_3_count": 0,
+		"tier_4_count": 0
+	},
+	{
+		"angular_uniformity_after": 0.766762251986462,
+		"angular_uniformity_before": 0.766762251986462,
+		"bbox_after": {
+			"area": 2970,
+			"height": 54,
+			"width": 55
+		},
+		"bbox_before": {
+			"area": 2970,
+			"height": 54,
+			"width": 55
+		},
+		"delta_angular_uniformity": 0.0,
+		"delta_bbox_area": 0,
+		"delta_nearest_neighbor_mean": 0.0,
+		"delta_pairwise_spacing_mean": 0.0,
+		"delta_radial_variance": 0.0,
+		"delta_spacing_min": 0.0,
+		"dungeon_bounds_area": 4096,
+		"nearest_neighbor_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"nearest_neighbor_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"overlap_count": 0,
+		"overlap_rooms": [],
+		"pairwise_spacing_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"pairwise_spacing_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"placement_fallback": {
+			"tier_0_1_2": 7,
+			"tier_3": 0,
+			"tier_4": 0
+		},
+		"radial_variance_after": 35.9582000559397,
+		"radial_variance_before": 35.9582000559397,
+		"rooms": [
+			"  Room 0: rect=(30,31,7x6) type=start area=42",
+			"  Room 1: rect=(5,39,5x7) type=treasure area=35",
+			"  Room 2: rect=(41,51,7x6) type=puzzle area=42",
+			"  Room 3: rect=(39,6,7x7) type=puzzle area=49",
+			"  Room 4: rect=(7,11,13x13) type=explore area=169",
+			"  Room 5: rect=(48,3,12x12) type=boss area=144",
+			"  Room 6: rect=(43,31,6x6) type=goal area=36"
+		],
+		"seed": 339,
+		"tier_3_count": 0,
+		"tier_4_count": 0
+	},
+	{
+		"angular_uniformity_after": 0.393553173966627,
+		"angular_uniformity_before": 0.393553173966627,
+		"bbox_after": {
+			"area": 1566,
+			"height": 29,
+			"width": 54
+		},
+		"bbox_before": {
+			"area": 1566,
+			"height": 29,
+			"width": 54
+		},
+		"delta_angular_uniformity": 0.0,
+		"delta_bbox_area": 0,
+		"delta_nearest_neighbor_mean": 0.0,
+		"delta_pairwise_spacing_mean": 0.0,
+		"delta_radial_variance": 0.0,
+		"delta_spacing_min": 0.0,
+		"dungeon_bounds_area": 4096,
+		"nearest_neighbor_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"nearest_neighbor_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"overlap_count": 0,
+		"overlap_rooms": [],
+		"pairwise_spacing_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"pairwise_spacing_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"placement_fallback": {
+			"tier_0_1_2": 7,
+			"tier_3": 0,
+			"tier_4": 0
+		},
+		"radial_variance_after": 32.0724255184589,
+		"radial_variance_before": 32.0724255184589,
+		"rooms": [
+			"  Room 0: rect=(25,28,7x6) type=start area=42",
+			"  Room 1: rect=(39,30,7x7) type=explore area=49",
+			"  Room 2: rect=(42,8,6x7) type=treasure area=42",
+			"  Room 3: rect=(26,9,6x6) type=puzzle area=36",
+			"  Room 4: rect=(6,18,14x12) type=combat area=168",
+			"  Room 5: rect=(49,25,11x11) type=boss area=121",
+			"  Room 6: rect=(27,17,6x7) type=goal area=42"
+		],
+		"seed": 338,
+		"tier_3_count": 0,
+		"tier_4_count": 0
+	},
+	{
+		"angular_uniformity_after": 0.639215444017342,
+		"angular_uniformity_before": 0.639215444017342,
+		"bbox_after": {
+			"area": 2754,
+			"height": 51,
+			"width": 54
+		},
+		"bbox_before": {
+			"area": 2754,
+			"height": 51,
+			"width": 54
+		},
+		"delta_angular_uniformity": 0.0,
+		"delta_bbox_area": 0,
+		"delta_nearest_neighbor_mean": 0.0,
+		"delta_pairwise_spacing_mean": 0.0,
+		"delta_radial_variance": 0.0,
+		"delta_spacing_min": 0.0,
+		"dungeon_bounds_area": 4096,
+		"nearest_neighbor_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"nearest_neighbor_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"overlap_count": 0,
+		"overlap_rooms": [],
+		"pairwise_spacing_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"pairwise_spacing_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"placement_fallback": {
+			"tier_0_1_2": 7,
+			"tier_3": 0,
+			"tier_4": 0
+		},
+		"radial_variance_after": 25.7307269733395,
+		"radial_variance_before": 25.7307269733395,
+		"rooms": [
+			"  Room 0: rect=(32,31,6x7) type=start area=42",
+			"  Room 1: rect=(46,8,11x13) type=explore area=143",
+			"  Room 2: rect=(11,23,11x11) type=combat area=121",
+			"  Room 3: rect=(26,13,8x8) type=combat area=64",
+			"  Room 4: rect=(3,44,7x6) type=explore area=42",
+			"  Room 5: rect=(39,44,13x12) type=boss area=156",
+			"  Room 6: rect=(24,5,6x6) type=goal area=36"
+		],
+		"seed": 337,
+		"tier_3_count": 0,
+		"tier_4_count": 0
+	},
+	{
+		"angular_uniformity_after": 0.914726122137535,
+		"angular_uniformity_before": 0.914726122137535,
+		"bbox_after": {
+			"area": 2444,
+			"height": 47,
+			"width": 52
+		},
+		"bbox_before": {
+			"area": 2444,
+			"height": 47,
+			"width": 52
+		},
+		"delta_angular_uniformity": 0.0,
+		"delta_bbox_area": 0,
+		"delta_nearest_neighbor_mean": 0.0,
+		"delta_pairwise_spacing_mean": 0.0,
+		"delta_radial_variance": 0.0,
+		"delta_spacing_min": 0.0,
+		"dungeon_bounds_area": 4096,
+		"nearest_neighbor_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"nearest_neighbor_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"overlap_count": 0,
+		"overlap_rooms": [],
+		"pairwise_spacing_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"pairwise_spacing_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"placement_fallback": {
+			"tier_0_1_2": 8,
+			"tier_3": 0,
+			"tier_4": 0
+		},
+		"radial_variance_after": 20.3300489756407,
+		"radial_variance_before": 20.3300489756407,
+		"rooms": [
+			"  Room 0: rect=(25,26,7x6) type=start area=42",
+			"  Room 1: rect=(20,47,7x7) type=treasure area=49",
+			"  Room 2: rect=(37,22,12x13) type=combat area=156",
+			"  Room 3: rect=(41,49,6x7) type=treasure area=42",
+			"  Room 4: rect=(6,19,5x5) type=treasure area=25",
+			"  Room 5: rect=(5,43,8x7) type=puzzle area=56",
+			"  Room 6: rect=(43,9,14x11) type=boss area=154",
+			"  Room 7: rect=(23,9,7x7) type=goal area=49"
+		],
+		"seed": 336,
+		"tier_3_count": 0,
+		"tier_4_count": 0
+	},
+	{
+		"angular_uniformity_after": 0.810202006958906,
+		"angular_uniformity_before": 0.810202006958906,
+		"bbox_after": {
+			"area": 3135,
+			"height": 57,
+			"width": 55
+		},
+		"bbox_before": {
+			"area": 3135,
+			"height": 57,
+			"width": 55
+		},
+		"delta_angular_uniformity": 0.0,
+		"delta_bbox_area": 0,
+		"delta_nearest_neighbor_mean": 0.0,
+		"delta_pairwise_spacing_mean": 0.0,
+		"delta_radial_variance": 0.0,
+		"delta_spacing_min": 0.0,
+		"dungeon_bounds_area": 4096,
+		"nearest_neighbor_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"nearest_neighbor_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"overlap_count": 0,
+		"overlap_rooms": [],
+		"pairwise_spacing_after": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"pairwise_spacing_before": {
+			"max": 0.0,
+			"mean": 0.0,
+			"min": 0.0,
+			"stddev": 0.0
+		},
+		"placement_fallback": {
+			"tier_0_1_2": 7,
+			"tier_3": 0,
+			"tier_4": 0
+		},
+		"radial_variance_after": 53.1032223554788,
+		"radial_variance_before": 53.1032223554788,
+		"rooms": [
+			"  Room 0: rect=(32,29,7x6) type=start area=42",
+			"  Room 1: rect=(6,30,8x10) type=explore area=80",
+			"  Room 2: rect=(47,36,6x7) type=treasure area=42",
+			"  Room 3: rect=(8,53,7x7) type=treasure area=49",
+			"  Room 4: rect=(27,16,6x8) type=puzzle area=48",
+			"  Room 5: rect=(9,3,14x13) type=boss area=182",
+			"  Room 6: rect=(48,46,13x11) type=goal area=143"
+		],
+		"seed": 335,
+		"tier_3_count": 0,
+		"tier_4_count": 0
+	}
+]
