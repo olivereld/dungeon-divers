@@ -1,45 +1,49 @@
 {
-	"avg_angular_uniformity": 0.666092492384239,
-	"avg_connections": 7.85,
-	"avg_corridor_length": 9.9431746031746,
-	"avg_corridors": 7.85,
-	"avg_dead_ends": 1.51,
-	"avg_loops": 1.76,
-	"avg_radial_variance": 34.2322237634093,
-	"avg_radiality": 0.441020643023215,
+	"avg_angular_uniformity": 0.75703645572505,
+	"avg_connections": 7.74,
+	"avg_corridor_length": 11.7653968253968,
+	"avg_corridors": 7.74,
+	"avg_dead_ends": 1.66,
+	"avg_loops": 1.65,
+	"avg_placement_tier_3": 0.0,
+	"avg_placement_tier_4": 0.0,
+	"avg_radial_variance": 34.2511686753162,
+	"avg_radiality": 0.456476217977415,
+	"avg_radiality_after_separator": 0.456476217977415,
+	"avg_radiality_before_separator": 0.456476217977415,
 	"avg_rooms": 7.09,
-	"avg_start_centrality": 6.29294398102625,
+	"avg_start_centrality": 5.39761022908063,
 	"connectivity_pass_rate": 1.0,
 	"generation_failures": 0,
 	"generations_failed": 0,
 	"generations_successful": 100,
 	"highest_angular_pattern": {
-		"seed": 10085,
-		"value": 0.949840084293218
+		"seed": 10097,
+		"value": 0.982033298663592
 	},
 	"highest_radial_distance_variance": {
-		"seed": 10086,
-		"value": 63.427542461192
+		"seed": 10041,
+		"value": 75.5559248677001
 	},
 	"highest_start_centrality": {
-		"seed": 10025,
-		"value": 15.6524758424985
+		"seed": 10009,
+		"value": 13.0
 	},
 	"overlap_pass_rate": 1.0,
-	"reachable_cells_total": 72393,
+	"reachable_cells_total": 75008,
 	"seeds_evaluated": 100,
-	"short_corridor_rate": 0.266242038216561,
-	"walkable_cells_total": 72393,
+	"short_corridor_rate": 0.179586563307494,
+	"walkable_cells_total": 75008,
 	"worst_short_corridors": {
-		"seed": 10001,
+		"seed": 10037,
 		"value": 0.571428571428571
 	},
 	"worst_topology": {
-		"seed": 10046,
+		"seed": 10035,
 		"value": 5
 	},
 	"worst_topology_checksum": {
-		"seed": 10046,
-		"value": "0f7d1b8e91a62bbd818f104216b77cf697b49596ad63c6b95fd361d8c98e69b1"
+		"seed": 10035,
+		"value": ""
 	}
 }
