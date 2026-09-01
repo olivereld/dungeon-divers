@@ -42,7 +42,10 @@ var locked_doors: Array = []                # Array[LockedDoor]
 var distance_field: Dictionary = {}         # Vector2i -> int
 var reserved_mask: DungeonReservedMask = null
 
-# 5. Métricas, Tiempos y Diagnósticos
+var placement_tier_3: int = 0
+var placement_tier_4: int = 0
+
+	# 5. Métricas, Tiempos y Diagnósticos
 var stage_timings_ms: Dictionary = {}       # String -> float
 var validation_result: RefCounted = null
 var fitness_score: float = 0.0
@@ -74,6 +77,8 @@ func _init(p_config: DungeonConfig = null, p_base_seed: int = 0, p_attempt: int 
 	locked_doors.clear()
 	distance_field.clear()
 	stage_timings_ms.clear()
+	placement_tier_3 = 0
+	placement_tier_4 = 0
 	metrics.clear()
 	diagnostics.clear()
 	is_attempt_failed = false
@@ -116,7 +121,8 @@ func to_dungeon_result() -> DungeonResult:
 	res.fitness_score = fitness_score
 	res.seed_used = base_seed
 	res.floor_number = config.floor_number if config != null else 1
-	res.checksum = _DungeonChecksumCalculatorScript.compute_checksum(res)
+	res.placement_tier_3 = placement_tier_3
+	res.placement_tier_4 = placement_tier_4
 	
 	var total_time: float = 0.0
 	for t in stage_timings_ms.values():

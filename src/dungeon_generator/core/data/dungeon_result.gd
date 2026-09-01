@@ -19,6 +19,8 @@ var checksum: String = ""
 var seed_trace: Dictionary = {}
 var floor_number: int = 1
 var generation_time_ms: float = 0.0
+var placement_tier_3: int = 0
+var placement_tier_4: int = 0
 var metadata: Dictionary = {}
 
 func to_debug_string() -> String:

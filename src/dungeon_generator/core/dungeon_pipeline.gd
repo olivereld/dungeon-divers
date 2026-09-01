@@ -14,50 +14,22 @@ signal phase_completed(phase_name: String, elapsed_ms: float)
 signal generation_completed(result: DungeonResult)
 signal generation_failed(error: String)
 
-const _DungeonGenerationContextScript = preload(
-	"res://src/dungeon_generator/core/data/dungeon_generation_context.gd"
-)
-const _DungeonSeedFactoryScript = preload(
-	"res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd"
-)
+const _DungeonGenerationContextScript = preload("res://src/dungeon_generator/core/data/dungeon_generation_context.gd")
+const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
 
-const _DungeonMissionStageScript = preload(
-	"res://src/dungeon_generator/core/stages/dungeon_mission_stage.gd"
-)
-const _DungeonRoomStageScript = preload(
-	"res://src/dungeon_generator/core/stages/dungeon_room_stage.gd"
-)
-const _DungeonTopologyStageScript = preload(
-	"res://src/dungeon_generator/core/stages/dungeon_topology_stage.gd"
-)
-const _DungeonEntranceStageScript = preload(
-	"res://src/dungeon_generator/core/stages/dungeon_entrance_stage.gd"
-)
-const _DungeonCorridorStageScript = preload(
-	"res://src/dungeon_generator/core/stages/dungeon_corridor_stage.gd"
-)
-const _DungeonDoorStageScript = preload(
-	"res://src/dungeon_generator/core/stages/dungeon_door_stage.gd"
-)
-const _DungeonMarkerStageScript = preload(
-	"res://src/dungeon_generator/core/stages/dungeon_marker_stage.gd"
-)
-const _DungeonValidationStageScript = preload(
-	"res://src/dungeon_generator/core/stages/dungeon_validation_stage.gd"
-)
+const _DungeonMissionStageScript = preload("res://src/dungeon_generator/core/stages/dungeon_mission_stage.gd")
+const _DungeonRoomStageScript = preload("res://src/dungeon_generator/core/stages/dungeon_room_stage.gd")
+const _DungeonTopologyStageScript = preload("res://src/dungeon_generator/core/stages/dungeon_topology_stage.gd")
+const _DungeonEntranceStageScript = preload("res://src/dungeon_generator/core/stages/dungeon_entrance_stage.gd")
+const _DungeonCorridorStageScript = preload("res://src/dungeon_generator/core/stages/dungeon_corridor_stage.gd")
+const _DungeonDoorStageScript = preload("res://src/dungeon_generator/core/stages/dungeon_door_stage.gd")
+const _DungeonMarkerStageScript = preload("res://src/dungeon_generator/core/stages/dungeon_marker_stage.gd")
+const _DungeonValidationStageScript = preload("res://src/dungeon_generator/core/stages/dungeon_validation_stage.gd")
 
-const _ProfileLoaderScript = preload(
-	"res://src/dungeon_generator/profiles/profile_loader.gd"
-)
-const _ProfileValidatorScript = preload(
-	"res://src/dungeon_generator/profiles/profile_validator.gd"
-)
-const _ProfileBundleScript = preload(
-	"res://src/dungeon_generator/profiles/profile_bundle.gd"
-)
-const _ProfileValidationResultScript = preload(
-	"res://src/dungeon_generator/profiles/profile_validation_result.gd"
-)
+const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
+const _ProfileValidatorScript = preload("res://src/dungeon_generator/profiles/profile_validator.gd")
+const _ProfileBundleScript = preload("res://src/dungeon_generator/profiles/profile_bundle.gd")
+const _ProfileValidationResultScript = preload("res://src/dungeon_generator/profiles/profile_validation_result.gd")
 
 const MAX_ATTEMPTS: int = 5
 

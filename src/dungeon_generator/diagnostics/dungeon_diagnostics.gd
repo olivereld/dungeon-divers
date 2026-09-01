@@ -53,6 +53,10 @@ func generate_report(snapshot) -> String:
 	lines.append("  radial distance variance: %.1f" % snapshot.spatial_radial_distance_variance)
 	lines.append("  radiality (provisional): %.2f" % snapshot.spatial_radiality_provisional)
 	lines.append("")
+	lines.append("Placement Tiers")
+	lines.append("  tier 3 (shrink): %d" % snapshot.placement_tier_3)
+	lines.append("  tier 4 (grid scan): %d" % snapshot.placement_tier_4)
+	lines.append("")
 	lines.append("Spatial Extent / Bounding Box")
 	lines.append("  min x: %d" % snapshot.spatial_bbox_min_x)
 	lines.append("  max x: %d" % snapshot.spatial_bbox_max_x)
@@ -103,6 +107,8 @@ func generate_summary(snapshots) -> Dictionary:
 	var total_loops: int = 0
 	var total_corridor_length: float = 0.0
 	var total_short_corridors: int = 0
+	var total_placement_tier_3: int = 0
+	var total_placement_tier_4: int = 0
 
 	for snap in snapshots:
 		if snap.generation_success == "PASS":
@@ -129,6 +135,8 @@ func generate_summary(snapshots) -> Dictionary:
 		total_loops += snap.connection_loops
 		total_corridor_length += snap.corridor_average_length
 		total_short_corridors += snap.corridor_short_count
+		total_placement_tier_3 += snap.placement_tier_3
+		total_placement_tier_4 += snap.placement_tier_4
 
 	var successful_count = summary["generations_successful"]
 	summary["avg_rooms"] = float(total_room_count) / float(successful_count) if successful_count > 0 else 0.0
@@ -146,6 +154,8 @@ func generate_summary(snapshots) -> Dictionary:
 	summary["avg_angular_uniformity"] = float(total_angular_uniformity) / float(successful_count) if successful_count > 0 else 0.0
 	summary["avg_radial_variance"] = float(total_radial_variance) / float(successful_count) if successful_count > 0 else 0.0
 	summary["short_corridor_rate"] = float(total_short_corridors) / float(total_corridor_count) if total_corridor_count > 0 else 0.0
+	summary["avg_placement_tier_3"] = float(total_placement_tier_3) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_placement_tier_4"] = float(total_placement_tier_4) / float(successful_count) if successful_count > 0 else 0.0
 
 	return summary
 
@@ -257,6 +267,9 @@ func _snapshot_from_result(result: DungeonResult, config: DungeonConfig):
 	_compute_spatial_metrics(snap, result.rooms)
 	_compute_bounding_box(snap, result.rooms)
 	_compute_connectivity(snap, result.grid, result.rooms)
+	snap.placement_tier_3 = result.placement_tier_3
+	snap.placement_tier_4 = result.placement_tier_4
+
 	_compute_validation(snap, result.rooms)
 
 	return snap

@@ -102,3 +102,11 @@ func get_multi_floor_result() -> DungeonMultiFloorResult:
 
 func get_current_result() -> Dictionary:
 	return _current_result
+
+func get_profile_bundle():
+	if _pipeline != null:
+		return _pipeline.get_profile_bundle()
+	return null
+
+func get_pipeline():
+	return _pipeline

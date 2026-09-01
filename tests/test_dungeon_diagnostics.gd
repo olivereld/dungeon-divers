@@ -110,6 +110,8 @@ func test_snapshot_to_dict() -> void:
 	assert(dict.has("validation_room_overlap"), "Dict must have validation_room_overlap")
 	assert(dict.has("generation_success"), "Dict must have generation_success")
 	assert(dict.has("generation_seed_used"), "Dict must have generation_seed_used")
+	assert(dict.has("placement_tier_3"), "Dict must have placement_tier_3")
+	assert(dict.has("placement_tier_4"), "Dict must have placement_tier_4")
 	assert(dict["room_count"] == snap.room_count, "Dict room_count must match snapshot")
 	print("    [OK] to_dict produced correct dictionary")
 

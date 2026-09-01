@@ -25,6 +25,8 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	ctx.stage_seeds["variation"] = variation_seed
 
 	ctx.rooms = _space_grammar.generate(ctx.mission_graph, ctx.config, layout_seed)
+	ctx.placement_tier_3 = _space_grammar.tier_3_count
+	ctx.placement_tier_4 = _space_grammar.tier_4_count
 	ctx.record_timing("space_grammar", float(Time.get_ticks_msec() - t0))
 
 	# VALIDACIÓN CRÍTICA: Contrato semántico MissionGraph → RoomData

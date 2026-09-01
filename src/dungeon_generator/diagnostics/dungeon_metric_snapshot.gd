@@ -50,6 +50,10 @@ var spatial_bbox_area: int = 0
 # un composite definitivo en fases posteriores.
 var spatial_radiality_provisional: float = 0.0
 
+# ── Placement Tier Distribution ──────────────────
+var placement_tier_3: int = 0
+var placement_tier_4: int = 0
+
 # ── Connectivity (CellGrid flood-fill) ─────────────────
 var connectivity_status: String = "FAIL"
 var connectivity_walkable_cells: int = 0
@@ -98,4 +102,6 @@ func to_dict() -> Dictionary:
 		"generation_success": generation_success,
 		"generation_seed_used": generation_seed_used,
 		"generation_checksum": generation_checksum,
+		"placement_tier_3": placement_tier_3,
+		"placement_tier_4": placement_tier_4,
 	}

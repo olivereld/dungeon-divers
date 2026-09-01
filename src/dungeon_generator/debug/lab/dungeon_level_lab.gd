@@ -368,7 +368,7 @@ func _on_room_selected(room: RefCounted) -> void:
 	if viewer_3d != null:
 		viewer_3d.focus_room(room)
 
-	var bundle = controller._pipeline.get_profile_bundle()
+	var bundle = controller.get_profile_bundle()
 	var diag = inspector.inspect_room(room, bundle, config.seed)
 
 	var bbcode := "[b]ROOM #%d[/b]\n" % diag.get("room_id", 0)
@@ -392,7 +392,7 @@ func _on_room_selected(room: RefCounted) -> void:
 	inspector_text.text = bbcode
 
 func _run_showcase(profile_id: StringName) -> void:
-	var bundle = controller._pipeline.get_profile_bundle()
+	var bundle = controller.get_profile_bundle()
 	if bundle == null or bundle.template_registry == null:
 		return
 	var items = showcase.showcase_profile(profile_id, bundle.template_registry)
@@ -406,7 +406,7 @@ func _run_showcase(profile_id: StringName) -> void:
 
 func run_coverage_mode(seed_count: int = 100) -> Dictionary:
 	_set_status("Running coverage on %d seeds..." % seed_count)
-	var report = coverage.run_coverage(controller._pipeline, config.archetype_id, config.seed, seed_count)
+	var report = coverage.run_coverage(controller.get_pipeline(), config.archetype_id, config.seed, seed_count)
 	if inspector_text != null:
 		var bbcode := "[b]COVERAGE REPORT (%d seeds)[/b]\n" % report.get("seed_count", 0)
 		bbcode += "Total Rooms: %d\n" % report.get("total_rooms", 0)
