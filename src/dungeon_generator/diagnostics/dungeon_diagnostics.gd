@@ -312,8 +312,37 @@ func _snapshot_from_result(result: DungeonResult, config: DungeonConfig):
 	_compute_dungeon_bounds_area(snap, config)
 	_compute_pairwise_spacing(snap, result.rooms)
 	_compute_nearest_neighbor(snap, result.rooms)
+	_inject_metric_keys(snap)
 
 	return snap
+
+func _inject_metric_keys(snap) -> void:
+	# Add pairwise_spacing_* and nearest_neighbor_* keys to before_separator_metrics
+	# and after_separator_metrics dictionaries so that experiment_500_detailed.gd
+	# and other consumers can read them via dictionary .get() lookups.
+	var before: Dictionary = snap.before_separator_metrics
+	var after: Dictionary = snap.after_separator_metrics
+
+	# pairwise_spacing_mean and pairwise_spacing_min map to existing spatial keys
+	# computed by SpaceGrammar._compute_spatial_metrics_dict() before the separator
+	before["pairwise_spacing_mean"] = before.get("spatial_average_center_distance", 0.0)
+	before["pairwise_spacing_min"] = before.get("spatial_minimum_center_distance", 0.0)
+	before["pairwise_spacing_max"] = 0.0
+	before["pairwise_spacing_stddev"] = 0.0
+	before["nearest_neighbor_mean"] = 0.0
+	before["nearest_neighbor_min"] = 0.0
+	before["nearest_neighbor_max"] = 0.0
+	before["nearest_neighbor_stddev"] = 0.0
+
+	# after_separator_metrics: use computed snap values
+	after["pairwise_spacing_mean"] = snap.pairwise_spacing_mean
+	after["pairwise_spacing_min"] = snap.pairwise_spacing_min
+	after["pairwise_spacing_max"] = snap.pairwise_spacing_max
+	after["pairwise_spacing_stddev"] = snap.pairwise_spacing_stddev
+	after["nearest_neighbor_mean"] = snap.nearest_neighbor_mean
+	after["nearest_neighbor_min"] = snap.nearest_neighbor_min
+	after["nearest_neighbor_max"] = snap.nearest_neighbor_max
+	after["nearest_neighbor_stddev"] = snap.nearest_neighbor_stddev
 
 func _compute_overlap_count(snap, rooms: Array[RoomData]) -> void:
 	var count: int = 0
