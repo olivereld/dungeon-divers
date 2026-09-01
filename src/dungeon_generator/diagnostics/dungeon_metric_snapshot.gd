@@ -97,6 +97,5 @@ func to_dict() -> Dictionary:
 		"validation_room_overlap": validation_room_overlap,
 		"generation_success": generation_success,
 		"generation_seed_used": generation_seed_used,
-		"generation_time_ms": roundf(generation_time_ms * 100.0) / 100.0,
 		"generation_checksum": generation_checksum,
 	}
