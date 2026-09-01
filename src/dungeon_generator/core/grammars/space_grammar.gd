@@ -10,6 +10,8 @@ var _rng: RandomNumberGenerator
 
 var tier_3_count: int = 0
 var tier_4_count: int = 0
+var _metrics_before_separator: Dictionary = {}
+var _metrics_after_separator: Dictionary = {}
 
 func _init() -> void:
 	_rng = RandomNumberGenerator.new()
@@ -78,8 +80,15 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 
 	print("[SpaceGrammar] Tier distribution: tier3=%d tier4=%d total=%d" % [tier_3_count, tier_4_count, rooms.size()])
 
+	# Medir antes del separator
+	_metrics_before_separator = _compute_spatial_metrics_dict(rooms)
+
 	# Consolidar separación espacial AABB con padding mínimo de 2 celdas
 	rooms = _RoomSpatialSeparatorScript.separate_rooms(rooms, grid_bounds, _rng, 2)
+
+	# Medir después del separator
+	_metrics_after_separator = _compute_spatial_metrics_dict(rooms)
+
 	return rooms
 
 func _calculate_room_size(type: StringName, config: DungeonConfig, force_large: bool = false) -> Vector2i:
@@ -181,3 +190,129 @@ func _place_room(room: RoomData, existing_rooms: Array[RoomData], bounds: Rect2i
 					break
 			if placed:
 				break
+
+func _compute_spatial_metrics_dict(rooms: Array[RoomData]) -> Dictionary:
+	var result: Dictionary = {}
+
+	if rooms.is_empty():
+		result["spatial_start_centrality"] = 0.0
+		result["spatial_angular_uniformity"] = 0.0
+		result["spatial_radial_distance_variance"] = 0.0
+		result["spatial_radiality_provisional"] = 0.0
+		result["spatial_average_center_distance"] = 0.0
+		result["spatial_minimum_center_distance"] = 0.0
+		result["spatial_bbox_width"] = 0
+		result["spatial_bbox_height"] = 0
+		result["spatial_bbox_area"] = 0
+		result["spatial_bbox_min_x"] = 0
+		result["spatial_bbox_max_x"] = 0
+		result["spatial_bbox_min_y"] = 0
+		result["spatial_bbox_max_y"] = 0
+		return result
+
+	# Bounding box
+	var min_x: int = 999999
+	var max_x: int = -999999
+	var min_y: int = 999999
+	var max_y: int = -999999
+	for r in rooms:
+		min_x = mini(min_x, r.rect.position.x)
+		max_x = maxi(max_x, r.rect.end.x)
+		min_y = mini(min_y, r.rect.position.y)
+		max_y = maxi(max_y, r.rect.end.y)
+	result["spatial_bbox_min_x"] = min_x
+	result["spatial_bbox_max_x"] = max_x
+	result["spatial_bbox_min_y"] = min_y
+	result["spatial_bbox_max_y"] = max_y
+	result["spatial_bbox_width"] = max_x - min_x
+	result["spatial_bbox_height"] = max_y - min_y
+	result["spatial_bbox_area"] = result["spatial_bbox_width"] * result["spatial_bbox_height"]
+
+	# Centers
+	var centers: Array[Vector2i] = []
+	var start_center: Vector2i
+	var start_found: bool = false
+	for r in rooms:
+		centers.append(r.get_center())
+		if not start_found and r.room_type == &"start":
+			start_center = r.get_center()
+			start_found = true
+
+	if not start_found:
+		start_center = centers[0]
+
+	# Pairwise distances
+	var distances: Array[float] = []
+	var min_dist: float = 1e9
+	for i in range(centers.size()):
+		for j in range(i + 1, centers.size()):
+			var d: float = centers[i].distance_to(centers[j])
+			distances.append(d)
+			if d < min_dist:
+				min_dist = d
+
+	result["spatial_average_center_distance"] = float(_sum_array(distances)) / float(distances.size()) if distances.size() > 0 else 0.0
+	result["spatial_minimum_center_distance"] = min_dist if min_dist < 1e9 else 0.0
+
+	# Start centrality
+	var centroid: Vector2i = _compute_centroid(centers)
+	result["spatial_start_centrality"] = start_center.distance_to(centroid)
+
+	# Angular uniformity around START
+	var angles: Array[float] = []
+	for c in centers:
+		if c == start_center:
+			continue
+		angles.append(atan2(float(c.y - start_center.y), float(c.x - start_center.x)))
+
+	if angles.size() > 0:
+		var sum_cos: float = 0.0
+		var sum_sin: float = 0.0
+		for a in angles:
+			sum_cos += cos(a)
+			sum_sin += sin(a)
+		var mean_resultant: float = sqrt(sum_cos * sum_cos + sum_sin * sum_sin) / float(angles.size())
+		result["spatial_angular_uniformity"] = 1.0 - mean_resultant
+	else:
+		result["spatial_angular_uniformity"] = 0.0
+
+	# Radial distance variance
+	var radial_dists: Array[float] = []
+	for c in centers:
+		if c == start_center:
+			continue
+		radial_dists.append(start_center.distance_to(c))
+
+	if radial_dists.size() > 0:
+		var mean_r: float = float(_sum_array(radial_dists)) / float(radial_dists.size())
+		var var_r: float = 0.0
+		for d in radial_dists:
+			var_r += (d - mean_r) * (d - mean_r)
+		var_r /= float(radial_dists.size())
+		result["spatial_radial_distance_variance"] = var_r
+	else:
+		result["spatial_radial_distance_variance"] = 0.0
+
+	# Provisional radiality
+	var c_norm: float = minf(result["spatial_start_centrality"] / 20.0, 1.0)
+	var a_norm: float = result["spatial_angular_uniformity"]
+	var v_norm: float = minf(result["spatial_radial_distance_variance"] / 100.0, 1.0)
+	result["spatial_radiality_provisional"] = (c_norm + a_norm + v_norm) / 3.0
+
+	return result
+
+func _compute_centroid(points: Array[Vector2i]) -> Vector2i:
+	if points.is_empty():
+		return Vector2i(0, 0)
+	var sx: int = 0
+	var sy: int = 0
+	for p in points:
+		sx += p.x
+		sy += p.y
+	return Vector2i(sx / points.size(), sy / points.size())
+
+static func _sum_array(arr: Array) -> float:
+	var s: float = 0.0
+	for v in arr:
+		s += float(v)
+	return s

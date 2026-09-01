@@ -53,6 +53,8 @@ var spatial_radiality_provisional: float = 0.0
 # ── Placement Tier Distribution ──────────────────
 var placement_tier_3: int = 0
 var placement_tier_4: int = 0
+var before_separator_metrics: Dictionary = {}
+var after_separator_metrics: Dictionary = {}
 
 # ── Connectivity (CellGrid flood-fill) ─────────────────
 var connectivity_status: String = "FAIL"
@@ -104,4 +106,6 @@ func to_dict() -> Dictionary:
 		"generation_checksum": generation_checksum,
 		"placement_tier_3": placement_tier_3,
 		"placement_tier_4": placement_tier_4,
+		"before_separator_metrics": before_separator_metrics,
+		"after_separator_metrics": after_separator_metrics,
 	}

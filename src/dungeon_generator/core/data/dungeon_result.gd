@@ -21,6 +21,8 @@ var floor_number: int = 1
 var generation_time_ms: float = 0.0
 var placement_tier_3: int = 0
 var placement_tier_4: int = 0
+var before_separator_metrics: Dictionary = {}
+var after_separator_metrics: Dictionary = {}
 var metadata: Dictionary = {}
 
 func to_debug_string() -> String:

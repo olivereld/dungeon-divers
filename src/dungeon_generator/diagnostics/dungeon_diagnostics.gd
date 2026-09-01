@@ -57,6 +57,18 @@ func generate_report(snapshot) -> String:
 	lines.append("  tier 3 (shrink): %d" % snapshot.placement_tier_3)
 	lines.append("  tier 4 (grid scan): %d" % snapshot.placement_tier_4)
 	lines.append("")
+	lines.append("Placement Separator Impact")
+	lines.append("  radiality_before: %.2f" % snapshot.before_separator_metrics.get("spatial_radiality_provisional", 0.0))
+	lines.append("  radiality_after: %.2f" % snapshot.after_separator_metrics.get("spatial_radiality_provisional", 0.0))
+	lines.append("  bbox_width_before: %d" % snapshot.before_separator_metrics.get("spatial_bbox_width", 0))
+	lines.append("  bbox_width_after: %d" % snapshot.after_separator_metrics.get("spatial_bbox_width", 0))
+	lines.append("  bbox_height_before: %d" % snapshot.before_separator_metrics.get("spatial_bbox_height", 0))
+	lines.append("  bbox_height_after: %d" % snapshot.after_separator_metrics.get("spatial_bbox_height", 0))
+	lines.append("  bbox_area_before: %d" % snapshot.before_separator_metrics.get("spatial_bbox_area", 0))
+	lines.append("  bbox_area_after: %d" % snapshot.after_separator_metrics.get("spatial_bbox_area", 0))
+	lines.append("  start_centrality_before: %.1f" % snapshot.before_separator_metrics.get("spatial_start_centrality", 0.0))
+	lines.append("  start_centrality_after: %.1f" % snapshot.after_separator_metrics.get("spatial_start_centrality", 0.0))
+	lines.append("")
 	lines.append("Spatial Extent / Bounding Box")
 	lines.append("  min x: %d" % snapshot.spatial_bbox_min_x)
 	lines.append("  max x: %d" % snapshot.spatial_bbox_max_x)
@@ -109,6 +121,8 @@ func generate_summary(snapshots) -> Dictionary:
 	var total_short_corridors: int = 0
 	var total_placement_tier_3: int = 0
 	var total_placement_tier_4: int = 0
+	var total_radiality_before: float = 0.0
+	var total_radiality_after: float = 0.0
 
 	for snap in snapshots:
 		if snap.generation_success == "PASS":
@@ -137,6 +151,8 @@ func generate_summary(snapshots) -> Dictionary:
 		total_short_corridors += snap.corridor_short_count
 		total_placement_tier_3 += snap.placement_tier_3
 		total_placement_tier_4 += snap.placement_tier_4
+		total_radiality_before += snap.before_separator_metrics.get("spatial_radiality_provisional", 0.0)
+		total_radiality_after += snap.after_separator_metrics.get("spatial_radiality_provisional", 0.0)
 
 	var successful_count = summary["generations_successful"]
 	summary["avg_rooms"] = float(total_room_count) / float(successful_count) if successful_count > 0 else 0.0
@@ -156,6 +172,8 @@ func generate_summary(snapshots) -> Dictionary:
 	summary["short_corridor_rate"] = float(total_short_corridors) / float(total_corridor_count) if total_corridor_count > 0 else 0.0
 	summary["avg_placement_tier_3"] = float(total_placement_tier_3) / float(successful_count) if successful_count > 0 else 0.0
 	summary["avg_placement_tier_4"] = float(total_placement_tier_4) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_radiality_before_separator"] = float(total_radiality_before) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_radiality_after_separator"] = float(total_radiality_after) / float(successful_count) if successful_count > 0 else 0.0
 
 	return summary
 
@@ -269,6 +287,8 @@ func _snapshot_from_result(result: DungeonResult, config: DungeonConfig):
 	_compute_connectivity(snap, result.grid, result.rooms)
 	snap.placement_tier_3 = result.placement_tier_3
 	snap.placement_tier_4 = result.placement_tier_4
+	snap.before_separator_metrics = result.before_separator_metrics
+	snap.after_separator_metrics = result.after_separator_metrics
 
 	_compute_validation(snap, result.rooms)
 

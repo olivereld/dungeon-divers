@@ -9,6 +9,8 @@
 	"avg_placement_tier_4": 0.0,
 	"avg_radial_variance": 39.6899585343516,
 	"avg_radiality": 0.482776325587794,
+	"avg_radiality_after_separator": 0.482776325587794,
+	"avg_radiality_before_separator": 0.482776325587794,
 	"avg_rooms": 7.4,
 	"avg_start_centrality": 6.36009389536479,
 	"connectivity_pass_rate": 1.0,

@@ -27,6 +27,8 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	ctx.rooms = _space_grammar.generate(ctx.mission_graph, ctx.config, layout_seed)
 	ctx.placement_tier_3 = _space_grammar.tier_3_count
 	ctx.placement_tier_4 = _space_grammar.tier_4_count
+	ctx.before_separator_metrics = _space_grammar._metrics_before_separator
+	ctx.after_separator_metrics = _space_grammar._metrics_after_separator
 	ctx.record_timing("space_grammar", float(Time.get_ticks_msec() - t0))
 
 	# VALIDACIÓN CRÍTICA: Contrato semántico MissionGraph → RoomData
