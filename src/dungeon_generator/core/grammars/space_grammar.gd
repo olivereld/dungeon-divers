@@ -243,7 +243,7 @@ func _compute_spatial_metrics_dict(rooms: Array[RoomData]) -> Dictionary:
 	if not start_found:
 		start_center = centers[0]
 
-	# Pairwise distances
+	# Pairwise distances (mean, min, max, stddev)
 	var distances: Array[float] = []
 	var min_dist: float = 1e9
 	for i in range(centers.size()):
@@ -253,8 +253,65 @@ func _compute_spatial_metrics_dict(rooms: Array[RoomData]) -> Dictionary:
 			if d < min_dist:
 				min_dist = d
 
-	result["spatial_average_center_distance"] = float(_sum_array(distances)) / float(distances.size()) if distances.size() > 0 else 0.0
-	result["spatial_minimum_center_distance"] = min_dist if min_dist < 1e9 else 0.0
+	if distances.size() > 0:
+		var s: float = _sum_array(distances)
+		var mean_p: float = s / float(distances.size())
+		var min_p: float = distances[0]
+		var max_p: float = distances[0]
+		for d in distances:
+			if d < min_p: min_p = d
+			if d > max_p: max_p = d
+		var var_p: float = 0.0
+		for d in distances:
+			var_p += (d - mean_p) * (d - mean_p)
+		var_p /= float(distances.size())
+
+		result["pairwise_spacing_mean"] = mean_p
+		result["pairwise_spacing_min"] = min_p
+		result["pairwise_spacing_max"] = max_p
+		result["pairwise_spacing_stddev"] = sqrt(var_p)
+		result["spatial_average_center_distance"] = mean_p
+		result["spatial_minimum_center_distance"] = min_p
+	else:
+		result["pairwise_spacing_mean"] = 0.0
+		result["pairwise_spacing_min"] = 0.0
+		result["pairwise_spacing_max"] = 0.0
+		result["pairwise_spacing_stddev"] = 0.0
+		result["spatial_average_center_distance"] = 0.0
+		result["spatial_minimum_center_distance"] = 0.0
+
+	# Nearest neighbor (mean, min, max, stddev)
+	var nn_distances: Array[float] = []
+	for i in range(centers.size()):
+		var nn: float = 1e9
+		for j in range(centers.size()):
+			if i == j: continue
+			var d: float = centers[i].distance_to(centers[j])
+			if d < nn: nn = d
+		nn_distances.append(nn)
+
+	if nn_distances.size() > 0:
+		var s_nn: float = _sum_array(nn_distances)
+		var mean_nn: float = s_nn / float(nn_distances.size())
+		var min_nn: float = nn_distances[0]
+		var max_nn: float = nn_distances[0]
+		for d in nn_distances:
+			if d < min_nn: min_nn = d
+			if d > max_nn: max_nn = d
+		var var_nn: float = 0.0
+		for d in nn_distances:
+			var_nn += (d - mean_nn) * (d - mean_nn)
+		var_nn /= float(nn_distances.size())
+
+		result["nearest_neighbor_mean"] = mean_nn
+		result["nearest_neighbor_min"] = min_nn
+		result["nearest_neighbor_max"] = max_nn
+		result["nearest_neighbor_stddev"] = sqrt(var_nn)
+	else:
+		result["nearest_neighbor_mean"] = 0.0
+		result["nearest_neighbor_min"] = 0.0
+		result["nearest_neighbor_max"] = 0.0
+		result["nearest_neighbor_stddev"] = 0.0
 
 	# Start centrality
 	var centroid: Vector2i = _compute_centroid(centers)

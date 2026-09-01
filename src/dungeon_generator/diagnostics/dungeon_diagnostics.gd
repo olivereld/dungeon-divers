@@ -332,10 +332,10 @@ func _inject_metric_keys(snap) -> void:
 
 	# pairwise_spacing_mean and pairwise_spacing_min map to existing spatial keys
 	# computed by SpaceGrammar._compute_spatial_metrics_dict() before the separator
-	before["pairwise_spacing_mean"] = before.get("spatial_average_center_distance", 0.0)
-	before["pairwise_spacing_min"] = before.get("spatial_minimum_center_distance", 0.0)
-	before["pairwise_spacing_max"] = 0.0
-	before["pairwise_spacing_stddev"] = 0.0
+	before["pairwise_spacing_mean"] = before.get("pairwise_spacing_mean", before.get("spatial_average_center_distance", 0.0))
+	before["pairwise_spacing_min"] = before.get("pairwise_spacing_min", before.get("spatial_minimum_center_distance", 0.0))
+	before["pairwise_spacing_max"] = before.get("pairwise_spacing_max", 0.0)
+	before["pairwise_spacing_stddev"] = before.get("pairwise_spacing_stddev", 0.0)
 	before["nearest_neighbor_mean"] = before.get("nearest_neighbor_mean", 0.0)
 	before["nearest_neighbor_min"] = before.get("nearest_neighbor_min", 0.0)
 	before["nearest_neighbor_max"] = before.get("nearest_neighbor_max", 0.0)
