@@ -12,7 +12,7 @@
 		"spatial_minimum_center_distance": 11.4017542509914,
 		"spatial_radial_distance_variance": 56.5141388159033,
 		"spatial_radiality_provisional": 0.537794161052213,
-		"spatial_start_centrality": 10.0
+		"start_to_centroid_distance": 10.0
 	},
 	"before_separator_metrics": {
 		"spatial_angular_uniformity": 0.548241094997605,
@@ -27,7 +27,7 @@
 		"spatial_minimum_center_distance": 11.4017542509914,
 		"spatial_radial_distance_variance": 56.5141388159033,
 		"spatial_radiality_provisional": 0.537794161052213,
-		"spatial_start_centrality": 10.0
+		"start_to_centroid_distance": 10.0
 	},
 	"connection_average_degree": 2.25,
 	"connection_count": 9,
@@ -61,6 +61,6 @@
 	"spatial_minimum_center_distance": 11.4,
 	"spatial_radial_distance_variance": 56.51,
 	"spatial_radiality_provisional": 0.54,
-	"spatial_start_centrality": 10.0,
+	"start_to_centroid_distance": 10.0,
 	"validation_room_overlap": "PASS"
 }

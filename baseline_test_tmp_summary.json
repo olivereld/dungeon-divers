@@ -12,7 +12,7 @@
 	"avg_radiality_after_separator": 0.482776325587794,
 	"avg_radiality_before_separator": 0.482776325587794,
 	"avg_rooms": 7.4,
-	"avg_start_centrality": 6.36009389536479,
+	"avg_start_to_centroid_distance": 6.36009389536479,
 	"connectivity_pass_rate": 1.0,
 	"generation_failures": 0,
 	"generations_failed": 0,
@@ -25,7 +25,7 @@
 		"seed": 10002,
 		"value": 56.5141388159033
 	},
-	"highest_start_centrality": {
+	"highest_start_to_centroid_distance": {
 		"seed": 10002,
 		"value": 10.0
 	},
