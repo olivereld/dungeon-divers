@@ -289,10 +289,23 @@ func _snapshot_from_result(result: DungeonResult, config: DungeonConfig):
 	snap.placement_tier_4 = result.placement_tier_4
 	snap.before_separator_metrics = result.before_separator_metrics
 	snap.after_separator_metrics = result.after_separator_metrics
+	snap.rooms = result.rooms
 
 	_compute_validation(snap, result.rooms)
+	_compute_overlap_count(snap, result.rooms)
+	_compute_dungeon_bounds_area(snap, config)
+	_compute_pairwise_spacing(snap, result.rooms)
+	_compute_nearest_neighbor(snap, result.rooms)
 
 	return snap
+
+func _compute_overlap_count(snap, rooms: Array[RoomData]) -> void:
+	var count: int = 0
+	for i in range(rooms.size()):
+		for j in range(i + 1, rooms.size()):
+			if rooms[i].overlaps(rooms[j]):
+				count += 1
+	snap.overlap_count = count
 
 func _compute_room_metrics(snap, rooms: Array[RoomData]) -> void:
 	var total_area: int = 0
@@ -548,6 +561,89 @@ func _compute_validation(snap, rooms: Array[RoomData]) -> void:
 				snap.validation_room_overlap = "FAIL"
 				return
 	snap.validation_room_overlap = "PASS"
+
+func _compute_dungeon_bounds_area(snap, config: DungeonConfig) -> void:
+	snap.dungeon_bounds_area = config.grid_width * config.grid_height
+
+func _compute_pairwise_spacing(snap, rooms: Array[RoomData]) -> void:
+	if rooms.size() < 2:
+		snap.pairwise_spacing_mean = 0.0
+		snap.pairwise_spacing_min = 0.0
+		snap.pairwise_spacing_max = 0.0
+		snap.pairwise_spacing_stddev = 0.0
+		return
+	var distances: Array[float] = []
+	for i in range(rooms.size()):
+		var c1 := rooms[i].get_center()
+		for j in range(i + 1, rooms.size()):
+			var c2 := rooms[j].get_center()
+			var dx: int = c2.x - c1.x
+			var dy: int = c2.y - c1.y
+			distances.append(sqrt(float(dx * dx + dy * dy)))
+	var n: int = distances.size()
+	if n == 0:
+		snap.pairwise_spacing_mean = 0.0
+		snap.pairwise_spacing_min = 0.0
+		snap.pairwise_spacing_max = 0.0
+		snap.pairwise_spacing_stddev = 0.0
+		return
+	var s: float = _sum_array(distances)
+	var mean: float = s / float(n)
+	var mn: float = distances[0]
+	var mx: float = distances[0]
+	for d in distances:
+		if d < mn: mn = d
+		if d > mx: mx = d
+	var variance: float = 0.0
+	for d in distances:
+		variance += (d - mean) * (d - mean)
+	variance /= float(n)
+	snap.pairwise_spacing_mean = mean
+	snap.pairwise_spacing_min = mn
+	snap.pairwise_spacing_max = mx
+	snap.pairwise_spacing_stddev = sqrt(variance)
+
+func _compute_nearest_neighbor(snap, rooms: Array[RoomData]) -> void:
+	if rooms.size() < 2:
+		snap.nearest_neighbor_mean = 0.0
+		snap.nearest_neighbor_min = 0.0
+		snap.nearest_neighbor_max = 0.0
+		snap.nearest_neighbor_stddev = 0.0
+		return
+	var nn_distances: Array[float] = []
+	for i in range(rooms.size()):
+		var c1 := rooms[i].get_center()
+		var nn: float = 1e9
+		for j in range(rooms.size()):
+			if i == j: continue
+			var c2 := rooms[j].get_center()
+			var dx: int = c2.x - c1.x
+			var dy: int = c2.y - c1.y
+			var d: float = sqrt(float(dx * dx + dy * dy))
+			if d < nn: nn = d
+		nn_distances.append(nn)
+	var n: int = nn_distances.size()
+	if n == 0:
+		snap.nearest_neighbor_mean = 0.0
+		snap.nearest_neighbor_min = 0.0
+		snap.nearest_neighbor_max = 0.0
+		snap.nearest_neighbor_stddev = 0.0
+		return
+	var s: float = _sum_array(nn_distances)
+	var mean: float = s / float(n)
+	var mn: float = nn_distances[0]
+	var mx: float = nn_distances[0]
+	for d in nn_distances:
+		if d < mn: mn = d
+		if d > mx: mx = d
+	var variance: float = 0.0
+	for d in nn_distances:
+		variance += (d - mean) * (d - mean)
+	variance /= float(n)
+	snap.nearest_neighbor_mean = mean
+	snap.nearest_neighbor_min = mn
+	snap.nearest_neighbor_max = mx
+	snap.nearest_neighbor_stddev = sqrt(variance)
 
 func _compute_bounding_box(snap, rooms: Array[RoomData]) -> void:
 	if rooms.is_empty():

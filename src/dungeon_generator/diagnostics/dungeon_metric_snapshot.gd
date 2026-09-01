@@ -5,6 +5,7 @@ extends RefCounted
 
 # ── Rooms ──────────────────────────────────────────────
 var room_count: int = 0
+var rooms: Array[RoomData] = []
 var room_average_area: float = 0.0
 var room_area_min: int = 0
 var room_area_max: int = 0
@@ -55,6 +56,18 @@ var placement_tier_3: int = 0
 var placement_tier_4: int = 0
 var before_separator_metrics: Dictionary = {}
 var after_separator_metrics: Dictionary = {}
+
+# ── Extended Spatial Metrics ───────────────────────
+var dungeon_bounds_area: int = 0
+var overlap_count: int = 0
+var pairwise_spacing_mean: float = 0.0
+var pairwise_spacing_min: float = 0.0
+var pairwise_spacing_max: float = 0.0
+var pairwise_spacing_stddev: float = 0.0
+var nearest_neighbor_mean: float = 0.0
+var nearest_neighbor_min: float = 0.0
+var nearest_neighbor_max: float = 0.0
+var nearest_neighbor_stddev: float = 0.0
 
 # ── Connectivity (CellGrid flood-fill) ─────────────────
 var connectivity_status: String = "FAIL"
@@ -108,4 +121,14 @@ func to_dict() -> Dictionary:
 		"placement_tier_4": placement_tier_4,
 		"before_separator_metrics": before_separator_metrics,
 		"after_separator_metrics": after_separator_metrics,
+		"dungeon_bounds_area": dungeon_bounds_area,
+		"overlap_count": overlap_count,
+		"pairwise_spacing_mean": roundf(pairwise_spacing_mean * 100.0) / 100.0,
+		"pairwise_spacing_min": roundf(pairwise_spacing_min * 100.0) / 100.0,
+		"pairwise_spacing_max": roundf(pairwise_spacing_max * 100.0) / 100.0,
+		"pairwise_spacing_stddev": roundf(pairwise_spacing_stddev * 100.0) / 100.0,
+		"nearest_neighbor_mean": roundf(nearest_neighbor_mean * 100.0) / 100.0,
+		"nearest_neighbor_min": roundf(nearest_neighbor_min * 100.0) / 100.0,
+		"nearest_neighbor_max": roundf(nearest_neighbor_max * 100.0) / 100.0,
+		"nearest_neighbor_stddev": roundf(nearest_neighbor_stddev * 100.0) / 100.0,
 	}
