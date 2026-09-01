@@ -120,7 +120,7 @@ func test_snapshot_to_dict() -> void:
 func test_baseline_save() -> void:
 	print("  -> Testing baseline save...")
 	var diag = _DungeonDiagnosticsScript.new()
-	var summary = diag.save_baseline(10000, 5, "baseline_test_tmp")
+	var summary = diag.save_baseline(10000, 5, "baseline/baseline_test_tmp")
 	assert(summary.size() > 0, "Summary must not be empty")
 	assert(summary.has("worst_short_corridors"), "Summary must have worst_short_corridors")
 	assert(summary.has("highest_radial_distance_variance"), "Summary must have highest_radial_distance_variance")
@@ -137,10 +137,10 @@ func test_baseline_save() -> void:
 	assert(summary["worst_topology_checksum"].has("value"), "worst_topology_checksum must have value")
 	assert(summary["worst_topology_checksum"]["value"] != "", "worst_topology_checksum value must not be empty")
 	assert(summary["seeds_evaluated"] == 5, "Must have evaluated 5 seeds")
-	var f = FileAccess.open("baseline_test_tmp_summary.json", FileAccess.READ)
+	var f = FileAccess.open("baseline/baseline_test_tmp_summary.json", FileAccess.READ)
 	assert(f != null, "Summary file must exist")
 	f = null
-	f = FileAccess.open("baseline_test_tmp_seed_10000.json", FileAccess.READ)
+	f = FileAccess.open("baseline/baseline_test_tmp_seed_10000.json", FileAccess.READ)
 	assert(f != null, "Seed file must exist")
 	f = null
 	print("    [OK] Baseline save produced summary with worst-case metrics and files")
