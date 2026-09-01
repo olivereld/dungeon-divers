@@ -109,6 +109,7 @@ func generate_summary(snapshots) -> Dictionary:
 			summary["generations_successful"] += 1
 		else:
 			summary["generations_failed"] += 1
+			continue  # Skip failed runs for quality/spatial/topology averages
 
 		total_room_count += snap.room_count
 		total_connection_count += snap.connection_count
@@ -129,20 +130,21 @@ func generate_summary(snapshots) -> Dictionary:
 		total_corridor_length += snap.corridor_average_length
 		total_short_corridors += snap.corridor_short_count
 
-	summary["avg_rooms"] = float(total_room_count) / float(n)
-	summary["avg_connections"] = float(total_connection_count) / float(n)
-	summary["avg_corridors"] = float(total_corridor_count) / float(n)
-	summary["avg_corridor_length"] = float(total_corridor_length) / float(n) if n > 0 else 0.0
-	summary["connectivity_pass_rate"] = float(connectivity_pass_count) / float(n)
-	summary["overlap_pass_rate"] = float(overlap_pass_count) / float(n)
+	var successful_count = summary["generations_successful"]
+	summary["avg_rooms"] = float(total_room_count) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_connections"] = float(total_connection_count) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_corridors"] = float(total_corridor_count) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_corridor_length"] = float(total_corridor_length) / float(successful_count) if successful_count > 0 else 0.0
+	summary["connectivity_pass_rate"] = float(connectivity_pass_count) / float(successful_count) if successful_count > 0 else 0.0
+	summary["overlap_pass_rate"] = float(overlap_pass_count) / float(successful_count) if successful_count > 0 else 0.0
 	summary["walkable_cells_total"] = total_walkable
 	summary["reachable_cells_total"] = total_reachable
-	summary["avg_dead_ends"] = float(total_dead_ends) / float(n)
-	summary["avg_loops"] = float(total_loops) / float(n)
-	summary["avg_radiality"] = float(total_radiality) / float(n)
-	summary["avg_start_centrality"] = float(total_start_centrality) / float(n)
-	summary["avg_angular_uniformity"] = float(total_angular_uniformity) / float(n)
-	summary["avg_radial_variance"] = float(total_radial_variance) / float(n)
+	summary["avg_dead_ends"] = float(total_dead_ends) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_loops"] = float(total_loops) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_radiality"] = float(total_radiality) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_start_centrality"] = float(total_start_centrality) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_angular_uniformity"] = float(total_angular_uniformity) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_radial_variance"] = float(total_radial_variance) / float(successful_count) if successful_count > 0 else 0.0
 	summary["short_corridor_rate"] = float(total_short_corridors) / float(total_corridor_count) if total_corridor_count > 0 else 0.0
 
 	return summary
@@ -157,8 +159,8 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 
 	var worst_short_corridors_seed = 0
 	var worst_short_corridors_val = -1.0
-	var worst_spacing_seed = 0
-	var worst_spacing_val = -1.0
+	var worst_radial_distance_variance_seed = 0
+	var worst_radial_distance_variance_val = -1.0
 	var worst_topology_seed = 0
 	var worst_topology_val = -1
 	var worst_topology_checksum_seed = 0
@@ -185,9 +187,9 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 			worst_short_corridors_val = short_rate
 			worst_short_corridors_seed = seed
 
-		if snap.spatial_radial_distance_variance > worst_spacing_val:
-			worst_spacing_val = snap.spatial_radial_distance_variance
-			worst_spacing_seed = seed
+		if snap.spatial_radial_distance_variance > worst_radial_distance_variance_val:
+			worst_radial_distance_variance_val = snap.spatial_radial_distance_variance
+			worst_radial_distance_variance_seed = seed
 
 		var topo_score = snap.connection_dead_ends + snap.connection_loops
 		if topo_score > worst_topology_val:
@@ -209,7 +211,7 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 
 	var summary = generate_summary(snapshots)
 	summary["worst_short_corridors"] = {"seed": worst_short_corridors_seed, "value": worst_short_corridors_val}
-	summary["highest_radial_distance_variance"] = {"seed": worst_spacing_seed, "value": worst_spacing_val}
+	summary["highest_radial_distance_variance"] = {"seed": worst_radial_distance_variance_seed, "value": worst_radial_distance_variance_val}
 	summary["worst_topology"] = {"seed": worst_topology_seed, "value": worst_topology_val}
 	summary["worst_topology_checksum"] = {"seed": worst_topology_checksum_seed, "value": worst_topology_checksum_value}
 	summary["highest_start_centrality"] = {"seed": highest_start_centrality_seed, "value": highest_start_centrality_val}
