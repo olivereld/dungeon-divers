@@ -262,6 +262,22 @@ static func build_config(seed: int) -> DungeonConfig:
 	cfg.apply_preset_standard()
 	return cfg
 
+## Computa métricas espaciales a partir de un array de rooms sintéticas.
+## Útil para tests de sensibilidad sin necesidad de generar un dungeon completo.
+func compute_spatial_metrics_from_rooms(rooms: Array[RoomData], config: DungeonConfig):
+	var snap = _DungeonMetricSnapshotScript.new()
+	snap.room_count = rooms.size()
+	snap.room_type_distribution = {}
+	for r in rooms:
+		snap.room_type_distribution[r.room_type] = snap.room_type_distribution.get(r.room_type, 0) + 1
+	_compute_overlap_count(snap, rooms)
+	_compute_dungeon_bounds_area(snap, config)
+	_compute_pairwise_spacing(snap, rooms)
+	_compute_nearest_neighbor(snap, rooms)
+	_compute_bounding_box(snap, rooms)
+	_compute_spatial_metrics(snap, rooms)
+	return snap
+
 # ── Internal helpers ───────────────────────────
 
 func _snapshot_from_result(result: DungeonResult, config: DungeonConfig):
