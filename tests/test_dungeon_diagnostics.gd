@@ -17,6 +17,7 @@ func _init() -> void:
 	test_build_config_static()
 	test_snapshot_to_dict()
 	test_baseline_save()
+	test_determinism()
 	print("[PASS] test_dungeon_diagnostics completed successfully!")
 	quit(0)
 
@@ -127,6 +128,10 @@ func test_baseline_save() -> void:
 	assert(summary["worst_short_corridors"].has("value"), "worst_short_corridors must have value")
 	assert(summary["highest_start_centrality"].has("seed"), "highest_start_centrality must have seed")
 	assert(summary["highest_start_centrality"].has("value"), "highest_start_centrality must have value")
+	assert(summary.has("worst_topology_checksum"), "Summary must have worst_topology_checksum")
+	assert(summary["worst_topology_checksum"].has("seed"), "worst_topology_checksum must have seed")
+	assert(summary["worst_topology_checksum"].has("value"), "worst_topology_checksum must have value")
+	assert(summary["worst_topology_checksum"]["value"] != "", "worst_topology_checksum value must not be empty")
 	assert(summary["seeds_evaluated"] == 5, "Must have evaluated 5 seeds")
 	var f = FileAccess.open("baseline_test_tmp_summary.json", FileAccess.READ)
 	assert(f != null, "Summary file must exist")
@@ -135,4 +140,20 @@ func test_baseline_save() -> void:
 	assert(f != null, "Seed file must exist")
 	f = null
 	print("    [OK] Baseline save produced summary with worst-case metrics and files")
+
+func test_determinism() -> void:
+	print("  -> Testing determinism via generation_checksum...")
+	var diag = _DungeonDiagnosticsScript.new()
+	var seeds: Array[int] = [100, 200, 300, 400, 500]
+	# First run
+	var snapshots_a = diag.run_seeds(seeds)
+	# Second run with same seeds
+	var snapshots_b = diag.run_seeds(seeds)
+	assert(snapshots_a.size() == snapshots_b.size(), "Both runs must produce same number of snapshots")
+	for i in range(seeds.size()):
+		assert(snapshots_a[i].generation_checksum == snapshots_b[i].generation_checksum,
+			"Checksum for seed %d must match across runs" % seeds[i])
+		assert(snapshots_a[i].generation_seed_used == snapshots_b[i].generation_seed_used,
+			"Seed used must match across runs for index %d" % i)
+	print("    [OK] All checksums match across repeated runs — determinism confirmed")
 

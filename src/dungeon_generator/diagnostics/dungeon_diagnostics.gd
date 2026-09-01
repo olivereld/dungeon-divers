@@ -161,6 +161,8 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 	var worst_spacing_val = -1.0
 	var worst_topology_seed = 0
 	var worst_topology_val = -1
+	var worst_topology_checksum_seed = 0
+	var worst_topology_checksum_value = ""
 	var highest_start_centrality_seed = 0
 	var highest_start_centrality_val = -1.0
 	var highest_angular_pattern_seed = 0
@@ -191,6 +193,8 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 		if topo_score > worst_topology_val:
 			worst_topology_val = topo_score
 			worst_topology_seed = seed
+			worst_topology_checksum_seed = seed
+			worst_topology_checksum_value = snap.generation_checksum
 
 		if snap.spatial_start_centrality > highest_start_centrality_val:
 			highest_start_centrality_val = snap.spatial_start_centrality
@@ -207,6 +211,7 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 	summary["worst_short_corridors"] = {"seed": worst_short_corridors_seed, "value": worst_short_corridors_val}
 	summary["highest_radial_distance_variance"] = {"seed": worst_spacing_seed, "value": worst_spacing_val}
 	summary["worst_topology"] = {"seed": worst_topology_seed, "value": worst_topology_val}
+	summary["worst_topology_checksum"] = {"seed": worst_topology_checksum_seed, "value": worst_topology_checksum_value}
 	summary["highest_start_centrality"] = {"seed": highest_start_centrality_seed, "value": highest_start_centrality_val}
 	summary["highest_angular_pattern"] = {"seed": highest_angular_pattern_seed, "value": highest_angular_pattern_val}
 	summary["generation_failures"] = generation_failures
