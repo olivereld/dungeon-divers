@@ -12,6 +12,7 @@ var tier_3_count: int = 0
 var tier_4_count: int = 0
 var _metrics_before_separator: Dictionary = {}
 var _metrics_after_separator: Dictionary = {}
+var _rooms_before_separator: Array[RoomData] = []
 
 func _init() -> void:
 	_rng = RandomNumberGenerator.new()
@@ -82,6 +83,7 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 
 	# Medir antes del separator
 	_metrics_before_separator = _compute_spatial_metrics_dict(rooms)
+	_rooms_before_separator = rooms.duplicate()
 
 	# Consolidar separación espacial AABB con padding mínimo de 2 celdas
 	rooms = _RoomSpatialSeparatorScript.separate_rooms(rooms, grid_bounds, _rng, 2)

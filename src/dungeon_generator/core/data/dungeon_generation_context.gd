@@ -46,6 +46,7 @@ var placement_tier_3: int = 0
 var placement_tier_4: int = 0
 var before_separator_metrics: Dictionary = {}
 var after_separator_metrics: Dictionary = {}
+var rooms_before_separator: Array[RoomData] = []
 
 # 5. Métricas, Tiempos y Diagnósticos
 var stage_timings_ms: Dictionary = {}       # String -> float
@@ -83,6 +84,7 @@ func _init(p_config: DungeonConfig = null, p_base_seed: int = 0, p_attempt: int 
 	placement_tier_4 = 0
 	before_separator_metrics.clear()
 	after_separator_metrics.clear()
+	rooms_before_separator.clear()
 	metrics.clear()
 	diagnostics.clear()
 	is_attempt_failed = false
@@ -129,6 +131,7 @@ func to_dungeon_result() -> DungeonResult:
 	res.placement_tier_4 = placement_tier_4
 	res.before_separator_metrics = before_separator_metrics
 	res.after_separator_metrics = after_separator_metrics
+	res.rooms_before_separator = rooms_before_separator
 	
 	var total_time: float = 0.0
 	for t in stage_timings_ms.values():

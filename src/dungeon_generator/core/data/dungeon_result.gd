@@ -23,6 +23,7 @@ var placement_tier_3: int = 0
 var placement_tier_4: int = 0
 var before_separator_metrics: Dictionary = {}
 var after_separator_metrics: Dictionary = {}
+var rooms_before_separator: Array[RoomData] = []
 var metadata: Dictionary = {}
 
 func to_debug_string() -> String:

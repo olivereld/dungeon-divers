@@ -304,6 +304,13 @@ func _snapshot_from_result(result: DungeonResult, config: DungeonConfig):
 	snap.placement_tier_3 = result.placement_tier_3
 	snap.placement_tier_4 = result.placement_tier_4
 	snap.before_separator_metrics = result.before_separator_metrics
+	if not result.rooms_before_separator.is_empty():
+		var _before_nn_snap := _DungeonMetricSnapshotScript.new()
+		_compute_nearest_neighbor(_before_nn_snap, result.rooms_before_separator)
+		snap.before_separator_metrics["nearest_neighbor_mean"] = _before_nn_snap.nearest_neighbor_mean
+		snap.before_separator_metrics["nearest_neighbor_min"] = _before_nn_snap.nearest_neighbor_min
+		snap.before_separator_metrics["nearest_neighbor_max"] = _before_nn_snap.nearest_neighbor_max
+		snap.before_separator_metrics["nearest_neighbor_stddev"] = _before_nn_snap.nearest_neighbor_stddev
 	snap.after_separator_metrics = result.after_separator_metrics
 	snap.rooms = result.rooms
 
@@ -329,10 +336,10 @@ func _inject_metric_keys(snap) -> void:
 	before["pairwise_spacing_min"] = before.get("spatial_minimum_center_distance", 0.0)
 	before["pairwise_spacing_max"] = 0.0
 	before["pairwise_spacing_stddev"] = 0.0
-	before["nearest_neighbor_mean"] = 0.0
-	before["nearest_neighbor_min"] = 0.0
-	before["nearest_neighbor_max"] = 0.0
-	before["nearest_neighbor_stddev"] = 0.0
+	before["nearest_neighbor_mean"] = before.get("nearest_neighbor_mean", 0.0)
+	before["nearest_neighbor_min"] = before.get("nearest_neighbor_min", 0.0)
+	before["nearest_neighbor_max"] = before.get("nearest_neighbor_max", 0.0)
+	before["nearest_neighbor_stddev"] = before.get("nearest_neighbor_stddev", 0.0)
 
 	# after_separator_metrics: use computed snap values
 	after["pairwise_spacing_mean"] = snap.pairwise_spacing_mean
