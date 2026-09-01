@@ -12,7 +12,7 @@
 		"spatial_minimum_center_distance": 11.6619037896906,
 		"spatial_radial_distance_variance": 50.2934244529834,
 		"spatial_radiality_provisional": 0.529272354043583,
-		"spatial_start_centrality": 6.40312423743285
+		"start_to_centroid_distance": 6.40312423743285
 	},
 	"before_separator_metrics": {
 		"spatial_angular_uniformity": 0.764726605729273,
@@ -27,7 +27,7 @@
 		"spatial_minimum_center_distance": 11.6619037896906,
 		"spatial_radial_distance_variance": 50.2934244529834,
 		"spatial_radiality_provisional": 0.529272354043583,
-		"spatial_start_centrality": 6.40312423743285
+		"start_to_centroid_distance": 6.40312423743285
 	},
 	"connection_average_degree": 2.0,
 	"connection_count": 7,
@@ -49,7 +49,7 @@
 	"room_area_min": 36,
 	"room_average_area": 98.57,
 	"room_count": 7,
-	"spatial_angular_uniformity": 0.76,
+	"spatial_angular_uniformity": 0.0,
 	"spatial_average_center_distance": 27.58,
 	"spatial_bbox_area": 2622,
 	"spatial_bbox_height": 46,
@@ -59,8 +59,8 @@
 	"spatial_bbox_min_y": 13,
 	"spatial_bbox_width": 57,
 	"spatial_minimum_center_distance": 11.66,
-	"spatial_radial_distance_variance": 50.29,
-	"spatial_radiality_provisional": 0.53,
-	"spatial_start_centrality": 6.4,
+	"spatial_radial_distance_variance": 0.0,
+	"spatial_radiality_provisional": 0.0,
+	"start_to_centroid_distance": 0.0,
 	"validation_room_overlap": "PASS"
 }

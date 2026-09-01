@@ -48,7 +48,7 @@ func generate_report(snapshot) -> String:
 	lines.append("Spatial")
 	lines.append("  average center distance: %.1f" % snapshot.spatial_average_center_distance)
 	lines.append("  minimum center distance: %.1f" % snapshot.spatial_minimum_center_distance)
-	lines.append("  start centrality: %.1f" % snapshot.start_to_centeroid_distance)
+	lines.append("  start centrality: %.1f" % snapshot.start_to_centroid_distance)
 	lines.append("  angular uniformity: %.2f" % snapshot.spatial_angular_uniformity)
 	lines.append("  radial distance variance: %.1f" % snapshot.spatial_radial_distance_variance)
 	lines.append("  radiality (provisional): %.2f" % snapshot.spatial_radiality_provisional)
@@ -66,8 +66,8 @@ func generate_report(snapshot) -> String:
 	lines.append("  bbox_height_after: %d" % snapshot.after_separator_metrics.get("spatial_bbox_height", 0))
 	lines.append("  bbox_area_before: %d" % snapshot.before_separator_metrics.get("spatial_bbox_area", 0))
 	lines.append("  bbox_area_after: %d" % snapshot.after_separator_metrics.get("spatial_bbox_area", 0))
-	lines.append("  start_centrality_before: %.1f" % snapshot.before_separator_metrics.get("start_to_centeroid_distance", 0.0))
-	lines.append("  start_centrality_after: %.1f" % snapshot.after_separator_metrics.get("start_to_centeroid_distance", 0.0))
+	lines.append("  start_centrality_before: %.1f" % snapshot.before_separator_metrics.get("start_to_centroid_distance", 0.0))
+	lines.append("  start_centrality_after: %.1f" % snapshot.after_separator_metrics.get("start_to_centroid_distance", 0.0))
 	lines.append("")
 	lines.append("Spatial Extent / Bounding Box")
 	lines.append("  min x: %d" % snapshot.spatial_bbox_min_x)
@@ -142,7 +142,7 @@ func generate_summary(snapshots) -> Dictionary:
 			overlap_pass_count += 1
 
 		total_radiality += snap.spatial_radiality_provisional
-		total_start_centrality += snap.start_to_centeroid_distance
+		total_start_centrality += snap.start_to_centroid_distance
 		total_angular_uniformity += snap.spatial_angular_uniformity
 		total_radial_variance += snap.spatial_radial_distance_variance
 		total_dead_ends += snap.connection_dead_ends
@@ -166,7 +166,7 @@ func generate_summary(snapshots) -> Dictionary:
 	summary["avg_dead_ends"] = float(total_dead_ends) / float(successful_count) if successful_count > 0 else 0.0
 	summary["avg_loops"] = float(total_loops) / float(successful_count) if successful_count > 0 else 0.0
 	summary["avg_radiality"] = float(total_radiality) / float(successful_count) if successful_count > 0 else 0.0
-	summary["avg_start_to_centeroid_distance"] = float(total_start_centrality) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_start_to_centroid_distance"] = float(total_start_centrality) / float(successful_count) if successful_count > 0 else 0.0
 	summary["avg_angular_uniformity"] = float(total_angular_uniformity) / float(successful_count) if successful_count > 0 else 0.0
 	summary["avg_radial_variance"] = float(total_radial_variance) / float(successful_count) if successful_count > 0 else 0.0
 	summary["short_corridor_rate"] = float(total_short_corridors) / float(total_corridor_count) if total_corridor_count > 0 else 0.0
@@ -226,8 +226,8 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 			worst_topology_checksum_seed = seed
 			worst_topology_checksum_value = snap.generation_checksum
 
-		if snap.start_to_centeroid_distance > highest_start_centrality_val:
-			highest_start_centrality_val = snap.start_to_centeroid_distance
+		if snap.start_to_centroid_distance > highest_start_centrality_val:
+			highest_start_centrality_val = snap.start_to_centroid_distance
 			highest_start_centrality_seed = seed
 
 		if snap.spatial_angular_uniformity > highest_angular_pattern_val:
@@ -242,7 +242,7 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 	summary["highest_radial_distance_variance"] = {"seed": worst_radial_distance_variance_seed, "value": worst_radial_distance_variance_val}
 	summary["worst_topology"] = {"seed": worst_topology_seed, "value": worst_topology_val}
 	summary["worst_topology_checksum"] = {"seed": worst_topology_checksum_seed, "value": worst_topology_checksum_value}
-	summary["highest_start_to_centeroid_distance"] = {"seed": highest_start_centrality_seed, "value": highest_start_centrality_val}
+	summary["highest_start_to_centroid_distance"] = {"seed": highest_start_centrality_seed, "value": highest_start_centrality_val}
 	summary["highest_angular_pattern"] = {"seed": highest_angular_pattern_seed, "value": highest_angular_pattern_val}
 	summary["generation_failures"] = generation_failures
 
@@ -397,7 +397,7 @@ func _compute_spatial_metrics(snap, rooms: Array[RoomData]) -> void:
 	if rooms.size() < 2:
 		snap.spatial_average_center_distance = 0.0
 		snap.spatial_minimum_center_distance = 0.0
-		snap.start_to_centeroid_distance = 0.0
+		snap.start_to_centroid_distance = 0.0
 		snap.spatial_angular_uniformity = 0.0
 		snap.spatial_radial_distance_variance = 0.0
 		snap.spatial_radiality_provisional = 0.0
@@ -430,7 +430,7 @@ func _compute_spatial_metrics(snap, rooms: Array[RoomData]) -> void:
 
 	# Start centrality: distance from start room center to centroid of all rooms
 	var centroid: Vector2i = _compute_centroid(centers)
-	snap.start_to_centeroid_distance = start_center.distance_to(centroid)
+	snap.start_to_centroid_distance = start_center.distance_to(centroid)
 
 	# Angular uniformity: circular variance around START
 	var angles: Array[float] = []
@@ -475,7 +475,7 @@ func _compute_provisional_radiality(snap) -> float:
 	# Normalizes three spatial measurements to [0,1] with empirical thresholds
 	# and averages them. Mixed magnitudes with arbitrary thresholds.
 	# Do NOT use for baseline decisions or comparisons.
-	var c_norm: float = minf(snap.start_to_centeroid_distance / 20.0, 1.0)
+	var c_norm: float = minf(snap.start_to_centroid_distance / 20.0, 1.0)
 	var a_norm: float = snap.spatial_angular_uniformity  # already in [0, 1]
 	var v_norm: float = minf(snap.spatial_radial_distance_variance / 100.0, 1.0)
 	return (c_norm + a_norm + v_norm) / 3.0
