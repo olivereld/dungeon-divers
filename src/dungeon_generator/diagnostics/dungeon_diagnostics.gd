@@ -155,14 +155,16 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 		seeds.append(seed_start + i)
 	var snapshots = run_seeds(seeds)
 
-	var worst_radiality_seed = 0
-	var worst_radiality_val = 1e9
 	var worst_short_corridors_seed = 0
 	var worst_short_corridors_val = -1.0
 	var worst_spacing_seed = 0
 	var worst_spacing_val = -1.0
 	var worst_topology_seed = 0
 	var worst_topology_val = -1
+	var highest_start_centrality_seed = 0
+	var highest_start_centrality_val = -1.0
+	var highest_angular_pattern_seed = 0
+	var highest_angular_pattern_val = -1.0
 	var generation_failures = 0
 
 	for snap in snapshots:
@@ -175,10 +177,6 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 		if file:
 			file.store_string(json_str)
 			file = null
-
-		if snap.spatial_radiality_provisional < worst_radiality_val:
-			worst_radiality_val = snap.spatial_radiality_provisional
-			worst_radiality_seed = seed
 
 		var short_rate = float(snap.corridor_short_count) / float(snap.corridor_count) if snap.corridor_count > 0 else 0.0
 		if short_rate > worst_short_corridors_val:
@@ -194,14 +192,23 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 			worst_topology_val = topo_score
 			worst_topology_seed = seed
 
+		if snap.spatial_start_centrality > highest_start_centrality_val:
+			highest_start_centrality_val = snap.spatial_start_centrality
+			highest_start_centrality_seed = seed
+
+		if snap.spatial_angular_uniformity > highest_angular_pattern_val:
+			highest_angular_pattern_val = snap.spatial_angular_uniformity
+			highest_angular_pattern_seed = seed
+
 		if snap.generation_success != "PASS":
 			generation_failures += 1
 
 	var summary = generate_summary(snapshots)
-	summary["worst_radiality"] = {"seed": worst_radiality_seed, "value": worst_radiality_val}
 	summary["worst_short_corridors"] = {"seed": worst_short_corridors_seed, "value": worst_short_corridors_val}
-	summary["worst_spacing"] = {"seed": worst_spacing_seed, "value": worst_spacing_val}
+	summary["highest_radial_distance_variance"] = {"seed": worst_spacing_seed, "value": worst_spacing_val}
 	summary["worst_topology"] = {"seed": worst_topology_seed, "value": worst_topology_val}
+	summary["highest_start_centrality"] = {"seed": highest_start_centrality_seed, "value": highest_start_centrality_val}
+	summary["highest_angular_pattern"] = {"seed": highest_angular_pattern_seed, "value": highest_angular_pattern_val}
 	summary["generation_failures"] = generation_failures
 
 	var summary_json = JSON.stringify(summary, "\t")
