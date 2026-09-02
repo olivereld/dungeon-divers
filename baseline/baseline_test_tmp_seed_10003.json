@@ -22,6 +22,14 @@
 		"spatial_radiality_provisional": 0.474483841161196,
 		"start_to_centroid_distance": 8.06225774829855
 	},
+	"before_nearest_neighbor_max": 22.36,
+	"before_nearest_neighbor_mean": 14.61,
+	"before_nearest_neighbor_min": 12.21,
+	"before_nearest_neighbor_stddev": 3.38,
+	"before_pairwise_spacing_max": 41.34,
+	"before_pairwise_spacing_mean": 26.33,
+	"before_pairwise_spacing_min": 12.21,
+	"before_pairwise_spacing_stddev": 8.76,
 	"before_separator_metrics": {
 		"nearest_neighbor_max": 22.3606797749979,
 		"nearest_neighbor_mean": 14.6095726417535,
