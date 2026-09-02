@@ -90,6 +90,10 @@ text = "↺ -45°"
 layout_mode = 2
 text = "↻ +45°"
 
+[node name="ExportAsciiBtn" type="Button" parent="VBox/TopBar"]
+layout_mode = 2
+text = "📋 Copiar ASCII"
+
 [node name="StatusLabel" type="Label" parent="VBox/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
