@@ -105,11 +105,17 @@ var corridor_length_stddev: float = 0.0
 var corridor_short_percentage: float = 0.0
 var corridor_short_rate: float = 0.0  # short_count / corridor_count — own field on snapshot
 
+# New: raw arrays (Phase 1 will use these for global percentiles)
+var corridor_lengths: Array = []
+
 # ── MVP-1.1: Graph ↔ Space (Edge Stretch) ────────────
 var edge_stretch_mean: float = 0.0
 var edge_stretch_min: float = 0.0
 var edge_stretch_max: float = 0.0
 var edge_stretch_stddev: float = 0.0
+
+# Raw per-edge values for diagnostic/aggregation purposes
+var edge_stretch_values: Array = []
 
 # ── MVP-1.1: Edge Spatial Length (topology ↔ geometry) ──
 var edge_spatial_length_mean: float = 0.0
@@ -219,4 +225,7 @@ func to_dict() -> Dictionary:
 		"before_nearest_neighbor_min": roundf(before_nearest_neighbor_min * 100.0) / 100.0,
 		"before_nearest_neighbor_max": roundf(before_nearest_neighbor_max * 100.0) / 100.0,
 		"before_nearest_neighbor_stddev": roundf(before_nearest_neighbor_stddev * 100.0) / 100.0,
+		# Raw arrays (diagnostic) — not rounded so consumers can compute global percentiles
+		"corridor_lengths": corridor_lengths,
+		"edge_stretch_values": edge_stretch_values,
 	}
