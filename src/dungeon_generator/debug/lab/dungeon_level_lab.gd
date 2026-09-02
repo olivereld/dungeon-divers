@@ -13,6 +13,7 @@ const _CoverageScript = preload("res://src/dungeon_generator/debug/lab/dungeon_l
 const _GoldenRunnerScript = preload("res://src/dungeon_generator/debug/lab/dungeon_lab_golden_runner.gd")
 const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
 const _Dungeon3DViewerScript = preload("res://src/dungeon_generator/debug/lab/viewer/dungeon_3d_viewer.gd")
+const _DungeonAsciiExporterScript = preload("res://src/dungeon_generator/debug/dungeon_ascii_exporter.gd")
 
 enum LabMode {
 	GENERATE = 0,
@@ -53,6 +54,7 @@ var view_mode_btn: Button
 var frame_dungeon_btn: Button
 var rotate_left_btn: Button
 var rotate_right_btn: Button
+var export_ascii_btn: Button
 var mode_tabs: TabBar
 var status_label: Label
 var inspector_text: RichTextLabel
@@ -85,6 +87,8 @@ func _ensure_nodes() -> void:
 		rotate_left_btn = find_child("RotateLeftBtn", true, false) as Button
 	if rotate_right_btn == null:
 		rotate_right_btn = find_child("RotateRightBtn", true, false) as Button
+	if export_ascii_btn == null:
+		export_ascii_btn = find_child("ExportAsciiBtn", true, false) as Button
 	if mode_tabs == null:
 		mode_tabs = find_child("ModeTabs", true, false) as TabBar
 	if status_label == null:
@@ -157,6 +161,9 @@ func _setup_topbar_ui() -> void:
 	if rotate_right_btn != null and not rotate_right_btn.pressed.is_connected(_on_rotate_right_pressed):
 		rotate_right_btn.pressed.connect(_on_rotate_right_pressed)
 
+	if export_ascii_btn != null and not export_ascii_btn.pressed.is_connected(_on_copy_ascii_pressed):
+		export_ascii_btn.pressed.connect(_on_copy_ascii_pressed)
+
 	if seed_input != null:
 		if not seed_input.value_changed.is_connected(_on_seed_value_changed):
 			seed_input.value_changed.connect(_on_seed_value_changed)
@@ -167,6 +174,45 @@ func _setup_topbar_ui() -> void:
 
 	if floor_selector != null and not floor_selector.item_selected.is_connected(_on_floor_selector_item_selected):
 		floor_selector.item_selected.connect(_on_floor_selector_item_selected)
+
+func _on_copy_ascii_pressed() -> void:
+	var floor_data = controller.get_current_floor_result()
+	var d_result: DungeonResult = null
+	var sem_res: DungeonSemanticResult = null
+
+	if floor_data != null and floor_data.has_method("to_dungeon_result"):
+		d_result = floor_data.to_dungeon_result()
+	elif controller.get_current_result().has("dungeon_result"):
+		d_result = controller.get_current_result()["dungeon_result"]
+
+	if floor_data != null and "semantic_result" in floor_data and floor_data.semantic_result != null:
+		sem_res = floor_data.semantic_result
+	else:
+		sem_res = controller.get_active_semantic_result()
+
+	if d_result == null and floor_data != null:
+		# Construir DungeonResult sintético desde DungeonFloorData para el exportador
+		d_result = DungeonResult.new()
+		d_result.grid = floor_data.grid
+		d_result.rooms = floor_data.rooms
+		d_result.door_pairs = floor_data.door_pairs
+		d_result.corridor_paths = floor_data.corridor_paths
+		d_result.floor_number = floor_data.floor_number
+		d_result.seed_used = config.seed
+
+	if d_result != null and d_result.grid != null:
+		var ascii_text := _DungeonAsciiExporterScript.export_ascii(d_result, sem_res, true)
+		DisplayServer.clipboard_set(ascii_text)
+		if export_ascii_btn != null:
+			var orig := export_ascii_btn.text
+			export_ascii_btn.text = "✓ ¡Copiado!"
+			get_tree().create_timer(1.2).timeout.connect(func():
+				if export_ascii_btn != null:
+					export_ascii_btn.text = orig
+			)
+		_set_status("¡Mapa ASCII copiado al portapapeles!")
+	else:
+		_set_status("No hay mazmorra generada para copiar.")
 
 func _toggle_view_mode() -> void:
 	if current_view_mode == ViewMode.VIEW_2D:

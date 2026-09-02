@@ -1197,16 +1197,6 @@ func _compute_progression_metrics(snap, rooms: Array[RoomData], mission_graph: D
 		snap.start_to_boss_spatial_distance = 0.0
 		snap.start_to_boss_path_distance = 0.0
 
-static func _compute_centroid(points: Array[Vector2i]) -> Vector2i:
-	if points.is_empty():
-		return Vector2i(0, 0)
-	var sx: int = 0
-	var sy: int = 0
-	for p in points:
-		sx += p.x
-		sy += p.y
-	return Vector2i(sx / points.size(), sy / points.size())
-
 static func _sum_array(arr: Array) -> float:
 	var s: float = 0.0
 	for v in arr:
