@@ -55,5 +55,14 @@ func _init() -> void:
 		assert(after.get("pairwise_spacing_max", 0.0) > 0.0, "Pairwise spacing max AFTER must be non-zero")
 		assert(after.get("nearest_neighbor_max", 0.0) > 0.0, "Nearest neighbor max AFTER must be non-zero")
 
+		# MVP-1.1: New topology/geometry and excentricity metrics
+		assert(snap.edge_spatial_length_mean >= 0.0, "Edge spatial length mean must be non-negative")
+		assert(snap.edge_spatial_length_min >= 0.0, "Edge spatial length min must be non-negative")
+		assert(snap.edge_spatial_length_max >= 0.0, "Edge spatial length max must be non-negative")
+		assert(snap.edge_spatial_length_stddev >= 0.0, "Edge spatial length stddev must be non-negative")
+		assert(snap.goal_to_centroid_distance >= 0.0, "Goal to centroid distance must be non-negative")
+		assert(snap.boss_to_centroid_distance >= 0.0, "Boss to centroid distance must be non-negative")
+		assert(snap.corridor_short_rate >= 0.0, "Corridor short rate must be non-negative")
+
 	print("\nAll deterministic metric checks passed successfully!")
 	quit()

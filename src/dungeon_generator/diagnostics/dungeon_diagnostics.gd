@@ -85,6 +85,17 @@ func generate_report(snapshot) -> String:
 	lines.append("  average length: %.1f" % snapshot.corridor_average_length)
 	lines.append("  minimum length: %d" % snapshot.corridor_minimum_length)
 	lines.append("  short corridors (<=3): %d" % snapshot.corridor_short_count)  # Frequency count only — not a quality judgment
+	lines.append("  short rate: %.3f" % snapshot.corridor_short_rate)
+	lines.append("")
+	lines.append("Topology <-> Geometry")
+	lines.append("  edge spatial length mean: %.1f" % snapshot.edge_spatial_length_mean)
+	lines.append("  edge spatial length min: %.1f" % snapshot.edge_spatial_length_min)
+	lines.append("  edge spatial length max: %.1f" % snapshot.edge_spatial_length_max)
+	lines.append("  edge spatial length stddev: %.1f" % snapshot.edge_spatial_length_stddev)
+	lines.append("")
+	lines.append("Excentricity")
+	lines.append("  goal to centroid distance: %.1f" % snapshot.goal_to_centroid_distance)
+	lines.append("  boss to centroid distance: %.1f" % snapshot.boss_to_centroid_distance)
 	lines.append("")
 	lines.append("Validation")
 	lines.append("  connectivity: %s" % snapshot.connectivity_status)
@@ -146,6 +157,13 @@ func generate_summary(snapshots) -> Dictionary:
 	var total_edge_stretch_min: float = 0.0
 	var total_edge_stretch_max: float = 0.0
 	var total_edge_stretch_stddev: float = 0.0
+	var total_edge_spatial_length_mean: float = 0.0
+	var total_edge_spatial_length_min: float = 0.0
+	var total_edge_spatial_length_max: float = 0.0
+	var total_edge_spatial_length_stddev: float = 0.0
+	var total_corridor_short_rate: float = 0.0
+	var total_goal_to_centroid: float = 0.0
+	var total_boss_to_centroid: float = 0.0
 
 	for snap in snapshots:
 		if snap.generation_success == "PASS":
@@ -196,6 +214,13 @@ func generate_summary(snapshots) -> Dictionary:
 		total_edge_stretch_min += snap.edge_stretch_min
 		total_edge_stretch_max += snap.edge_stretch_max
 		total_edge_stretch_stddev += snap.edge_stretch_stddev
+		total_edge_spatial_length_mean += snap.edge_spatial_length_mean
+		total_edge_spatial_length_min += snap.edge_spatial_length_min
+		total_edge_spatial_length_max += snap.edge_spatial_length_max
+		total_edge_spatial_length_stddev += snap.edge_spatial_length_stddev
+		total_corridor_short_rate += snap.corridor_short_rate
+		total_goal_to_centroid += snap.goal_to_centroid_distance
+		total_boss_to_centroid += snap.boss_to_centroid_distance
 
 	var successful_count = summary["generations_successful"]
 	summary["avg_rooms"] = float(total_room_count) / float(successful_count) if successful_count > 0 else 0.0
@@ -237,6 +262,13 @@ func generate_summary(snapshots) -> Dictionary:
 	summary["avg_edge_stretch_min"] = float(total_edge_stretch_min) / float(successful_count) if successful_count > 0 else 0.0
 	summary["avg_edge_stretch_max"] = float(total_edge_stretch_max) / float(successful_count) if successful_count > 0 else 0.0
 	summary["avg_edge_stretch_stddev"] = float(total_edge_stretch_stddev) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_edge_spatial_length_mean"] = float(total_edge_spatial_length_mean) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_edge_spatial_length_min"] = float(total_edge_spatial_length_min) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_edge_spatial_length_max"] = float(total_edge_spatial_length_max) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_edge_spatial_length_stddev"] = float(total_edge_spatial_length_stddev) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_corridor_short_rate"] = float(total_corridor_short_rate) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_goal_to_centroid_distance"] = float(total_goal_to_centroid) / float(successful_count) if successful_count > 0 else 0.0
+	summary["avg_boss_to_centroid_distance"] = float(total_boss_to_centroid) / float(successful_count) if successful_count > 0 else 0.0
 
 	return summary
 
@@ -278,6 +310,18 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 	var highest_start_to_goal_spatial_val = -1.0
 	var highest_start_to_boss_spatial_seed = 0
 	var highest_start_to_boss_spatial_val = -1.0
+	var worst_edge_spatial_length_min_seed = 0
+	var worst_edge_spatial_length_min_val = 999999
+	var worst_edge_spatial_length_max_seed = 0
+	var worst_edge_spatial_length_max_val = -1.0
+	var worst_edge_spatial_length_stddev_seed = 0
+	var worst_edge_spatial_length_stddev_val = -1.0
+	var worst_corridor_short_rate_seed = 0
+	var worst_corridor_short_rate_val = -1.0
+	var highest_goal_to_centroid_seed = 0
+	var highest_goal_to_centroid_val = -1.0
+	var highest_boss_to_centroid_seed = 0
+	var highest_boss_to_centroid_val = -1.0
 	var generation_failures = 0
 
 	for snap in snapshots:
@@ -342,6 +386,24 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 		if snap.start_to_boss_spatial_distance > highest_start_to_boss_spatial_val:
 			highest_start_to_boss_spatial_val = snap.start_to_boss_spatial_distance
 			highest_start_to_boss_spatial_seed = seed
+		if snap.edge_spatial_length_min < worst_edge_spatial_length_min_val:
+			worst_edge_spatial_length_min_val = snap.edge_spatial_length_min
+			worst_edge_spatial_length_min_seed = seed
+		if snap.edge_spatial_length_max > worst_edge_spatial_length_max_val:
+			worst_edge_spatial_length_max_val = snap.edge_spatial_length_max
+			worst_edge_spatial_length_max_seed = seed
+		if snap.edge_spatial_length_stddev > worst_edge_spatial_length_stddev_val:
+			worst_edge_spatial_length_stddev_val = snap.edge_spatial_length_stddev
+			worst_edge_spatial_length_stddev_seed = seed
+		if snap.corridor_short_rate > worst_corridor_short_rate_val:
+			worst_corridor_short_rate_val = snap.corridor_short_rate
+			worst_corridor_short_rate_seed = seed
+		if snap.goal_to_centroid_distance > highest_goal_to_centroid_val:
+			highest_goal_to_centroid_val = snap.goal_to_centroid_distance
+			highest_goal_to_centroid_seed = seed
+		if snap.boss_to_centroid_distance > highest_boss_to_centroid_val:
+			highest_boss_to_centroid_val = snap.boss_to_centroid_distance
+			highest_boss_to_centroid_seed = seed
 
 		if snap.generation_success != "PASS":
 			generation_failures += 1
@@ -360,6 +422,12 @@ func save_baseline(seed_start: int, num_seeds: int, output_dir: String) -> Dicti
 	summary["worst_corridor_short_percentage"] = {"seed": worst_corridor_short_percentage_seed, "value": worst_corridor_short_percentage_val}
 	summary["worst_edge_stretch_mean"] = {"seed": worst_edge_stretch_mean_seed, "value": worst_edge_stretch_mean_val}
 	summary["worst_edge_stretch_stddev"] = {"seed": worst_edge_stretch_stddev_seed, "value": worst_edge_stretch_stddev_val}
+	summary["worst_edge_spatial_length_min"] = {"seed": worst_edge_spatial_length_min_seed, "value": worst_edge_spatial_length_min_val}
+	summary["worst_edge_spatial_length_max"] = {"seed": worst_edge_spatial_length_max_seed, "value": worst_edge_spatial_length_max_val}
+	summary["worst_edge_spatial_length_stddev"] = {"seed": worst_edge_spatial_length_stddev_seed, "value": worst_edge_spatial_length_stddev_val}
+	summary["worst_corridor_short_rate"] = {"seed": worst_corridor_short_rate_seed, "value": worst_corridor_short_rate_val}
+	summary["highest_goal_to_centroid_distance"] = {"seed": highest_goal_to_centroid_seed, "value": highest_goal_to_centroid_val}
+	summary["highest_boss_to_centroid_distance"] = {"seed": highest_boss_to_centroid_seed, "value": highest_boss_to_centroid_val}
 	summary["highest_start_to_goal_spatial_distance"] = {"seed": highest_start_to_goal_spatial_seed, "value": highest_start_to_goal_spatial_val}
 	summary["highest_start_to_boss_spatial_distance"] = {"seed": highest_start_to_boss_spatial_seed, "value": highest_start_to_boss_spatial_val}
 	summary["generation_failures"] = generation_failures
@@ -458,7 +526,10 @@ func _snapshot_from_result(result: DungeonResult, config: DungeonConfig):
 		snap.nearest_neighbor_cv = snap.nearest_neighbor_stddev / snap.nearest_neighbor_mean
 	_compute_corridor_percentile_stats(snap, result.corridor_paths)
 	_compute_edge_stretch(snap, result.rooms, result.connections, result.corridor_paths)
+	_compute_edge_spatial_lengths(snap, result.rooms, result.connections)
+	_compute_excentricity(snap, result.rooms)
 	_compute_progression_metrics(snap, result.rooms, result.mission_graph)
+	snap.corridor_short_rate = float(snap.corridor_short_count) / float(snap.corridor_count) if snap.corridor_count > 0 else 0.0
 	_inject_metric_keys(snap)
 	if not result.after_separator_metrics.is_empty():
 		if not _validate_metrics("after", snap.pairwise_spacing_mean, result.after_separator_metrics.get("pairwise_spacing_mean", 0.0), snap.pairwise_spacing_stddev, result.after_separator_metrics.get("pairwise_spacing_stddev", 0.0)):
@@ -770,6 +841,16 @@ func _compute_validation(snap, rooms: Array[RoomData]) -> void:
 func _compute_dungeon_bounds_area(snap, config: DungeonConfig) -> void:
 	snap.dungeon_bounds_area = config.grid_width * config.grid_height
 
+func _compute_centroid(centers: Array[Vector2i]) -> Vector2i:
+	if centers.is_empty():
+		return Vector2i.ZERO
+	var sum_x: int = 0
+	var sum_y: int = 0
+	for c in centers:
+		sum_x += c.x
+		sum_y += c.y
+	return Vector2i(roundf(float(sum_x) / float(centers.size())), roundf(float(sum_y) / float(centers.size())))
+
 func _compute_pairwise_spacing(snap, rooms: Array[RoomData]) -> void:
 	if rooms.size() < 2:
 		snap.pairwise_spacing_mean = 0.0
@@ -989,6 +1070,91 @@ func _compute_edge_stretch(snap, rooms: Array[RoomData], connections: Array, cor
 		variance += (st - snap.edge_stretch_mean) * (st - snap.edge_stretch_mean)
 	variance /= float(stretches.size())
 	snap.edge_stretch_stddev = sqrt(variance)
+
+func _compute_edge_spatial_lengths(snap, rooms: Array[RoomData], connections: Array) -> void:
+	if rooms.is_empty() or connections.is_empty():
+		snap.edge_spatial_length_mean = 0.0
+		snap.edge_spatial_length_min = 0.0
+		snap.edge_spatial_length_max = 0.0
+		snap.edge_spatial_length_stddev = 0.0
+		return
+
+	var spatial_lengths: Array[float] = []
+	for c in connections:
+		if c == null:
+			continue
+		var room_a: RoomData = null
+		var room_b: RoomData = null
+		for r in rooms:
+			if r.id == c.room_a_id:
+				room_a = r
+			if r.id == c.room_b_id:
+				room_b = r
+		if room_a == null or room_b == null:
+			continue
+		var euclidean_dist: float = room_a.get_center().distance_to(room_b.get_center())
+		if euclidean_dist <= 0.0:
+			continue
+		spatial_lengths.append(euclidean_dist)
+
+	if spatial_lengths.is_empty():
+		snap.edge_spatial_length_mean = 0.0
+		snap.edge_spatial_length_min = 0.0
+		snap.edge_spatial_length_max = 0.0
+		snap.edge_spatial_length_stddev = 0.0
+		return
+
+	var s: float = _sum_array(spatial_lengths)
+	snap.edge_spatial_length_mean = s / float(spatial_lengths.size())
+	snap.edge_spatial_length_min = spatial_lengths[0]
+	snap.edge_spatial_length_max = spatial_lengths[0]
+	for sl in spatial_lengths:
+		if sl < snap.edge_spatial_length_min:
+			snap.edge_spatial_length_min = sl
+		if sl > snap.edge_spatial_length_max:
+			snap.edge_spatial_length_max = sl
+	var variance: float = 0.0
+	for sl in spatial_lengths:
+		variance += (sl - snap.edge_spatial_length_mean) * (sl - snap.edge_spatial_length_mean)
+	variance /= float(spatial_lengths.size())
+	snap.edge_spatial_length_stddev = sqrt(variance)
+
+func _compute_excentricity(snap, rooms: Array[RoomData]) -> void:
+	if rooms.is_empty():
+		snap.goal_to_centroid_distance = 0.0
+		snap.boss_to_centroid_distance = 0.0
+		return
+
+	var centers: Array[Vector2i] = []
+	var goal_center: Vector2i
+	var boss_center: Vector2i
+	var goal_found: bool = false
+	var boss_found: bool = false
+	for r in rooms:
+		centers.append(r.get_center())
+		if not goal_found and r.room_type == &"goal":
+			goal_center = r.get_center()
+			goal_found = true
+		if not boss_found and r.room_type == &"boss":
+			boss_center = r.get_center()
+			boss_found = true
+
+	if not goal_found and not boss_found:
+		snap.goal_to_centroid_distance = 0.0
+		snap.boss_to_centroid_distance = 0.0
+		return
+
+	var centroid: Vector2i = _compute_centroid(centers)
+
+	if goal_found:
+		snap.goal_to_centroid_distance = goal_center.distance_to(centroid)
+	else:
+		snap.goal_to_centroid_distance = 0.0
+
+	if boss_found:
+		snap.boss_to_centroid_distance = boss_center.distance_to(centroid)
+	else:
+		snap.boss_to_centroid_distance = 0.0
 
 func _compute_progression_metrics(snap, rooms: Array[RoomData], mission_graph: DungeonGraph) -> void:
 	var start_room: RoomData = null

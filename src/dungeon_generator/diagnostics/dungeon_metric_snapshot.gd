@@ -103,12 +103,23 @@ var corridor_length_p90: int = 0
 var corridor_length_max: int = 0
 var corridor_length_stddev: float = 0.0
 var corridor_short_percentage: float = 0.0
+var corridor_short_rate: float = 0.0  # short_count / corridor_count — own field on snapshot
 
 # ── MVP-1.1: Graph ↔ Space (Edge Stretch) ────────────
 var edge_stretch_mean: float = 0.0
 var edge_stretch_min: float = 0.0
 var edge_stretch_max: float = 0.0
 var edge_stretch_stddev: float = 0.0
+
+# ── MVP-1.1: Edge Spatial Length (topology ↔ geometry) ──
+var edge_spatial_length_mean: float = 0.0
+var edge_spatial_length_min: float = 0.0
+var edge_spatial_length_max: float = 0.0
+var edge_spatial_length_stddev: float = 0.0
+
+# ── MVP-1.1: Excentricity (goal/boss distance to centroid) ──
+var goal_to_centroid_distance: float = 0.0
+var boss_to_centroid_distance: float = 0.0
 
 # ── Connectivity (CellGrid flood-fill) ─────────────────
 var connectivity_status: String = "FAIL"
@@ -168,10 +179,17 @@ func to_dict() -> Dictionary:
 		"corridor_length_max": corridor_length_max,
 		"corridor_length_stddev": roundf(corridor_length_stddev * 100.0) / 100.0,
 		"corridor_short_percentage": roundf(corridor_short_percentage * 100.0) / 100.0,
+		"corridor_short_rate": roundf(corridor_short_rate * 100.0) / 100.0,
 		"edge_stretch_mean": roundf(edge_stretch_mean * 100.0) / 100.0,
 		"edge_stretch_min": roundf(edge_stretch_min * 100.0) / 100.0,
 		"edge_stretch_max": roundf(edge_stretch_max * 100.0) / 100.0,
 		"edge_stretch_stddev": roundf(edge_stretch_stddev * 100.0) / 100.0,
+		"edge_spatial_length_mean": roundf(edge_spatial_length_mean * 100.0) / 100.0,
+		"edge_spatial_length_min": roundf(edge_spatial_length_min * 100.0) / 100.0,
+		"edge_spatial_length_max": roundf(edge_spatial_length_max * 100.0) / 100.0,
+		"edge_spatial_length_stddev": roundf(edge_spatial_length_stddev * 100.0) / 100.0,
+		"goal_to_centroid_distance": roundf(goal_to_centroid_distance * 100.0) / 100.0,
+		"boss_to_centroid_distance": roundf(boss_to_centroid_distance * 100.0) / 100.0,
 		"connectivity_status": connectivity_status,
 		"connectivity_walkable_cells": connectivity_walkable_cells,
 		"connectivity_reachable_cells": connectivity_reachable_cells,
