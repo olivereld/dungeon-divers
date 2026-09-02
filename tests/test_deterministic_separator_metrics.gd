@@ -45,8 +45,15 @@ func _init() -> void:
 
 		assert(before.get("pairwise_spacing_stddev", 0.0) > 0.0, "Pairwise spacing stddev BEFORE must be non-zero")
 		assert(before.get("nearest_neighbor_stddev", 0.0) > 0.0, "Nearest neighbor stddev BEFORE must be non-zero")
+		assert(before.get("nearest_neighbor_cv", 0.0) > 0.0, "Nearest neighbor cv BEFORE must be non-zero")
 		assert(before.get("pairwise_spacing_max", 0.0) > 0.0, "Pairwise spacing max BEFORE must be non-zero")
 		assert(before.get("nearest_neighbor_max", 0.0) > 0.0, "Nearest neighbor max BEFORE must be non-zero")
+
+		assert(after.get("pairwise_spacing_stddev", 0.0) > 0.0, "Pairwise spacing stddev AFTER must be non-zero")
+		assert(after.get("nearest_neighbor_stddev", 0.0) > 0.0, "Nearest neighbor stddev AFTER must be non-zero")
+		assert(after.get("nearest_neighbor_cv", 0.0) > 0.0, "Nearest neighbor cv AFTER must be non-zero")
+		assert(after.get("pairwise_spacing_max", 0.0) > 0.0, "Pairwise spacing max AFTER must be non-zero")
+		assert(after.get("nearest_neighbor_max", 0.0) > 0.0, "Nearest neighbor max AFTER must be non-zero")
 
 	print("\nAll deterministic metric checks passed successfully!")
 	quit()

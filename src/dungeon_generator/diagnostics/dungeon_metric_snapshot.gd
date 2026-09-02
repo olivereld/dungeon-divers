@@ -80,6 +80,36 @@ var before_nearest_neighbor_min: float = 0.0
 var before_nearest_neighbor_max: float = 0.0
 var before_nearest_neighbor_stddev: float = 0.0
 
+# ── MVP-1.1: Spatial Extremes ───────────────────────
+var room_area_total: int = 0
+var room_fill_ratio: float = 0.0
+
+# ── MVP-1.1: Nearest Neighbor CV ─────────────────────
+var nearest_neighbor_cv: float = 0.0
+
+# ── MVP-1.1: Progression Metrics ─────────────────────
+var start_to_goal_spatial_distance: float = 0.0
+var start_to_goal_path_distance: float = 0.0
+var start_to_boss_spatial_distance: float = 0.0
+var start_to_boss_path_distance: float = 0.0
+
+# ── MVP-1.1: Corridor Percentile Stats ───────────────
+var corridor_length_min: int = 0
+var corridor_length_p10: int = 0
+var corridor_length_p25: int = 0
+var corridor_length_median: int = 0
+var corridor_length_p75: int = 0
+var corridor_length_p90: int = 0
+var corridor_length_max: int = 0
+var corridor_length_stddev: float = 0.0
+var corridor_short_percentage: float = 0.0
+
+# ── MVP-1.1: Graph ↔ Space (Edge Stretch) ────────────
+var edge_stretch_mean: float = 0.0
+var edge_stretch_min: float = 0.0
+var edge_stretch_max: float = 0.0
+var edge_stretch_stddev: float = 0.0
+
 # ── Connectivity (CellGrid flood-fill) ─────────────────
 var connectivity_status: String = "FAIL"
 var connectivity_walkable_cells: int = 0
@@ -122,6 +152,26 @@ func to_dict() -> Dictionary:
 		"spatial_bbox_height": spatial_bbox_height,
 		"spatial_bbox_area": spatial_bbox_area,
 		"spatial_radiality_provisional": roundf(spatial_radiality_provisional * 100.0) / 100.0,
+		"room_area_total": room_area_total,
+		"room_fill_ratio": roundf(room_fill_ratio * 100.0) / 100.0,
+		"nearest_neighbor_cv": roundf(nearest_neighbor_cv * 100.0) / 100.0,
+		"start_to_goal_spatial_distance": roundf(start_to_goal_spatial_distance * 100.0) / 100.0,
+		"start_to_goal_path_distance": roundf(start_to_goal_path_distance * 100.0) / 100.0,
+		"start_to_boss_spatial_distance": roundf(start_to_boss_spatial_distance * 100.0) / 100.0,
+		"start_to_boss_path_distance": roundf(start_to_boss_path_distance * 100.0) / 100.0,
+		"corridor_length_min": corridor_length_min,
+		"corridor_length_p10": corridor_length_p10,
+		"corridor_length_p25": corridor_length_p25,
+		"corridor_length_median": corridor_length_median,
+		"corridor_length_p75": corridor_length_p75,
+		"corridor_length_p90": corridor_length_p90,
+		"corridor_length_max": corridor_length_max,
+		"corridor_length_stddev": roundf(corridor_length_stddev * 100.0) / 100.0,
+		"corridor_short_percentage": roundf(corridor_short_percentage * 100.0) / 100.0,
+		"edge_stretch_mean": roundf(edge_stretch_mean * 100.0) / 100.0,
+		"edge_stretch_min": roundf(edge_stretch_min * 100.0) / 100.0,
+		"edge_stretch_max": roundf(edge_stretch_max * 100.0) / 100.0,
+		"edge_stretch_stddev": roundf(edge_stretch_stddev * 100.0) / 100.0,
 		"connectivity_status": connectivity_status,
 		"connectivity_walkable_cells": connectivity_walkable_cells,
 		"connectivity_reachable_cells": connectivity_reachable_cells,

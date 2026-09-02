@@ -307,11 +307,13 @@ func _compute_spatial_metrics_dict(rooms: Array[RoomData]) -> Dictionary:
 		result["nearest_neighbor_min"] = min_nn
 		result["nearest_neighbor_max"] = max_nn
 		result["nearest_neighbor_stddev"] = sqrt(var_nn)
+		result["nearest_neighbor_cv"] = sqrt(var_nn) / mean_nn if mean_nn > 0 else 0.0
 	else:
 		result["nearest_neighbor_mean"] = 0.0
 		result["nearest_neighbor_min"] = 0.0
 		result["nearest_neighbor_max"] = 0.0
 		result["nearest_neighbor_stddev"] = 0.0
+		result["nearest_neighbor_cv"] = 0.0
 
 	# Start centrality
 	var centroid: Vector2i = _compute_centroid(centers)
