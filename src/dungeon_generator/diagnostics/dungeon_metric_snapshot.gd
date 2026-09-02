@@ -127,6 +127,10 @@ var edge_spatial_length_stddev: float = 0.0
 var goal_to_centroid_distance: float = 0.0
 var boss_to_centroid_distance: float = 0.0
 
+# ── Raw-data arrays for global summary statistics ──
+var corridor_lengths: Array[int] = []
+var edge_stretch_values: Array[float] = []
+
 # ── Connectivity (CellGrid flood-fill) ─────────────────
 var connectivity_status: String = "FAIL"
 var connectivity_walkable_cells: int = 0

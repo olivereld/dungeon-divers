@@ -270,6 +270,31 @@ func generate_summary(snapshots) -> Dictionary:
 	summary["avg_goal_to_centroid_distance"] = float(total_goal_to_centroid) / float(successful_count) if successful_count > 0 else 0.0
 	summary["avg_boss_to_centroid_distance"] = float(total_boss_to_centroid) / float(successful_count) if successful_count > 0 else 0.0
 
+	# ── Global percentiles across all corridors from all dungeons ──
+	var all_corridor_lengths: Array[int] = []
+	var all_edge_stretch_values: Array[float] = []
+	for s in snapshots:
+		if s.generation_success != "PASS":
+			continue
+		for cl in s.corridor_lengths:
+			all_corridor_lengths.append(cl)
+		for es in s.edge_stretch_values:
+			all_edge_stretch_values.append(es)
+	all_corridor_lengths.sort()
+	all_edge_stretch_values.sort()
+	summary["global_corridor_length_p10"] = _compute_percentile(all_corridor_lengths, 10.0)
+	summary["global_corridor_length_p25"] = _compute_percentile(all_corridor_lengths, 25.0)
+	summary["global_corridor_length_median"] = _compute_percentile(all_corridor_lengths, 50.0)
+	summary["global_corridor_length_p75"] = _compute_percentile(all_corridor_lengths, 75.0)
+	summary["global_corridor_length_p90"] = _compute_percentile(all_corridor_lengths, 90.0)
+	summary["global_corridor_length_count"] = all_corridor_lengths.size()
+	summary["global_edge_stretch_p10"] = _compute_percentile(all_edge_stretch_values, 10.0)
+	summary["global_edge_stretch_p25"] = _compute_percentile(all_edge_stretch_values, 25.0)
+	summary["global_edge_stretch_median"] = _compute_percentile(all_edge_stretch_values, 50.0)
+	summary["global_edge_stretch_p75"] = _compute_percentile(all_edge_stretch_values, 75.0)
+	summary["global_edge_stretch_p90"] = _compute_percentile(all_edge_stretch_values, 90.0)
+	summary["global_edge_stretch_count"] = all_edge_stretch_values.size()
+
 	return summary
 
 ## Ejecuta num_seeds generaciones desde seed_start, guarda cada snapshot como JSON
@@ -663,16 +688,19 @@ func _compute_corridor_metrics(snap, corridor_paths: Array) -> void:
 		snap.corridor_average_length = 0.0
 		snap.corridor_minimum_length = 0
 		snap.corridor_short_count = 0
+		snap.corridor_lengths = []
 		return
 
 	var total_len: int = 0
 	var min_len: int = 999999
 	var short_count: int = 0
+	snap.corridor_lengths = []
 	for p in corridor_paths:
 		if p == null:
 			continue
 		var length: int = p.centerline_cells.size()
 		total_len += length
+		snap.corridor_lengths.append(length)
 		if length < min_len:
 			min_len = length
 		if length <= 3:
@@ -1017,6 +1045,7 @@ func _compute_edge_stretch(snap, rooms: Array[RoomData], connections: Array, cor
 		snap.edge_stretch_min = 0.0
 		snap.edge_stretch_max = 0.0
 		snap.edge_stretch_stddev = 0.0
+		snap.edge_stretch_values = []
 		return
 
 	var corridor_map: Dictionary = {}
@@ -1054,8 +1083,10 @@ func _compute_edge_stretch(snap, rooms: Array[RoomData], connections: Array, cor
 		snap.edge_stretch_min = 0.0
 		snap.edge_stretch_max = 0.0
 		snap.edge_stretch_stddev = 0.0
+		snap.edge_stretch_values = []
 		return
 
+	snap.edge_stretch_values = stretches
 	var s: float = _sum_array(stretches)
 	snap.edge_stretch_mean = s / float(stretches.size())
 	snap.edge_stretch_min = stretches[0]
