@@ -44,6 +44,18 @@
 	"generation_failures": 0,
 	"generations_failed": 0,
 	"generations_successful": 100,
+	"global_corridor_length_count": 776,
+	"global_corridor_length_median": 9.0,
+	"global_corridor_length_p10": 2.0,
+	"global_corridor_length_p25": 5.0,
+	"global_corridor_length_p75": 16.0,
+	"global_corridor_length_p90": 26.0,
+	"global_edge_stretch_count": 776,
+	"global_edge_stretch_median": 0.528954981134558,
+	"global_edge_stretch_p10": 0.163605797205681,
+	"global_edge_stretch_p25": 0.324244709657484,
+	"global_edge_stretch_p75": 0.763211047945503,
+	"global_edge_stretch_p90": 0.979947909820847,
 	"highest_angular_pattern": {
 		"seed": 10097,
 		"value": 0.982033298663592

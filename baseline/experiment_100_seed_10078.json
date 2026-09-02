@@ -73,6 +73,16 @@
 	"corridor_length_p75": 13,
 	"corridor_length_p90": 28,
 	"corridor_length_stddev": 14.23,
+	"corridor_lengths": [
+		2,
+		2,
+		4,
+		6,
+		8,
+		11,
+		21,
+		47
+	],
 	"corridor_minimum_length": 2,
 	"corridor_short_count": 2,
 	"corridor_short_percentage": 0.25,
@@ -86,6 +96,16 @@
 	"edge_stretch_mean": 0.51,
 	"edge_stretch_min": 0.16,
 	"edge_stretch_stddev": 0.34,
+	"edge_stretch_values": [
+		0.175411603861406,
+		0.514495755427526,
+		0.161690416690889,
+		0.257662650560332,
+		0.487768608679754,
+		0.444648645899944,
+		0.795431720032499,
+		1.23855875023262
+	],
 	"generation_checksum": "",
 	"generation_seed_used": 10078,
 	"generation_success": "PASS",

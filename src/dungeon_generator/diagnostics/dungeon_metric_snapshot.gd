@@ -106,16 +106,11 @@ var corridor_short_percentage: float = 0.0
 var corridor_short_rate: float = 0.0  # short_count / corridor_count — own field on snapshot
 
 # New: raw arrays (Phase 1 will use these for global percentiles)
-var corridor_lengths: Array = []
-
 # ── MVP-1.1: Graph ↔ Space (Edge Stretch) ────────────
 var edge_stretch_mean: float = 0.0
 var edge_stretch_min: float = 0.0
 var edge_stretch_max: float = 0.0
 var edge_stretch_stddev: float = 0.0
-
-# Raw per-edge values for diagnostic/aggregation purposes
-var edge_stretch_values: Array = []
 
 # ── MVP-1.1: Edge Spatial Length (topology ↔ geometry) ──
 var edge_spatial_length_mean: float = 0.0

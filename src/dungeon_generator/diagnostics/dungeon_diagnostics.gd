@@ -688,13 +688,13 @@ func _compute_corridor_metrics(snap, corridor_paths: Array) -> void:
 		snap.corridor_average_length = 0.0
 		snap.corridor_minimum_length = 0
 		snap.corridor_short_count = 0
-		snap.corridor_lengths = []
+		snap.corridor_lengths.clear()
 		return
 
 	var total_len: int = 0
 	var min_len: int = 999999
 	var short_count: int = 0
-	snap.corridor_lengths = []
+	snap.corridor_lengths.clear()
 	for p in corridor_paths:
 		if p == null:
 			continue
