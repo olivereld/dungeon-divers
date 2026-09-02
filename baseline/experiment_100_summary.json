@@ -1,0 +1,136 @@
+{
+	"avg_angular_uniformity": 0.758669178931071,
+	"avg_boss_to_centroid_distance": 19.5099882726911,
+	"avg_connections": 7.76,
+	"avg_corridor_length": 11.8292063492063,
+	"avg_corridor_length_max": 29.62,
+	"avg_corridor_length_median": 9.17,
+	"avg_corridor_length_min": 2.54,
+	"avg_corridor_length_p10": 3.26,
+	"avg_corridor_length_p25": 5.42,
+	"avg_corridor_length_p75": 14.9,
+	"avg_corridor_length_p90": 22.2,
+	"avg_corridor_length_stddev": 8.8086356987998,
+	"avg_corridor_short_percentage": 0.177559523809524,
+	"avg_corridor_short_rate": 0.177559523809524,
+	"avg_corridors": 7.76,
+	"avg_dead_ends": 1.64,
+	"avg_edge_spatial_length_max": 29.3393284831631,
+	"avg_edge_spatial_length_mean": 18.7802988831816,
+	"avg_edge_spatial_length_min": 12.0343601837597,
+	"avg_edge_spatial_length_stddev": 5.54950864518033,
+	"avg_edge_stretch_max": 1.11203924875452,
+	"avg_edge_stretch_mean": 0.569278444561981,
+	"avg_edge_stretch_min": 0.172380687203673,
+	"avg_edge_stretch_stddev": 0.302849759375,
+	"avg_goal_to_centroid_distance": 20.7203612757994,
+	"avg_loops": 1.66,
+	"avg_nearest_neighbor_cv": 0.22843722094019,
+	"avg_placement_tier_3": 0.0,
+	"avg_placement_tier_4": 0.0,
+	"avg_radial_variance": 33.8897409881805,
+	"avg_radiality": 0.453438726856571,
+	"avg_radiality_after_separator": 0.455121190712314,
+	"avg_radiality_before_separator": 0.455121190712314,
+	"avg_room_area_total": 580.81,
+	"avg_room_fill_ratio": 0.14179931640625,
+	"avg_rooms": 7.1,
+	"avg_start_to_boss_path_distance": 4.63,
+	"avg_start_to_boss_spatial_distance": 19.6659783718754,
+	"avg_start_to_centroid_distance": 5.25499183513675,
+	"avg_start_to_goal_path_distance": 5.28,
+	"avg_start_to_goal_spatial_distance": 22.9381529004655,
+	"connectivity_pass_rate": 1.0,
+	"generation_failures": 0,
+	"generations_failed": 0,
+	"generations_successful": 100,
+	"highest_angular_pattern": {
+		"seed": 10097,
+		"value": 0.982033298663592
+	},
+	"highest_boss_to_centroid_distance": {
+		"seed": 10092,
+		"value": 31.6227766016838
+	},
+	"highest_goal_to_centroid_distance": {
+		"seed": 10064,
+		"value": 33.2415402771893
+	},
+	"highest_radial_distance_variance": {
+		"seed": 10041,
+		"value": 75.5559248677001
+	},
+	"highest_start_to_boss_spatial_distance": {
+		"seed": 10092,
+		"value": 35.4682957019364
+	},
+	"highest_start_to_centroid_distance": {
+		"seed": 10041,
+		"value": 12.6491106406735
+	},
+	"highest_start_to_goal_spatial_distance": {
+		"seed": 10041,
+		"value": 36.8781778291715
+	},
+	"overlap_pass_rate": 1.0,
+	"reachable_cells_total": 74965,
+	"seeds_evaluated": 100,
+	"short_corridor_rate": 0.177835051546392,
+	"walkable_cells_total": 74965,
+	"worst_corridor_length_max": {
+		"seed": 10092,
+		"value": 62
+	},
+	"worst_corridor_length_min": {
+		"seed": 10014,
+		"value": 1
+	},
+	"worst_corridor_short_percentage": {
+		"seed": 10037,
+		"value": 0.571428571428571
+	},
+	"worst_corridor_short_rate": {
+		"seed": 10037,
+		"value": 0.571428571428571
+	},
+	"worst_edge_spatial_length_max": {
+		"seed": 10041,
+		"value": 45.2769256906871
+	},
+	"worst_edge_spatial_length_min": {
+		"seed": 10020,
+		"value": 8.24621125123532
+	},
+	"worst_edge_spatial_length_stddev": {
+		"seed": 10023,
+		"value": 11.6253923402494
+	},
+	"worst_edge_stretch_mean": {
+		"seed": 10030,
+		"value": 0.864647521512563
+	},
+	"worst_edge_stretch_stddev": {
+		"seed": 10030,
+		"value": 0.883888486875403
+	},
+	"worst_nearest_neighbor_cv": {
+		"seed": 10079,
+		"value": 0.548077680959647
+	},
+	"worst_room_fill_ratio": {
+		"seed": 10085,
+		"value": 0.1796875
+	},
+	"worst_short_corridors": {
+		"seed": 10037,
+		"value": 0.571428571428571
+	},
+	"worst_topology": {
+		"seed": 10035,
+		"value": 5
+	},
+	"worst_topology_checksum": {
+		"seed": 10035,
+		"value": ""
+	}
+}
