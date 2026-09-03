@@ -4,6 +4,7 @@ extends Resource
 ## Configuración completa y exportable para el generador de mazmorras.
 
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
+const SpaceGrammarConfig = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
 
 @export_group("Identificación y Semilla")
 @export var dungeon_id: StringName = &"dungeon_01"
@@ -42,6 +43,13 @@ func get_effective_archetype_id() -> StringName:
 @export_range(0.0, 1.0, 0.05) var lock_key_frequency: float = 0.35
 @export_range(0.0, 1.0, 0.05) var optional_branch_chance: float = 0.25
 @export var boss_enabled: bool = true
+
+@export_group("Gramática Espacial (Mission-Aware)")
+@export var space_grammar_config: SpaceGrammarConfig = null
+@export var use_mission_aware_placement: bool = false
+@export var mission_aware_preferred_distance: float = 12.0
+@export var mission_aware_candidate_count: int = 12
+@export var mission_aware_distance_jitter: float = 4.0
 
 @export_group("Algoritmo de Construcción")
 @export_enum("Template", "Hybrid", "BSP", "CellularAutomata") var algorithm: String = "Template"
@@ -164,6 +172,12 @@ func duplicate_config() -> DungeonConfig:
 	c.lock_key_frequency = lock_key_frequency
 	c.optional_branch_chance = optional_branch_chance
 	c.boss_enabled = boss_enabled
+	if space_grammar_config != null:
+		c.space_grammar_config = space_grammar_config.duplicate_config()
+	c.use_mission_aware_placement = use_mission_aware_placement
+	c.mission_aware_preferred_distance = mission_aware_preferred_distance
+	c.mission_aware_candidate_count = mission_aware_candidate_count
+	c.mission_aware_distance_jitter = mission_aware_distance_jitter
 	c.algorithm = algorithm
 	c.ca_fill_chance = ca_fill_chance
 	c.ca_iterations = ca_iterations

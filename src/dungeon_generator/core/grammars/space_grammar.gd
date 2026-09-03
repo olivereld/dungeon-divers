@@ -5,8 +5,17 @@ extends RefCounted
 ## y distribuidas armónicamente por el espacio disponible de la mazmorra.
 
 const _RoomSpatialSeparatorScript = preload("res://src/dungeon_generator/core/topology/room_spatial_separator.gd")
+const SpaceGrammarConfig = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
+
+const _DIRECTIONS: Array[Vector2i] = [
+	Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT,
+	Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1),
+]
 
 var _rng: RandomNumberGenerator
+var rng: RandomNumberGenerator
+var mission_graph: DungeonGraph
+var config: SpaceGrammarConfig
 
 var tier_3_count: int = 0
 var tier_4_count: int = 0
@@ -14,20 +23,39 @@ var _metrics_before_separator: Dictionary = {}
 var _metrics_after_separator: Dictionary = {}
 var _rooms_before_separator: Array[RoomData] = []
 
-func _init() -> void:
+func _init(p_config: SpaceGrammarConfig = null) -> void:
 	_rng = RandomNumberGenerator.new()
+	rng = _rng
+	config = p_config if p_config != null else SpaceGrammarConfig.new()
 
-func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: int = 0) -> Array[RoomData]:
+func generate(p_mission_graph: DungeonGraph, p_config = null, random_seed: int = 0) -> Array[RoomData]:
+	mission_graph = p_mission_graph
+	rng = _rng
+
+	if p_config is SpaceGrammarConfig:
+		config = p_config
+	elif p_config is DungeonConfig:
+		if p_config.space_grammar_config != null:
+			config = p_config.space_grammar_config
+		else:
+			config = SpaceGrammarConfig.new()
+			config.use_mission_aware_placement = p_config.use_mission_aware_placement
+			config.mission_aware_preferred_distance = p_config.mission_aware_preferred_distance
+			config.mission_aware_candidate_count = p_config.mission_aware_candidate_count
+			config.mission_aware_distance_jitter = p_config.mission_aware_distance_jitter
+	elif config == null:
+		config = SpaceGrammarConfig.new()
+
 	if random_seed != 0:
 		_rng.seed = random_seed
-	elif config != null and config.seed != 0:
-		_rng.seed = config.seed
+	elif p_config is DungeonConfig and p_config.seed != 0:
+		_rng.seed = p_config.seed
 	else:
 		_rng.seed = 1337
 
 	var rooms: Array[RoomData] = []
-	var grid_w: int = config.grid_width if config != null else 64
-	var grid_h: int = config.grid_height if config != null else 64
+	var grid_w: int = p_config.grid_width if (p_config is DungeonConfig and p_config != null) else 64
+	var grid_h: int = p_config.grid_height if (p_config is DungeonConfig and p_config != null) else 64
 	var grid_bounds := Rect2i(3, 3, grid_w - 6, grid_h - 6)
 
 	var node_ids: Array[int] = mission_graph.get_topological_order()
@@ -60,7 +88,8 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 		var remaining_rooms: int = node_ids.size() - i
 		var needed_large: int = 2 - large_count
 		var is_forced_large: bool = (room_type == &"boss") or (remaining_rooms <= needed_large) or (room_type == &"combat" and large_count < 2)
-		var size: Vector2i = _calculate_room_size(room_type, config, is_forced_large)
+		var dungeon_cfg: DungeonConfig = p_config if p_config is DungeonConfig else null
+		var size: Vector2i = _calculate_room_size(room_type, dungeon_cfg, is_forced_large)
 		if size.x >= 11 or size.y >= 11 or (size.x * size.y >= 100):
 			large_count += 1
 
@@ -93,8 +122,8 @@ func generate(mission_graph: DungeonGraph, config: DungeonConfig, random_seed: i
 
 	return rooms
 
-func _calculate_room_size(type: StringName, config: DungeonConfig, force_large: bool = false) -> Vector2i:
-	var diff: float = config.difficulty if config != null else 1.0
+func _calculate_room_size(type: StringName, d_config: DungeonConfig, force_large: bool = false) -> Vector2i:
+	var diff: float = d_config.difficulty if d_config != null else 1.0
 
 	if force_large or type == &"boss":
 		var lw: int = _rng.randi_range(11, maxi(11, int(14 * minf(diff, 1.5))))
@@ -126,30 +155,50 @@ func _calculate_room_size(type: StringName, config: DungeonConfig, force_large: 
 			return Vector2i(_rng.randi_range(6, 9), _rng.randi_range(6, 9))
 
 func _place_room(room: RoomData, existing_rooms: Array[RoomData], bounds: Rect2i) -> void:
+	if room.room_type == RoomData.RoomType.START:
+		_place_start_room(room, bounds)
+		return
+
+	if config.use_mission_aware_placement:
+		var placed := _try_mission_aware_placement(room, existing_rooms, bounds)
+		if placed:
+			return
+		# Intentional fallthrough to existing code if mission-aware placement fails.
+
+	_place_room_legacy(room, existing_rooms, bounds)
+
+func _place_start_room(room: RoomData, bounds: Rect2i) -> void:
+	var center := bounds.position + bounds.size / 2
+	var w: int = room.rect.size.x
+	var h: int = room.rect.size.y
+	var offset_x: int = rng.randi_range(-4, 4)
+	var offset_y: int = rng.randi_range(-4, 4)
+	room.rect.position = center - Vector2i(w / 2, h / 2) + Vector2i(offset_x, offset_y)
+	room.is_placed = true
+
+func _place_room_legacy(room: RoomData, existing_rooms: Array[RoomData], bounds: Rect2i) -> void:
 	var center := bounds.position + bounds.size / 2
 	var w: int = room.rect.size.x
 	var h: int = room.rect.size.y
 
 	if existing_rooms.is_empty():
 		# Habitación inicial (START): cerca del centro o ligeramente desplazada
-		var offset_x: int = _rng.randi_range(-4, 4)
-		var offset_y: int = _rng.randi_range(-4, 4)
+		var offset_x: int = rng.randi_range(-4, 4)
+		var offset_y: int = rng.randi_range(-4, 4)
 		room.rect.position = center - Vector2i(w / 2, h / 2) + Vector2i(offset_x, offset_y)
+		room.is_placed = true
 		return
 
 	# Estrategia principal: posición aleatoria con intentos limitados
 	var placed := false
 	for _attempt in range(100):
-		var rx: int = _rng.randi_range(bounds.position.x, bounds.end.x - w)
-		var ry: int = _rng.randi_range(bounds.position.y, bounds.end.y - h)
-		var cand := Rect2i(rx, ry, w, h)
-		var collides := false
-		for other in existing_rooms:
-			if cand.intersects(other.expanded(2)):
-				collides = true
-				break
-		if not collides:
-			room.rect = cand
+		var rx: int = rng.randi_range(bounds.position.x, bounds.end.x - w)
+		var ry: int = rng.randi_range(bounds.position.y, bounds.end.y - h)
+		var cand_pos := Vector2i(rx, ry)
+		var cand_size := Vector2i(w, h)
+		if _is_position_valid(cand_pos, cand_size, bounds, existing_rooms, 2):
+			room.rect = Rect2i(cand_pos, cand_size)
+			room.is_placed = true
 			placed = true
 			break
 
@@ -160,16 +209,13 @@ func _place_room(room: RoomData, existing_rooms: Array[RoomData], bounds: Rect2i
 		var shrink_h: int = maxi(5, h - 2)
 		room.rect.size = Vector2i(shrink_w, shrink_h)
 		for _attempt in range(150):
-			var rx: int = _rng.randi_range(bounds.position.x, bounds.end.x - shrink_w)
-			var ry: int = _rng.randi_range(bounds.position.y, bounds.end.y - shrink_h)
-			var cand := Rect2i(rx, ry, shrink_w, shrink_h)
-			var collides := false
-			for other in existing_rooms:
-				if cand.intersects(other.expanded(1)):
-					collides = true
-					break
-			if not collides:
-				room.rect = cand
+			var rx: int = rng.randi_range(bounds.position.x, bounds.end.x - shrink_w)
+			var ry: int = rng.randi_range(bounds.position.y, bounds.end.y - shrink_h)
+			var cand_pos := Vector2i(rx, ry)
+			var cand_size := Vector2i(shrink_w, shrink_h)
+			if _is_position_valid(cand_pos, cand_size, bounds, existing_rooms, 1):
+				room.rect = Rect2i(cand_pos, cand_size)
+				room.is_placed = true
 				placed = true
 				break
 
@@ -180,18 +226,104 @@ func _place_room(room: RoomData, existing_rooms: Array[RoomData], bounds: Rect2i
 		var step_y: int = 2
 		for y in range(bounds.position.y, bounds.end.y - room.rect.size.y, step_y):
 			for x in range(bounds.position.x, bounds.end.x - room.rect.size.x, step_x):
-				var cand := Rect2i(x, y, room.rect.size.x, room.rect.size.y)
-				var collides := false
-				for other in existing_rooms:
-					if cand.intersects(other.expanded(1)):
-						collides = true
-						break
-				if not collides:
-					room.rect = cand
+				var cand_pos := Vector2i(x, y)
+				if _is_position_valid(cand_pos, room.rect.size, bounds, existing_rooms, 1):
+					room.rect = Rect2i(cand_pos, room.rect.size)
+					room.is_placed = true
 					placed = true
 					break
 			if placed:
 				break
+
+func _get_placed_neighbors(room: RoomData, existing_rooms: Array[RoomData]) -> Array[RoomData]:
+	var neighbor_ids: Array = mission_graph.get_neighbors(room.mission_node_id)
+	var placed: Array[RoomData] = []
+	for other in existing_rooms:
+		if other.mission_node_id in neighbor_ids and other.is_placed:
+			placed.append(other)
+	return placed
+
+func _try_mission_aware_placement(
+	room: RoomData,
+	existing_rooms: Array[RoomData],
+	bounds: Rect2i
+) -> bool:
+	var placed_neighbors := _get_placed_neighbors(room, existing_rooms)
+	if placed_neighbors.is_empty(): return false # No spatial anchor, fall back.
+
+	var anchor: Vector2 = _compute_anchor(placed_neighbors)
+	var best_candidate: Vector2i = Vector2i.ZERO
+	var best_score: float = -INF
+	var found_valid: bool = false
+
+	for i in range(config.mission_aware_candidate_count):
+		var dir: Vector2i = _DIRECTIONS[rng.randi_range(0, _DIRECTIONS.size() - 1)]
+		var distance: float = config.mission_aware_preferred_distance + \
+			rng.randf_range(-config.mission_aware_distance_jitter, config.mission_aware_distance_jitter)
+
+		var raw_pos: Vector2 = anchor + Vector2(dir) * distance
+		var candidate := Vector2i(round(raw_pos.x), round(raw_pos.y))
+		candidate -= room.rect.size / 2
+
+		if not _is_position_valid(candidate, room.rect.size, bounds, existing_rooms):
+			continue
+
+		var score := _score_candidate(candidate, room, placed_neighbors, existing_rooms)
+		if score > best_score:
+			best_score = score
+			best_candidate = candidate
+			found_valid = true
+
+	if not found_valid: return false
+	room.rect.position = best_candidate
+	room.is_placed = true
+	return true
+
+func _compute_anchor(placed_neighbors: Array[RoomData]) -> Vector2:
+	var sum := Vector2.ZERO
+	for n in placed_neighbors:
+		sum += Vector2(n.get_center())
+	return sum / placed_neighbors.size()
+
+func _score_candidate(
+	candidate_pos: Vector2i,
+	room: RoomData,
+	placed_neighbors: Array[RoomData],
+	existing_rooms: Array[RoomData]
+) -> float:
+	var candidate_center := Vector2(candidate_pos) + Vector2(room.rect.size) / 2.0
+
+	var proximity_score := 0.0
+	for n in placed_neighbors:
+		proximity_score -= abs(candidate_center.distance_to(Vector2(n.get_center())) - config.mission_aware_preferred_distance)
+
+	var min_distance_to_any: float = INF
+	for other in existing_rooms:
+		if not other.is_placed: continue
+		min_distance_to_any = min(min_distance_to_any, candidate_center.distance_to(Vector2(other.get_center())))
+
+	var separation_score: float = 0.0
+	if min_distance_to_any != INF:
+		separation_score = min_distance_to_any
+
+	var jitter_score: float = rng.randf() * 0.01
+
+	const W_PROXIMITY := 1.0
+	const W_SEPARATION := 0.3
+
+	return (W_PROXIMITY * proximity_score) + (W_SEPARATION * separation_score) + jitter_score
+
+func _is_position_valid(pos: Vector2i, size: Vector2i, bounds: Rect2i, existing_rooms: Array[RoomData], margin: int = 2) -> bool:
+	if not bounds.encloses(Rect2i(pos, size)):
+		return false
+	return not _has_overlap(pos, size, existing_rooms, margin)
+
+func _has_overlap(pos: Vector2i, size: Vector2i, existing_rooms: Array[RoomData], margin: int = 2) -> bool:
+	var cand := Rect2i(pos, size)
+	for other in existing_rooms:
+		if cand.intersects(other.expanded(margin)):
+			return true
+	return false
 
 func _compute_spatial_metrics_dict(rooms: Array[RoomData]) -> Dictionary:
 	var result: Dictionary = {}

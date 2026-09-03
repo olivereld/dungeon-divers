@@ -148,4 +148,5 @@ func to_dungeon_result() -> DungeonResult:
 		"metrics": metrics,
 		"diagnostics": diagnostics
 	}
+	res.checksum = _DungeonChecksumCalculatorScript.compute_checksum(res)
 	return res

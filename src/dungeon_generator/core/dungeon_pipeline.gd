@@ -104,6 +104,13 @@ func generate(
 		if param3 is _ProfileBundleScript:
 			config.seed = param2
 			_profile_bundle = param3
+		elif param2 > 50:
+			config.seed = param2
+			config.use_fixed_seed = true
+			if param3 is int:
+				max_retries = param3
+			if param4 is bool:
+				force_new_seed = param4
 		else:
 			max_retries = param2
 			if param3 is bool:
