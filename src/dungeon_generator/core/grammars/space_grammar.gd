@@ -319,10 +319,12 @@ func _is_position_valid(pos: Vector2i, size: Vector2i, bounds: Rect2i, existing_
 	return not _has_overlap(pos, size, existing_rooms, margin)
 
 func _has_overlap(pos: Vector2i, size: Vector2i, existing_rooms: Array[RoomData], margin: int = 2) -> bool:
-	var cand := Rect2i(pos, size)
+	var candidate_rect := Rect2i(pos, size)
 	for other in existing_rooms:
-		if cand.intersects(other.expanded(margin)):
-			return true
+		if other.is_placed:
+			var target_rect: Rect2i = other.expanded(margin) if margin > 0 else other.rect
+			if candidate_rect.intersects(target_rect):
+				return true
 	return false
 
 func _compute_spatial_metrics_dict(rooms: Array[RoomData]) -> Dictionary:

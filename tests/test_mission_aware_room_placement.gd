@@ -30,7 +30,7 @@ func _test_config_defaults_and_duplication() -> void:
 	var cfg := SpaceGrammarConfig.new()
 	assert(not cfg.use_mission_aware_placement, "Default use_mission_aware_placement should be false")
 	assert(is_equal_approx(cfg.mission_aware_preferred_distance, 12.0), "Default distance should be 12.0")
-	assert(cfg.mission_aware_candidate_count == 12, "Default candidate count should be 12")
+	assert(cfg.mission_aware_candidate_count == 15, "Default candidate count should be 15")
 	assert(is_equal_approx(cfg.mission_aware_distance_jitter, 4.0), "Default jitter should be 4.0")
 
 	cfg.use_mission_aware_placement = true
@@ -184,7 +184,7 @@ func test_mission_aware_determinism() -> void:
 	var result_a := pipeline.generate(config, seed)
 	var result_b := pipeline.generate(config, seed)
 	assert(result_a != null and result_b != null, "Generation must produce results")
-	assert(result_a.checksum == result_b.checksum, "Deterministic placement failed for seed %d (got %s vs %s)" % [seed, result_a.checksum, result_b.checksum])
+	assert(result_a.checksum == result_b.checksum, "Mission-aware placement no es determinista para seed %d" % seed)
 	print("  [OK] test_mission_aware_determinism passed with matching checksum: %s" % result_a.checksum)
 
 func _test_mission_aware_placement_multi_seed() -> void:
