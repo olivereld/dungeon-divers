@@ -22,8 +22,8 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		ctx.mission_graph
 	)
 
-	# 2. EntranceSolver resuelve las coordenadas físicas usando el plan lógico como contexto
-	var entrance_res = _EntranceSolverScript.resolve(ctx.rooms, ctx.connections, ctx.grid, ctx.config, ctx.corridor_plan)
+	# 2. EntranceSolver resuelve las coordenadas físicas puras (lado, posición, espaciado, esquinas, alineación, factibilidad)
+	var entrance_res = _EntranceSolverScript.resolve(ctx.rooms, ctx.connections, ctx.grid, ctx.config)
 	ctx.entrance_pairs = entrance_res.entrance_pairs
 
 	if not entrance_res.is_valid:

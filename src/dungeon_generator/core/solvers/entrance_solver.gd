@@ -15,8 +15,7 @@ static func resolve(
 	rooms: Array[RoomData],
 	connections: Array,
 	grid: CellGrid,
-	config: DungeonConfig = null,
-	corridor_plan = null
+	config: DungeonConfig = null
 ) -> EntranceResolutionResult:
 	var result = _EntranceResolutionResultScript.new()
 
@@ -89,8 +88,6 @@ static func resolve(
 				result.add_rejection(conn.id, "NO_CANDIDATES_AVAILABLE", {"cands_a": cands_a.size(), "cands_b": cands_b.size()})
 			continue
 
-		var logical_req = corridor_plan.get_request_for_connection(conn.id) if (corridor_plan != null and corridor_plan.has_method("get_request_for_connection")) else null
-
 		# Evaluar todos los pares posibles de candidatos
 		var best_pair_candidate: Dictionary = _find_best_candidate_pair(
 			cands_a,
@@ -103,8 +100,7 @@ static func resolve(
 			reserved_sides,
 			reserved_approaches,
 			min_spacing,
-			cfg,
-			logical_req
+			cfg
 		)
 
 		if best_pair_candidate.is_empty() or best_pair_candidate["is_invalid"]:
@@ -400,8 +396,7 @@ static func _find_best_candidate_pair(
 	reserved_sides: Dictionary,
 	reserved_approaches: Dictionary,
 	min_spacing: int,
-	config: DungeonConfig,
-	logical_req = null
+	config: DungeonConfig
 ) -> Dictionary:
 	var best_score: float = 1e9
 	var best_cand_a: EntranceCandidate = null
@@ -452,10 +447,6 @@ static func _find_best_candidate_pair(
 				continue
 
 			var pairwise_cost: float = _calc_pairwise_cost(ca, cb, room_a, room_b, config)
-			if logical_req != null and "routing_preference" in logical_req and logical_req.routing_preference == &"direct":
-				if ca.outer_cell.x == cb.outer_cell.x or ca.outer_cell.y == cb.outer_cell.y:
-					pairwise_cost -= 15.0
-
 			var score: float = u_a + u_b + pairwise_cost
 
 			if score >= 1e8:
