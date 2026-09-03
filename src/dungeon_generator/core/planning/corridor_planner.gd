@@ -61,6 +61,7 @@ func plan_corridors(
 		var routing_pref: StringName = CorridorRequest.ROUTING_DIRECT
 		var min_len: int = 1
 		var max_len: int = 64
+		var pref_len: float = 12.0
 
 		var a_on_main: bool = intent_a != null and intent_a.is_on_main_path()
 		var b_on_main: bool = intent_b != null and intent_b.is_on_main_path()
@@ -73,26 +74,30 @@ func plan_corridors(
 			# Ambas salas están en la ruta principal: ruteo directo y prioritario
 			role = CorridorRequest.ROLE_MAIN_PATH
 			routing_pref = CorridorRequest.ROUTING_DIRECT
+			pref_len = maxf(6.0, dist * 1.0)
+			min_len = 4
 			max_len = maxi(64, int(dist * 2.5))
-			min_len = 1
 		elif (a_on_main and not b_on_main) or (b_on_main and not a_on_main):
 			# Conexión de ramificación (Main Path a Side Path): evitar cruzar otras salas
 			role = CorridorRequest.ROLE_SIDE_PATH
 			routing_pref = CorridorRequest.ROUTING_AVOID_ROOMS
+			pref_len = maxf(8.0, dist * 1.2)
+			min_len = 4
 			max_len = maxi(72, int(dist * 2.8))
-			min_len = 1
 		elif not a_on_main and not b_on_main and is_mission_edge:
 			# Ramal secundario interno
 			role = CorridorRequest.ROLE_SIDE_PATH
 			routing_pref = CorridorRequest.ROUTING_AVOID_ROOMS
+			pref_len = maxf(8.0, dist * 1.2)
+			min_len = 4
 			max_len = maxi(72, int(dist * 2.8))
-			min_len = 1
 		else:
 			# Conexión opcional, ciclo secundario o shortcut
 			role = CorridorRequest.ROLE_SHORTCUT if not is_req else CorridorRequest.ROLE_OPTIONAL
 			routing_pref = CorridorRequest.ROUTING_MANHATTAN
+			pref_len = maxf(10.0, dist * 1.3)
+			min_len = 4
 			max_len = maxi(80, int(dist * 3.0))
-			min_len = 1
 
 		var req := CorridorRequest.create_planned(
 			conn.id,
@@ -107,7 +112,7 @@ func plan_corridors(
 			is_req,
 			role,
 			Vector2i(node_a, node_b),
-			dist,
+			pref_len,
 			min_len,
 			max_len,
 			routing_pref

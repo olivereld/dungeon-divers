@@ -237,7 +237,8 @@ func bind_physical_entrances(pair: EntrancePair) -> void:
 		_goal_boundary = pair.entrance_b.boundary_cell
 		_start_direction = pair.entrance_a.get_outward_direction()
 		_goal_direction = pair.entrance_b.get_outward_direction()
-		_preferred_length = float(_start.distance_to(_goal))
+		if _preferred_length <= 0.0:
+			_preferred_length = float(_start.distance_to(_goal))
 
 func seal() -> void:
 	_is_sealed = true
