@@ -228,6 +228,17 @@ static func from_entrance_pair(pair: EntrancePair, is_required_conn: bool = true
 		is_required_conn
 	)
 
+func bind_physical_entrances(pair: EntrancePair) -> void:
+	assert(not _is_sealed, "CorridorRequest is sealed and immutable.")
+	if not _is_sealed and pair != null and pair.entrance_a != null and pair.entrance_b != null:
+		_start = pair.entrance_a.outer_cell
+		_goal = pair.entrance_b.outer_cell
+		_start_boundary = pair.entrance_a.boundary_cell
+		_goal_boundary = pair.entrance_b.boundary_cell
+		_start_direction = pair.entrance_a.get_outward_direction()
+		_goal_direction = pair.entrance_b.get_outward_direction()
+		_preferred_length = float(_start.distance_to(_goal))
+
 func seal() -> void:
 	_is_sealed = true
 

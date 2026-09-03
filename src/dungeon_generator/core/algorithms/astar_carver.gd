@@ -171,8 +171,13 @@ static func _carve_single_request(
 	var centerline: Array[Vector2i] = []
 	var routing_strategy: String = "Unknown"
 
-	# --- PASO 1: FIND (Jerarquía: 1. OrthogonalPlanner -> 2. Direction-Aware A*) ---
-	if config.prefer_orthogonal_routes:
+	# --- PASO 1: FIND (Jerarquía controlada por req.routing_preference) ---
+	var try_orthogonal: bool = config.prefer_orthogonal_routes
+	if req.routing_preference == CorridorRequest.ROUTING_AVOID_ROOMS:
+		# En modo AVOID_ROOMS evitamos el planificador ortogonal rígido para priorizar A* con evasión de salas
+		try_orthogonal = false
+
+	if try_orthogonal:
 		var ortho_res: Dictionary = _OrthogonalPlannerScript.plan_route(grid, rooms, req.room_a_id, req.room_b_id, start_pos, goal_pos, config)
 		if ortho_res.get("success", false):
 			centerline = ortho_res["centerline"]
@@ -197,11 +202,6 @@ static func _carve_single_request(
 		return {"success": false, "reason": "NO_PATH"}
 
 	# --- PASO 2: VALIDATE (Validación del camino central) ---
-	if req.max_length > 0 and centerline.size() > req.max_length:
-		return {"success": false, "reason": "EXCEEDS_MAX_LENGTH"}
-	if req.min_length > 0 and centerline.size() < req.min_length:
-		return {"success": false, "reason": "BELOW_MIN_LENGTH"}
-
 	var val_error: String = _validate_centerline(centerline, start_pos, goal_pos, grid, rooms, req.room_a_id, req.room_b_id)
 	if not val_error.is_empty():
 		return {"success": false, "reason": val_error}

@@ -4,21 +4,44 @@ extends RefCounted
 ## Etapa 4: Resolución de Entradas (EntranceSolver).
 
 const _EntranceSolverScript = preload("res://src/dungeon_generator/core/solvers/entrance_solver.gd")
+const _CorridorPlannerScript = preload("res://src/dungeon_generator/core/planning/corridor_planner.gd")
 const _RoomTemplateResolverScript = preload("res://src/dungeon_generator/core/room_templates/resolver/room_template_resolver.gd")
 const _RoomTemplateShapeCarverScript = preload("res://src/dungeon_generator/core/room_templates/generation/room_template_shape_carver.gd")
 const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
 
 func execute(ctx: DungeonGenerationContext) -> bool:
 	var t0 := Time.get_ticks_msec()
-	var entrance_res = _EntranceSolverScript.resolve(ctx.rooms, ctx.connections, ctx.grid, ctx.config)
+
+	# 1. CorridorPlanner establece la intención lógica (roles, preferencias, longitudes soft)
+	var planner := _CorridorPlannerScript.new()
+	ctx.corridor_plan = planner.plan_corridors(
+		ctx.rooms,
+		ctx.connections,
+		ctx.placement_plan,
+		ctx.spatial_intent,
+		ctx.mission_graph
+	)
+
+	# 2. EntranceSolver resuelve las coordenadas físicas usando el plan lógico como contexto
+	var entrance_res = _EntranceSolverScript.resolve(ctx.rooms, ctx.connections, ctx.grid, ctx.config, ctx.corridor_plan)
 	ctx.entrance_pairs = entrance_res.entrance_pairs
-	ctx.record_timing("entrance_solver", float(Time.get_ticks_msec() - t0))
 
 	if not entrance_res.is_valid:
 		if ctx.diagnostics_enabled:
 			push_warning("[DungeonEntranceStage] Attempt %d: EntranceSolver failed to resolve mandatory connections." % ctx.attempt)
 		ctx.mark_attempt_failed("ENTRANCE_SOLVER_FAILED", "TRANSIENT")
 		return false
+
+	# 3. Enlazar las coordenadas físicas a cada CorridorRequest en ctx.corridor_plan y sellarlo
+	if ctx.corridor_plan != null:
+		for pair in ctx.entrance_pairs:
+			if pair != null:
+				var req = ctx.corridor_plan.get_request_for_connection(pair.connection_id)
+				if req != null:
+					req.bind_physical_entrances(pair)
+		ctx.corridor_plan.seal()
+
+	ctx.record_timing("entrance_solver", float(Time.get_ticks_msec() - t0))
 
 	# En modo Template, tallar formas geométricas definitivas con conocimiento completo de las entradas
 	if ctx.config != null and ctx.config.algorithm == "Template":
