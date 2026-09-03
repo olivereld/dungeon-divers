@@ -11,7 +11,7 @@ extends Resource
 # Spatial Constraints v1
 @export var min_room_separation: int = 2 ## Minimum empty cells between room boundaries (hard constraint).
 @export var min_mission_edge_distance: float = 6.0 ## Minimum allowed center-to-center distance between connected mission rooms (hard constraint).
-@export var max_mission_edge_distance: float = 24.0 ## Maximum allowed center-to-center distance between connected mission rooms (hard constraint).
+@export var max_mission_edge_distance: float = 24.0 ## Soft reference distance used for spatial scoring; not a hard placement constraint.
 @export var progression_strength: float = 1.0 ## Weight for advancing along the dungeon spatial progression path (soft scoring).
 @export var density_strength: float = 0.5 ## Weight for penalizing excessive clustering or empty void gaps (soft scoring).
 @export var preferred_progression_direction: Vector2 = Vector2.ZERO ## Global direction vector (if Vector2.ZERO, randomized per seed deterministically).
