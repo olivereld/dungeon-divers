@@ -50,6 +50,12 @@ func get_effective_archetype_id() -> StringName:
 @export var mission_aware_preferred_distance: float = 12.0
 @export var mission_aware_candidate_count: int = 15
 @export var mission_aware_distance_jitter: float = 4.0
+@export var min_room_separation: int = 2
+@export var min_mission_edge_distance: float = 6.0
+@export var max_mission_edge_distance: float = 24.0
+@export var progression_strength: float = 1.0
+@export var density_strength: float = 0.5
+@export var preferred_progression_direction: Vector2 = Vector2.ZERO
 
 @export_group("Algoritmo de Construcción")
 @export_enum("Template", "Hybrid", "BSP", "CellularAutomata") var algorithm: String = "Template"
@@ -178,6 +184,12 @@ func duplicate_config() -> DungeonConfig:
 	c.mission_aware_preferred_distance = mission_aware_preferred_distance
 	c.mission_aware_candidate_count = mission_aware_candidate_count
 	c.mission_aware_distance_jitter = mission_aware_distance_jitter
+	c.min_room_separation = min_room_separation
+	c.min_mission_edge_distance = min_mission_edge_distance
+	c.max_mission_edge_distance = max_mission_edge_distance
+	c.progression_strength = progression_strength
+	c.density_strength = density_strength
+	c.preferred_progression_direction = preferred_progression_direction
 	c.algorithm = algorithm
 	c.ca_fill_chance = ca_fill_chance
 	c.ca_iterations = ca_iterations

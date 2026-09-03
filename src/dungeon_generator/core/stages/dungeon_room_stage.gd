@@ -56,6 +56,12 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		sg_config.mission_aware_preferred_distance = ctx.config.mission_aware_preferred_distance
 		sg_config.mission_aware_candidate_count = ctx.config.mission_aware_candidate_count
 		sg_config.mission_aware_distance_jitter = ctx.config.mission_aware_distance_jitter
+		sg_config.min_room_separation = ctx.config.min_room_separation
+		sg_config.min_mission_edge_distance = ctx.config.min_mission_edge_distance
+		sg_config.max_mission_edge_distance = ctx.config.max_mission_edge_distance
+		sg_config.progression_strength = ctx.config.progression_strength
+		sg_config.density_strength = ctx.config.density_strength
+		sg_config.preferred_progression_direction = ctx.config.preferred_progression_direction
 
 	var plan = strategy.create_placement_plan(ctx.rooms, ctx.mission_graph, grid_bounds, sg_config)
 
