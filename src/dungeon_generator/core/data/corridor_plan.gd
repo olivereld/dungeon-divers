@@ -30,7 +30,12 @@ func is_empty() -> bool:
 	return _requests.is_empty()
 
 func seal() -> void:
+	if _is_sealed:
+		return
 	_is_sealed = true
+	for req in _requests:
+		if req != null and req.has_method("seal"):
+			req.seal()
 
 func is_sealed() -> bool:
 	return _is_sealed

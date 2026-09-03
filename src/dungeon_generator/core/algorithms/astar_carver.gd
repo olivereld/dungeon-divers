@@ -197,6 +197,11 @@ static func _carve_single_request(
 		return {"success": false, "reason": "NO_PATH"}
 
 	# --- PASO 2: VALIDATE (Validación del camino central) ---
+	if req.max_length > 0 and centerline.size() > req.max_length:
+		return {"success": false, "reason": "EXCEEDS_MAX_LENGTH"}
+	if req.min_length > 0 and centerline.size() < req.min_length:
+		return {"success": false, "reason": "BELOW_MIN_LENGTH"}
+
 	var val_error: String = _validate_centerline(centerline, start_pos, goal_pos, grid, rooms, req.room_a_id, req.room_b_id)
 	if not val_error.is_empty():
 		return {"success": false, "reason": val_error}
@@ -335,6 +340,16 @@ static func _find_direction_aware_path(
 	var cost_wall: float = config.corridor_cost_wall
 	var cost_floor: float = config.corridor_cost_room_floor
 	var other_room_cost: float = config.corridor_cost_other_room
+
+	# Modulación de costes según la preferencia de ruteo de la petición (Fase 5)
+	match req.routing_preference:
+		CorridorRequest.ROUTING_DIRECT:
+			turn_penalty *= 1.6
+		CorridorRequest.ROUTING_AVOID_ROOMS:
+			other_room_cost *= 2.5
+			cost_floor *= 2.0
+		CorridorRequest.ROUTING_MANHATTAN:
+			turn_penalty *= 1.2
 
 	var directions: Array[Vector2i] = [
 		Vector2i(1, 0),

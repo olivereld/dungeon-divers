@@ -2,10 +2,10 @@ class_name CorridorPlanner
 extends RefCounted
 
 ## Planificador de Pasillos (Fase 5: Corridor Planning).
-## Asigna la intención semántica de corredor a cada arista/conexión entre salas
-## basándose en SpatialIntentResult, RoomPlacementPlan y MissionGraph.
-## Produce un CorridorPlan inmutable compuesto por CorridorRequests enriquecidas,
-## desacoplando la intención de ruteo del tallado físico en AStarCarver.
+## Asigna la intención semántica de corredor a cada conexión entre salas
+## consumiendo SpatialIntentResult, RoomPlacementPlan y MissionGraph directamente del contexto.
+## Produce un CorridorPlan inmutable compuesto por CorridorRequests completamente selladas.
+## Flujo de información estrictamente hacia adelante: no reconstruye el SpatialIntent.
 
 const CorridorPlan = preload("res://src/dungeon_generator/core/data/corridor_plan.gd")
 const CorridorRequest = preload("res://src/dungeon_generator/core/data/corridor_request.gd")
@@ -13,7 +13,6 @@ const RoomData = preload("res://src/dungeon_generator/core/data/room_data.gd")
 const RoomPlacementPlan = preload("res://src/dungeon_generator/core/data/room_placement_plan.gd")
 const SpatialIntent = preload("res://src/dungeon_generator/core/data/spatial_intent.gd")
 const SpatialIntentResult = preload("res://src/dungeon_generator/core/data/spatial_intent_result.gd")
-const SpatialIntentBuilder = preload("res://src/dungeon_generator/core/grammars/spatial_intent_builder.gd")
 const DungeonGraph = preload("res://src/dungeon_generator/core/data/dungeon_graph.gd")
 const EntrancePair = preload("res://src/dungeon_generator/core/data/entrance_pair.gd")
 
@@ -31,10 +30,8 @@ func plan_corridors(
 		plan.seal()
 		return plan
 
-	# Asegurar presencia de SpatialIntentResult si hay mission_graph
 	if spatial_intent == null and mission_graph != null:
-		var builder := SpatialIntentBuilder.new()
-		spatial_intent = builder.build(mission_graph)
+		push_warning("[CorridorPlanner] spatial_intent was not provided forward from context.")
 
 	# Indexar conexiones por id para comprobación de obligatoriedad
 	var conn_map: Dictionary = {}
@@ -48,7 +45,7 @@ func plan_corridors(
 		if r != null:
 			room_by_id[r.id] = r
 
-	# Generar CorridorRequest para cada EntrancePair
+	# Generar CorridorRequest atómico y completo para cada EntrancePair
 	for pair in entrance_pairs:
 		if pair == null or pair.entrance_a == null or pair.entrance_b == null:
 			continue
@@ -77,30 +74,34 @@ func plan_corridors(
 		var a_on_main: bool = intent_a != null and intent_a.is_on_main_path()
 		var b_on_main: bool = intent_b != null and intent_b.is_on_main_path()
 
+		var dist: float = float(pair.entrance_a.outer_cell.distance_to(pair.entrance_b.outer_cell))
+
 		if a_on_main and b_on_main:
 			# Ambas salas están en la ruta principal: ruteo directo y prioritario
 			role = CorridorRequest.ROLE_MAIN_PATH
 			routing_pref = CorridorRequest.ROUTING_DIRECT
-			max_len = 40
+			max_len = maxi(64, int(dist * 2.5))
+			min_len = 1
 		elif (a_on_main and not b_on_main) or (b_on_main and not a_on_main):
 			# Conexión de ramificación (Main Path a Side Path): evitar cruzar otras salas
 			role = CorridorRequest.ROLE_SIDE_PATH
 			routing_pref = CorridorRequest.ROUTING_AVOID_ROOMS
-			max_len = 45
+			max_len = maxi(72, int(dist * 2.8))
+			min_len = 1
 		elif not a_on_main and not b_on_main and is_mission_edge:
 			# Ramal secundario interno
 			role = CorridorRequest.ROLE_SIDE_PATH
 			routing_pref = CorridorRequest.ROUTING_AVOID_ROOMS
-			max_len = 45
+			max_len = maxi(72, int(dist * 2.8))
+			min_len = 1
 		else:
 			# Conexión opcional, ciclo secundario o shortcut
 			role = CorridorRequest.ROLE_SHORTCUT if not is_req else CorridorRequest.ROLE_OPTIONAL
 			routing_pref = CorridorRequest.ROUTING_MANHATTAN
-			max_len = 60
+			max_len = maxi(80, int(dist * 3.0))
+			min_len = 1
 
-		var dist: float = float(pair.entrance_a.outer_cell.distance_to(pair.entrance_b.outer_cell))
-
-		var req := CorridorRequest.new(
+		var req := CorridorRequest.create_planned(
 			pair.connection_id,
 			pair.entrance_a.room_id,
 			pair.entrance_b.room_id,
@@ -112,12 +113,12 @@ func plan_corridors(
 			pair.entrance_b.get_outward_direction(),
 			is_req,
 			role,
-			Vector2i(node_a, node_b)
+			Vector2i(node_a, node_b),
+			dist,
+			min_len,
+			max_len,
+			routing_pref
 		)
-		req.preferred_length = dist
-		req.min_length = min_len
-		req.max_length = max_len
-		req.routing_preference = routing_pref
 
 		plan.add_request(req)
 

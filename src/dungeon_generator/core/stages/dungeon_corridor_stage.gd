@@ -23,17 +23,26 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		ctx.rooms,
 		ctx.connections,
 		ctx.entrance_pairs,
-		null,
-		null,
+		ctx.placement_plan,
+		ctx.spatial_intent,
 		ctx.mission_graph
 	)
+	ctx.corridor_plan = corridor_plan
 
-	var pairs_to_carve: Array = corridor_plan.get_requests() if (corridor_plan != null and not corridor_plan.is_empty()) else ctx.entrance_pairs
+	if not ctx.connections.is_empty() and (corridor_plan == null or corridor_plan.is_empty()):
+		if ctx.diagnostics_enabled:
+			push_warning("[DungeonCorridorStage] Attempt %d: CorridorPlanner produced empty plan for %d connections." % [
+				ctx.attempt, ctx.connections.size()
+			])
+		ctx.mark_attempt_failed("CORRIDOR_PLANNING_FAILED", "TRANSIENT")
+		return false
+
+	var requests: Array = corridor_plan.get_requests() if corridor_plan != null else []
 
 	var corridor_res = _AStarCarverScript.carve_corridors(
 		ctx.grid,
 		ctx.rooms,
-		pairs_to_carve,
+		requests,
 		ctx.connections,
 		ctx.config
 	)

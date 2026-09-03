@@ -52,6 +52,10 @@ var last_failure_type: String = ""
 var last_failure_reason: String = ""
 var last_failure_stage: String = ""
 var last_failure_seed: int = 0
+var last_context: DungeonGenerationContext = null
+
+func get_context() -> DungeonGenerationContext:
+	return last_context
 
 func get_seed_registry() -> DungeonSeedRegistry:
 	return _seed_registry
@@ -154,6 +158,7 @@ func generate(
 		)
 
 		ctx.diagnostics_enabled = diagnostics_enabled
+		last_context = ctx
 
 		# -------------------------------------------------------------
 		# 1. Mission

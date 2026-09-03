@@ -14,6 +14,7 @@ const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/
 const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
 const _SemanticMappingValidatorScript = preload("res://src/dungeon_generator/core/validation/semantic_mapping_validator.gd")
 const _CompositionStrategyScript = preload("res://src/dungeon_generator/core/grammars/composition_strategy.gd")
+const _SpatialIntentBuilderScript = preload("res://src/dungeon_generator/core/grammars/spatial_intent_builder.gd")
 const _RoomPlacementPlanScript = preload("res://src/dungeon_generator/core/data/room_placement_plan.gd")
 const _RoomPlacerScript = preload("res://src/dungeon_generator/core/placement/room_placer.gd")
 const _RoomSpatialSeparatorScript = preload("res://src/dungeon_generator/core/topology/room_spatial_separator.gd")
@@ -63,7 +64,12 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		sg_config.density_strength = ctx.config.density_strength
 		sg_config.preferred_progression_direction = ctx.config.preferred_progression_direction
 
-	var plan = strategy.create_placement_plan(ctx.rooms, ctx.mission_graph, grid_bounds, sg_config)
+	if ctx.mission_graph != null:
+		var intent_builder := _SpatialIntentBuilderScript.new()
+		ctx.spatial_intent = intent_builder.build(ctx.mission_graph)
+
+	var plan = strategy.create_placement_plan(ctx.rooms, ctx.mission_graph, grid_bounds, sg_config, ctx.spatial_intent)
+	ctx.placement_plan = plan
 
 	# 3. RoomPlacer: APPLY placement decisions to ctx.rooms
 	var placer := _RoomPlacerScript.new()
