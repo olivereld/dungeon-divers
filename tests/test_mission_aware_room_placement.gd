@@ -103,6 +103,7 @@ func _test_placed_neighbors_filter() -> void:
 func _test_overlap_validation() -> void:
 	var sg := SpaceGrammar.new()
 	var r0 := RoomData.new(0, Rect2i(10, 10, 6, 6), &"start")
+	r0.is_placed = true
 	var existing: Array[RoomData] = [r0]
 	var bounds := Rect2i(0, 0, 100, 100)
 
