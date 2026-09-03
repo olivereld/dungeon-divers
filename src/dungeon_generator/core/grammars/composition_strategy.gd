@@ -4,7 +4,7 @@ extends RefCounted
 ## Estrategia de Composición Espacial (Spatial Constraints v1).
 ## Implementa progresión espacial START -> EARLY -> MID -> LATE -> BOSS.
 ## Separa estrictamente restricciones duras (rechazo inmediato) de puntuación suave (soft scoring).
-## Elimina por completo los fallbacks inválidos que fabrican posiciones solapadas o fuera de límites.
+## Elimina por completo los fallbacks con clamp o fabricación de posiciones inválidas.
 ## Produce un RoomPlacementPlan inmutable y sellado de solo lectura.
 
 const RoomPlacementPlan = preload("res://src/dungeon_generator/core/data/room_placement_plan.gd")
@@ -53,7 +53,6 @@ func create_placement_plan(
 	var distance_jitter: float = config.mission_aware_distance_jitter if config != null else 4.0
 	var min_separation: int = config.min_room_separation if config != null else 2
 	var min_edge_dist: float = config.min_mission_edge_distance if config != null else 6.0
-	var max_edge_dist: float = config.max_mission_edge_distance if config != null else 24.0
 	var progression_strength: float = config.progression_strength if config != null else 1.0
 	var density_strength: float = config.density_strength if config != null else 0.5
 
@@ -111,7 +110,7 @@ func create_placement_plan(
 
 		# Objetivo espacial para este paso de progresión
 		var prog_target: Vector2 = start_center + progression_dir * (prog_factor * max_progression_span)
-		# Variación ortogonal para evitar alineación recta artificial
+		# Variación ortogonal suave para evitar alineación recta artificial
 		var perp_dir := Vector2(-progression_dir.y, progression_dir.x)
 		var lateral_offset: float = sin(prog_factor * PI * 1.5) * 6.0
 		prog_target += perp_dir * lateral_offset
@@ -119,7 +118,8 @@ func create_placement_plan(
 		var best_pos: Vector2i = Vector2i.MIN
 		if placed_rects.is_empty() or room.room_type == RoomData.RoomType.START:
 			best_pos = _place_start_room(size, bounds, progression_dir)
-			start_center = Vector2(best_pos) + Vector2(size) / 2.0
+			if best_pos != Vector2i.MIN:
+				start_center = Vector2(best_pos) + Vector2(size) / 2.0
 		else:
 			best_pos = _find_best_position(
 				room,
@@ -131,12 +131,12 @@ func create_placement_plan(
 				start_center,
 				prog_target,
 				prog_factor,
+				progression_dir,
 				preferred_distance,
 				candidate_count,
 				distance_jitter,
 				min_separation,
 				min_edge_dist,
-				max_edge_dist,
 				progression_strength,
 				density_strength
 			)
@@ -191,14 +191,42 @@ func _determine_priority(room: RoomData, region: StringName) -> int:
 		_:
 			return 10
 
+## Coloca la sala START validando estrictamente que quepa en bounds sin usar clamp.
+## Si la sala no cabe en los límites, retorna Vector2i.MIN para producir un fallo explícito.
 func _place_start_room(size: Vector2i, bounds: Rect2i, progression_dir: Vector2) -> Vector2i:
+	if size.x > bounds.size.x or size.y > bounds.size.y:
+		return Vector2i.MIN
+
+	var max_x: int = bounds.end.x - size.x
+	var max_y: int = bounds.end.y - size.y
+	if max_x < bounds.position.x or max_y < bounds.position.y:
+		return Vector2i.MIN
+
 	var center := bounds.position + bounds.size / 2
-	# Colocar START ligeramente opuesto a la dirección de progresión para dejar espacio de expansión
 	var offset: Vector2 = -progression_dir * 8.0
-	var ox: int = _rng.randi_range(-3, 3) + int(offset.x)
-	var oy: int = _rng.randi_range(-3, 3) + int(offset.y)
-	var pos := center - size / 2 + Vector2i(ox, oy)
-	return _clamp_to_bounds_strict(pos, size, bounds)
+
+	# Evaluar candidatos de posición alrededor del centro desplazado opuesto a la progresión
+	for attempt in range(16):
+		var ox: int = 0
+		var oy: int = 0
+		if attempt > 0:
+			var damp: float = 1.0 - float(attempt) / 16.0
+			ox = _rng.randi_range(-4, 4) + int(offset.x * damp)
+			oy = _rng.randi_range(-4, 4) + int(offset.y * damp)
+		else:
+			ox = int(offset.x)
+			oy = int(offset.y)
+
+		var cand := center - size / 2 + Vector2i(ox, oy)
+		if bounds.encloses(Rect2i(cand, size)):
+			return cand
+
+	# Fallback en el centro exacto si cabe
+	var fallback_center := center - size / 2
+	if bounds.encloses(Rect2i(fallback_center, size)):
+		return fallback_center
+
+	return Vector2i.MIN
 
 func _find_best_position(
 	room: RoomData,
@@ -210,12 +238,12 @@ func _find_best_position(
 	start_center: Vector2,
 	prog_target: Vector2,
 	prog_factor: float,
+	progression_dir: Vector2,
 	preferred_distance: float,
 	candidate_count: int,
 	distance_jitter: float,
 	min_separation: int,
 	min_edge_dist: float,
-	max_edge_dist: float,
 	progression_strength: float,
 	density_strength: float
 ) -> Vector2i:
@@ -268,16 +296,19 @@ func _find_best_position(
 		var cand_pos := Vector2i(int(target_center.x - size.x / 2.0), int(target_center.y - size.y / 2.0))
 
 		# RESTRICCIÓN DURA: Descarte inmediato si no satisface todas las condiciones
-		if not _passes_hard_constraints(cand_pos, size, bounds, placed_rects, neighbor_rects, min_separation, min_edge_dist, max_edge_dist, start_center, room.room_type):
+		if not _passes_hard_constraints(cand_pos, size, bounds, placed_rects, neighbor_rects, min_separation, min_edge_dist, start_center, room.room_type):
 			continue
 
 		# SOFT SCORING: Puntuación multivariada
 		var score: float = _score_candidate(
 			cand_pos,
 			size,
+			bounds,
 			anchor,
 			start_center,
 			prog_target,
+			prog_factor,
+			progression_dir,
 			neighbor_rects,
 			placed_rects,
 			preferred_distance,
@@ -302,16 +333,19 @@ func _find_best_position(
 		neighbor_rects,
 		min_separation,
 		min_edge_dist,
-		max_edge_dist,
 		start_center,
 		prog_target,
+		prog_factor,
+		progression_dir,
 		preferred_distance,
 		progression_strength,
 		density_strength
 	)
 
 ## Evaluación de Restricciones Duras (Hard Constraints).
-## Si alguna falla, el candidato es rechazado inmediatamente.
+## Si alguna condición falla, el candidato es rechazado inmediatamente.
+## min_mission_edge_distance se mantiene como hard constraint.
+## max_mission_edge_distance NO es un hard constraint (se penaliza suavemente en scoring).
 func _passes_hard_constraints(
 	pos: Vector2i,
 	size: Vector2i,
@@ -320,7 +354,6 @@ func _passes_hard_constraints(
 	neighbor_rects: Array[Rect2i],
 	min_separation: int,
 	min_edge_dist: float,
-	max_edge_dist: float,
 	start_center: Vector2,
 	room_type: StringName
 ) -> bool:
@@ -337,17 +370,13 @@ func _passes_hard_constraints(
 		if cand_rect.intersects(target_rect):
 			return false
 
-	# 3. Rango de distancia para vecinos de misión obligatorios (min/max edge distance)
+	# 3. Restricción dura de distancia mínima para vecinos de misión obligatorios
 	if not neighbor_rects.is_empty():
-		var min_d_to_neighbor: float = INF
 		for nr in neighbor_rects:
 			var n_center := Vector2(nr.position + nr.size / 2)
 			var d: float = cand_center.distance_to(n_center)
 			if d < min_edge_dist:
 				return false
-			min_d_to_neighbor = min(min_d_to_neighbor, d)
-		if min_d_to_neighbor > max_edge_dist:
-			return false
 
 	# 4. Regla de progresión para el BOSS: debe estar separado del START
 	if room_type == RoomData.RoomType.BOSS or room_type == RoomData.RoomType.GOAL:
@@ -361,9 +390,12 @@ func _passes_hard_constraints(
 func _score_candidate(
 	cand_pos: Vector2i,
 	size: Vector2i,
+	bounds: Rect2i,
 	anchor: Vector2,
 	start_center: Vector2,
 	prog_target: Vector2,
+	prog_factor: float,
+	progression_dir: Vector2,
 	neighbor_rects: Array[Rect2i],
 	placed_rects: Dictionary,
 	preferred_distance: float,
@@ -372,19 +404,32 @@ func _score_candidate(
 ) -> float:
 	var cand_center := Vector2(cand_pos) + Vector2(size) / 2.0
 
-	# (a) Proximidad a los vecinos conectados
+	# (a) Proximidad a los vecinos de misión y penalización suave de distancias excesivas
 	var neighbor_score: float = 0.0
+	var excessive_edge_penalty: float = 0.0
 	if not neighbor_rects.is_empty():
 		for nr in neighbor_rects:
 			var n_center := Vector2(nr.position + nr.size / 2)
-			neighbor_score -= abs(cand_center.distance_to(n_center) - preferred_distance)
+			var d: float = cand_center.distance_to(n_center)
+			neighbor_score -= abs(d - preferred_distance)
+			if d > preferred_distance * 1.5:
+				excessive_edge_penalty += (d - preferred_distance * 1.5) * 1.2
 	else:
-		neighbor_score -= abs(cand_center.distance_to(anchor) - preferred_distance)
+		var d: float = cand_center.distance_to(anchor)
+		neighbor_score -= abs(d - preferred_distance)
+		if d > preferred_distance * 1.5:
+			excessive_edge_penalty += (d - preferred_distance * 1.5) * 1.2
 
-	# (b) Progresión espacial hacia el target global
-	var progression_score: float = -cand_center.distance_to(prog_target) * 0.4
+	# (b) Progresión espacial hacia el target global y alineación direccional
+	var progression_dist_score: float = -cand_center.distance_to(prog_target) * 0.4
+	var from_start: Vector2 = cand_center - start_center
+	var dir_alignment: float = 0.0
+	if not from_start.is_zero_approx() and not progression_dir.is_zero_approx():
+		dir_alignment = from_start.normalized().dot(progression_dir) * 4.0 * prog_factor
 
-	# (c) Separación saludable de salas (respiración)
+	var progression_score: float = progression_dist_score + dir_alignment
+
+	# (c) Separación saludable de salas (respiración) y densidad local
 	var min_dist_to_any: float = INF
 	var close_rooms_count: int = 0
 	var clustering_metric: float = 0.0
@@ -405,13 +450,18 @@ func _score_candidate(
 	var excessive_clustering_penalty: float = 0.0
 	if close_rooms_count > 2:
 		excessive_clustering_penalty = (close_rooms_count - 2) * 5.0 * density_strength
+	excessive_clustering_penalty += clustering_metric * 2.0 * density_strength
 
-	# (e) Penalización por distancia excesiva (isla desconectada)
+	# (e) Penalización por distancia excesiva (isla desconectada respecto a cualquier sala)
 	var excessive_distance_penalty: float = 0.0
 	if min_dist_to_any > preferred_distance * 2.2:
 		excessive_distance_penalty = (min_dist_to_any - preferred_distance * 2.2) * 1.5
 
-	# (f) Jitter determinista para desempates
+	# (f) Forma global: preferencia suave hacia el centro de bounds para compacidad
+	var bounds_center := Vector2(bounds.position) + Vector2(bounds.size) / 2.0
+	var global_shape_score: float = -cand_center.distance_to(bounds_center) * 0.06
+
+	# (g) Jitter determinista para desempates
 	var jitter: float = _rng.randf() * 0.05
 
 	const W_NEIGHBOR := 1.0
@@ -421,6 +471,8 @@ func _score_candidate(
 		(W_NEIGHBOR * neighbor_score)
 		+ (progression_strength * progression_score)
 		+ (W_SEPARATION * separation_score)
+		+ global_shape_score
+		- excessive_edge_penalty
 		- excessive_clustering_penalty
 		- excessive_distance_penalty
 		+ jitter
@@ -439,9 +491,10 @@ func _expanded_valid_candidate_search(
 	neighbor_rects: Array[Rect2i],
 	min_separation: int,
 	min_edge_dist: float,
-	max_edge_dist: float,
 	start_center: Vector2,
 	prog_target: Vector2,
+	prog_factor: float,
+	progression_dir: Vector2,
 	preferred_distance: float,
 	progression_strength: float,
 	density_strength: float
@@ -449,8 +502,9 @@ func _expanded_valid_candidate_search(
 	var best_pos: Vector2i = Vector2i.MIN
 	var best_score: float = -INF
 
-	# Buscar en anillos radiales alrededor del ancla
-	for radius in range(int(min_edge_dist), maxi(int(max_edge_dist * 1.5), 36), 2):
+	# Buscar en anillos radiales deterministas alrededor del ancla
+	var max_search_radius: int = maxi(int(preferred_distance * 2.8), 40)
+	for radius in range(int(min_edge_dist), max_search_radius, 2):
 		var steps: int = int(TAU * radius / 3.0)
 		steps = clampi(steps, 8, 36)
 		for s in range(steps):
@@ -460,15 +514,18 @@ func _expanded_valid_candidate_search(
 				int(anchor.y + sin(angle) * radius - size.y / 2.0)
 			)
 
-			if not _passes_hard_constraints(cand_pos, size, bounds, placed_rects, neighbor_rects, min_separation, min_edge_dist, max_edge_dist, start_center, room.room_type):
+			if not _passes_hard_constraints(cand_pos, size, bounds, placed_rects, neighbor_rects, min_separation, min_edge_dist, start_center, room.room_type):
 				continue
 
 			var score: float = _score_candidate(
 				cand_pos,
 				size,
+				bounds,
 				anchor,
 				start_center,
 				prog_target,
+				prog_factor,
+				progression_dir,
 				neighbor_rects,
 				placed_rects,
 				preferred_distance,
@@ -485,9 +542,3 @@ func _expanded_valid_candidate_search(
 
 	# Si incluso la búsqueda expandida falla, retorna Vector2i.MIN para fallar explícitamente.
 	return Vector2i.MIN
-
-func _clamp_to_bounds_strict(pos: Vector2i, size: Vector2i, bounds: Rect2i) -> Vector2i:
-	return Vector2i(
-		clampi(pos.x, bounds.position.x, bounds.end.x - size.x),
-		clampi(pos.y, bounds.position.y, bounds.end.y - size.y)
-	)
