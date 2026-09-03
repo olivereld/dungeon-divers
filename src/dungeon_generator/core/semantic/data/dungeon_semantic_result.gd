@@ -1,17 +1,20 @@
 class_name DungeonSemanticResult
 extends RefCounted
 
-## Contenedor semántico inmutable resultante de la Fase 7.
-## Encapsula la estructura jugable, puntos de interés, llaves, cerraduras y trazabilidad
-## sobre una mazmorra físicamente validada, garantizando 0 mutaciones post-commit.
+## Contenedor semántico único e inmutable de la experiencia jugable de la mazmorra (Fase 6).
+## Encapsula: start, boss/goal, main_path, objectives, keys, locks, optional objectives y validación semántica.
+## Inmutable tras invocar seal(): prohíbe cualquier mutación posterior y propaga el sellado a sus componentes.
 
 const _RoomPurposeScript = preload("res://src/dungeon_generator/core/semantic/archetype/room_purpose.gd")
+const _ObjectiveDataScript = preload("res://src/dungeon_generator/core/semantic/data/objective_data.gd")
+const _KeyDataScript = preload("res://src/dungeon_generator/core/semantic/data/key_data.gd")
+const _LockDataScript = preload("res://src/dungeon_generator/core/semantic/data/lock_data.gd")
 
 # 1. Trazabilidad y Semillas
 var base_seed: int = 0
 var attempt: int = 0
 var attempt_seed: int = 0
-var seed_trace: Array[Dictionary] = [] # Secuencia ordenada de { "stage": String, "seed": int, "details": Dictionary }
+var seed_trace: Array[Dictionary] = []
 
 # 2. Referencias Físicas / Topológicas de Solo Lectura
 var grid: CellGrid = null
@@ -21,39 +24,82 @@ var entrance_pairs: Array = [] # Array[EntrancePair]
 var corridor_paths: Array = [] # Array[CorridorPath]
 var door_pairs: Array = [] # Array[DoorPair]
 
-# 3. Estructura Semántica y Camino Crítico
+# 3. Estructura Semántica y Camino Crítico (Start / Boss / Main Path)
 var start_room_id: int = -1
+var start_node_id: int = -1
 var boss_room_id: int = -1
+var boss_node_id: int = -1
+var main_path: Array[int] = []                    # Secuencia canónica de nodos o salas
 var critical_path_rooms: Array[int] = []         # Habitaciones en la ruta canónica Start -> Boss
 var critical_path_connections: Array[int] = []   # Conexiones en la ruta canónica Start -> Boss
 var mandatory_connections: Array[int] = []       # Aristas puente (bridges) que aíslan Start de Boss
-var depth_map: Dictionary = {}                   # room_id -> int distancia en aristas desde start_room_id
+var depth_map: Dictionary = {}                   # room_id -> int distancia en aristas
 
 # 4. Gameplay y Objetivos
-var keys: Array = [] # Array[KeyData]
-var locks: Array = [] # Array[LockData]
-var objectives: Array = [] # Array[ObjectiveData]
+var keys: Array = []                             # Array[KeyData]
+var locks: Array = []                            # Array[LockData]
+var objectives: Array = []                       # Array[ObjectiveData]
 
 # 5. Arquetipo Arquitectónico y Propósitos de Sala
 var archetype_id: StringName = &""
 var dungeon_archetype: int = 0
 var dungeon_archetype_name: String = "GENERIC"
-var room_purposes: Dictionary = {} # room_id (int) -> StringName
+var room_purposes: Dictionary = {}               # room_id (int) -> StringName
 
-func get_archetype_id() -> StringName:
-	if not archetype_id.is_empty():
-		return archetype_id
-	if not dungeon_archetype_name.is_empty() and dungeon_archetype_name != "GENERIC":
-		return StringName(dungeon_archetype_name.to_lower())
-	return &"necropolis"
-
-# 6. Estado y Diagnóstico
+# 6. Estado, Validación Semántica y Sellado
 var gameplay_valid: bool = false
 var gameplay_diagnostics: Dictionary = {}
 var is_committed: bool = false
+var _is_sealed: bool = false
+
+func seal() -> void:
+	if _is_sealed:
+		return
+	_is_sealed = true
+	is_committed = true
+
+	# Propagar inmutabilidad a los datos internos
+	for obj in objectives:
+		if obj != null and obj.has_method("seal"):
+			obj.seal()
+	for k in keys:
+		if k != null and k.has_method("seal"):
+			k.seal()
+	for l in locks:
+		if l != null and l.has_method("seal"):
+			l.seal()
+
+func is_sealed() -> bool:
+	return _is_sealed
 
 func mark_committed() -> void:
-	is_committed = true
+	seal()
+
+# Getters de conveniencia
+func get_start() -> Dictionary:
+	return { "room_id": start_room_id, "node_id": start_node_id }
+
+func get_boss() -> Dictionary:
+	return { "room_id": boss_room_id, "node_id": boss_node_id }
+
+func get_main_path() -> Array[int]:
+	if not main_path.is_empty():
+		return main_path
+	return critical_path_rooms
+
+func get_optional_objectives() -> Array:
+	var result: Array = []
+	for obj in objectives:
+		if obj != null and not obj.required:
+			result.append(obj)
+	return result
+
+func get_mandatory_objectives() -> Array:
+	var result: Array = []
+	for obj in objectives:
+		if obj != null and obj.required:
+			result.append(obj)
+	return result
 
 func get_room_purpose(room_id: int) -> StringName:
 	return _RoomPurposeScript.resolve_id(room_purposes.get(room_id, &"generic"))
@@ -89,26 +135,20 @@ func get_lock_by_connection_id(conn_id: int) -> LockData:
 			return l
 	return null
 
-func get_objectives_by_type(p_type: ObjectiveData.ObjectiveType) -> Array[ObjectiveData]:
-	var result: Array[ObjectiveData] = []
+func get_objectives_by_type(p_type: int) -> Array:
+	var result: Array = []
 	for obj in objectives:
 		if obj.type == p_type:
 			result.append(obj)
 	return result
 
-func get_mandatory_objectives() -> Array[ObjectiveData]:
-	var result: Array[ObjectiveData] = []
-	for obj in objectives:
-		if obj.is_mandatory:
-			result.append(obj)
-	return result
-
 func to_debug_string() -> String:
-	var s := "=== DUNGEON SEMANTIC RESULT (BaseSeed: %d, Attempt: %d, Valid: %s) ===\n" % [
-		base_seed, attempt, str(gameplay_valid)
+	var s := "=== DUNGEON SEMANTIC RESULT (BaseSeed: %d, Attempt: %d, Valid: %s, Sealed: %s) ===\n" % [
+		base_seed, attempt, str(gameplay_valid), str(_is_sealed)
 	]
 	s += "Archetype: %s (ID: %d)\n" % [dungeon_archetype_name, dungeon_archetype]
-	s += "Start Room: %d, Boss Room: %d\n" % [start_room_id, boss_room_id]
+	s += "Start Room: %d (Node: %d), Boss Room: %d (Node: %d)\n" % [start_room_id, start_node_id, boss_room_id, boss_node_id]
+	s += "Main Path (%d): %s\n" % [get_main_path().size(), str(get_main_path())]
 	s += "Critical Path Rooms (%d): %s\n" % [critical_path_rooms.size(), str(critical_path_rooms)]
 	s += "Critical Path Conns (%d): %s\n" % [critical_path_connections.size(), str(critical_path_connections)]
 	s += "Mandatory Conns / Bridges (%d): %s\n" % [mandatory_connections.size(), str(mandatory_connections)]
@@ -123,12 +163,6 @@ func to_debug_string() -> String:
 		for r_id in sorted_room_ids:
 			var p_name: String = get_room_purpose_name(int(r_id))
 			s += "  Room %d -> %s\n" % [int(r_id), p_name]
-
-		s += "\n--- Purpose Distribution Summary ---\n"
-		var dist: Dictionary = get_purpose_distribution()
-		for p_type in dist:
-			var p_name: String = str(p_type).to_upper()
-			s += "  %s: %d\n" % [p_name, int(dist[p_type])]
 
 	if not gameplay_diagnostics.is_empty():
 		s += "\nDiagnostics: %s\n" % JSON.stringify(gameplay_diagnostics)
