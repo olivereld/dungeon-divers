@@ -51,8 +51,14 @@ func plan_corridors(
 		var node_b: int = r_b.mission_node_id if r_b != null else -1
 
 		var is_mission_edge: bool = false
+		var directed_mission_edge := Vector2i(-1, -1)
 		if mission_graph != null and node_a >= 0 and node_b >= 0:
-			is_mission_edge = mission_graph.has_edge(node_a, node_b) or mission_graph.has_edge(node_b, node_a)
+			if mission_graph.has_edge(node_a, node_b):
+				is_mission_edge = true
+				directed_mission_edge = Vector2i(node_a, node_b)
+			elif mission_graph.has_edge(node_b, node_a):
+				is_mission_edge = true
+				directed_mission_edge = Vector2i(node_b, node_a)
 
 		var intent_a: SpatialIntent = spatial_intent.get_intent(node_a) if (spatial_intent != null and node_a >= 0) else null
 		var intent_b: SpatialIntent = spatial_intent.get_intent(node_b) if (spatial_intent != null and node_b >= 0) else null
@@ -111,7 +117,7 @@ func plan_corridors(
 			Vector2i.ZERO,
 			is_req,
 			role,
-			Vector2i(node_a, node_b),
+			directed_mission_edge,
 			pref_len,
 			min_len,
 			max_len,

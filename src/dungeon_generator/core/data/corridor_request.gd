@@ -212,6 +212,9 @@ static func create_planned(
 	req._routing_preference = p_routing_pref
 	return req
 
+## [DEPRECATED / NO PRODUCTIVO] Método legacy de compatibilidad para tests unitarios aislados.
+## En el pipeline principal de producción, las peticiones deben crearse exclusivamente
+## mediante CorridorPlanner y completarse con bind_physical_entrances().
 static func from_entrance_pair(pair: EntrancePair, is_required_conn: bool = true) -> CorridorRequest:
 	if pair == null or pair.entrance_a == null or pair.entrance_b == null:
 		return null
