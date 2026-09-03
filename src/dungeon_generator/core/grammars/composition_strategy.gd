@@ -1,8 +1,9 @@
 class_name CompositionStrategy
 extends RefCounted
 
-## Estrategia de Composición Espacial (Spatial Constraints v1).
-## Implementa progresión espacial START -> EARLY -> MID -> LATE -> BOSS.
+## Estrategia de Composición Espacial (Spatial Constraints v1 + Spatial Intent).
+## Consume la intención espacial de MissionGraph (SpatialIntentResult) para determinar
+## la progresión (START -> EARLY -> MID -> LATE -> BOSS) y el anclaje de ramas secundarias (SIDE_PATH).
 ## Separa estrictamente restricciones duras (rechazo inmediato) de puntuación suave (soft scoring).
 ## Elimina por completo los fallbacks con clamp o fabricación de posiciones inválidas.
 ## Produce un RoomPlacementPlan inmutable y sellado de solo lectura.
@@ -11,6 +12,9 @@ const RoomPlacementPlan = preload("res://src/dungeon_generator/core/data/room_pl
 const RoomData = preload("res://src/dungeon_generator/core/data/room_data.gd")
 const DungeonGraph = preload("res://src/dungeon_generator/core/data/dungeon_graph.gd")
 const SpaceGrammarConfig = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
+const SpatialIntent = preload("res://src/dungeon_generator/core/data/spatial_intent.gd")
+const SpatialIntentResult = preload("res://src/dungeon_generator/core/data/spatial_intent_result.gd")
+const SpatialIntentBuilder = preload("res://src/dungeon_generator/core/grammars/spatial_intent_builder.gd")
 
 const REGION_START: StringName = &"region_start"
 const REGION_EARLY: StringName = &"region_early"
@@ -36,17 +40,24 @@ func _init(rng: RandomNumberGenerator = null) -> void:
 		_rng = RandomNumberGenerator.new()
 
 ## Genera un plan de colocación espacial completo y sellado para las habitaciones dadas.
-## No muta las instancias de RoomData.
+## Acepta un SpatialIntentResult explícito; si es nulo, lo construye automáticamente desde el MissionGraph.
+## No muta las instancias de RoomData ni de MissionGraph.
 func create_placement_plan(
 	rooms: Array[RoomData],
 	mission_graph: DungeonGraph,
 	bounds: Rect2i,
-	config: SpaceGrammarConfig = null
+	config: SpaceGrammarConfig = null,
+	spatial_intent: SpatialIntentResult = null
 ) -> RoomPlacementPlan:
 	var plan := RoomPlacementPlan.new()
 	if rooms.is_empty():
 		plan.seal()
 		return plan
+
+	# Si no se provee intención espacial explícita, construirla desde el MissionGraph
+	if spatial_intent == null and mission_graph != null:
+		var builder := SpatialIntentBuilder.new()
+		spatial_intent = builder.build(mission_graph)
 
 	var preferred_distance: float = config.mission_aware_preferred_distance if config != null else 12.0
 	var candidate_count: int = config.mission_aware_candidate_count if config != null else 15
@@ -67,7 +78,7 @@ func create_placement_plan(
 	# Alcance máximo de progresión espacial dentro de los bounds
 	var max_progression_span: float = minf(float(bounds.size.x), float(bounds.size.y)) * 0.65
 
-	# Indexar salas y calcular orden topológico
+	# Indexar salas por id y por mission_node_id
 	var room_by_id: Dictionary = {}
 	var room_by_node_id: Dictionary = {}
 	for r in rooms:
@@ -76,27 +87,34 @@ func create_placement_plan(
 			if r.mission_node_id >= 0:
 				room_by_node_id[r.mission_node_id] = r
 
+	# Orden de procesamiento guiado por SpatialIntent (Main Path primero, luego Side Paths)
 	var ordered_rooms: Array[RoomData] = []
-	var node_progression_factors: Dictionary = {} # room_id -> float (0.0 a 1.0)
-	if mission_graph != null:
-		var topo_order: Array[int] = mission_graph.get_topological_order()
-		var total_nodes: int = topo_order.size()
-		for idx in range(total_nodes):
-			var node_id: int = topo_order[idx]
+	if spatial_intent != null and spatial_intent.valid:
+		# 1. Salas en la ruta principal (progression ordenada)
+		for node_id in spatial_intent.main_path:
 			if room_by_node_id.has(node_id):
+				ordered_rooms.append(room_by_node_id[node_id])
+		# 2. Salas de ramas secundarias ordenadas por orden topológico / profundidad
+		var topo_order: Array[int] = mission_graph.get_topological_order() if mission_graph != null else []
+		for node_id in topo_order:
+			if not spatial_intent.is_main_path(node_id) and room_by_node_id.has(node_id):
 				var r: RoomData = room_by_node_id[node_id]
-				ordered_rooms.append(r)
-				var factor: float = float(idx) / float(maxi(1, total_nodes - 1))
-				node_progression_factors[r.id] = factor
+				if not ordered_rooms.has(r):
+					ordered_rooms.append(r)
+		# 3. Salas no vinculadas a nodos de misión
 		for r in rooms:
 			if not ordered_rooms.has(r):
 				ordered_rooms.append(r)
-				node_progression_factors[r.id] = 0.5
+	elif mission_graph != null:
+		var topo_order: Array[int] = mission_graph.get_topological_order()
+		for node_id in topo_order:
+			if room_by_node_id.has(node_id):
+				ordered_rooms.append(room_by_node_id[node_id])
+		for r in rooms:
+			if not ordered_rooms.has(r):
+				ordered_rooms.append(r)
 	else:
 		ordered_rooms = rooms.duplicate()
-		for idx in range(ordered_rooms.size()):
-			var factor: float = float(idx) / float(maxi(1, ordered_rooms.size() - 1))
-			node_progression_factors[ordered_rooms[idx].id] = factor
 
 	# Seguimiento local de posiciones decididas (room_id -> Rect2i)
 	var placed_rects: Dictionary = {}
@@ -104,8 +122,13 @@ func create_placement_plan(
 
 	for room in ordered_rooms:
 		var size: Vector2i = room.rect.size
-		var prog_factor: float = float(node_progression_factors.get(room.id, 0.5))
-		var region: StringName = _classify_progression_region(room, prog_factor, mission_graph)
+		var intent: SpatialIntent = spatial_intent.get_intent(room.mission_node_id) if (spatial_intent != null and room.mission_node_id >= 0) else null
+
+		var prog_factor: float = 0.5
+		if intent != null:
+			prog_factor = intent.progression_factor
+
+		var region: StringName = _classify_from_intent(room, intent)
 		var priority: int = _determine_priority(room, region)
 
 		# Objetivo espacial para este paso de progresión
@@ -126,6 +149,7 @@ func create_placement_plan(
 				size,
 				placed_rects,
 				room_by_id,
+				room_by_node_id,
 				mission_graph,
 				bounds,
 				start_center,
@@ -138,7 +162,8 @@ func create_placement_plan(
 				min_separation,
 				min_edge_dist,
 				progression_strength,
-				density_strength
+				density_strength,
+				intent
 			)
 
 		# Restricción Dura: Si no se pudo encontrar una posición válida sin colisión, NO se añade al plan
@@ -153,26 +178,27 @@ func create_placement_plan(
 	plan.seal()
 	return plan
 
-func _classify_progression_region(room: RoomData, prog_factor: float, mission_graph: DungeonGraph) -> StringName:
-	if room.room_type == RoomData.RoomType.START:
+func _classify_from_intent(room: RoomData, intent: SpatialIntent) -> StringName:
+	if room.room_type == RoomData.RoomType.START or room.room_type == &"start" or (intent != null and intent.path_role == SpatialIntent.ROLE_START):
 		return REGION_START
-	if room.room_type == RoomData.RoomType.BOSS or room.room_type == RoomData.RoomType.GOAL:
+	if room.room_type == RoomData.RoomType.BOSS or room.room_type == &"boss" or room.room_type == RoomData.RoomType.GOAL or room.room_type == &"goal" or (intent != null and (intent.path_role == SpatialIntent.ROLE_BOSS or intent.path_role == SpatialIntent.ROLE_GOAL)):
 		return REGION_BOSS
 
-	# Detectar ramas secundarias
-	if mission_graph != null and room.mission_node_id >= 0:
-		var successors: Array[int] = mission_graph.get_successors(room.mission_node_id)
-		var preds: Array[int] = mission_graph.get_predecessors(room.mission_node_id)
-		if successors.is_empty() and not preds.is_empty():
-			return REGION_BRANCH
+	if intent != null:
+		match intent.path_role:
+			SpatialIntent.ROLE_MAIN_PATH:
+				if intent.progression_factor <= 0.33:
+					return REGION_EARLY
+				elif intent.progression_factor <= 0.67:
+					return REGION_MID
+				else:
+					return REGION_LATE
+			SpatialIntent.ROLE_SIDE_PATH:
+				return REGION_BRANCH
+			SpatialIntent.ROLE_OPTIONAL:
+				return REGION_OPTIONAL
 
-	# Progresión espacial en la ruta principal
-	if prog_factor <= 0.33:
-		return REGION_EARLY
-	elif prog_factor <= 0.67:
-		return REGION_MID
-	else:
-		return REGION_LATE
+	return REGION_MAIN_PATH
 
 func _determine_priority(room: RoomData, region: StringName) -> int:
 	match region:
@@ -233,6 +259,7 @@ func _find_best_position(
 	size: Vector2i,
 	placed_rects: Dictionary,
 	room_by_id: Dictionary,
+	room_by_node_id: Dictionary,
 	mission_graph: DungeonGraph,
 	bounds: Rect2i,
 	start_center: Vector2,
@@ -245,7 +272,8 @@ func _find_best_position(
 	min_separation: int,
 	min_edge_dist: float,
 	progression_strength: float,
-	density_strength: float
+	density_strength: float,
+	intent: SpatialIntent
 ) -> Vector2i:
 	# Recopilar rectángulos y centros de vecinos de misión ya colocados
 	var neighbor_rects: Array[Rect2i] = []
@@ -262,6 +290,11 @@ func _find_best_position(
 		for nr in neighbor_rects:
 			sum += Vector2(nr.position + nr.size / 2)
 		anchor = sum / neighbor_rects.size()
+	elif intent != null and intent.main_path_anchor >= 0 and room_by_node_id.has(intent.main_path_anchor) and placed_rects.has(room_by_node_id[intent.main_path_anchor].id):
+		# Rama lateral: anclaje espacial al nodo de la ruta principal del cual se desprende
+		var anchor_room: RoomData = room_by_node_id[intent.main_path_anchor]
+		var ar: Rect2i = placed_rects[anchor_room.id]
+		anchor = Vector2(ar.position + ar.size / 2)
 	else:
 		var sum := Vector2.ZERO
 		for pr in placed_rects.values():
