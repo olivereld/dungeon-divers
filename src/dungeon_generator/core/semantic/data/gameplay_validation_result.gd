@@ -13,9 +13,11 @@ var valid: bool = false
 var failure_reason: String = ""
 var critical_path: Array[int] = []
 var unreachable_objectives: Array = [] # Array[ObjectiveData]
+var unreachable_optional_objectives: Array = [] # Array[ObjectiveData]
 var unavailable_keys: Array = []       # Array[KeyData]
 var blocked_locks: Array = []          # Array[LockData]
 var solution_trace: Array = []         # Array[Dictionary]
+var unreachable_rooms: Array[int] = []
 var failing_reasons: Array[String] = []
 
 var _is_sealed: bool = false

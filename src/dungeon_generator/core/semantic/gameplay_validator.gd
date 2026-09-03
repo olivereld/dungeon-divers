@@ -63,9 +63,9 @@ func validate_gameplay(
 	return {
 		"is_resolvable": val_res.valid,
 		"solution_trace": val_res.solution_trace,
-		"unreachable_rooms": [], # computado si se requiere
+		"unreachable_rooms": val_res.unreachable_rooms,
 		"unreachable_mandatory_objectives": val_res.unreachable_objectives,
-		"unreachable_optional_objectives": [],
+		"unreachable_optional_objectives": val_res.unreachable_optional_objectives,
 		"failing_reasons": val_res.failing_reasons,
 		"validation_result": val_res
 	}
@@ -281,6 +281,7 @@ func _evaluate_gameplay(
 	# -------------------------------------------------------------
 	# C1 - Pregunta 2: ¿Son alcanzables todos los Objetivos obligatorios?
 	# -------------------------------------------------------------
+	var unreachable_optional_objectives: Array = []
 	for obj in objectives:
 		if obj == null:
 			continue
@@ -290,6 +291,9 @@ func _evaluate_gameplay(
 				failing_reasons.append("Mandatory objective '%s' in room %d is unreachable" % [
 					_ObjectiveDataScript.type_to_string(obj.type), obj.room_id
 				])
+		else:
+			if not reachable_rooms.has(obj.room_id):
+				unreachable_optional_objectives.append(obj)
 
 	# -------------------------------------------------------------
 	# Reconstruir Camino Crítico Jugable Real (Playable Critical Path)
@@ -310,13 +314,20 @@ func _evaluate_gameplay(
 	# -------------------------------------------------------------
 	# C3: Ensamblado y Sellado de GameplayValidationResult
 	# -------------------------------------------------------------
+	var unreached_room_ids: Array[int] = []
+	for r in rooms:
+		if r != null and not reachable_rooms.has(r.id):
+			unreached_room_ids.append(r.id)
+
 	result.valid = failing_reasons.is_empty()
 	result.failure_reason = failing_reasons[0] if not failing_reasons.is_empty() else ""
 	result.failing_reasons = failing_reasons
 	result.critical_path = critical_path
 	result.unreachable_objectives = unreachable_objectives
+	result.unreachable_optional_objectives = unreachable_optional_objectives
 	result.unavailable_keys = unavailable_keys
 	result.blocked_locks = blocked_locks
+	result.unreachable_rooms = unreached_room_ids
 	result.solution_trace = solution_trace
 	result.seal()
 
