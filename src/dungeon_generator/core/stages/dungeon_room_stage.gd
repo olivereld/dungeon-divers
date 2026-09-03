@@ -13,6 +13,11 @@ const _StructuralValidatorScript = preload("res://src/dungeon_generator/core/val
 const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/room_connectivity_repair.gd")
 const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
 const _SemanticMappingValidatorScript = preload("res://src/dungeon_generator/core/validation/semantic_mapping_validator.gd")
+const _CompositionStrategyScript = preload("res://src/dungeon_generator/core/grammars/composition_strategy.gd")
+const _RoomPlacementPlanScript = preload("res://src/dungeon_generator/core/data/room_placement_plan.gd")
+const _RoomPlacerScript = preload("res://src/dungeon_generator/core/placement/room_placer.gd")
+const _RoomSpatialSeparatorScript = preload("res://src/dungeon_generator/core/topology/room_spatial_separator.gd")
+const _SpaceGrammarConfigScript = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
 
 var _space_grammar := _SpaceGrammarScript.new()
 var _cellular_automata := _CellularAutomataScript.new()
@@ -24,18 +29,50 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	ctx.stage_seeds["layout"] = layout_seed
 	ctx.stage_seeds["variation"] = variation_seed
 
+	# 1. SpaceGrammar: WHAT rooms exist (room creation and configuration only)
 	ctx.rooms = _space_grammar.generate(ctx.mission_graph, ctx.config, layout_seed)
-	ctx.placement_tier_3 = _space_grammar.tier_3_count
-	ctx.placement_tier_4 = _space_grammar.tier_4_count
-	ctx.before_separator_metrics = _space_grammar._metrics_before_separator
-	ctx.after_separator_metrics = _space_grammar._metrics_after_separator
-	ctx.rooms_before_separator = _space_grammar._rooms_before_separator
+	ctx.placement_tier_3 = 0
+	ctx.placement_tier_4 = 0
 	ctx.record_timing("space_grammar", float(Time.get_ticks_msec() - t0))
 
 	# VALIDACIÓN CRÍTICA: Contrato semántico MissionGraph → RoomData
 	if not _SemanticMappingValidatorScript.validate_mission_to_room_semantics(ctx.mission_graph, ctx.rooms, ctx):
 		return false
 
+	# 2. CompositionStrategy: WHERE rooms go (evaluates candidates, generates sealed RoomPlacementPlan)
+	var t_place := Time.get_ticks_msec()
+	var placement_rng := RandomNumberGenerator.new()
+	placement_rng.seed = layout_seed
+
+	var grid_w: int = ctx.config.grid_width if ctx.config != null else 64
+	var grid_h: int = ctx.config.grid_height if ctx.config != null else 64
+	var grid_bounds := Rect2i(3, 3, grid_w - 6, grid_h - 6)
+
+	var strategy := _CompositionStrategyScript.new(placement_rng)
+	var sg_config: _SpaceGrammarConfigScript = ctx.config.space_grammar_config if (ctx.config != null and ctx.config.space_grammar_config != null) else null
+	if sg_config == null and ctx.config != null:
+		sg_config = _SpaceGrammarConfigScript.new()
+		sg_config.use_mission_aware_placement = ctx.config.use_mission_aware_placement
+		sg_config.mission_aware_preferred_distance = ctx.config.mission_aware_preferred_distance
+		sg_config.mission_aware_candidate_count = ctx.config.mission_aware_candidate_count
+		sg_config.mission_aware_distance_jitter = ctx.config.mission_aware_distance_jitter
+
+	var plan = strategy.create_placement_plan(ctx.rooms, ctx.mission_graph, grid_bounds, sg_config)
+
+	# 3. RoomPlacer: APPLY placement decisions to ctx.rooms
+	var placer := _RoomPlacerScript.new()
+	var placed_count: int = placer.apply_plan(ctx.rooms, plan)
+	if placed_count != ctx.rooms.size():
+		ctx.mark_attempt_failed("ROOM_PLACEMENT_INCOMPLETE", "TRANSIENT")
+		return false
+
+	# 4. RoomSpatialSeparator: REPAIR ONLY if any overlap occurs
+	if not placer.validate_placement_integrity(ctx.rooms, 2):
+		ctx.rooms = _RoomSpatialSeparatorScript.separate_rooms(ctx.rooms, grid_bounds, placement_rng, 2)
+
+	ctx.record_timing("room_placement", float(Time.get_ticks_msec() - t_place))
+
+	# 5. Construct CellGrid AFTER room placement is applied, so shapes reflect new positions
 	t0 = Time.get_ticks_msec()
 	ctx.grid = CellGrid.new(ctx.config.grid_width, ctx.config.grid_height, CellGrid.CellType.WALL)
 	

@@ -102,23 +102,8 @@ func generate(p_mission_graph: DungeonGraph, p_config = null, random_seed: int =
 		if m_node.action == MissionNode.ActionType.BOSS:
 			assert(room.room_type == &"boss", "MissionNode BOSS action does not map to boss room_type")
 
-		# Posicionamiento con distribución espacial amplia
-		_place_room(room, rooms, grid_bounds)
-
 		node_to_room[node_id] = room
 		rooms.append(room)
-
-	print("[SpaceGrammar] Tier distribution: tier3=%d tier4=%d total=%d" % [tier_3_count, tier_4_count, rooms.size()])
-
-	# Medir antes del separator
-	_metrics_before_separator = _compute_spatial_metrics_dict(rooms)
-	_rooms_before_separator = rooms.duplicate()
-
-	# Consolidar separación espacial AABB con padding mínimo de 2 celdas
-	rooms = _RoomSpatialSeparatorScript.separate_rooms(rooms, grid_bounds, _rng, 2)
-
-	# Medir después del separator
-	_metrics_after_separator = _compute_spatial_metrics_dict(rooms)
 
 	return rooms
 
