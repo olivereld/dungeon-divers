@@ -77,10 +77,24 @@ static func carve_corridors(
 			if req != null:
 				requests.append(req)
 
-	# Ordenar peticiones: mandatory primero, luego por ID estable
+	# Ordenar peticiones: mandatory primero, luego por rol semántico (MAIN_PATH > SIDE_PATH > OPTIONAL), luego por distancia e ID
 	requests.sort_custom(func(a: CorridorRequest, b: CorridorRequest):
 		if a.is_required != b.is_required:
 			return a.is_required
+		var role_rank := func(r: StringName) -> int:
+			match r:
+				CorridorRequest.ROLE_MAIN_PATH:
+					return 3
+				CorridorRequest.ROLE_SIDE_PATH:
+					return 2
+				CorridorRequest.ROLE_OPTIONAL:
+					return 1
+				_:
+					return 0
+		var r_a: int = role_rank.call(a.corridor_role)
+		var r_b: int = role_rank.call(b.corridor_role)
+		if r_a != r_b:
+			return r_a > r_b
 		var dist_a: int = absi(a.goal.x - a.start.x) + absi(a.goal.y - a.start.y)
 		var dist_b: int = absi(b.goal.x - b.start.x) + absi(b.goal.y - b.start.y)
 		if dist_a != dist_b:

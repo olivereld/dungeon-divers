@@ -4,6 +4,7 @@ extends RefCounted
 ## Etapa 5: Tallado y Reparación de Pasillos, Limpieza y Podado.
 
 const _AStarCarverScript = preload("res://src/dungeon_generator/core/algorithms/astar_carver.gd")
+const _CorridorPlannerScript = preload("res://src/dungeon_generator/core/planning/corridor_planner.gd")
 const _CorridorConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/corridor_connectivity_repair.gd")
 const _StructuralValidatorScript = preload("res://src/dungeon_generator/core/validation/structural_validator.gd")
 const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/room_connectivity_repair.gd")
@@ -16,10 +17,23 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	var corridor_seed: int = _DungeonSeedFactoryScript.derive_seed(ctx.base_seed, ctx.attempt, &"corridor")
 	ctx.stage_seeds["corridor"] = corridor_seed
 
+	# Fase 5: Corridor Planning - Planificar intención semántica antes del tallado geométrico
+	var planner := _CorridorPlannerScript.new()
+	var corridor_plan = planner.plan_corridors(
+		ctx.rooms,
+		ctx.connections,
+		ctx.entrance_pairs,
+		null,
+		null,
+		ctx.mission_graph
+	)
+
+	var pairs_to_carve: Array = corridor_plan.get_requests() if (corridor_plan != null and not corridor_plan.is_empty()) else ctx.entrance_pairs
+
 	var corridor_res = _AStarCarverScript.carve_corridors(
 		ctx.grid,
 		ctx.rooms,
-		ctx.entrance_pairs,
+		pairs_to_carve,
 		ctx.connections,
 		ctx.config
 	)
