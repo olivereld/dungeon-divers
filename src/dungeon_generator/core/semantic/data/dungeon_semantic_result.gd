@@ -49,6 +49,7 @@ var room_purposes: Dictionary = {}               # room_id (int) -> StringName
 # 6. Estado, Validación Semántica y Sellado
 var gameplay_valid: bool = false
 var gameplay_diagnostics: Dictionary = {}
+var validation_result: RefCounted = null          # GameplayValidationResult formal
 var is_committed: bool = false
 var _is_sealed: bool = false
 
@@ -81,6 +82,9 @@ func get_start() -> Dictionary:
 
 func get_boss() -> Dictionary:
 	return { "room_id": boss_room_id, "node_id": boss_node_id }
+
+func get_validation_result() -> RefCounted:
+	return validation_result
 
 func get_main_path() -> Array[int]:
 	if not main_path.is_empty():
