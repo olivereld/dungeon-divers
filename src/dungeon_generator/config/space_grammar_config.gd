@@ -5,7 +5,7 @@ extends Resource
 
 @export var use_mission_aware_placement: bool = false ## If true, uses MissionGraph-guided placement. Else, current behavior (random).
 @export var mission_aware_preferred_distance: float = 12.0 ## Preferred distance (cells) between a room and its placed neighbors.
-@export var mission_aware_candidate_count: int = 12 ## Number of candidates generated per room before accepting the best.
+@export var mission_aware_candidate_count: int = 15 ## Number of candidates generated per room before accepting the best.
 @export var mission_aware_distance_jitter: float = 4.0 ## Tolerance radius around preferred_distance for candidates.
 
 func duplicate_config() -> SpaceGrammarConfig:

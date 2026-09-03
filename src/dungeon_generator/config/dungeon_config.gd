@@ -46,9 +46,9 @@ func get_effective_archetype_id() -> StringName:
 
 @export_group("Gramática Espacial (Mission-Aware)")
 @export var space_grammar_config: SpaceGrammarConfig = null
-@export var use_mission_aware_placement: bool = false
+@export var use_mission_aware_placement: bool = true
 @export var mission_aware_preferred_distance: float = 12.0
-@export var mission_aware_candidate_count: int = 12
+@export var mission_aware_candidate_count: int = 15
 @export var mission_aware_distance_jitter: float = 4.0
 
 @export_group("Algoritmo de Construcción")
