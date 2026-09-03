@@ -5,6 +5,7 @@ signal room_selected(room: RefCounted)
 
 const _TransformScript = preload("res://src/dungeon_generator/debug/lab/dungeon_lab_grid_transform.gd")
 const _OverlayScript = preload("res://src/dungeon_generator/debug/lab/dungeon_lab_overlay.gd")
+const _ObjectiveDataScript = preload("res://src/dungeon_generator/core/semantic/data/objective_data.gd")
 
 var transform: _TransformScript
 var overlay: _OverlayScript
@@ -190,3 +191,139 @@ func _draw() -> void:
 			var s_rect = transform.cell_to_screen_rect(s_cell)
 			draw_rect(s_rect, COLOR_STAIR, true)
 			draw_rect(s_rect, Color.WHITE, false, 1.5)
+
+	var font := ThemeDB.fallback_font
+
+	# 5. Draw Corridors & Corridor Details Overlay
+	_draw_corridors_overlay(font)
+
+	# 6. Draw Spatial Overlay (Mission edges, Progression direction, Room separation)
+	_draw_spatial_overlay(font)
+
+	# 7. Draw Semantics Overlay (START, BOSS, Critical Path, Objectives, Keys, Locks)
+	_draw_semantics_overlay(font)
+
+func _draw_corridors_overlay(font: Font) -> void:
+	if not overlay.show_corridors and not overlay.show_corridor_details:
+		return
+	if not ("corridor_paths" in _current_floor_data) or _current_floor_data.corridor_paths == null:
+		return
+
+	for cp in _current_floor_data.corridor_paths:
+		if cp == null or cp.centerline_cells.is_empty():
+			continue
+		var pts: PackedVector2Array = []
+		for cell in cp.centerline_cells:
+			pts.append(transform.cell_to_screen_rect(cell).get_center())
+		if pts.size() >= 2:
+			draw_polyline(pts, Color(0.25, 0.75, 1.0, 0.75), 2.5)
+
+		if overlay.show_corridor_details:
+			var mid_idx: int = pts.size() / 2
+			var tag_pos: Vector2 = pts[mid_idx]
+			var strat: String = cp.routing_strategy if cp.routing_strategy != "Unknown" else "DIR"
+			var text: String = "L:%d T:%d [%s]" % [cp.centerline_cells.size(), cp.turn_count, strat]
+			var str_sz: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9)
+			draw_rect(Rect2(tag_pos + Vector2(-2, -11), str_sz + Vector2(4, 3)), Color(0.08, 0.09, 0.12, 0.85), true)
+			draw_string(font, tag_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1.0, 0.8, 0.2))
+
+func _draw_spatial_overlay(font: Font) -> void:
+	if not overlay.show_spatial_overlay:
+		return
+
+	var room_map: Dictionary = {}
+	if "rooms" in _current_floor_data and _current_floor_data.rooms != null:
+		for r in _current_floor_data.rooms:
+			room_map[r.id] = r
+			# Room separation buffer
+			var r_rect: Rect2i = r.rect
+			var s_rect := Rect2(
+				transform.world_to_screen(Vector2(r_rect.position) * transform.cell_size),
+				Vector2(r_rect.size) * transform.cell_size * transform.zoom
+			)
+			draw_rect(s_rect.grow(3.0 * transform.zoom), Color(0.3, 0.6, 1.0, 0.35), false, 1.0)
+
+	# Mission Edges / Connections
+	if "connections" in _current_floor_data and _current_floor_data.connections != null:
+		var sem = _current_floor_data.semantic_result if "semantic_result" in _current_floor_data else null
+		var depth_map = sem.depth_map if (sem != null and "depth_map" in sem and sem.depth_map != null) else {}
+
+		for conn in _current_floor_data.connections:
+			if conn == null:
+				continue
+			var ra = room_map.get(conn.room_a_id)
+			var rb = room_map.get(conn.room_b_id)
+			if ra == null or rb == null:
+				continue
+			var pa: Vector2 = transform.cell_to_screen_rect(ra.get_center()).get_center()
+			var pb: Vector2 = transform.cell_to_screen_rect(rb.get_center()).get_center()
+
+			var col := Color(0.2, 0.85, 0.95, 0.7)
+			draw_line(pa, pb, col, 2.0)
+
+			# Midpoint progression indicator
+			var mid: Vector2 = (pa + pb) * 0.5
+			var edge_label: String = "%d→%d" % [conn.room_a_id, conn.room_b_id]
+			draw_rect(Rect2(mid + Vector2(-12, -9), Vector2(24, 12)), Color(0.05, 0.1, 0.15, 0.75), true)
+			draw_string(font, mid + Vector2(-10, 0), edge_label, HORIZONTAL_ALIGNMENT_CENTER, -1, 8, Color.CYAN)
+
+func _draw_semantics_overlay(font: Font) -> void:
+	if not overlay.show_semantics_overlay:
+		return
+
+	var sem = _current_floor_data.semantic_result if ("semantic_result" in _current_floor_data) else null
+	if sem == null:
+		return
+
+	var room_map: Dictionary = {}
+	if "rooms" in _current_floor_data and _current_floor_data.rooms != null:
+		for r in _current_floor_data.rooms:
+			room_map[r.id] = r
+
+	# Critical Path Line
+	if sem.critical_path_rooms != null and sem.critical_path_rooms.size() >= 2:
+		var cp_pts: PackedVector2Array = []
+		for r_id in sem.critical_path_rooms:
+			if room_map.has(r_id):
+				cp_pts.append(transform.cell_to_screen_rect(room_map[r_id].get_center()).get_center())
+		if cp_pts.size() >= 2:
+			draw_polyline(cp_pts, Color(1.0, 0.85, 0.1, 0.85), 4.0)
+
+	# START & BOSS & GOAL Markers
+	if room_map.has(sem.start_room_id):
+		var s_pt = transform.cell_to_screen_rect(room_map[sem.start_room_id].get_center()).get_center()
+		draw_circle(s_pt, 14.0 * transform.zoom, Color(0.1, 0.8, 0.2, 0.5))
+		draw_rect(Rect2(s_pt + Vector2(-22, -18), Vector2(44, 14)), Color(0.0, 0.4, 0.1, 0.9), true)
+		draw_string(font, s_pt + Vector2(-18, -8), "★ START", HORIZONTAL_ALIGNMENT_CENTER, -1, 9, Color.WHITE)
+
+	if room_map.has(sem.boss_room_id):
+		var b_pt = transform.cell_to_screen_rect(room_map[sem.boss_room_id].get_center()).get_center()
+		draw_circle(b_pt, 16.0 * transform.zoom, Color(0.9, 0.15, 0.15, 0.5))
+		draw_rect(Rect2(b_pt + Vector2(-20, -18), Vector2(40, 14)), Color(0.5, 0.05, 0.05, 0.9), true)
+		draw_string(font, b_pt + Vector2(-16, -8), "💀 BOSS", HORIZONTAL_ALIGNMENT_CENTER, -1, 9, Color.WHITE)
+
+	# Objectives
+	if sem.objectives != null:
+		for obj in sem.objectives:
+			if obj != null and room_map.has(obj.room_id):
+				var opt = transform.cell_to_screen_rect(room_map[obj.room_id].get_center()).get_center()
+				var o_type_str: String = _ObjectiveDataScript.type_to_string(obj.type) if _ObjectiveDataScript != null else "OBJ"
+				draw_string(font, opt + Vector2(6, 6), "🎯 %s" % o_type_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color.ORANGE)
+
+	# Keys
+	if sem.keys != null:
+		for k in sem.keys:
+			if k != null and room_map.has(k.room_id):
+				var kpt = transform.cell_to_screen_rect(room_map[k.room_id].get_center()).get_center()
+				draw_string(font, kpt + Vector2(-10, 18), "🔑 K%d (L%d)" % [k.id, k.unlocks], HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color.GOLD)
+
+	# Locks
+	if sem.locks != null:
+		for l in sem.locks:
+			if l != null:
+				var lpt: Vector2 = Vector2.ZERO
+				if l.room_id >= 0 and room_map.has(l.room_id):
+					lpt = transform.cell_to_screen_rect(room_map[l.room_id].get_center()).get_center()
+				if lpt != Vector2.ZERO:
+					draw_string(font, lpt + Vector2(-10, -8), "🔒 L%d (Req:%d)" % [l.id, l.required_key_id], HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color.SALMON)
+

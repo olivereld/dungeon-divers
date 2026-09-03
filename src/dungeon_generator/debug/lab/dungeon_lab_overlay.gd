@@ -66,3 +66,25 @@ var show_zone_map: bool:
 	set(v):
 		_show_zone_map = v
 		overlay_changed.emit()
+
+var _show_spatial_overlay: bool = false
+var show_spatial_overlay: bool:
+	get: return _show_spatial_overlay
+	set(v):
+		_show_spatial_overlay = v
+		overlay_changed.emit()
+
+var _show_corridor_details: bool = false
+var show_corridor_details: bool:
+	get: return _show_corridor_details
+	set(v):
+		_show_corridor_details = v
+		overlay_changed.emit()
+
+var _show_semantics_overlay: bool = false
+var show_semantics_overlay: bool:
+	get: return _show_semantics_overlay
+	set(v):
+		_show_semantics_overlay = v
+		overlay_changed.emit()
+

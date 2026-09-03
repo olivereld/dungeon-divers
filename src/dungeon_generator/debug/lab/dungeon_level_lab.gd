@@ -180,25 +180,33 @@ func _on_copy_ascii_pressed() -> void:
 	var d_result: DungeonResult = null
 	var sem_res: DungeonSemanticResult = null
 
-	if floor_data != null and floor_data.has_method("to_dungeon_result"):
-		d_result = floor_data.to_dungeon_result()
-	elif controller.get_current_result().has("dungeon_result"):
-		d_result = controller.get_current_result()["dungeon_result"]
+	# 1. Priorizar la reutilización del DungeonResult original cuando esté disponible
+	var cur_res: Dictionary = controller.get_current_result()
+	if cur_res.has("dungeon_result") and cur_res["dungeon_result"] != null:
+		var orig_res: DungeonResult = cur_res["dungeon_result"]
+		if cur_res.get("total_floors", 1) <= 1 or (floor_data != null and orig_res.floor_number == floor_data.floor_number):
+			d_result = orig_res
 
+	# 2. Resolver sem_res activo
 	if floor_data != null and "semantic_result" in floor_data and floor_data.semantic_result != null:
 		sem_res = floor_data.semantic_result
 	else:
 		sem_res = controller.get_active_semantic_result()
 
+	# 3. Fallback explícito: construir DungeonResult para el piso actual si no hay original (ej. multi-floor)
 	if d_result == null and floor_data != null:
-		# Construir DungeonResult sintético desde DungeonFloorData para el exportador
-		d_result = DungeonResult.new()
-		d_result.grid = floor_data.grid
-		d_result.rooms = floor_data.rooms
-		d_result.door_pairs = floor_data.door_pairs
-		d_result.corridor_paths = floor_data.corridor_paths
-		d_result.floor_number = floor_data.floor_number
-		d_result.seed_used = config.seed
+		if floor_data.has_method("to_dungeon_result"):
+			d_result = floor_data.to_dungeon_result()
+		else:
+			d_result = DungeonResult.new()
+			d_result.grid = floor_data.grid
+			d_result.rooms = floor_data.rooms
+			d_result.connections = floor_data.connections
+			d_result.door_pairs = floor_data.door_pairs
+			d_result.corridor_paths = floor_data.corridor_paths
+			d_result.floor_number = floor_data.floor_number
+			d_result.seed_used = floor_data.seed_used if floor_data.seed_used != 0 else config.seed
+			d_result.metadata = floor_data.metadata.duplicate(true)
 
 	if d_result != null and d_result.grid != null:
 		var ascii_text := _DungeonAsciiExporterScript.export_ascii(d_result, sem_res, true)
@@ -206,10 +214,11 @@ func _on_copy_ascii_pressed() -> void:
 		if export_ascii_btn != null:
 			var orig := export_ascii_btn.text
 			export_ascii_btn.text = "✓ ¡Copiado!"
-			get_tree().create_timer(1.2).timeout.connect(func():
-				if export_ascii_btn != null:
-					export_ascii_btn.text = orig
-			)
+			if is_inside_tree() and get_tree() != null:
+				get_tree().create_timer(1.2).timeout.connect(func():
+					if export_ascii_btn != null:
+						export_ascii_btn.text = orig
+				)
 		_set_status("¡Mapa ASCII copiado al portapapeles!")
 	else:
 		_set_status("No hay mazmorra generada para copiar.")
@@ -258,6 +267,9 @@ func _setup_overlay_checkboxes() -> void:
 	_bind_checkbox("CheckTemplateFootprint", func(v: bool): overlay.show_template_footprint = v)
 	_bind_checkbox("CheckEntrances", func(v: bool): overlay.show_entrances = v)
 	_bind_checkbox("CheckCorridors", func(v: bool): overlay.show_corridors = v)
+	_bind_checkbox("CheckCorridorDetails", func(v: bool): overlay.show_corridor_details = v)
+	_bind_checkbox("CheckSpatialOverlay", func(v: bool): overlay.show_spatial_overlay = v)
+	_bind_checkbox("CheckSemanticsOverlay", func(v: bool): overlay.show_semantics_overlay = v)
 	_bind_checkbox("CheckInternalDoors", func(v: bool): overlay.show_internal_doors = v)
 	_bind_checkbox("CheckSemanticLabels", func(v: bool): overlay.show_semantic_labels = v)
 	_bind_checkbox("CheckTemplateId", func(v: bool): overlay.show_template_id = v)

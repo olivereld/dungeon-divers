@@ -143,6 +143,21 @@ layout_mode = 2
 button_pressed = true
 text = "Corridors"
 
+[node name="CheckCorridorDetails" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = false
+text = "Corridor Details"
+
+[node name="CheckSpatialOverlay" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = false
+text = "Spatial Intent & Edges"
+
+[node name="CheckSemanticsOverlay" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = false
+text = "Semantics (Start/Boss/CP)"
+
 [node name="CheckInternalDoors" type="CheckBox" parent="VBox/HBox/LeftPanel"]
 layout_mode = 2
 button_pressed = true
