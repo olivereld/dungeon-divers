@@ -29,8 +29,10 @@ func plan_corridors(
 		plan.seal()
 		return plan
 
-	if spatial_intent == null and mission_graph != null:
-		push_warning("[CorridorPlanner] spatial_intent was not provided forward from context.")
+	if spatial_intent == null:
+		assert(false, "[CorridorPlanner] Contract violation: spatial_intent is mandatory when connections are present.")
+		push_error("[CorridorPlanner] Contract violation: spatial_intent is mandatory when connections are present.")
+		return null
 
 	# Indexar salas por id
 	var room_by_id: Dictionary = {}
@@ -60,8 +62,8 @@ func plan_corridors(
 				is_mission_edge = true
 				directed_mission_edge = Vector2i(node_b, node_a)
 
-		var intent_a: SpatialIntent = spatial_intent.get_intent(node_a) if (spatial_intent != null and node_a >= 0) else null
-		var intent_b: SpatialIntent = spatial_intent.get_intent(node_b) if (spatial_intent != null and node_b >= 0) else null
+		var intent_a: SpatialIntent = spatial_intent.get_intent(node_a) if node_a >= 0 else null
+		var intent_b: SpatialIntent = spatial_intent.get_intent(node_b) if node_b >= 0 else null
 
 		var role: StringName = CorridorRequest.ROLE_MAIN_PATH
 		var routing_pref: StringName = CorridorRequest.ROUTING_DIRECT
