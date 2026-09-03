@@ -46,6 +46,13 @@ var dungeon_archetype: int = 0
 var dungeon_archetype_name: String = "GENERIC"
 var room_purposes: Dictionary = {}               # room_id (int) -> StringName
 
+func get_archetype_id() -> StringName:
+	if not archetype_id.is_empty():
+		return archetype_id
+	if not dungeon_archetype_name.is_empty() and dungeon_archetype_name != "GENERIC":
+		return StringName(dungeon_archetype_name.to_lower())
+	return &"necropolis"
+
 # 6. Estado, Validación Semántica y Sellado
 var gameplay_valid: bool = false
 var gameplay_diagnostics: Dictionary = {}
