@@ -1,316 +1,271 @@
 class_name CompositionStrategy
 extends RefCounted
 
-## Genera posiciones candidatas para habitaciones usando una distribución
-## espacial intencional en lugar de aleatoriedad pura o espiral radial.
-##
-## La estrategia decide el patrón de distribución (scattered, grid, clustered,
-## directional) y genera candidatos. El placement loop de SpaceGrammar
-## selecciona el primer candidato válido (sin colisión).
+## Estrategia de Composición Espacial.
+## Evalúa y calcula candidatos de colocación respetando las reglas de la gramática
+## y la progresión de MissionGraph sin mutar RoomData ni el CellGrid.
+## Produce un RoomPlacementPlan inmutable de solo lectura.
+
+const RoomPlacementPlan = preload("res://src/dungeon_generator/core/data/room_placement_plan.gd")
+const RoomData = preload("res://src/dungeon_generator/core/data/room_data.gd")
+const DungeonGraph = preload("res://src/dungeon_generator/core/data/dungeon_graph.gd")
+const SpaceGrammarConfig = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
+
+const REGION_START: StringName = &"region_start"
+const REGION_MAIN_PATH: StringName = &"region_main_path"
+const REGION_BRANCH: StringName = &"region_branch"
+const REGION_BOSS: StringName = &"region_boss"
+const REGION_OPTIONAL: StringName = &"region_optional"
+
+const _DIRECTIONS: Array[Vector2] = [
+	Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1),
+	Vector2(0.7071, 0.7071), Vector2(-0.7071, 0.7071),
+	Vector2(0.7071, -0.7071), Vector2(-0.7071, -0.7071)
+]
 
 var _rng: RandomNumberGenerator
 
-func _init(rng: RandomNumberGenerator) -> void:
-	_rng = rng
+func _init(rng: RandomNumberGenerator = null) -> void:
+	if rng != null:
+		_rng = rng
+	else:
+		_rng = RandomNumberGenerator.new()
 
-
-## Genera posiciones candidatas para colocar todas las habitaciones.
-## Retorna un Array de Vector2i con las posiciones absolutas en el grid.
-## El orden importa: las primeras posiciones son para las primeras habitaciones.
-func generate_candidates(
-	room_count: int,
-	room_sizes: Array[Vector2i],
+## Genera un plan de colocación espacial completo y sellado para las habitaciones dadas.
+## No muta las instancias de RoomData.
+func create_placement_plan(
+	rooms: Array[RoomData],
+	mission_graph: DungeonGraph,
 	bounds: Rect2i,
-) -> Array[Vector2i]:
-	# Elegir estrategia según semilla y cantidad
-	var strategy_index: int = _rng.randi_range(0, 3)
-	match strategy_index:
-		0:
-			return _scattered(room_count, room_sizes, bounds)
-		1:
-			return _grid_aligned(room_count, room_sizes, bounds)
-		2:
-			return _clustered(room_count, room_sizes, bounds)
+	config: SpaceGrammarConfig = null
+) -> RoomPlacementPlan:
+	var plan := RoomPlacementPlan.new()
+	if rooms.is_empty():
+		plan.seal()
+		return plan
+
+	var preferred_distance: float = config.mission_aware_preferred_distance if config != null else 12.0
+	var candidate_count: int = config.mission_aware_candidate_count if config != null else 15
+	var distance_jitter: float = config.mission_aware_distance_jitter if config != null else 4.0
+
+	# Mapa local de id a RoomData para acceso rápido
+	var room_by_id: Dictionary = {}
+	var room_by_node_id: Dictionary = {}
+	for r in rooms:
+		if r != null:
+			room_by_id[r.id] = r
+			if r.mission_node_id >= 0:
+				room_by_node_id[r.mission_node_id] = r
+
+	# Determinar orden de procesamiento respetando el orden topológico si existe
+	var ordered_rooms: Array[RoomData] = []
+	if mission_graph != null:
+		var topo_order: Array[int] = mission_graph.get_topological_order()
+		for node_id in topo_order:
+			if room_by_node_id.has(node_id):
+				ordered_rooms.append(room_by_node_id[node_id])
+		# Agregar salas que no tengan nodo de misión asociado
+		for r in rooms:
+			if not ordered_rooms.has(r):
+				ordered_rooms.append(r)
+	else:
+		ordered_rooms = rooms.duplicate()
+
+	# Seguimiento local de decisiones tomadas (room_id -> Rect2i)
+	var placed_rects: Dictionary = {}
+
+	for room in ordered_rooms:
+		var size: Vector2i = room.rect.size
+		var region: StringName = _classify_region(room, mission_graph)
+		var priority: int = _determine_priority(room, region)
+
+		var best_pos: Vector2i
+		if placed_rects.is_empty() or room.room_type == RoomData.RoomType.START:
+			best_pos = _place_initial_room(size, bounds)
+		else:
+			best_pos = _find_best_position(
+				room,
+				size,
+				placed_rects,
+				room_by_id,
+				mission_graph,
+				bounds,
+				preferred_distance,
+				candidate_count,
+				distance_jitter
+			)
+
+		placed_rects[room.id] = Rect2i(best_pos, size)
+		plan.add_entry(room.id, best_pos, region, priority)
+
+	plan.seal()
+	return plan
+
+func _classify_region(room: RoomData, mission_graph: DungeonGraph) -> StringName:
+	if room.room_type == RoomData.RoomType.START:
+		return REGION_START
+	if room.room_type == RoomData.RoomType.BOSS or room.room_type == RoomData.RoomType.GOAL:
+		return REGION_BOSS
+	if room.room_type == RoomData.RoomType.TREASURE or room.room_type == RoomData.RoomType.PUZZLE:
+		return REGION_OPTIONAL
+
+	if mission_graph != null and room.mission_node_id >= 0:
+		var successors: Array[int] = mission_graph.get_successors(room.mission_node_id)
+		var preds: Array[int] = mission_graph.get_predecessors(room.mission_node_id)
+		if successors.is_empty() and not preds.is_empty():
+			return REGION_BRANCH
+		if preds.size() > 1 or successors.size() > 1:
+			return REGION_BRANCH
+
+	return REGION_MAIN_PATH
+
+func _determine_priority(room: RoomData, region: StringName) -> int:
+	match region:
+		REGION_START:
+			return 100
+		REGION_BOSS:
+			return 90
+		REGION_MAIN_PATH:
+			return 50
+		REGION_BRANCH:
+			return 30
+		REGION_OPTIONAL:
+			return 10
 		_:
-			return _directional(room_count, room_sizes, bounds)
+			return 0
 
+func _place_initial_room(size: Vector2i, bounds: Rect2i) -> Vector2i:
+	var center := bounds.position + bounds.size / 2
+	var ox: int = _rng.randi_range(-4, 4)
+	var oy: int = _rng.randi_range(-4, 4)
+	var pos := center - size / 2 + Vector2i(ox, oy)
+	return _clamp_to_bounds(pos, size, bounds)
 
-## ─── Estrategia 0: Scattered ────────────────────────────────────────
-## Posiciones dispersas con jitter controlado. Similar al actual pero
-## sin center bias y con distribución más uniforme.
-func _scattered(
-	room_count: int,
-	room_sizes: Array[Vector2i],
-	bounds: Rect2i,
-) -> Array[Vector2i]:
-	var candidates: Array[Vector2i] = []
-	var margin: int = 2
-
-	# Generar posiciones en espiral invertida desde un punto aleatorio
-	# (no siempre el centro del grid)
-	var origin := Vector2i(
-		_rng.randi_range(bounds.position.x + 8, bounds.end.x - 8),
-		_rng.randi_range(bounds.position.y + 8, bounds.end.y - 8),
-	)
-
-	for i in range(room_count):
-		var size: Vector2i = room_sizes[i] if i < room_sizes.size() else Vector2i(7, 7)
-		var placed := false
-
-		# Intentar con offsets crecientes desde origin
-		for radius in range(0, 30, 2):
-			for _attempt in range(8):
-				var angle: float = _rng.randf() * TAU
-				var ox: int = int(cos(angle) * radius)
-				var oy: int = int(sin(angle) * radius)
-				var pos := origin + Vector2i(ox, oy) - size / 2
-
-				if _is_valid_position(pos, size, bounds, margin, candidates):
-					candidates.append(pos)
-					placed = true
-					break
-			if placed:
-				break
-
-		if not placed:
-			# Fallback: random dentro de bounds
-			for _attempt in range(50):
-				var pos := Vector2i(
-					_rng.randi_range(bounds.position.x, bounds.end.x - size.x),
-					_rng.randi_range(bounds.position.y, bounds.end.y - size.y),
-				)
-				if _is_valid_position(pos, size, bounds, margin, candidates):
-					candidates.append(pos)
-					placed = true
-					break
-
-		if not placed:
-			candidates.append(origin - size / 2)
-
-	return candidates
-
-
-## ─── Estrategia 1: Grid-aligned ─────────────────────────────────────
-## Divide el espacio en una grilla y coloca habitaciones en celdas,
-## con jitter para evitar monotonia. Produce layouts más ordenados.
-func _grid_aligned(
-	room_count: int,
-	room_sizes: Array[Vector2i],
-	bounds: Rect2i,
-) -> Array[Vector2i]:
-	var candidates: Array[Vector2i] = []
-	var margin: int = 2
-
-	# Calcular dimensiones de la grilla
-	var cols: int = maxi(2, int(ceil(sqrt(float(room_count)))))
-	var rows: int = maxi(2, int(ceil(float(room_count) / float(cols))))
-
-	var cell_w: int = bounds.size.x / cols
-	var cell_h: int = bounds.size.y / rows
-
-	# Generar orden aleatorio de celdas
-	var cell_indices: Array[int] = []
-	for i in range(cols * rows):
-		cell_indices.append(i)
-	_shuffle(cell_indices)
-
-	for i in range(room_count):
-		var size: Vector2i = room_sizes[i] if i < room_sizes.size() else Vector2i(7, 7)
-		var cell_idx: int = cell_indices[i % cell_indices.size()]
-		var col: int = cell_idx % cols
-		var row: int = cell_idx / cols
-
-		# Centro de la celda + jitter
-		var cell_center_x: int = bounds.position.x + col * cell_w + cell_w / 2
-		var cell_center_y: int = bounds.position.y + row * cell_h + cell_h / 2
-		var jitter_x: int = _rng.randi_range(-cell_w / 4, cell_w / 4)
-		var jitter_y: int = _rng.randi_range(-cell_h / 4, cell_h / 4)
-
-		var pos := Vector2i(
-			clampi(cell_center_x + jitter_x - size.x / 2, bounds.position.x, bounds.end.x - size.x),
-			clampi(cell_center_y + jitter_y - size.y / 2, bounds.position.y, bounds.end.y - size.y),
-		)
-
-		if _is_valid_position(pos, size, bounds, margin, candidates):
-			candidates.append(pos)
-		else:
-			# Buscar posición válida cerca del centro de celda
-			var found := false
-			for r in range(1, 6):
-				for _attempt in range(8):
-					var angle: float = _rng.randf() * TAU
-					var ox: int = int(cos(angle) * r)
-					var oy: int = int(sin(angle) * r)
-					var near := pos + Vector2i(ox, oy)
-					if _is_valid_position(near, size, bounds, margin, candidates):
-						candidates.append(near)
-						found = true
-						break
-				if found:
-					break
-			if not found:
-				candidates.append(pos)
-
-	return candidates
-
-
-## ─── Estrategia 2: Clustered ────────────────────────────────────────
-## Agrupa habitaciones por tipo: START lejos del centro, boss en esquina,
-## explore/combat dispersos. Produce layouts con zonas diferenciadas.
-func _clustered(
-	room_count: int,
-	room_sizes: Array[Vector2i],
-	bounds: Rect2i,
-) -> Array[Vector2i]:
-	var candidates: Array[Vector2i] = []
-	var margin: int = 2
-
-	# Definir zonas del grid
-	var zones: Array[Vector2i] = [
-		Vector2i(bounds.position.x, bounds.position.y),                                       # top-left
-		Vector2i(bounds.end.x - 20, bounds.position.y),                                       # top-right
-		Vector2i(bounds.position.x, bounds.end.y - 20),                                       # bottom-left
-		Vector2i(bounds.end.x - 20, bounds.end.y - 20),                                       # bottom-right
-		Vector2i(bounds.position.x + bounds.size.x / 2 - 10, bounds.position.y + bounds.size.y / 2 - 10), # center
-	]
-	_shuffle(zones)
-
-	for i in range(room_count):
-		var size: Vector2i = room_sizes[i] if i < room_sizes.size() else Vector2i(7, 7)
-		var zone: Vector2i = zones[i % zones.size()]
-
-		# Colocar dentro de la zona con jitter
-		var pos := Vector2i(
-			_rng.randi_range(zone.x, zone.x + 18),
-			_rng.randi_range(zone.y, zone.y + 18),
-		)
-
-		if _is_valid_position(pos, size, bounds, margin, candidates):
-			candidates.append(pos)
-		else:
-			# Expandir búsqueda dentro de la zona
-			var found := false
-			for expand in range(5, 20, 3):
-				for _attempt in range(10):
-					var ex := Vector2i(
-						_rng.randi_range(zone.x - expand, zone.x + 18 + expand),
-						_rng.randi_range(zone.y - expand, zone.y + 18 + expand),
-					)
-					if _is_valid_position(ex, size, bounds, margin, candidates):
-						candidates.append(ex)
-						found = true
-						break
-				if found:
-					break
-			if not found:
-				candidates.append(pos)
-
-	return candidates
-
-
-## ─── Estrategia 3: Directional ──────────────────────────────────────
-## Coloca habitaciones a lo largo de un eje principal (horizontal,
-## vertical o diagonal), con variación perpendicular. Produce layouts
-## lineales o en "L".
-func _directional(
-	room_count: int,
-	room_sizes: Array[Vector2i],
-	bounds: Rect2i,
-) -> Array[Vector2i]:
-	var candidates: Array[Vector2i] = []
-	var margin: int = 2
-
-	# Eje principal aleatorio
-	var axis_choice: int = _rng.randi_range(0, 2)
-	var primary_horizontal: bool = axis_choice != 1  # 0 o 2 = horizontal
-	var diagonal: bool = axis_choice == 2
-
-	var total_width: int = bounds.size.x
-	var total_height: int = bounds.size.y
-
-	# Espaciamiento entre habitaciones
-	var spacing: int = maxi(3, total_width / (room_count + 1)) if primary_horizontal else maxi(3, total_height / (room_count + 1))
-
-	for i in range(room_count):
-		var size: Vector2i = room_sizes[i] if i < room_sizes.size() else Vector2i(7, 7)
-
-		# Posición a lo largo del eje
-		var along: int = (i + 1) * spacing
-		var perp: int = total_height / 2 if primary_horizontal else total_width / 2
-
-		# Variación perpendicular
-		var perp_range: int = maxi(4, (total_height if primary_horizontal else total_width) / 4)
-		perp += _rng.randi_range(-perp_range, perp_range)
-
-		# Variación diagonal
-		if diagonal:
-			perp = along + _rng.randi_range(-perp_range, perp_range)
-
-		var pos: Vector2i
-		if primary_horizontal:
-			pos = Vector2i(
-				clampi(bounds.position.x + along - size.x / 2, bounds.position.x, bounds.end.x - size.x),
-				clampi(bounds.position.y + perp - size.y / 2, bounds.position.y, bounds.end.y - size.y),
-			)
-		else:
-			pos = Vector2i(
-				clampi(bounds.position.x + perp - size.x / 2, bounds.position.x, bounds.end.x - size.x),
-				clampi(bounds.position.y + along - size.y / 2, bounds.position.y, bounds.end.y - size.y),
-			)
-
-		if _is_valid_position(pos, size, bounds, margin, candidates):
-			candidates.append(pos)
-		else:
-			# Buscar cerca
-			var found := false
-			for r in range(1, 8):
-				for _attempt in range(6):
-					var angle: float = _rng.randf() * TAU
-					var ox: int = int(cos(angle) * r)
-					var oy: int = int(sin(angle) * r)
-					var near := pos + Vector2i(ox, oy)
-					if _is_valid_position(near, size, bounds, margin, candidates):
-						candidates.append(near)
-						found = true
-						break
-				if found:
-					break
-			if not found:
-				candidates.append(pos)
-
-	return candidates
-
-
-## ─── Helpers ─────────────────────────────────────────────────────────
-
-func _is_valid_position(
-	pos: Vector2i,
+func _find_best_position(
+	room: RoomData,
 	size: Vector2i,
+	placed_rects: Dictionary,
+	room_by_id: Dictionary,
+	mission_graph: DungeonGraph,
 	bounds: Rect2i,
-	margin: int,
-	existing: Array[Vector2i],
-) -> bool:
-	# Check bounds
-	if pos.x < bounds.position.x or pos.y < bounds.position.y:
-		return false
-	if pos.x + size.x > bounds.end.x or pos.y + size.y > bounds.end.y:
-		return false
+	preferred_distance: float,
+	candidate_count: int,
+	distance_jitter: float
+) -> Vector2i:
+	var neighbor_rects: Array[Rect2i] = []
+	if mission_graph != null and room.mission_node_id >= 0:
+		var neighbor_ids: Array[int] = mission_graph.get_neighbors(room.mission_node_id)
+		for other_id in placed_rects:
+			var other_room: RoomData = room_by_id.get(other_id)
+			if other_room != null and other_room.mission_node_id in neighbor_ids:
+				neighbor_rects.append(placed_rects[other_id])
 
-	# Check collision with existing candidates
-	var candidate_rect := Rect2i(pos, size)
-	for other_pos in existing:
-		# Usar tamaño promedio para la separación (aproximación)
-		var avg_size := Vector2i(7, 7)
-		var other_rect := Rect2i(other_pos, avg_size)
-		if candidate_rect.intersects(other_rect.expanded(margin)):
+	var anchor: Vector2
+	if not neighbor_rects.is_empty():
+		var sum := Vector2.ZERO
+		for nr in neighbor_rects:
+			sum += Vector2(nr.position + nr.size / 2)
+		anchor = sum / neighbor_rects.size()
+	else:
+		var sum := Vector2.ZERO
+		for pr in placed_rects.values():
+			sum += Vector2((pr as Rect2i).position + (pr as Rect2i).size / 2)
+		anchor = sum / placed_rects.size()
+
+	var best_pos: Vector2i = Vector2i.ZERO
+	var best_score: float = -INF
+	var found_valid := false
+
+	for _i in range(candidate_count):
+		var dir_idx: int = _rng.randi_range(0, _DIRECTIONS.size() - 1)
+		var base_dir: Vector2 = _DIRECTIONS[dir_idx]
+		var angle_offset: float = _rng.randf_range(-0.35, 0.35)
+		var dir: Vector2 = base_dir.rotated(angle_offset).normalized()
+		var dist: float = preferred_distance + _rng.randf_range(-distance_jitter, distance_jitter)
+
+		var target_center: Vector2 = anchor + dir * dist
+		var cand_pos := Vector2i(int(target_center.x - size.x / 2.0), int(target_center.y - size.y / 2.0))
+
+		if not _is_cand_valid(cand_pos, size, bounds, placed_rects, 2):
+			continue
+
+		var score: float = _score_candidate_pos(cand_pos, size, anchor, neighbor_rects, placed_rects, preferred_distance)
+		if score > best_score:
+			best_score = score
+			best_pos = cand_pos
+			found_valid = true
+
+	if found_valid:
+		return best_pos
+
+	# Fallback sistemático: búsqueda en espiral alrededor de anchor
+	return _fallback_spiral_search(anchor, size, bounds, placed_rects, 2)
+
+func _score_candidate_pos(
+	cand_pos: Vector2i,
+	size: Vector2i,
+	anchor: Vector2,
+	neighbor_rects: Array[Rect2i],
+	placed_rects: Dictionary,
+	preferred_distance: float
+) -> float:
+	var cand_center := Vector2(cand_pos) + Vector2(size) / 2.0
+
+	var proximity_score: float = 0.0
+	if not neighbor_rects.is_empty():
+		for nr in neighbor_rects:
+			var n_center := Vector2(nr.position + nr.size / 2)
+			proximity_score -= abs(cand_center.distance_to(n_center) - preferred_distance)
+	else:
+		proximity_score -= abs(cand_center.distance_to(anchor) - preferred_distance)
+
+	var min_dist_to_any: float = INF
+	for pr in placed_rects.values():
+		var p_center := Vector2((pr as Rect2i).position + (pr as Rect2i).size / 2)
+		min_dist_to_any = min(min_dist_to_any, cand_center.distance_to(p_center))
+
+	var separation_score: float = 0.0
+	if min_dist_to_any != INF:
+		separation_score = min_dist_to_any
+
+	var jitter: float = _rng.randf() * 0.01
+
+	return (1.0 * proximity_score) + (0.3 * separation_score) + jitter
+
+func _is_cand_valid(pos: Vector2i, size: Vector2i, bounds: Rect2i, placed_rects: Dictionary, margin: int = 2) -> bool:
+	var cand_rect := Rect2i(pos, size)
+	if not bounds.encloses(cand_rect):
+		return false
+	for pr in placed_rects.values():
+		var target_rect: Rect2i = (pr as Rect2i).grow(margin) if margin > 0 else (pr as Rect2i)
+		if cand_rect.intersects(target_rect):
 			return false
-
 	return true
 
+func _fallback_spiral_search(
+	anchor: Vector2,
+	size: Vector2i,
+	bounds: Rect2i,
+	placed_rects: Dictionary,
+	margin: int = 2
+) -> Vector2i:
+	for radius in range(4, 50, 2):
+		var steps: int = int(TAU * radius / 3.0)
+		steps = clampi(steps, 8, 36)
+		for s in range(steps):
+			var angle: float = (float(s) / float(steps)) * TAU
+			var cand_pos := Vector2i(
+				int(anchor.x + cos(angle) * radius - size.x / 2.0),
+				int(anchor.y + sin(angle) * radius - size.y / 2.0)
+			)
+			if _is_cand_valid(cand_pos, size, bounds, placed_rects, margin):
+				return cand_pos
 
-func _shuffle(arr: Array) -> void:
-	for i in range(arr.size() - 1, 0, -1):
-		var j: int = _rng.randi_range(0, i)
-		var temp = arr[i]
-		arr[i] = arr[j]
-		arr[j] = temp
+	# Último recurso: clamp dentro de bounds
+	return _clamp_to_bounds(Vector2i(int(anchor.x - size.x / 2.0), int(anchor.y - size.y / 2.0)), size, bounds)
+
+func _clamp_to_bounds(pos: Vector2i, size: Vector2i, bounds: Rect2i) -> Vector2i:
+	return Vector2i(
+		clampi(pos.x, bounds.position.x, bounds.end.x - size.x),
+		clampi(pos.y, bounds.position.y, bounds.end.y - size.y)
+	)
