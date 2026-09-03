@@ -254,6 +254,18 @@ static func _carve_single_request(
 
 		total_cost += 1.0
 
+	# Costo suave de longitud (Fase 5.5: preferred_length no rechaza, modula suavemente el coste)
+	var length_weight: float = config.corridor_length_weight if ("corridor_length_weight" in config) else 0.5
+	var actual_len: float = float(centerline.size())
+	if req.preferred_length > 0.0:
+		total_cost += absf(actual_len - req.preferred_length) * length_weight
+
+	# Criterios de calidad suave para min_length / max_length (Fase 5.6)
+	if req.max_length > 0 and actual_len > float(req.max_length):
+		total_cost += (actual_len - float(req.max_length)) * (length_weight * 2.0)
+	elif req.min_length > 0 and actual_len < float(req.min_length):
+		total_cost += (float(req.min_length) - actual_len) * (length_weight * 2.0)
+
 	# Asegurar que los interiores de entrada (inner_cell) sean transitable FLOOR y se conecten al interior de la sala
 	var room_a: RoomData = room_map.get(req.room_a_id, null)
 	var room_b: RoomData = room_map.get(req.room_b_id, null)
