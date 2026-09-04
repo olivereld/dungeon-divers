@@ -540,6 +540,48 @@ func _sync_config_from_ui() -> void:
 	if pref_dist_spin != null:
 		config.mission_aware_preferred_distance = float(pref_dist_spin.value)
 
+	var cand_spin = find_child("CompositionCandidateCountSpin", true, false) as SpinBox
+	if cand_spin == null:
+		cand_spin = find_child("CandidateCountSpin", true, false) as SpinBox
+	if cand_spin != null:
+		config.composition_candidate_count = int(cand_spin.value)
+		config.candidate_count = int(cand_spin.value)
+
+	var anchor_spin = find_child("AnchorDistStrengthSpin", true, false) as SpinBox
+	if anchor_spin == null:
+		anchor_spin = find_child("AnchorStrengthSpin", true, false) as SpinBox
+	if anchor_spin != null:
+		config.anchor_distance_strength = float(anchor_spin.value)
+		config.anchor_strength = float(anchor_spin.value)
+
+	var neighbor_spin = find_child("NeighborCoherenceStrengthSpin", true, false) as SpinBox
+	if neighbor_spin == null:
+		neighbor_spin = find_child("NeighborStrengthSpin", true, false) as SpinBox
+	if neighbor_spin != null:
+		config.neighbor_coherence_strength = float(neighbor_spin.value)
+		config.neighbor_strength = float(neighbor_spin.value)
+
+	var main_path_spin = find_child("MainPathAlignmentStrengthSpin", true, false) as SpinBox
+	if main_path_spin == null:
+		main_path_spin = find_child("MainPathStrengthSpin", true, false) as SpinBox
+	if main_path_spin != null:
+		config.main_path_alignment_strength = float(main_path_spin.value)
+		config.main_path_strength = float(main_path_spin.value)
+
+	var branch_spin = find_child("BranchLateralStrengthSpin", true, false) as SpinBox
+	if branch_spin == null:
+		branch_spin = find_child("BranchStrengthSpin", true, false) as SpinBox
+	if branch_spin != null:
+		config.branch_lateral_strength = float(branch_spin.value)
+		config.branch_strength = float(branch_spin.value)
+
+	var term_spin = find_child("TerminalSpacingStrengthSpin", true, false) as SpinBox
+	if term_spin == null:
+		term_spin = find_child("TerminalStrengthSpin", true, false) as SpinBox
+	if term_spin != null:
+		config.terminal_spacing_strength = float(term_spin.value)
+		config.terminal_strength = float(term_spin.value)
+
 	var prof_mode_opt = find_child("ProfileModeOption", true, false) as OptionButton
 	if prof_mode_opt != null and prof_mode_opt.selected >= 0:
 		config.profile_mode = StringName(prof_mode_opt.get_item_text(prof_mode_opt.selected))
@@ -584,6 +626,42 @@ func sync_ui_from_config() -> void:
 	var pref_dist_spin = find_child("PrefDistSpin", true, false) as SpinBox
 	if pref_dist_spin != null:
 		pref_dist_spin.value = config.mission_aware_preferred_distance
+
+	var cand_spin = find_child("CompositionCandidateCountSpin", true, false) as SpinBox
+	if cand_spin == null:
+		cand_spin = find_child("CandidateCountSpin", true, false) as SpinBox
+	if cand_spin != null:
+		cand_spin.value = config.composition_candidate_count
+
+	var anchor_spin = find_child("AnchorDistStrengthSpin", true, false) as SpinBox
+	if anchor_spin == null:
+		anchor_spin = find_child("AnchorStrengthSpin", true, false) as SpinBox
+	if anchor_spin != null:
+		anchor_spin.value = config.anchor_distance_strength
+
+	var neighbor_spin = find_child("NeighborCoherenceStrengthSpin", true, false) as SpinBox
+	if neighbor_spin == null:
+		neighbor_spin = find_child("NeighborStrengthSpin", true, false) as SpinBox
+	if neighbor_spin != null:
+		neighbor_spin.value = config.neighbor_coherence_strength
+
+	var main_path_spin = find_child("MainPathAlignmentStrengthSpin", true, false) as SpinBox
+	if main_path_spin == null:
+		main_path_spin = find_child("MainPathStrengthSpin", true, false) as SpinBox
+	if main_path_spin != null:
+		main_path_spin.value = config.main_path_alignment_strength
+
+	var branch_spin = find_child("BranchLateralStrengthSpin", true, false) as SpinBox
+	if branch_spin == null:
+		branch_spin = find_child("BranchStrengthSpin", true, false) as SpinBox
+	if branch_spin != null:
+		branch_spin.value = config.branch_lateral_strength
+
+	var term_spin = find_child("TerminalSpacingStrengthSpin", true, false) as SpinBox
+	if term_spin == null:
+		term_spin = find_child("TerminalStrengthSpin", true, false) as SpinBox
+	if term_spin != null:
+		term_spin.value = config.terminal_spacing_strength
 
 func _on_generation_started() -> void:
 	_gen_start_time_msec = Time.get_ticks_msec()

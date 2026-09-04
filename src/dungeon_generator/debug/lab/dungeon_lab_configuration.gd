@@ -25,6 +25,20 @@ var progression_strength: float = 1.0
 var density_strength: float = 0.5
 var preferred_progression_direction: Vector2 = Vector2.ZERO
 
+# Core Composition Control Parameters
+var composition_candidate_count: int = 24
+var candidate_count: int = 24
+var anchor_distance_strength: float = 1.0
+var anchor_strength: float = 1.0
+var neighbor_coherence_strength: float = 1.0
+var neighbor_strength: float = 1.0
+var main_path_alignment_strength: float = 1.0
+var main_path_strength: float = 1.0
+var branch_lateral_strength: float = 0.75
+var branch_strength: float = 0.75
+var terminal_spacing_strength: float = 0.75
+var terminal_strength: float = 0.75
+
 # Profile & Template Forcing Overrides
 var profile_mode: StringName = &"normal" # &"normal", &"force_profile", &"force_template"
 var forced_profile_id: StringName = &""
@@ -52,6 +66,18 @@ func to_dungeon_config() -> DungeonConfig:
 	cfg.progression_strength = progression_strength
 	cfg.density_strength = density_strength
 	cfg.preferred_progression_direction = preferred_progression_direction
+	cfg.composition_candidate_count = composition_candidate_count
+	cfg.candidate_count = candidate_count
+	cfg.anchor_distance_strength = anchor_distance_strength
+	cfg.anchor_strength = anchor_strength
+	cfg.neighbor_coherence_strength = neighbor_coherence_strength
+	cfg.neighbor_strength = neighbor_strength
+	cfg.main_path_alignment_strength = main_path_alignment_strength
+	cfg.main_path_strength = main_path_strength
+	cfg.branch_lateral_strength = branch_lateral_strength
+	cfg.branch_strength = branch_strength
+	cfg.terminal_spacing_strength = terminal_spacing_strength
+	cfg.terminal_strength = terminal_strength
 
 	# Profile & Template Forcing Overrides
 	cfg.profile_mode = profile_mode
@@ -72,6 +98,18 @@ func to_dungeon_config() -> DungeonConfig:
 	cfg.space_grammar_config.progression_strength = progression_strength
 	cfg.space_grammar_config.density_strength = density_strength
 	cfg.space_grammar_config.preferred_progression_direction = preferred_progression_direction
+	cfg.space_grammar_config.composition_candidate_count = composition_candidate_count
+	cfg.space_grammar_config.candidate_count = candidate_count
+	cfg.space_grammar_config.anchor_distance_strength = anchor_distance_strength
+	cfg.space_grammar_config.anchor_strength = anchor_strength
+	cfg.space_grammar_config.neighbor_coherence_strength = neighbor_coherence_strength
+	cfg.space_grammar_config.neighbor_strength = neighbor_strength
+	cfg.space_grammar_config.main_path_alignment_strength = main_path_alignment_strength
+	cfg.space_grammar_config.main_path_strength = main_path_strength
+	cfg.space_grammar_config.branch_lateral_strength = branch_lateral_strength
+	cfg.space_grammar_config.branch_strength = branch_strength
+	cfg.space_grammar_config.terminal_spacing_strength = terminal_spacing_strength
+	cfg.space_grammar_config.terminal_strength = terminal_strength
 
 	return cfg
 
@@ -89,6 +127,18 @@ func validate() -> Array[String]:
 		errors.append("min_mission_edge_distance must be positive")
 	if max_mission_edge_distance < min_mission_edge_distance:
 		errors.append("max_mission_edge_distance cannot be less than min_mission_edge_distance")
+	if composition_candidate_count <= 0:
+		errors.append("composition_candidate_count must be positive")
+	if anchor_distance_strength < 0.0:
+		errors.append("anchor_distance_strength cannot be negative")
+	if neighbor_coherence_strength < 0.0:
+		errors.append("neighbor_coherence_strength cannot be negative")
+	if main_path_alignment_strength < 0.0:
+		errors.append("main_path_alignment_strength cannot be negative")
+	if branch_lateral_strength < 0.0:
+		errors.append("branch_lateral_strength cannot be negative")
+	if terminal_spacing_strength < 0.0:
+		errors.append("terminal_spacing_strength cannot be negative")
 	if template_mode == &"specific" and forced_template_id == &"":
 		errors.append("template_mode 'specific' requires forced_template_id")
 	if profile_mode == &"force_profile" and forced_profile_id == &"":

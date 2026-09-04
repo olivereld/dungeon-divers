@@ -57,6 +57,20 @@ func get_effective_archetype_id() -> StringName:
 @export var density_strength: float = 0.5
 @export var preferred_progression_direction: Vector2 = Vector2.ZERO
 
+@export_group("Composición Espacial Global")
+@export var composition_candidate_count: int = 24
+@export var candidate_count: int = 24
+@export var anchor_distance_strength: float = 1.0
+@export var anchor_strength: float = 1.0
+@export var neighbor_coherence_strength: float = 1.0
+@export var neighbor_strength: float = 1.0
+@export var main_path_alignment_strength: float = 1.0
+@export var main_path_strength: float = 1.0
+@export var branch_lateral_strength: float = 0.75
+@export var branch_strength: float = 0.75
+@export var terminal_spacing_strength: float = 0.75
+@export var terminal_strength: float = 0.75
+
 @export_group("Algoritmo de Construcción")
 @export_enum("Template", "Hybrid", "BSP", "CellularAutomata") var algorithm: String = "Template"
 @export_range(0.3, 0.6, 0.01) var ca_fill_chance: float = 0.45
@@ -200,6 +214,18 @@ func duplicate_config() -> DungeonConfig:
 	c.progression_strength = progression_strength
 	c.density_strength = density_strength
 	c.preferred_progression_direction = preferred_progression_direction
+	c.composition_candidate_count = composition_candidate_count
+	c.candidate_count = candidate_count
+	c.anchor_distance_strength = anchor_distance_strength
+	c.anchor_strength = anchor_strength
+	c.neighbor_coherence_strength = neighbor_coherence_strength
+	c.neighbor_strength = neighbor_strength
+	c.main_path_alignment_strength = main_path_alignment_strength
+	c.main_path_strength = main_path_strength
+	c.branch_lateral_strength = branch_lateral_strength
+	c.branch_strength = branch_strength
+	c.terminal_spacing_strength = terminal_spacing_strength
+	c.terminal_strength = terminal_strength
 	c.algorithm = algorithm
 	c.ca_fill_chance = ca_fill_chance
 	c.ca_iterations = ca_iterations

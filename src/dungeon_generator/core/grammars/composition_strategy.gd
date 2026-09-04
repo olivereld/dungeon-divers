@@ -46,6 +46,66 @@ func _init(rng: RandomNumberGenerator = null) -> void:
 	else:
 		_rng = RandomNumberGenerator.new()
 
+static func extract_strengths(config) -> Dictionary:
+	var candidate_count: int = 24
+	if config != null:
+		if "composition_candidate_count" in config and config.composition_candidate_count > 0:
+			candidate_count = config.composition_candidate_count
+		elif "candidate_count" in config and config.candidate_count > 0:
+			candidate_count = config.candidate_count
+		elif "mission_aware_candidate_count" in config and config.mission_aware_candidate_count > 0:
+			candidate_count = config.mission_aware_candidate_count
+
+	var progression_strength: float = 1.0
+	var density_strength: float = 0.5
+	var anchor_distance_strength: float = 1.0
+	var neighbor_coherence_strength: float = 1.0
+	var main_path_alignment_strength: float = 1.0
+	var branch_lateral_strength: float = 0.75
+	var terminal_spacing_strength: float = 0.75
+
+	if config != null:
+		if "progression_strength" in config:
+			progression_strength = float(config.progression_strength)
+		if "density_strength" in config:
+			density_strength = float(config.density_strength)
+		if "anchor_distance_strength" in config:
+			anchor_distance_strength = float(config.anchor_distance_strength)
+		elif "anchor_strength" in config:
+			anchor_distance_strength = float(config.anchor_strength)
+		if "neighbor_coherence_strength" in config:
+			neighbor_coherence_strength = float(config.neighbor_coherence_strength)
+		elif "neighbor_strength" in config:
+			neighbor_coherence_strength = float(config.neighbor_strength)
+		if "main_path_alignment_strength" in config:
+			main_path_alignment_strength = float(config.main_path_alignment_strength)
+		elif "main_path_strength" in config:
+			main_path_alignment_strength = float(config.main_path_strength)
+		if "branch_lateral_strength" in config:
+			branch_lateral_strength = float(config.branch_lateral_strength)
+		elif "branch_strength" in config:
+			branch_lateral_strength = float(config.branch_strength)
+		if "terminal_spacing_strength" in config:
+			terminal_spacing_strength = float(config.terminal_spacing_strength)
+		elif "terminal_strength" in config:
+			terminal_spacing_strength = float(config.terminal_strength)
+
+	return {
+		"candidate_count": candidate_count,
+		"progression": progression_strength,
+		"anchor_distance": anchor_distance_strength,
+		"anchor": anchor_distance_strength,
+		"neighbor_coherence": neighbor_coherence_strength,
+		"neighbor": neighbor_coherence_strength,
+		"main_path_alignment": main_path_alignment_strength,
+		"main_path": main_path_alignment_strength,
+		"branch_lateral": branch_lateral_strength,
+		"branch": branch_lateral_strength,
+		"density": density_strength,
+		"terminal_spacing": terminal_spacing_strength,
+		"terminal": terminal_spacing_strength
+	}
+
 ## Genera un plan de colocación espacial sellado (RoomPlacementPlan) guiado por SpatialComposition.
 ## Acepta SpatialComposition directamente, o lo construye desde MissionGraph / SpatialIntent si no se provee.
 func create_placement_plan(
@@ -82,12 +142,12 @@ func create_placement_plan(
 
 	# 2. Extraer parámetros de configuración
 	var preferred_distance: float = config.mission_aware_preferred_distance if config != null else 12.0
-	var candidate_count: int = config.mission_aware_candidate_count if config != null else 15
 	var distance_jitter: float = config.mission_aware_distance_jitter if config != null else 4.0
 	var min_separation: int = config.min_room_separation if config != null else 2
 	var min_edge_dist: float = config.min_mission_edge_distance if config != null else 6.0
-	var progression_strength: float = config.progression_strength if config != null else 1.0
-	var density_strength: float = config.density_strength if config != null else 0.5
+
+	var strengths: Dictionary = extract_strengths(config)
+	var candidate_count: int = strengths.get("candidate_count", 24)
 
 	# 3. Indexar salas por ID y por mission_node_id
 	var room_by_id: Dictionary = {}
@@ -179,8 +239,9 @@ func create_placement_plan(
 				distance_jitter,
 				min_separation,
 				min_edge_dist,
-				progression_strength,
-				density_strength
+				strengths.get("progression", 1.0),
+				strengths.get("density", 0.5),
+				strengths
 			)
 			if best_pos != Vector2i.MIN and is_main:
 				prev_main_center = Vector2(best_pos) + Vector2(size) / 2.0
@@ -248,8 +309,9 @@ func _find_best_position(
 	distance_jitter: float,
 	min_separation: int,
 	min_edge_dist: float,
-	progression_strength: float,
-	density_strength: float
+	progression_strength: float = 1.0,
+	density_strength: float = 0.5,
+	strengths: Dictionary = {}
 ) -> Vector2i:
 	var global_target: Vector2 = _get_room_target(comp, room)
 	var is_main: bool = comp.is_main_path(node_id)
@@ -365,7 +427,8 @@ func _find_best_position(
 			room_by_node_id,
 			preferred_distance,
 			progression_strength,
-			density_strength
+			density_strength,
+			strengths
 		)
 
 		if score > best_score:
@@ -396,7 +459,8 @@ func _find_best_position(
 		prev_main_center,
 		preferred_distance,
 		progression_strength,
-		density_strength
+		density_strength,
+		strengths
 	)
 
 ## Evaluación de Restricciones Duras (Hard Constraints).
@@ -480,8 +544,9 @@ func _score_candidate(
 	room_by_id: Dictionary,
 	room_by_node_id: Dictionary,
 	preferred_distance: float,
-	progression_strength: float,
-	density_strength: float
+	progression_strength: float = 1.0,
+	density_strength: float = 0.5,
+	strengths: Dictionary = {}
 ) -> float:
 	var cand_center := Vector2(cand_pos) + Vector2(size) / 2.0
 	var prog_dir: Vector2 = comp.progression_direction
@@ -530,15 +595,23 @@ func _score_candidate(
 	var bounds_shape_score: float = -cand_center.distance_to(bounds_center) * 0.05
 	var jitter: float = _rng.randf() * 0.05
 
-	# Suma ponderada con pesos específicos
+	# Suma ponderada con pesos configurables (o por defecto)
+	var w_prog: float = strengths.get("progression", progression_strength * WEIGHT_PROGRESSION)
+	var w_anchor: float = strengths.get("anchor_distance", WEIGHT_ANCHOR_DISTANCE)
+	var w_neighbor: float = strengths.get("neighbor_coherence", WEIGHT_NEIGHBOR_COHERENCE)
+	var w_main: float = strengths.get("main_path_alignment", WEIGHT_MAIN_PATH_ALIGNMENT)
+	var w_branch: float = strengths.get("branch_lateral", WEIGHT_BRANCH_LATERAL)
+	var w_density: float = strengths.get("density", density_strength * WEIGHT_DENSITY)
+	var w_terminal: float = strengths.get("terminal_spacing", WEIGHT_TERMINAL_SPACING)
+
 	var total_score: float = (
-		(WEIGHT_PROGRESSION * progression_strength * progression_score)
-		+ (WEIGHT_ANCHOR_DISTANCE * anchor_distance_score)
-		+ (WEIGHT_NEIGHBOR_COHERENCE * neighbor_coherence_score)
-		+ (WEIGHT_MAIN_PATH_ALIGNMENT * progression_strength * main_path_alignment_score)
-		+ (WEIGHT_BRANCH_LATERAL * branch_lateral_score)
-		+ (WEIGHT_DENSITY * density_score)
-		+ (WEIGHT_TERMINAL_SPACING * terminal_spacing_score)
+		(w_prog * progression_score)
+		+ (w_anchor * anchor_distance_score)
+		+ (w_neighbor * neighbor_coherence_score)
+		+ (w_main * main_path_alignment_score)
+		+ (w_branch * branch_lateral_score)
+		+ (w_density * density_score)
+		+ (w_terminal * terminal_spacing_score)
 		+ bounds_shape_score
 		+ jitter
 	)
@@ -809,8 +882,9 @@ func _expanded_valid_candidate_search(
 	start_center: Vector2,
 	prev_main_center: Vector2,
 	preferred_distance: float,
-	progression_strength: float,
-	density_strength: float
+	progression_strength: float = 1.0,
+	density_strength: float = 0.5,
+	strengths: Dictionary = {}
 ) -> Vector2i:
 	var best_pos: Vector2i = Vector2i.MIN
 	var best_score: float = -INF
@@ -852,7 +926,8 @@ func _expanded_valid_candidate_search(
 					room_by_node_id,
 					preferred_distance,
 					progression_strength,
-					density_strength
+					density_strength,
+					strengths
 				)
 
 				if score > best_score:

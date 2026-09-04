@@ -16,6 +16,20 @@ extends Resource
 @export var density_strength: float = 0.5 ## Weight for penalizing excessive clustering or empty void gaps (soft scoring).
 @export var preferred_progression_direction: Vector2 = Vector2.ZERO ## Global direction vector (if Vector2.ZERO, randomized per seed deterministically).
 
+# Core Composition Parameters (consumidos directamente por CompositionStrategy)
+@export var composition_candidate_count: int = 24
+@export var candidate_count: int = 24
+@export var anchor_distance_strength: float = 1.0
+@export var anchor_strength: float = 1.0
+@export var neighbor_coherence_strength: float = 1.0
+@export var neighbor_strength: float = 1.0
+@export var main_path_alignment_strength: float = 1.0
+@export var main_path_strength: float = 1.0
+@export var branch_lateral_strength: float = 0.75
+@export var branch_strength: float = 0.75
+@export var terminal_spacing_strength: float = 0.75
+@export var terminal_strength: float = 0.75
+
 func duplicate_config() -> SpaceGrammarConfig:
 	var copy: SpaceGrammarConfig = (get_script() as GDScript).new()
 	copy.use_mission_aware_placement = use_mission_aware_placement
@@ -28,4 +42,16 @@ func duplicate_config() -> SpaceGrammarConfig:
 	copy.progression_strength = progression_strength
 	copy.density_strength = density_strength
 	copy.preferred_progression_direction = preferred_progression_direction
+	copy.composition_candidate_count = composition_candidate_count
+	copy.candidate_count = candidate_count
+	copy.anchor_distance_strength = anchor_distance_strength
+	copy.anchor_strength = anchor_strength
+	copy.neighbor_coherence_strength = neighbor_coherence_strength
+	copy.neighbor_strength = neighbor_strength
+	copy.main_path_alignment_strength = main_path_alignment_strength
+	copy.main_path_strength = main_path_strength
+	copy.branch_lateral_strength = branch_lateral_strength
+	copy.branch_strength = branch_strength
+	copy.terminal_spacing_strength = terminal_spacing_strength
+	copy.terminal_strength = terminal_strength
 	return copy

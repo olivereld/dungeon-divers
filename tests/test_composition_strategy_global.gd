@@ -8,6 +8,8 @@ const MissionNode = preload("res://src/dungeon_generator/core/data/mission_node.
 const RoomData = preload("res://src/dungeon_generator/core/data/room_data.gd")
 const RoomPlacementPlan = preload("res://src/dungeon_generator/core/data/room_placement_plan.gd")
 const SpaceGrammarConfig = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
+const DungeonConfig = preload("res://src/dungeon_generator/config/dungeon_config.gd")
+const DungeonLabConfiguration = preload("res://src/dungeon_generator/debug/lab/dungeon_lab_configuration.gd")
 
 func _init() -> void:
 	print("--- Running test_composition_strategy_global ---")
@@ -18,6 +20,7 @@ func _init() -> void:
 	test_branch_lateral_offset_and_separation()
 	test_non_mutating_contract_and_sealing()
 	test_individual_scoring_terms()
+	test_composition_control_parameters()
 
 	print("[PASS] All CompositionStrategy global guidance tests passed successfully!")
 	quit(0)
@@ -317,3 +320,137 @@ func test_individual_scoring_terms() -> void:
 	assert(far_boss > near_boss, "BOSS placed far from START should score significantly higher than near START (%f > %f)" % [far_boss, near_boss])
 
 	print("  -> Passed all 7 individual scoring components verification.")
+
+func test_composition_control_parameters() -> void:
+	print("  Testing core composition control parameters...")
+
+	# 1. DungeonConfig defaults (7 float strengths + 1 candidate count matching 1.0, 0.75, 0.5, 24)
+	var dc := DungeonConfig.new()
+	assert(dc.composition_candidate_count == 24, "Default composition_candidate_count must be 24")
+	assert(dc.candidate_count == 24, "Default candidate_count must be 24")
+	assert(dc.progression_strength == 1.0, "Default progression_strength must be 1.0")
+	assert(dc.anchor_distance_strength == 1.0, "Default anchor_distance_strength must be 1.0")
+	assert(dc.anchor_strength == 1.0, "Default anchor_strength must be 1.0")
+	assert(dc.neighbor_coherence_strength == 1.0, "Default neighbor_coherence_strength must be 1.0")
+	assert(dc.neighbor_strength == 1.0, "Default neighbor_strength must be 1.0")
+	assert(dc.main_path_alignment_strength == 1.0, "Default main_path_alignment_strength must be 1.0")
+	assert(dc.main_path_strength == 1.0, "Default main_path_strength must be 1.0")
+	assert(dc.branch_lateral_strength == 0.75, "Default branch_lateral_strength must be 0.75")
+	assert(dc.branch_strength == 0.75, "Default branch_strength must be 0.75")
+	assert(dc.terminal_spacing_strength == 0.75, "Default terminal_spacing_strength must be 0.75")
+	assert(dc.terminal_strength == 0.75, "Default terminal_strength must be 0.75")
+	assert(dc.density_strength == 0.5, "Default density_strength must be 0.5")
+
+	# 2. DungeonConfig.duplicate_config() copies all composition parameters
+	dc.composition_candidate_count = 32
+	dc.candidate_count = 32
+	dc.progression_strength = 1.6
+	dc.anchor_distance_strength = 2.1
+	dc.anchor_strength = 2.1
+	dc.neighbor_coherence_strength = 1.9
+	dc.neighbor_strength = 1.9
+	dc.main_path_alignment_strength = 1.4
+	dc.main_path_strength = 1.4
+	dc.branch_lateral_strength = 0.95
+	dc.branch_strength = 0.95
+	dc.terminal_spacing_strength = 1.15
+	dc.terminal_strength = 1.15
+	dc.density_strength = 0.75
+
+	var dc_dup: DungeonConfig = dc.duplicate_config()
+	assert(dc_dup.composition_candidate_count == 32, "dc_dup composition_candidate_count mismatch")
+	assert(dc_dup.candidate_count == 32, "dc_dup candidate_count mismatch")
+	assert(dc_dup.progression_strength == 1.6, "dc_dup progression_strength mismatch")
+	assert(dc_dup.anchor_distance_strength == 2.1, "dc_dup anchor_distance_strength mismatch")
+	assert(dc_dup.neighbor_coherence_strength == 1.9, "dc_dup neighbor_coherence_strength mismatch")
+	assert(dc_dup.main_path_alignment_strength == 1.4, "dc_dup main_path_alignment_strength mismatch")
+	assert(dc_dup.branch_lateral_strength == 0.95, "dc_dup branch_lateral_strength mismatch")
+	assert(dc_dup.terminal_spacing_strength == 1.15, "dc_dup terminal_spacing_strength mismatch")
+	assert(dc_dup.density_strength == 0.75, "dc_dup density_strength mismatch")
+
+	# 3. SpaceGrammarConfig defaults, parameters consumed, and duplicate_config()
+	var sg := SpaceGrammarConfig.new()
+	assert(sg.composition_candidate_count == 24, "Default sg.composition_candidate_count must be 24")
+	assert(sg.candidate_count == 24, "Default sg.candidate_count must be 24")
+	assert(sg.progression_strength == 1.0, "Default sg.progression_strength must be 1.0")
+	assert(sg.anchor_distance_strength == 1.0, "Default sg.anchor_distance_strength must be 1.0")
+	assert(sg.neighbor_coherence_strength == 1.0, "Default sg.neighbor_coherence_strength must be 1.0")
+	assert(sg.main_path_alignment_strength == 1.0, "Default sg.main_path_alignment_strength must be 1.0")
+	assert(sg.branch_lateral_strength == 0.75, "Default sg.branch_lateral_strength must be 0.75")
+	assert(sg.terminal_spacing_strength == 0.75, "Default sg.terminal_spacing_strength must be 0.75")
+	assert(sg.density_strength == 0.5, "Default sg.density_strength must be 0.5")
+
+	sg.composition_candidate_count = 18
+	sg.candidate_count = 18
+	sg.anchor_distance_strength = 1.3
+	sg.neighbor_coherence_strength = 1.7
+	sg.main_path_alignment_strength = 1.2
+	sg.branch_lateral_strength = 0.85
+	sg.terminal_spacing_strength = 0.65
+	sg.progression_strength = 1.5
+	sg.density_strength = 0.6
+
+	var sg_dup: SpaceGrammarConfig = sg.duplicate_config()
+	assert(sg_dup.composition_candidate_count == 18, "sg_dup composition_candidate_count mismatch")
+	assert(sg_dup.candidate_count == 18, "sg_dup candidate_count mismatch")
+	assert(sg_dup.anchor_distance_strength == 1.3, "sg_dup anchor_distance_strength mismatch")
+	assert(sg_dup.neighbor_coherence_strength == 1.7, "sg_dup neighbor_coherence_strength mismatch")
+	assert(sg_dup.main_path_alignment_strength == 1.2, "sg_dup main_path_alignment_strength mismatch")
+	assert(sg_dup.branch_lateral_strength == 0.85, "sg_dup branch_lateral_strength mismatch")
+	assert(sg_dup.terminal_spacing_strength == 0.65, "sg_dup terminal_spacing_strength mismatch")
+	assert(sg_dup.progression_strength == 1.5, "sg_dup progression_strength mismatch")
+	assert(sg_dup.density_strength == 0.6, "sg_dup density_strength mismatch")
+
+	# 4. DungeonLabConfiguration transport and validation
+	var lab_cfg := DungeonLabConfiguration.new()
+	assert(lab_cfg.composition_candidate_count == 24, "lab_cfg default composition_candidate_count must be 24")
+	assert(lab_cfg.anchor_distance_strength == 1.0, "lab_cfg default anchor_distance_strength must be 1.0")
+	assert(lab_cfg.branch_lateral_strength == 0.75, "lab_cfg default branch_lateral_strength must be 0.75")
+	assert(lab_cfg.density_strength == 0.5, "lab_cfg default density_strength must be 0.5")
+
+	lab_cfg.composition_candidate_count = 40
+	lab_cfg.candidate_count = 40
+	lab_cfg.anchor_distance_strength = 1.8
+	lab_cfg.branch_lateral_strength = 0.6
+	lab_cfg.terminal_spacing_strength = 0.9
+
+	var transported_dc: DungeonConfig = lab_cfg.to_dungeon_config()
+	assert(transported_dc.composition_candidate_count == 40, "transported_dc candidate_count mismatch")
+	assert(transported_dc.anchor_distance_strength == 1.8, "transported_dc anchor mismatch")
+	assert(transported_dc.branch_lateral_strength == 0.6, "transported_dc branch mismatch")
+	assert(transported_dc.terminal_spacing_strength == 0.9, "transported_dc terminal mismatch")
+	assert(transported_dc.space_grammar_config.composition_candidate_count == 40, "transported sg candidate mismatch")
+	assert(transported_dc.space_grammar_config.anchor_distance_strength == 1.8, "transported sg anchor mismatch")
+
+	# 5. CompositionStrategy respects config strengths
+	var strengths: Dictionary = CompositionStrategy.extract_strengths(transported_dc)
+	assert(strengths["anchor"] == 1.8, "Extracted anchor strength mismatch")
+	assert(strengths["branch"] == 0.6, "Extracted branch strength mismatch")
+	assert(strengths["terminal"] == 0.9, "Extracted terminal strength mismatch")
+	assert(strengths["candidate_count"] == 40, "Extracted candidate count mismatch")
+
+	# 6. Lab UI sync for composition parameters
+	var lab_inst = load("res://src/dungeon_generator/debug/lab/dungeon_level_lab.tscn").instantiate()
+	root.add_child(lab_inst)
+	lab_inst._ready()
+
+	lab_inst.config.composition_candidate_count = 36
+	lab_inst.config.anchor_distance_strength = 2.4
+	lab_inst.config.neighbor_coherence_strength = 1.7
+	lab_inst.config.main_path_alignment_strength = 1.3
+	lab_inst.config.branch_lateral_strength = 0.8
+	lab_inst.config.terminal_spacing_strength = 0.95
+
+	lab_inst.sync_ui_from_config()
+	lab_inst._sync_config_from_ui()
+
+	assert(lab_inst.config.composition_candidate_count == 36, "Lab sync composition_candidate_count mismatch")
+	assert(lab_inst.config.anchor_distance_strength == 2.4, "Lab sync anchor_distance_strength mismatch")
+	assert(lab_inst.config.neighbor_coherence_strength == 1.7, "Lab sync neighbor_coherence_strength mismatch")
+	assert(lab_inst.config.main_path_alignment_strength == 1.3, "Lab sync main_path_alignment_strength mismatch")
+	assert(lab_inst.config.branch_lateral_strength == 0.8, "Lab sync branch_lateral_strength mismatch")
+	assert(lab_inst.config.terminal_spacing_strength == 0.95, "Lab sync terminal_spacing_strength mismatch")
+
+	lab_inst.queue_free()
+
+	print("  -> Passed composition control parameters verification.")
