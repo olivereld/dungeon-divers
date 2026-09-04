@@ -223,6 +223,8 @@ func _draw_corridors_overlay(font: Font) -> void:
 			var tag_pos: Vector2 = pts[mid_idx]
 			var strat: String = cp.routing_strategy if cp.routing_strategy != "Unknown" else "DIR"
 			var text: String = "L:%d T:%d [%s]" % [cp.centerline_cells.size(), cp.turn_count, strat]
+			if ("expanded_states" in cp and cp.expanded_states > 0) or ("elapsed_ms" in cp and cp.elapsed_ms > 0):
+				text += " S:%d (%.1fms)" % [cp.expanded_states, cp.elapsed_ms]
 			var str_sz: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9)
 			draw_rect(Rect2(tag_pos + Vector2(-2, -11), str_sz + Vector2(4, 3)), Color(0.08, 0.09, 0.12, 0.85), true)
 			draw_string(font, tag_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1.0, 0.8, 0.2))

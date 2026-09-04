@@ -267,7 +267,21 @@ func _setup_overlay_checkboxes() -> void:
 	_bind_checkbox("CheckTemplateFootprint", func(v: bool): overlay.show_template_footprint = v)
 	_bind_checkbox("CheckEntrances", func(v: bool): overlay.show_entrances = v)
 	_bind_checkbox("CheckCorridors", func(v: bool): overlay.show_corridors = v)
-	_bind_checkbox("CheckCorridorDetails", func(v: bool): overlay.show_corridor_details = v)
+	_bind_checkbox("CheckCorridorDetails", func(v: bool):
+		overlay.show_corridor_details = v
+		if inspector_text != null and inspector != null:
+			if v:
+				var floor_data = controller.get_current_floor_result()
+				var diags: Array = []
+				if floor_data != null and floor_data.metadata.has("corridor_diagnostics"):
+					diags = floor_data.metadata["corridor_diagnostics"]
+				var paths: Array = floor_data.corridor_paths if floor_data != null else []
+				inspector_text.text = inspector.format_corridor_diagnostics(diags, paths)
+			else:
+				var sem_res = controller.get_active_semantic_result()
+				if sem_res != null:
+					_display_generation_summary(sem_res, null)
+	)
 	_bind_checkbox("CheckSpatialOverlay", func(v: bool): overlay.show_spatial_overlay = v)
 	_bind_checkbox("CheckSemanticsOverlay", func(v: bool): overlay.show_semantics_overlay = v)
 	_bind_checkbox("CheckInternalDoors", func(v: bool): overlay.show_internal_doors = v)
@@ -464,6 +478,14 @@ func _display_generation_summary(sem_res: DungeonSemanticResult, pres_res) -> vo
 		bbcode += "  - Spawned Entities: %d\n" % pres_res.spawned_entities.size()
 		if not pres_res.diagnostics.is_empty():
 			bbcode += "  - Diagnostics: %d issues\n" % pres_res.diagnostics.size()
+
+	if overlay != null and overlay.show_corridor_details and inspector != null:
+		var floor_data = controller.get_current_floor_result()
+		var diags: Array = []
+		if floor_data != null and floor_data.metadata.has("corridor_diagnostics"):
+			diags = floor_data.metadata["corridor_diagnostics"]
+		var paths: Array = floor_data.corridor_paths if floor_data != null else []
+		bbcode += "\n\n" + inspector.format_corridor_diagnostics(diags, paths)
 
 	inspector_text.text = bbcode
 

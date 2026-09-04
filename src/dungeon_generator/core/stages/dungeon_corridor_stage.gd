@@ -67,6 +67,7 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		corridor_res = c_rep_res.corridor_res
 
 	ctx.corridor_paths = corridor_res.paths
+	ctx.diagnostics["corridor"] = corridor_res.diagnostics
 
 	# Re-asegurar contigüidad interna de todas las habitaciones tras el tallado
 	for r in ctx.rooms:

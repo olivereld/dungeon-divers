@@ -84,6 +84,9 @@ func get_effective_archetype_id() -> StringName:
 @export_range(10.0, 100.0, 5.0) var corridor_cost_room_floor: float = 35.0
 @export_range(100.0, 5000.0, 100.0) var corridor_cost_other_room: float = 1000.0
 @export_range(0, 3, 1) var corridor_bottleneck_distance: int = 1
+@export var corridor_max_search_states: int = 12000
+@export var corridor_max_search_ms: float = 250.0
+@export var corridor_max_repair_attempts: int = 3
 
 @export_group("Calidad de Corredores (Fase Refined)")
 @export_range(0.0, 50.0, 0.5) var corridor_turn_penalty: float = 10.0
@@ -222,6 +225,9 @@ func duplicate_config() -> DungeonConfig:
 	c.corridor_max_preferred_turns = corridor_max_preferred_turns
 	c.prefer_orthogonal_routes = prefer_orthogonal_routes
 	c.allow_astar_fallback = allow_astar_fallback
+	c.corridor_max_search_states = corridor_max_search_states
+	c.corridor_max_search_ms = corridor_max_search_ms
+	c.corridor_max_repair_attempts = corridor_max_repair_attempts
 	c.minimum_corridor_door_spacing = minimum_corridor_door_spacing
 	c.same_side_door_penalty = same_side_door_penalty
 	c.corridor_door_proximity_penalty = corridor_door_proximity_penalty

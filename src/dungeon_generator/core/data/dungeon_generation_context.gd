@@ -136,6 +136,8 @@ func to_dungeon_result() -> DungeonResult:
 	res.after_separator_metrics = after_separator_metrics
 	res.rooms_before_separator = rooms_before_separator
 	res.metadata = metrics.duplicate()
+	if diagnostics.has("corridor"):
+		res.metadata["corridor_diagnostics"] = diagnostics["corridor"]
 	
 	var total_time: float = 0.0
 	for t in stage_timings_ms.values():
