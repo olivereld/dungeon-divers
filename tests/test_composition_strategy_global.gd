@@ -17,6 +17,7 @@ func _init() -> void:
 	test_main_path_alignment_and_monotonicity()
 	test_branch_lateral_offset_and_separation()
 	test_non_mutating_contract_and_sealing()
+	test_individual_scoring_terms()
 
 	print("[PASS] All CompositionStrategy global guidance tests passed successfully!")
 	quit(0)
@@ -259,3 +260,60 @@ func test_non_mutating_contract_and_sealing() -> void:
 	assert(r1.is_placed == orig_placed1, "RoomData is_placed must NOT be mutated")
 
 	print("  -> Passed non-mutating contract and sealing test.")
+
+func test_individual_scoring_terms() -> void:
+	print("  Testing 7 individual scoring components...")
+	var strategy := CompositionStrategy.new()
+
+	var comp := SpatialComposition.new()
+	comp.set_progression_direction(Vector2(1, 0))
+	comp.set_main_path_node(0, 0.0, Vector2(10, 40))
+	comp.set_main_path_node(1, 0.5, Vector2(40, 40))
+	comp.set_main_path_node(2, 1.0, Vector2(70, 40))
+	comp.set_branch_node(3, 1, 0.5, Vector2(40, 60))
+	comp.set_node_density(0, 1.0)
+	comp.set_node_density(1, 1.5)
+	comp.set_node_density(2, 1.0)
+	comp.set_node_density(3, 0.5)
+	comp.seal()
+
+	# 1. progression_score: forward along progression direction vs backwards
+	var fwd_score := strategy._calculate_progression_score(Vector2(50, 40), Vector2(20, 40), Vector2(1, 0), 0.5, true)
+	var bwd_score := strategy._calculate_progression_score(Vector2(10, 40), Vector2(20, 40), Vector2(1, 0), 0.5, true)
+	assert(fwd_score > bwd_score, "Forward progression should score higher than backward progression (%f > %f)" % [fwd_score, bwd_score])
+
+	# 2. anchor_distance_score: closer to target vs farther
+	var close_target_score := strategy._calculate_anchor_distance_score(Vector2(40, 41), Vector2(40, 40))
+	var far_target_score := strategy._calculate_anchor_distance_score(Vector2(40, 60), Vector2(40, 40))
+	assert(close_target_score > far_target_score, "Closer to global target must score higher (%f > %f)" % [close_target_score, far_target_score])
+
+	# 3. neighbor_coherence_score: distance near preferred_distance vs 2x preferred_distance
+	var n_rect := Rect2i(20, 36, 8, 8) # center (24, 40)
+	var preferred_neighbor := strategy._calculate_neighbor_coherence_score(Vector2(36, 40), [n_rect], Vector2.ZERO, 12.0, false) # dist = 12
+	var far_neighbor := strategy._calculate_neighbor_coherence_score(Vector2(55, 40), [n_rect], Vector2.ZERO, 12.0, false) # dist = 31
+	assert(preferred_neighbor > far_neighbor, "Distance near preferred_distance must score higher than excessive distance (%f > %f)" % [preferred_neighbor, far_neighbor])
+
+	# 4. main_path_alignment_score: forward continuity vs regressive step
+	var fwd_align := strategy._calculate_main_path_alignment_score(Vector2(45, 40), Vector2(35, 40), Vector2(10, 40), Vector2(1, 0), true, 12.0, comp, 1, Vector2.ZERO, {}, {}, {})
+	var bwd_align := strategy._calculate_main_path_alignment_score(Vector2(25, 40), Vector2(35, 40), Vector2(10, 40), Vector2(1, 0), true, 12.0, comp, 1, Vector2.ZERO, {}, {}, {})
+	assert(fwd_align > bwd_align, "Forward monotonic step should score higher than regressive step (%f > %f)" % [fwd_align, bwd_align])
+
+	# 5. branch_lateral_score: lateral offset vs collinear with main progression
+	var perp := Vector2(0, 1) # perp to (1, 0)
+	var lat_branch := strategy._calculate_branch_lateral_score(Vector2(40, 52), Vector2(40, 40), Vector2(10, 40), Vector2(1, 0), perp, false, 12.0)
+	var col_branch := strategy._calculate_branch_lateral_score(Vector2(52, 40), Vector2(40, 40), Vector2(10, 40), Vector2(1, 0), perp, false, 12.0)
+	assert(lat_branch > col_branch, "Lateral branch displacement must score higher than collinear branch placement (%f > %f)" % [lat_branch, col_branch])
+
+	# 6. density_score: sparse node penalized for crowding vs breathing room
+	var placed := {0: Rect2i(38, 38, 6, 6)}
+	var dense_crowded := strategy._calculate_density_score(Vector2(40, 40), placed, 1.5, 0.5, 12.0, false)
+	var sparse_crowded := strategy._calculate_density_score(Vector2(40, 40), placed, 0.5, 0.5, 12.0, false)
+	assert(dense_crowded > sparse_crowded, "High density node should tolerate clustering better than low density node (%f > %f)" % [dense_crowded, sparse_crowded])
+
+	# 7. terminal_spacing_score: BOSS far from START vs BOSS too close to START
+	var boss_room := RoomData.new(2, Rect2i(0, 0, 10, 10), RoomData.RoomType.BOSS)
+	var far_boss := strategy._calculate_terminal_spacing_score(Vector2(70, 40), boss_room, 2, comp, Vector2(10, 40), Vector2(40, 40), Vector2(1, 0), Vector2(70, 40), 12.0, {}, {})
+	var near_boss := strategy._calculate_terminal_spacing_score(Vector2(20, 40), boss_room, 2, comp, Vector2(10, 40), Vector2(40, 40), Vector2(1, 0), Vector2(70, 40), 12.0, {}, {})
+	assert(far_boss > near_boss, "BOSS placed far from START should score significantly higher than near START (%f > %f)" % [far_boss, near_boss])
+
+	print("  -> Passed all 7 individual scoring components verification.")

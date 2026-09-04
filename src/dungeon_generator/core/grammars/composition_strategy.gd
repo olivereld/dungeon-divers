@@ -450,8 +450,18 @@ func _passes_hard_constraints(
 
 	return true
 
+# Constantes de Ponderación (Weights) para Soft Scoring
+const WEIGHT_PROGRESSION: float = 1.0
+const WEIGHT_ANCHOR_DISTANCE: float = 1.2
+const WEIGHT_NEIGHBOR_COHERENCE: float = 1.0
+const WEIGHT_MAIN_PATH_ALIGNMENT: float = 1.1
+const WEIGHT_BRANCH_LATERAL: float = 1.0
+const WEIGHT_DENSITY: float = 0.8
+const WEIGHT_TERMINAL_SPACING: float = 1.3
+
 ## Evaluación de Puntuación Suave (Soft Scoring).
-## Evalúa calidad espacial guiada por SpatialComposition para candidatos que superaron todas las restricciones duras.
+## Evalúa calidad espacial calculando 7 términos independientes con pesos para asegurar coherencia global
+## sin incurrir en búsquedas exhaustivas ni recocido simulado.
 func _score_candidate(
 	cand_pos: Vector2i,
 	size: Vector2i,
@@ -477,77 +487,141 @@ func _score_candidate(
 	var prog_dir: Vector2 = comp.progression_direction
 	var perp_dir := Vector2(-prog_dir.y, prog_dir.x)
 	var node_density: float = comp.get_density(node_id)
+	var factor: float = comp.get_main_path_factor(node_id) if is_main else comp.get_branch_factor(node_id)
+	var has_global_target: bool = (global_target != Vector2.ZERO)
 
-	# --------------------------------------------------------------------------
-	# A. Vecinos de Misión y Conectividad
-	# --------------------------------------------------------------------------
-	var neighbor_score: float = 0.0
-	var excessive_edge_penalty: float = 0.0
+	# 1. progression_score: Alineación direccional con progression_direction y factor
+	var progression_score: float = _calculate_progression_score(
+		cand_center, start_center, prog_dir, factor, is_main
+	)
+
+	# 2. anchor_distance_score: Penalización de distancia respecto al target global
+	var anchor_distance_score: float = _calculate_anchor_distance_score(
+		cand_center, global_target
+	)
+
+	# 3. neighbor_coherence_score: Coherencia de distancia a vecinos de MissionGraph
+	var neighbor_coherence_score: float = _calculate_neighbor_coherence_score(
+		cand_center, neighbor_rects, anchor, preferred_distance, has_global_target
+	)
+
+	# 4. main_path_alignment_score: Continuidad espacial y monotonía de nodos consecutivos de main path
+	var main_path_alignment_score: float = _calculate_main_path_alignment_score(
+		cand_center, prev_main_center, start_center, prog_dir, is_main, preferred_distance, comp, node_id, main_anchor_center, placed_rects, room_by_id, room_by_node_id
+	)
+
+	# 5. branch_lateral_score: Desplazamiento lateral desde el eje de progresión principal
+	var branch_lateral_score: float = _calculate_branch_lateral_score(
+		cand_center, main_anchor_center, start_center, prog_dir, perp_dir, is_main, preferred_distance
+	)
+
+	# 6. density_score: Modulación espacial basada en density_by_node
+	var density_score: float = _calculate_density_score(
+		cand_center, placed_rects, node_density, density_strength, preferred_distance, has_global_target
+	)
+
+	# 7. terminal_spacing_score: Separación de BOSS respecto a START, prevención de regresión y contención
+	var terminal_spacing_score: float = _calculate_terminal_spacing_score(
+		cand_center, room, node_id, comp, start_center, prev_main_center, prog_dir, global_target, preferred_distance, placed_rects, room_by_id
+	)
+
+	# Forma Global y Desempate Determinista
+	var bounds_center := Vector2(bounds.position) + Vector2(bounds.size) / 2.0
+	var bounds_shape_score: float = -cand_center.distance_to(bounds_center) * 0.05
+	var jitter: float = _rng.randf() * 0.05
+
+	# Suma ponderada con pesos específicos
+	var total_score: float = (
+		(WEIGHT_PROGRESSION * progression_strength * progression_score)
+		+ (WEIGHT_ANCHOR_DISTANCE * anchor_distance_score)
+		+ (WEIGHT_NEIGHBOR_COHERENCE * neighbor_coherence_score)
+		+ (WEIGHT_MAIN_PATH_ALIGNMENT * progression_strength * main_path_alignment_score)
+		+ (WEIGHT_BRANCH_LATERAL * branch_lateral_score)
+		+ (WEIGHT_DENSITY * density_score)
+		+ (WEIGHT_TERMINAL_SPACING * terminal_spacing_score)
+		+ bounds_shape_score
+		+ jitter
+	)
+
+	return total_score
+
+func _calculate_progression_score(
+	cand_center: Vector2,
+	start_center: Vector2,
+	prog_dir: Vector2,
+	factor: float,
+	is_main: bool
+) -> float:
+	if start_center == Vector2.ZERO or prog_dir.is_zero_approx():
+		return 0.0
+
+	var from_start: Vector2 = cand_center - start_center
+	if from_start.is_zero_approx():
+		return 0.0
+
+	var dir_dot: float = from_start.normalized().dot(prog_dir)
+	if is_main:
+		return dir_dot * 4.0 * maxf(factor, 0.15)
+	return dir_dot * 2.5 * maxf(factor, 0.1)
+
+func _calculate_anchor_distance_score(cand_center: Vector2, global_target: Vector2) -> float:
+	if global_target == Vector2.ZERO:
+		return 0.0
+	var dist: float = cand_center.distance_to(global_target)
+	return -dist * 1.5
+
+func _calculate_neighbor_coherence_score(
+	cand_center: Vector2,
+	neighbor_rects: Array[Rect2i],
+	anchor: Vector2,
+	preferred_distance: float,
+	has_global_target: bool
+) -> float:
+	var score: float = 0.0
 	if not neighbor_rects.is_empty():
 		for nr in neighbor_rects:
 			var n_center := Vector2(nr.position) + Vector2(nr.size) / 2.0
 			var d: float = cand_center.distance_to(n_center)
-			neighbor_score -= abs(d - preferred_distance)
+			score -= abs(d - preferred_distance)
 			if d > preferred_distance * 1.8:
-				excessive_edge_penalty += (d - preferred_distance * 1.8) * 1.2
-	elif anchor != Vector2.ZERO and global_target == Vector2.ZERO:
+				score -= (d - preferred_distance * 1.8) * 1.2
+	elif anchor != Vector2.ZERO and not has_global_target:
 		var d: float = cand_center.distance_to(anchor)
-		neighbor_score -= abs(d - preferred_distance) * 0.5
+		score -= abs(d - preferred_distance) * 0.5
+	return score
 
-	# --------------------------------------------------------------------------
-	# B. Target Espacial Global (SpatialComposition.get_anchor_target)
-	# --------------------------------------------------------------------------
-	var target_score: float = 0.0
-	if global_target != Vector2.ZERO:
-		var target_dist: float = cand_center.distance_to(global_target)
-		target_score = -target_dist * 1.5
-
-	# --------------------------------------------------------------------------
-	# C. Puntuación Diferenciada: Main Path vs Branches
-	# --------------------------------------------------------------------------
-	var role_score: float = 0.0
+func _calculate_main_path_alignment_score(
+	cand_center: Vector2,
+	prev_main_center: Vector2,
+	start_center: Vector2,
+	prog_dir: Vector2,
+	is_main: bool,
+	preferred_distance: float,
+	comp: SpatialComposition,
+	node_id: int,
+	main_anchor_center: Vector2,
+	placed_rects: Dictionary,
+	room_by_id: Dictionary,
+	room_by_node_id: Dictionary
+) -> float:
+	var score: float = 0.0
 
 	if is_main:
-		# 1. Alineación con la dirección de progresión global
-		var from_start: Vector2 = cand_center - start_center if start_center != Vector2.ZERO else Vector2.ZERO
-		if not from_start.is_zero_approx() and not prog_dir.is_zero_approx():
-			var factor: float = comp.get_main_path_factor(node_id)
-			role_score += from_start.normalized().dot(prog_dir) * 4.0 * maxf(factor, 0.1)
-
-		# 2. Monotonía a lo largo del camino principal
-		if prev_main_center != Vector2.ZERO and not prog_dir.is_zero_approx():
-			var cand_proj: float = (cand_center - start_center).dot(prog_dir)
-			var prev_proj: float = (prev_main_center - start_center).dot(prog_dir)
-			if cand_proj < prev_proj:
-				# Penalizar severamente retroceso espacial en el camino principal
-				role_score -= (prev_proj - cand_proj) * 3.0
-			else:
-				# Premiar avance monótono ordenado
-				role_score += minf(cand_proj - prev_proj, preferred_distance) * 0.6
-
-		# 3. Continuidad con la sala anterior del camino principal
 		if prev_main_center != Vector2.ZERO:
+			# Continuidad espacial con el nodo anterior del camino principal
 			var d_prev: float = cand_center.distance_to(prev_main_center)
-			role_score -= abs(d_prev - preferred_distance) * 0.75
+			score -= abs(d_prev - preferred_distance) * 0.75
 
+			# Monotonía en la dirección de progresión
+			if not prog_dir.is_zero_approx() and start_center != Vector2.ZERO:
+				var cand_proj: float = (cand_center - start_center).dot(prog_dir)
+				var prev_proj: float = (prev_main_center - start_center).dot(prog_dir)
+				if cand_proj < prev_proj:
+					score -= (prev_proj - cand_proj) * 3.5
+				else:
+					score += minf(cand_proj - prev_proj, preferred_distance) * 0.7
 	else:
-		# --- Branches (Ramas Secundarias) ---
-		# 1. Proximidad y coherencia con su ancla principal heredada
-		if main_anchor_center != Vector2.ZERO:
-			var d_anchor: float = cand_center.distance_to(main_anchor_center)
-			role_score -= abs(d_anchor - preferred_distance) * 0.9
-
-			# 2. Desplazamiento lateral (Lateral Offset): premiar alejamiento perpendicular
-			var lateral_dist: float = abs((cand_center - main_anchor_center).dot(perp_dir))
-			role_score += minf(lateral_dist, preferred_distance) * 0.7
-
-			# 3. Coherencia de progresión: no adelantarse ni atrasarse excesivamente respecto a su ancla
-			var anchor_proj: float = (main_anchor_center - start_center).dot(prog_dir)
-			var cand_proj: float = (cand_center - start_center).dot(prog_dir)
-			role_score -= abs(cand_proj - anchor_proj) * 0.35
-
-		# 4. Separación de otros nodos del Main Path (evitar apiñarse en la espina principal)
-		var main_crowding_penalty: float = 0.0
+		# Ramas: Evitar apiñamiento en otros nodos del Main Path
 		var branch_anchor_nid: int = comp.get_branch_anchor(node_id)
 		for mp_nid in comp.main_path_node_ids:
 			if mp_nid == branch_anchor_nid:
@@ -557,11 +631,9 @@ func _score_candidate(
 				var mp_c: Vector2 = Vector2(placed_rects[mp_room.id].position) + Vector2(placed_rects[mp_room.id].size) / 2.0
 				var d_mp: float = cand_center.distance_to(mp_c)
 				if d_mp < preferred_distance * 0.85:
-					main_crowding_penalty += (preferred_distance * 0.85 - d_mp) * 2.0
+					score -= (preferred_distance * 0.85 - d_mp) * 2.0
 
-		role_score -= main_crowding_penalty
-
-		# 5. Evitar colocarse exactamente "entre anclas" consecutivas del main path
+		# Evitar colocarse exactamente entre dos anclas consecutivas del Main Path
 		if main_anchor_center != Vector2.ZERO and prev_main_center != Vector2.ZERO and main_anchor_center != prev_main_center:
 			var seg_dir := (prev_main_center - main_anchor_center).normalized()
 			var to_cand := cand_center - main_anchor_center
@@ -570,23 +642,57 @@ func _score_candidate(
 			if proj_len > 2.0 and proj_len < seg_len - 2.0:
 				var dist_to_segment: float = (to_cand - seg_dir * proj_len).length()
 				if dist_to_segment < preferred_distance * 0.6:
-					role_score -= (preferred_distance * 0.6 - dist_to_segment) * 3.0
+					score -= (preferred_distance * 0.6 - dist_to_segment) * 3.0
 
-		# 6. Evitar atracción no intencional hacia START o BOSS
-		if start_center != Vector2.ZERO and branch_anchor_nid != comp.main_path_node_ids[0]:
-			var d_start: float = cand_center.distance_to(start_center)
-			if d_start < preferred_distance * 0.9:
-				role_score -= (preferred_distance * 0.9 - d_start) * 2.5
+	return score
 
-		# 7. Evitar dominancia de rama (alejamiento desmedido del dungeon)
-		if main_anchor_center != Vector2.ZERO:
-			var d_anchor_total: float = cand_center.distance_to(main_anchor_center)
-			if d_anchor_total > preferred_distance * 2.2:
-				role_score -= (d_anchor_total - preferred_distance * 2.2) * 1.8
+func _calculate_branch_lateral_score(
+	cand_center: Vector2,
+	main_anchor_center: Vector2,
+	start_center: Vector2,
+	prog_dir: Vector2,
+	perp_dir: Vector2,
+	is_main: bool,
+	preferred_distance: float
+) -> float:
+	if not is_main:
+		var ref_center := main_anchor_center if main_anchor_center != Vector2.ZERO else start_center
+		if ref_center != Vector2.ZERO:
+			# Proximidad coherente al ancla principal
+			var d_anchor: float = cand_center.distance_to(ref_center)
+			var score: float = -abs(d_anchor - preferred_distance) * 0.9
 
-	# --------------------------------------------------------------------------
-	# D. Densidad por Región y Separación (Breathing Space)
-	# --------------------------------------------------------------------------
+			# Desplazamiento lateral desde el eje de progresión
+			var lateral_dist: float = abs((cand_center - ref_center).dot(perp_dir))
+			score += minf(lateral_dist, preferred_distance) * 1.0
+
+			# Penalizar colinealidad con el eje principal
+			if lateral_dist < 3.0:
+				score -= (3.0 - lateral_dist) * 2.0
+
+			# Penalizar dominancia por desplazamiento desmedido
+			if lateral_dist > preferred_distance * 2.5:
+				score -= (lateral_dist - preferred_distance * 2.5) * 1.5
+
+			return score
+		return 0.0
+
+	# En main path, penalizar desviaciones laterales excesivas fuera del corredor
+	if start_center != Vector2.ZERO:
+		var lat_drift: float = abs((cand_center - start_center).dot(perp_dir))
+		if lat_drift > preferred_distance * 1.6:
+			return -(lat_drift - preferred_distance * 1.6) * 0.5
+
+	return 0.0
+
+func _calculate_density_score(
+	cand_center: Vector2,
+	placed_rects: Dictionary,
+	node_density: float,
+	density_strength: float,
+	preferred_distance: float,
+	has_global_target: bool
+) -> float:
 	var min_dist_to_any: float = INF
 	var close_rooms_count: int = 0
 	var clustering_metric: float = 0.0
@@ -599,49 +705,89 @@ func _score_candidate(
 			close_rooms_count += 1
 		clustering_metric += 1.0 / maxf(d, 1.0)
 
-	var separation_score: float = 0.0
-	if min_dist_to_any != INF:
-		separation_score = min_dist_to_any * 0.35
+	var breathing_score: float = min_dist_to_any * 0.35 if min_dist_to_any != INF else 0.0
 
-	# Modulación de clustering por node_density
+	# Modulación basada en density_by_node
 	var effective_density: float = node_density * density_strength
-	var excessive_clustering_penalty: float = 0.0
-	if close_rooms_count > 2:
-		excessive_clustering_penalty = float(close_rooms_count - 2) * 5.0 * effective_density
-	excessive_clustering_penalty += clustering_metric * 2.5 * effective_density
+	var clustering_penalty: float = 0.0
+	if node_density < 1.0:
+		clustering_penalty = float(close_rooms_count) * 4.0 + clustering_metric * 3.0
+	else:
+		if close_rooms_count > 2:
+			clustering_penalty = float(close_rooms_count - 2) * 5.0 * effective_density
+		clustering_penalty += clustering_metric * 2.0 * effective_density
 
-	var excessive_distance_penalty: float = 0.0
+	# Penalización por distancia excesiva
 	var max_allowed_dist: float = preferred_distance * 2.2
-	if global_target != Vector2.ZERO:
+	if has_global_target:
 		max_allowed_dist = maxf(max_allowed_dist, preferred_distance * 3.5)
-	if min_dist_to_any > max_allowed_dist:
-		excessive_distance_penalty = (min_dist_to_any - max_allowed_dist) * 1.5
+	var dist_penalty: float = 0.0
+	if min_dist_to_any != INF and min_dist_to_any > max_allowed_dist:
+		dist_penalty = (min_dist_to_any - max_allowed_dist) * 1.5
 
-	# --------------------------------------------------------------------------
-	# E. Forma Global y Desempate Determinista
-	# --------------------------------------------------------------------------
-	var bounds_center := Vector2(bounds.position) + Vector2(bounds.size) / 2.0
-	var global_shape_score: float = -cand_center.distance_to(bounds_center) * 0.05
-	var jitter: float = _rng.randf() * 0.05
+	return breathing_score - clustering_penalty - dist_penalty
 
-	const W_NEIGHBOR := 1.0
-	const W_TARGET := 1.2
-	const W_ROLE := 1.0
-	const W_SEPARATION := 0.3
-
-	var total_score: float = (
-		(W_NEIGHBOR * neighbor_score)
-		+ (W_TARGET * target_score)
-		+ (progression_strength * W_ROLE * role_score)
-		+ (W_SEPARATION * separation_score)
-		+ global_shape_score
-		- excessive_edge_penalty
-		- excessive_clustering_penalty
-		- excessive_distance_penalty
-		+ jitter
+func _calculate_terminal_spacing_score(
+	cand_center: Vector2,
+	room: RoomData,
+	node_id: int,
+	comp: SpatialComposition,
+	start_center: Vector2,
+	prev_main_center: Vector2,
+	prog_dir: Vector2,
+	global_target: Vector2,
+	preferred_distance: float,
+	placed_rects: Dictionary,
+	room_by_id: Dictionary
+) -> float:
+	var score: float = 0.0
+	var is_terminal: bool = (
+		room.room_type == RoomData.RoomType.BOSS
+		or room.room_type == &"boss"
+		or room.room_type == RoomData.RoomType.GOAL
+		or room.room_type == &"goal"
+		or comp.get_region(node_id) == SpatialComposition.REGION_BOSS
 	)
 
-	return total_score
+	if is_terminal:
+		# Penalizar BOSS cerca de START
+		if start_center != Vector2.ZERO:
+			var d_start: float = cand_center.distance_to(start_center)
+			if d_start < preferred_distance * 2.5:
+				score -= (preferred_distance * 2.5 - d_start) * 4.0
+
+		# Penalizar BOSS regresivo respecto al camino principal
+		if prev_main_center != Vector2.ZERO and not prog_dir.is_zero_approx() and start_center != Vector2.ZERO:
+			var boss_proj: float = (cand_center - start_center).dot(prog_dir)
+			var prev_proj: float = (prev_main_center - start_center).dot(prog_dir)
+			if boss_proj < prev_proj:
+				score -= (prev_proj - boss_proj) * 5.0
+			else:
+				score += minf(boss_proj - prev_proj, preferred_distance * 2.0) * 1.5
+
+		# Penalizar terminal fuera del target de progresión
+		if global_target != Vector2.ZERO:
+			var d_target: float = cand_center.distance_to(global_target)
+			if d_target > preferred_distance * 1.5:
+				score -= (d_target - preferred_distance * 1.5) * 2.5
+	else:
+		# Salas no terminales: evitar acercarse indebidamente a START o a un BOSS ya colocado
+		if not comp.is_main_path(node_id) and start_center != Vector2.ZERO:
+			var branch_anchor_nid: int = comp.get_branch_anchor(node_id)
+			if comp.main_path_node_ids.size() > 0 and branch_anchor_nid != comp.main_path_node_ids[0]:
+				var d_start: float = cand_center.distance_to(start_center)
+				if d_start < preferred_distance * 0.9:
+					score -= (preferred_distance * 0.9 - d_start) * 2.5
+
+		for placed_id in placed_rects:
+			var other_r: RoomData = room_by_id.get(placed_id)
+			if other_r != null and (other_r.room_type == RoomData.RoomType.BOSS or other_r.room_type == &"boss"):
+				var boss_c := Vector2(placed_rects[placed_id].position) + Vector2(placed_rects[placed_id].size) / 2.0
+				var d_boss: float = cand_center.distance_to(boss_c)
+				if d_boss < preferred_distance * 1.2:
+					score -= (preferred_distance * 1.2 - d_boss) * 3.0
+
+	return score
 
 ## Búsqueda expandida determinista cuando la búsqueda primaria no encontró candidatos válidos.
 func _expanded_valid_candidate_search(
