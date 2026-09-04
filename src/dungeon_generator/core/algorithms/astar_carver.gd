@@ -60,6 +60,8 @@ static func carve_corridors(
 					return 2
 				CorridorRequest.ROLE_OPTIONAL:
 					return 1
+				CorridorRequest.ROLE_SHORTCUT:
+					return 1
 				_:
 					return 0
 		var r_a: int = role_rank.call(a.corridor_role)
@@ -352,12 +354,18 @@ static func _find_direction_aware_path(
 	g_score[start_key] = 0.0
 
 	var h_start: float = _heuristic_turn_aware(start_pos, start_dir, goal_pos, turn_penalty)
+	var start_bias: float = 0.0
+	if req.preferred_length > 0.0:
+		var est_start_len: float = float(absi(goal_pos.x - start_pos.x) + absi(goal_pos.y - start_pos.y))
+		start_bias = absf(est_start_len - req.preferred_length) * 0.2
+
 	open_set.append({
 		"pos": start_pos,
 		"dir": start_dir,
 		"g": 0.0,
-		"f": h_start,
-		"key": start_key
+		"f": h_start + start_bias,
+		"key": start_key,
+		"steps": 0
 	})
 
 	var best_goal_state: String = ""
@@ -383,6 +391,8 @@ static func _find_direction_aware_path(
 		var curr_dir: Vector2i = current["dir"]
 		var curr_key: String = current["key"]
 		var curr_g: float = current["g"]
+
+		var curr_steps: int = current.get("steps", 0)
 
 		if curr_g > g_score.get(curr_key, INF):
 			continue
@@ -460,12 +470,18 @@ static func _find_direction_aware_path(
 				g_score[next_key] = tentative_g
 				came_from[next_key] = curr_key
 				var h: float = _heuristic_turn_aware(next_pos, d, goal_pos, turn_penalty)
+				var next_steps: int = curr_steps + 1
+				var len_bias: float = 0.0
+				if req.preferred_length > 0.0:
+					var est_total_len: float = float(next_steps) + float(absi(goal_pos.x - next_pos.x) + absi(goal_pos.y - next_pos.y))
+					len_bias = absf(est_total_len - req.preferred_length) * 0.2
 				open_set.append({
 					"pos": next_pos,
 					"dir": d,
 					"g": tentative_g,
-					"f": tentative_g + h,
-					"key": next_key
+					"f": tentative_g + h + len_bias,
+					"key": next_key,
+					"steps": next_steps
 				})
 
 	if best_goal_state.is_empty():
