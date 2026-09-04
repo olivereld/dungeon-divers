@@ -11,6 +11,7 @@ const _AStarCarverScript = preload("res://src/dungeon_generator/core/algorithms/
 const _CorridorRequestScript = preload("res://src/dungeon_generator/core/data/corridor_request.gd")
 const _CorridorPathScript = preload("res://src/dungeon_generator/core/data/corridor_path.gd")
 const _CorridorCarveResultScript = preload("res://src/dungeon_generator/core/data/corridor_carve_result.gd")
+const _CorridorPlanScript = preload("res://src/dungeon_generator/core/data/corridor_plan.gd")
 
 ## Intenta reparar conexiones de corredor obligatorias que hayan fallado en AStarCarver.
 ## Retorna Dictionary { "success": bool, "corridor_res": CorridorCarveResult, "repairs_applied": Array, "seed_used": int }
@@ -21,9 +22,19 @@ static func repair_missing_corridors(
 	connections: Array,
 	initial_res: CorridorCarveResult,
 	repair_seed: int,
-	config: DungeonConfig = null,
-	corridor_plan = null
+	corridor_plan: _CorridorPlanScript,
+	config: DungeonConfig = null
 ) -> Dictionary:
+	if corridor_plan == null:
+		assert(false, "[CorridorConnectivityRepair] Contract violation: corridor_plan is mandatory.")
+		push_error("[CorridorConnectivityRepair] Contract violation: corridor_plan is mandatory.")
+		return {
+			"success": false,
+			"corridor_res": initial_res,
+			"repairs_applied": [],
+			"seed_used": repair_seed
+		}
+
 	if initial_res == null or initial_res.is_valid:
 		return {
 			"success": true,
@@ -78,7 +89,7 @@ static func repair_missing_corridors(
 			# Opcional: ignorar fallo si no es obligatoria
 			continue
 
-		var req: _CorridorRequestScript = corridor_plan.get_request_for_connection(failed_id) if (corridor_plan != null and corridor_plan.has_method("get_request_for_connection")) else null
+		var req: _CorridorRequestScript = corridor_plan.get_request_for_connection(failed_id)
 		if req == null:
 			all_repaired = false
 			break

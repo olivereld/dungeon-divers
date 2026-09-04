@@ -26,9 +26,10 @@ func test_corridor_repair_already_valid() -> void:
 	var grid := CellGrid.new(20, 20, CellGrid.CellType.WALL)
 	var initial_res = _CorridorCarveResultScript.new()
 	initial_res.is_valid = true
+	var plan = _CorridorPlanScript.new()
 
 	var repair_res = _CorridorConnectivityRepairScript.repair_missing_corridors(
-		grid, [], [], [], initial_res, 123
+		grid, [], [], [], initial_res, 123, plan
 	)
 
 	assert(repair_res.success, "Must return success for already valid result")
@@ -58,7 +59,7 @@ func test_corridor_repair_success() -> void:
 	plan.seal()
 
 	var repair_res = _CorridorConnectivityRepairScript.repair_missing_corridors(
-		grid, [room_a, room_b], [pair], [conn], initial_res, 456, null, plan
+		grid, [room_a, room_b], [pair], [conn], initial_res, 456, plan
 	)
 
 	assert(repair_res.success, "Corridor repair must succeed")
@@ -102,7 +103,7 @@ func test_corridor_repair_rollback_on_impossible() -> void:
 	plan.seal()
 
 	var repair_res = _CorridorConnectivityRepairScript.repair_missing_corridors(
-		grid, [room_a, room_b], [pair], [conn], initial_res, 789, null, plan
+		grid, [room_a, room_b], [pair], [conn], initial_res, 789, plan
 	)
 
 	assert(not repair_res.success, "Corridor repair must fail when path is physically impossible")

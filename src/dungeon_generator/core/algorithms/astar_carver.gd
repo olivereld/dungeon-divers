@@ -10,36 +10,7 @@ extends RefCounted
 const _CorridorRequestScript = preload("res://src/dungeon_generator/core/data/corridor_request.gd")
 const _CorridorPathScript = preload("res://src/dungeon_generator/core/data/corridor_path.gd")
 const _CorridorCarveResultScript = preload("res://src/dungeon_generator/core/data/corridor_carve_result.gd")
-const _RoomConnectionScript = preload("res://src/dungeon_generator/core/data/room_connection.gd")
-const _EntranceSolverScript = preload("res://src/dungeon_generator/core/solvers/entrance_solver.gd")
 const _OrthogonalPlannerScript = preload("res://src/dungeon_generator/core/algorithms/orthogonal_corridor_planner.gd")
-
-## Método de compatibilidad para llamadas con conexiones basadas en Vector2i.
-static func carve_connections(
-	grid: CellGrid,
-	rooms: Array[RoomData],
-	connections: Array[Vector2i],
-	config: DungeonConfig = null,
-	_rng: RandomNumberGenerator = null
-) -> void:
-	if connections.is_empty() or rooms.size() < 2:
-		return
-
-	var room_conns: Array = []
-	var cid: int = 0
-	for pair in connections:
-		room_conns.append(_RoomConnectionScript.new(cid, pair.x, pair.y, true))
-		cid += 1
-
-	var ent_res = _EntranceSolverScript.resolve(rooms, room_conns, grid, config)
-	if ent_res.is_valid:
-		var requests: Array[_CorridorRequestScript] = []
-		for p in ent_res.entrance_pairs:
-			if p != null:
-				var req := _CorridorRequestScript.new(p.connection_id, p.entrance_a.room_id, p.entrance_b.room_id)
-				req.bind_physical_entrances(p)
-				requests.append(req)
-		carve_corridors(grid, rooms, requests, room_conns, config)
 
 ## Ejecuta el tallado para todas las peticiones CorridorRequest planificadas y vinculadas.
 static func carve_corridors(
