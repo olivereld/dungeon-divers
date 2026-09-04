@@ -146,6 +146,12 @@ func create_placement_plan(
 	var min_separation: int = config.min_room_separation if config != null else 2
 	var min_edge_dist: float = config.min_mission_edge_distance if config != null else 6.0
 
+	var max_dim: float = minf(float(bounds.size.x), float(bounds.size.y))
+	if max_dim > 0 and max_dim <= 36.0:
+		preferred_distance = minf(preferred_distance, max_dim * 0.35)
+		min_separation = mini(min_separation, 1)
+		min_edge_dist = minf(min_edge_dist, max_dim * 0.22)
+
 	var strengths: Dictionary = extract_strengths(config)
 	var candidate_count: int = strengths.get("candidate_count", 24)
 
@@ -936,6 +942,44 @@ func _expanded_valid_candidate_search(
 
 			if best_pos != Vector2i.MIN:
 				return best_pos
+
+	# Fallback para rejillas pequeñas o alta densidad: relajar margen de separación (0)
+	if min_separation > 0:
+		for origin in search_origins:
+			var max_search_radius: int = maxi(int(preferred_distance * 2.8), 40)
+			for radius in range(maxi(2, int(min_edge_dist * 0.5)), max_search_radius, 2):
+				var steps: int = clampi(int(TAU * radius / 3.0), 8, 36)
+				for s in range(steps):
+					var angle: float = (float(s) / float(steps)) * TAU
+					var cand_pos := Vector2i(
+						int(origin.x + cos(angle) * radius - size.x / 2.0),
+						int(origin.y + sin(angle) * radius - size.y / 2.0)
+					)
+					if not _passes_hard_constraints(cand_pos, size, bounds, placed_rects, neighbor_rects, 0, min_edge_dist * 0.5, start_center, room.room_type, comp, node_id):
+						continue
+					return cand_pos
+
+	# Fallback determinista final: escaneo de rejilla dentro de bounds buscando hueco libre o menor solapamiento
+	var min_overlap_area: int = 999999
+	var least_overlap_pos: Vector2i = Vector2i.MIN
+
+	for y in range(bounds.position.y, bounds.end.y - size.y + 1):
+		for x in range(bounds.position.x, bounds.end.x - size.x + 1):
+			var cand_pos := Vector2i(x, y)
+			var cand_rect := Rect2i(cand_pos, size)
+			var overlap_area: int = 0
+			for pr in placed_rects.values():
+				if cand_rect.intersects(pr):
+					var inter: Rect2i = cand_rect.intersection(pr)
+					overlap_area += inter.size.x * inter.size.y
+			if overlap_area == 0:
+				return cand_pos
+			if overlap_area < min_overlap_area:
+				min_overlap_area = overlap_area
+				least_overlap_pos = cand_pos
+
+	if least_overlap_pos != Vector2i.MIN:
+		return least_overlap_pos
 
 	return Vector2i.MIN
 

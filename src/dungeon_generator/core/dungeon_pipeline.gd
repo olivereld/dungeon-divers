@@ -191,7 +191,7 @@ func generate(
 
 		_emit_stage_signals(
 			ctx,
-			["space_grammar", "room_construction"]
+			["space_grammar", "room_placement", "room_construction"]
 		)
 
 		# -------------------------------------------------------------

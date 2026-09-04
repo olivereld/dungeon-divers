@@ -21,6 +21,7 @@ var repair_seed_chain: Array[Dictionary] = [] # Registro cronológico de reparac
 # 2. Topología y Espacio
 var mission_graph: DungeonGraph = null
 var spatial_intent = null                   # SpatialIntentResult (intención espacial semántica)
+var spatial_composition = null              # SpatialComposition (composición espacial global)
 var placement_plan = null                   # RoomPlacementPlan (plan inmutable de colocación de salas)
 var rooms: Array[RoomData] = []
 var connections: Array = []                 # Array[RoomConnection]

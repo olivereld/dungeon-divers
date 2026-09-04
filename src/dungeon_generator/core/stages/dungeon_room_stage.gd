@@ -15,6 +15,7 @@ const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/gene
 const _SemanticMappingValidatorScript = preload("res://src/dungeon_generator/core/validation/semantic_mapping_validator.gd")
 const _CompositionStrategyScript = preload("res://src/dungeon_generator/core/grammars/composition_strategy.gd")
 const _SpatialIntentBuilderScript = preload("res://src/dungeon_generator/core/grammars/spatial_intent_builder.gd")
+const _SpatialCompositionBuilderScript = preload("res://src/dungeon_generator/core/grammars/spatial_composition_builder.gd")
 const _RoomPlacementPlanScript = preload("res://src/dungeon_generator/core/data/room_placement_plan.gd")
 const _RoomPlacerScript = preload("res://src/dungeon_generator/core/placement/room_placer.gd")
 const _RoomSpatialSeparatorScript = preload("res://src/dungeon_generator/core/topology/room_spatial_separator.gd")
@@ -63,13 +64,44 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		sg_config.progression_strength = ctx.config.progression_strength
 		sg_config.density_strength = ctx.config.density_strength
 		sg_config.preferred_progression_direction = ctx.config.preferred_progression_direction
+		sg_config.composition_candidate_count = ctx.config.composition_candidate_count
+		sg_config.candidate_count = ctx.config.candidate_count
+		sg_config.anchor_distance_strength = ctx.config.anchor_distance_strength
+		sg_config.anchor_strength = ctx.config.anchor_strength
+		sg_config.neighbor_coherence_strength = ctx.config.neighbor_coherence_strength
+		sg_config.neighbor_strength = ctx.config.neighbor_strength
+		sg_config.main_path_alignment_strength = ctx.config.main_path_alignment_strength
+		sg_config.main_path_strength = ctx.config.main_path_strength
+		sg_config.branch_lateral_strength = ctx.config.branch_lateral_strength
+		sg_config.branch_strength = ctx.config.branch_strength
+		sg_config.terminal_spacing_strength = ctx.config.terminal_spacing_strength
+		sg_config.terminal_strength = ctx.config.terminal_strength
 
+	# Build SpatialIntent & SpatialComposition
 	if ctx.mission_graph != null:
 		var intent_builder := _SpatialIntentBuilderScript.new()
 		ctx.spatial_intent = intent_builder.build(ctx.mission_graph)
 
-	var plan = strategy.create_placement_plan(ctx.rooms, ctx.mission_graph, grid_bounds, sg_config, ctx.spatial_intent)
+		var comp_builder := _SpatialCompositionBuilderScript.new(placement_rng)
+		ctx.spatial_composition = comp_builder.build(ctx.mission_graph, ctx.spatial_intent, sg_config, grid_bounds)
+	else:
+		ctx.spatial_intent = null
+		ctx.spatial_composition = null
+
+	# Pass to CompositionStrategy & Generate RoomPlacementPlan
+	var plan: _RoomPlacementPlanScript = strategy.create_placement_plan(
+		ctx.rooms,
+		ctx.mission_graph,
+		grid_bounds,
+		sg_config,
+		ctx.spatial_intent,
+		ctx.spatial_composition
+	)
 	ctx.placement_plan = plan
+
+	if plan == null or not plan.is_sealed():
+		ctx.mark_attempt_failed("ROOM_PLACEMENT_PLAN_FAILED", "TRANSIENT")
+		return false
 
 	# 3. RoomPlacer: APPLY placement decisions to ctx.rooms
 	var placer := _RoomPlacerScript.new()
@@ -79,8 +111,24 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		return false
 
 	# 4. RoomSpatialSeparator: REPAIR ONLY if any overlap occurs
-	if not placer.validate_placement_integrity(ctx.rooms, 2):
-		ctx.rooms = _RoomSpatialSeparatorScript.separate_rooms(ctx.rooms, grid_bounds, placement_rng, 2)
+	var sep_margin: int = sg_config.min_room_separation if sg_config != null else 2
+	if not placer.validate_placement_integrity(ctx.rooms, sep_margin):
+		ctx.rooms = _RoomSpatialSeparatorScript.separate_rooms(ctx.rooms, grid_bounds, placement_rng, sep_margin)
+
+	# 5. Validate Placement Integrity
+	if not placer.validate_placement_integrity(ctx.rooms, 0):
+		ctx.mark_attempt_failed("ROOM_PLACEMENT_COLLISION", "TRANSIENT")
+		return false
+
+	var sep_val: Dictionary = _RoomSpatialSeparatorScript.validate_separation(ctx.rooms, grid_bounds, 0)
+	if not sep_val["is_valid"]:
+		ctx.mark_attempt_failed("ROOM_PLACEMENT_OUT_OF_BOUNDS", "TRANSIENT")
+		return false
+
+	for room in ctx.rooms:
+		if not room.is_placed:
+			ctx.mark_attempt_failed("ROOM_NOT_PLACED", "TRANSIENT")
+			return false
 
 	ctx.record_timing("room_placement", float(Time.get_ticks_msec() - t_place))
 
