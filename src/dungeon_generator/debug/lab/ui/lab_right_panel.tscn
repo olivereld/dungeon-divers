@@ -1,0 +1,457 @@
+[gd_scene load_steps=3 format=3 uid="uid://c6a8fpx4vyqnq"]
+
+[ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/ui/lab_right_panel.gd" id="1_right"]
+[ext_resource type="Theme" path="res://src/dungeon_generator/debug/lab/ui/lab_theme.tres" id="2_theme"]
+
+[node name="LabRightPanel" type="PanelContainer"]
+custom_minimum_size = Vector2(280, 0)
+offset_right = 280.0
+offset_bottom = 600.0
+size_flags_vertical = 3
+theme = ExtResource("2_theme")
+script = ExtResource("1_right")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
+theme_override_font_sizes/font_size = 12
+text = "❖ INSPECTOR"
+
+[node name="SummaryCard" type="PanelContainer" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/SummaryCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/SummaryCard/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/SummaryCard/Margin/VBox"]
+layout_mode = 2
+
+[node name="SummaryTitle" type="Label" parent="Margin/VBox/SummaryCard/Margin/VBox/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 11
+text = "SUMMARY"
+
+[node name="Spacer" type="Control" parent="Margin/VBox/SummaryCard/Margin/VBox/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StatusBadge" type="Label" parent="Margin/VBox/SummaryCard/Margin/VBox/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.133333, 0.772549, 0.368627, 1)
+theme_override_font_sizes/font_size = 10
+text = "VALID"
+
+[node name="Grid" type="GridContainer" parent="Margin/VBox/SummaryCard/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 2
+columns = 2
+
+[node name="SeedKey" type="Label" parent="Margin/VBox/SummaryCard/Margin/VBox/Grid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 10
+text = "Seed:"
+
+[node name="SeedVal" type="Label" parent="Margin/VBox/SummaryCard/Margin/VBox/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.133333, 0.827451, 0.933333, 1)
+theme_override_font_sizes/font_size = 10
+text = "123456"
+
+[node name="FloorsKey" type="Label" parent="Margin/VBox/SummaryCard/Margin/VBox/Grid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 10
+text = "Floors:"
+
+[node name="FloorsVal" type="Label" parent="Margin/VBox/SummaryCard/Margin/VBox/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "1"
+
+[node name="AlgoKey" type="Label" parent="Margin/VBox/SummaryCard/Margin/VBox/Grid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 10
+text = "Algorithm:"
+
+[node name="AlgoVal" type="Label" parent="Margin/VBox/SummaryCard/Margin/VBox/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "bsp"
+
+[node name="MetricsSection" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SectionTitle" type="Label" parent="Margin/VBox/MetricsSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 11
+text = "METRICS"
+
+[node name="Grid" type="GridContainer" parent="Margin/VBox/MetricsSection"]
+layout_mode = 2
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 2
+
+[node name="CardRooms" type="PanelContainer" parent="Margin/VBox/MetricsSection/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/MetricsSection/Grid/CardRooms"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/MetricsSection/Grid/CardRooms/Margin"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardRooms/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 9
+text = "Rooms"
+
+[node name="RoomsVal" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardRooms/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.376471, 0.647059, 0.980392, 1)
+theme_override_font_sizes/font_size = 14
+text = "0"
+
+[node name="CardCorridors" type="PanelContainer" parent="Margin/VBox/MetricsSection/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/MetricsSection/Grid/CardCorridors"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/MetricsSection/Grid/CardCorridors/Margin"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardCorridors/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 9
+text = "Corridors"
+
+[node name="CorridorsVal" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardCorridors/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.133333, 0.827451, 0.933333, 1)
+theme_override_font_sizes/font_size = 14
+text = "0"
+
+[node name="CardDoors" type="PanelContainer" parent="Margin/VBox/MetricsSection/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/MetricsSection/Grid/CardDoors"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/MetricsSection/Grid/CardDoors/Margin"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardDoors/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 9
+text = "Door Pairs"
+
+[node name="DoorsVal" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardDoors/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
+theme_override_font_sizes/font_size = 14
+text = "0"
+
+[node name="CardStairs" type="PanelContainer" parent="Margin/VBox/MetricsSection/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/MetricsSection/Grid/CardStairs"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/MetricsSection/Grid/CardStairs/Margin"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardStairs/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 9
+text = "Stairs"
+
+[node name="StairsVal" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardStairs/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 14
+text = "0"
+
+[node name="CardTemplates" type="PanelContainer" parent="Margin/VBox/MetricsSection/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/MetricsSection/Grid/CardTemplates"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/MetricsSection/Grid/CardTemplates/Margin"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardTemplates/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 9
+text = "Templates"
+
+[node name="TemplatesVal" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardTemplates/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.133333, 0.772549, 0.368627, 1)
+theme_override_font_sizes/font_size = 14
+text = "0"
+
+[node name="CardFallbacks" type="PanelContainer" parent="Margin/VBox/MetricsSection/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/MetricsSection/Grid/CardFallbacks"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/MetricsSection/Grid/CardFallbacks/Margin"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardFallbacks/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 9
+text = "Fallbacks"
+
+[node name="FallbacksVal" type="Label" parent="Margin/VBox/MetricsSection/Grid/CardFallbacks/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.972549, 0.443137, 0.443137, 1)
+theme_override_font_sizes/font_size = 14
+text = "0"
+
+[node name="CardGenTime" type="PanelContainer" parent="Margin/VBox/MetricsSection"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/MetricsSection/CardGenTime"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/MetricsSection/CardGenTime/Margin"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Margin/VBox/MetricsSection/CardGenTime/Margin/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 10
+text = "⚡ Gen Time"
+
+[node name="Spacer" type="Control" parent="Margin/VBox/MetricsSection/CardGenTime/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="GenTimeVal" type="Label" parent="Margin/VBox/MetricsSection/CardGenTime/Margin/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.133333, 0.827451, 0.933333, 1)
+theme_override_font_sizes/font_size = 11
+text = "< 15 ms"
+
+[node name="RoomsSection" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="Header" type="HBoxContainer" parent="Margin/VBox/RoomsSection"]
+layout_mode = 2
+
+[node name="RoomsSectionTitle" type="Label" parent="Margin/VBox/RoomsSection/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 11
+text = "ROOMS (0)"
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/VBox/RoomsSection"]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="RoomsList" type="VBoxContainer" parent="Margin/VBox/RoomsSection/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 2
+
+[node name="RoomDetailCard" type="PanelContainer" parent="Margin/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/RoomDetailCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/RoomDetailCard/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="HBoxContainer" parent="Margin/VBox/RoomDetailCard/Margin/VBox"]
+layout_mode = 2
+
+[node name="DetailTitle" type="Label" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.133333, 0.827451, 0.933333, 1)
+theme_override_font_sizes/font_size = 11
+text = "ROOM #0"
+
+[node name="Spacer" type="Control" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DetailTypeBadge" type="Label" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
+theme_override_font_sizes/font_size = 10
+text = "ENTRANCE"
+
+[node name="Grid" type="GridContainer" parent="Margin/VBox/RoomDetailCard/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 2
+columns = 2
+
+[node name="PosKey" type="Label" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Grid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 10
+text = "Position:"
+
+[node name="DetailPosVal" type="Label" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "(0, 0)"
+
+[node name="SizeKey" type="Label" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Grid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 10
+text = "Size:"
+
+[node name="DetailSizeVal" type="Label" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "0 × 0"
+
+[node name="TemplateKey" type="Label" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Grid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 10
+text = "Template:"
+
+[node name="DetailTemplateVal" type="Label" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
+theme_override_font_sizes/font_size = 10
+text = "procedural_fallback"
+
+[node name="StatusKey" type="Label" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Grid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.64, 0.72, 1)
+theme_override_font_sizes/font_size = 10
+text = "Status:"
+
+[node name="DetailStatusVal" type="Label" parent="Margin/VBox/RoomDetailCard/Margin/VBox/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
+theme_override_font_sizes/font_size = 10
+text = "FALLBACK"
+
+[node name="RawInspector" type="VBoxContainer" parent="Margin/VBox"]
+visible = false
+layout_mode = 2
+
+[node name="InspectorText" type="RichTextLabel" parent="Margin/VBox/RawInspector"]
+unique_name_in_owner = true
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true

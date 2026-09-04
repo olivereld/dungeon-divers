@@ -160,7 +160,9 @@ func frame_dungeon(instant_teleport: bool = true) -> void:
 	var center: Vector3 = _FocusScript.compute_center(aabb_data["min"], aabb_data["max"])
 	var framing: Dictionary = _FramingScript.compute_framing(aabb_data["min"], aabb_data["max"])
 
-	focus_target.global_position = center
+	focus_target.position = center
+	if focus_target.is_inside_tree():
+		focus_target.global_position = center
 	camera_rig.set_target(focus_target)
 	camera_rig.set_zoom(framing["ortho_size"])
 

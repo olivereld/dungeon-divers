@@ -1,0 +1,308 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/ui/lab_left_panel.gd" id="1_lp"]
+[ext_resource type="Theme" path="res://src/dungeon_generator/debug/lab/ui/lab_theme.tres" id="2_theme"]
+
+[node name="LabLeftPanel" type="PanelContainer"]
+custom_minimum_size = Vector2(230, 0)
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 230.0
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_lp")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="ModeTabs" type="TabBar" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tab_count = 2
+tab_0/title = "⚙ Gen"
+tab_1/title = "🧩 Room"
+
+[node name="HSeparator1" type="HSeparator" parent="VBox"]
+layout_mode = 2
+
+[node name="GenScroll" type="ScrollContainer" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="GenVBox" type="VBoxContainer" parent="VBox/GenScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="GenMargin" type="MarginContainer" parent="VBox/GenScroll/GenVBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="InnerVBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GenHeader" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "▼ GENERATION"
+
+[node name="SeedBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="SeedLabel" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/SeedBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "SEED"
+
+[node name="SeedHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/SeedBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SeedSpin" type="SpinBox" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/SeedBox/SeedHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 2e+09
+value = 759537791.0
+
+[node name="RandomSeedBtn" type="Button" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/SeedBox/SeedHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 24)
+layout_mode = 2
+tooltip_text = "Random Seed"
+text = "⟳"
+
+[node name="AlgoBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="AlgoLabel" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/AlgoBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "ALGORITHM"
+
+[node name="AlgoOption" type="OptionButton" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/AlgoBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="FloorBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="FloorLabel" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/FloorBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "FLOORS"
+
+[node name="FloorSpin" type="SpinBox" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/FloorBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 10.0
+value = 1.0
+
+[node name="FloorSelectOption" type="OptionButton" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/FloorBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="GenerateBtn" type="Button" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "⚡ GENERATE"
+
+[node name="HSep1" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
+layout_mode = 2
+
+[node name="StructMargin" type="MarginContainer" parent="VBox/GenScroll/GenVBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_right = 10
+
+[node name="StructVBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/StructMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StructHeader" type="Label" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "▼ OVERLAYS · STRUCTURE"
+
+[node name="CheckRoomBounds" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Room Bounds"
+
+[node name="CheckTemplateFootprint" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Template Footprint"
+
+[node name="CheckCorridors" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Corridors"
+
+[node name="CheckCorridorDetails" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = false
+text = "Corridor Details"
+
+[node name="HSep2" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
+layout_mode = 2
+
+[node name="SemanticMargin" type="MarginContainer" parent="VBox/GenScroll/GenVBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_right = 10
+
+[node name="SemanticVBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/SemanticMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SemanticHeader" type="Label" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "▼ OVERLAYS · SEMANTIC"
+
+[node name="CheckEntrances" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Entrances"
+
+[node name="CheckInternalDoors" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Internal Doors"
+
+[node name="CheckSemanticLabels" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Semantic Labels"
+
+[node name="CheckStairs" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Stairs"
+
+[node name="HSep3" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
+layout_mode = 2
+
+[node name="DebugMargin" type="MarginContainer" parent="VBox/GenScroll/GenVBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_right = 10
+
+[node name="DebugVBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/DebugMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DebugHeader" type="Label" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "▼ OVERLAYS · DEBUG"
+
+[node name="CheckSpatialOverlay" type="CheckBox" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = false
+text = "Spatial Intent & Edges"
+
+[node name="CheckSemanticsOverlay" type="CheckBox" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = false
+text = "Semantics Start/Boss/CP"
+
+[node name="CheckTemplateId" type="CheckBox" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Template IDs"
+
+[node name="RoomScroll" type="ScrollContainer" parent="VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="RoomVBox" type="VBoxContainer" parent="VBox/RoomScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="RoomMargin" type="MarginContainer" parent="VBox/RoomScroll/RoomVBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="RoomInner" type="VBoxContainer" parent="VBox/RoomScroll/RoomVBox/RoomMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RoomHeader" type="Label" parent="VBox/RoomScroll/RoomVBox/RoomMargin/RoomInner"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "▼ ROOM FILTERS & SETTINGS"
+
+[node name="RoomInfoLabel" type="Label" parent="VBox/RoomScroll/RoomVBox/RoomMargin/RoomInner"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.53, 0.57, 0.67, 1)
+theme_override_font_sizes/font_size = 10
+text = "Select rooms or adjust generation filters in this tab."
+autowrap_mode = 2
+
+[node name="BadgeMargin" type="MarginContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="FloorBadgePanel" type="PanelContainer" parent="VBox/BadgeMargin"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="VBox/BadgeMargin/FloorBadgePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="FloorBadgeLabel" type="Label" parent="VBox/BadgeMargin/FloorBadgePanel/Margin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.53, 0.57, 0.67, 1)
+theme_override_font_sizes/font_size = 9
+text = "FLOOR 1  ·  BSP  ·  759537791"
+horizontal_alignment = 1

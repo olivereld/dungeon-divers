@@ -1,0 +1,76 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/ui/lab_viewport_toolbar.gd" id="1_tb"]
+[ext_resource type="Theme" path="res://src/dungeon_generator/debug/lab/ui/lab_theme.tres" id="2_theme"]
+
+[node name="LabViewportToolbar" type="PanelContainer"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -110.0
+offset_top = 12.0
+offset_right = 110.0
+offset_bottom = 44.0
+grow_horizontal = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_tb")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnZoomIn" type="Button" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 24)
+layout_mode = 2
+tooltip_text = "Zoom In"
+text = "＋"
+
+[node name="BtnZoomOut" type="Button" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 24)
+layout_mode = 2
+tooltip_text = "Zoom Out"
+text = "－"
+
+[node name="FrameDungeonBtn" type="Button" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 24)
+layout_mode = 2
+tooltip_text = "Frame Dungeon"
+text = "⛶"
+
+[node name="BtnReset" type="Button" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 24)
+layout_mode = 2
+tooltip_text = "Reset Pan"
+text = "↺"
+
+[node name="BtnGrid" type="Button" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 24)
+layout_mode = 2
+tooltip_text = "Toggle Grid"
+text = "▦"
+
+[node name="Sep3D" type="VSeparator" parent="HBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="RotateLeftBtn" type="Button" parent="HBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(36, 24)
+layout_mode = 2
+tooltip_text = "Rotate -45°"
+text = "-45°"
+
+[node name="RotateRightBtn" type="Button" parent="HBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(36, 24)
+layout_mode = 2
+tooltip_text = "Rotate +45°"
+text = "+45°"

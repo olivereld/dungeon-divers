@@ -2,6 +2,7 @@ class_name DungeonLevelLab
 extends Control
 
 ## Integration & Authoring Lab para el pipeline de generación de mazmorras.
+## Modern Cyber-Blueprint UI matching web design.
 
 const _LabConfigScript = preload("res://src/dungeon_generator/debug/lab/dungeon_lab_configuration.gd")
 const _LabControllerScript = preload("res://src/dungeon_generator/debug/lab/dungeon_lab_controller.gd")
@@ -14,6 +15,11 @@ const _GoldenRunnerScript = preload("res://src/dungeon_generator/debug/lab/dunge
 const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
 const _Dungeon3DViewerScript = preload("res://src/dungeon_generator/debug/lab/viewer/dungeon_3d_viewer.gd")
 const _DungeonAsciiExporterScript = preload("res://src/dungeon_generator/debug/dungeon_ascii_exporter.gd")
+
+const _LabTopBarScript = preload("res://src/dungeon_generator/debug/lab/ui/lab_top_bar.gd")
+const _LabLeftPanelScript = preload("res://src/dungeon_generator/debug/lab/ui/lab_left_panel.gd")
+const _LabViewportToolbarScript = preload("res://src/dungeon_generator/debug/lab/ui/lab_viewport_toolbar.gd")
+const _LabRightPanelScript = preload("res://src/dungeon_generator/debug/lab/ui/lab_right_panel.gd")
 
 enum LabMode {
 	GENERATE = 0,
@@ -40,7 +46,13 @@ var coverage: DungeonLabCoverage = DungeonLabCoverage.new()
 var golden_runner: DungeonLabGoldenRunner = DungeonLabGoldenRunner.new()
 var presentation_builder: DungeonPresentationBuilder = DungeonPresentationBuilder.new()
 
-# Sub-nodes
+# High-level UI Components
+var ui_top_bar: LabTopBar
+var ui_left_panel: LabLeftPanel
+var ui_viewport_toolbar: LabViewportToolbar
+var ui_right_panel: LabRightPanel
+
+# Sub-nodes (Preserved for 100% test compatibility)
 var renderer: DungeonLabRenderer
 var viewport_container_3d: SubViewportContainer
 var viewer_3d: Dungeon3DViewer
@@ -60,7 +72,18 @@ var status_label: Label
 var inspector_text: RichTextLabel
 var progress_bar: ProgressBar
 
+var _gen_start_time_msec: int = 0
+
 func _ensure_nodes() -> void:
+	if ui_top_bar == null:
+		ui_top_bar = find_child("TopBar", true, false) as _LabTopBarScript
+	if ui_left_panel == null:
+		ui_left_panel = find_child("LeftPanel", true, false) as _LabLeftPanelScript
+	if ui_viewport_toolbar == null:
+		ui_viewport_toolbar = find_child("LabViewportToolbar", true, false) as _LabViewportToolbarScript
+	if ui_right_panel == null:
+		ui_right_panel = find_child("RightPanel", true, false) as _LabRightPanelScript
+
 	if renderer == null:
 		renderer = find_child("Renderer", true, false) as _RendererScript
 	if viewport_container_3d == null:
@@ -129,10 +152,52 @@ func _ready() -> void:
 	_setup_topbar_ui()
 	_setup_mode_tabs()
 	_setup_overlay_checkboxes()
+	_setup_component_signals()
 	_update_view_mode_visibility()
 
-	# Generar mazmorra inicial
+	# Initial dungeon generation
 	generate_current()
+
+func _setup_component_signals() -> void:
+	if ui_top_bar != null:
+		if not ui_top_bar.view_mode_changed.is_connected(_on_top_bar_view_mode_changed):
+			ui_top_bar.view_mode_changed.connect(_on_top_bar_view_mode_changed)
+		if not ui_top_bar.copy_ascii_requested.is_connected(_on_copy_ascii_pressed):
+			ui_top_bar.copy_ascii_requested.connect(_on_copy_ascii_pressed)
+
+	if ui_viewport_toolbar != null:
+		if not ui_viewport_toolbar.zoom_in_requested.is_connected(_on_zoom_in):
+			ui_viewport_toolbar.zoom_in_requested.connect(_on_zoom_in)
+		if not ui_viewport_toolbar.zoom_out_requested.is_connected(_on_zoom_out):
+			ui_viewport_toolbar.zoom_out_requested.connect(_on_zoom_out)
+		if not ui_viewport_toolbar.frame_requested.is_connected(frame_dungeon_view):
+			ui_viewport_toolbar.frame_requested.connect(frame_dungeon_view)
+		if not ui_viewport_toolbar.reset_view_requested.is_connected(_on_reset_view):
+			ui_viewport_toolbar.reset_view_requested.connect(_on_reset_view)
+		if not ui_viewport_toolbar.grid_toggled.is_connected(_on_grid_toggled):
+			ui_viewport_toolbar.grid_toggled.connect(_on_grid_toggled)
+		if not ui_viewport_toolbar.rotate_left_requested.is_connected(_on_rotate_left_pressed):
+			ui_viewport_toolbar.rotate_left_requested.connect(_on_rotate_left_pressed)
+		if not ui_viewport_toolbar.rotate_right_requested.is_connected(_on_rotate_right_pressed):
+			ui_viewport_toolbar.rotate_right_requested.connect(_on_rotate_right_pressed)
+
+	if ui_left_panel != null:
+		if not ui_left_panel.generate_requested.is_connected(generate_current):
+			ui_left_panel.generate_requested.connect(generate_current)
+		if not ui_left_panel.random_seed_requested.is_connected(_on_random_seed_pressed):
+			ui_left_panel.random_seed_requested.connect(_on_random_seed_pressed)
+		if not ui_left_panel.seed_changed.is_connected(_on_seed_changed):
+			ui_left_panel.seed_changed.connect(_on_seed_changed)
+		if not ui_left_panel.algorithm_changed.is_connected(_on_algorithm_changed):
+			ui_left_panel.algorithm_changed.connect(_on_algorithm_changed)
+		if not ui_left_panel.floor_changed.is_connected(_on_floor_spin_changed):
+			ui_left_panel.floor_changed.connect(_on_floor_spin_changed)
+		if not ui_left_panel.overlay_toggled.is_connected(_on_overlay_toggled):
+			ui_left_panel.overlay_toggled.connect(_on_overlay_toggled)
+
+	if ui_right_panel != null:
+		if not ui_right_panel.room_selected.is_connected(_on_right_panel_room_selected):
+			ui_right_panel.room_selected.connect(_on_right_panel_room_selected)
 
 func _setup_topbar_ui() -> void:
 	if algo_option != null and algo_option.item_count == 0:
@@ -175,6 +240,34 @@ func _setup_topbar_ui() -> void:
 	if floor_selector != null and not floor_selector.item_selected.is_connected(_on_floor_selector_item_selected):
 		floor_selector.item_selected.connect(_on_floor_selector_item_selected)
 
+func _on_top_bar_view_mode_changed(mode: int) -> void:
+	set_view_mode(ViewMode.VIEW_3D if mode == 1 else ViewMode.VIEW_2D)
+
+func _on_zoom_in() -> void:
+	if renderer != null:
+		renderer.zoom_in()
+
+func _on_zoom_out() -> void:
+	if renderer != null:
+		renderer.zoom_out()
+
+func _on_reset_view() -> void:
+	if renderer != null:
+		renderer.reset_view()
+
+func _on_grid_toggled(enabled: bool) -> void:
+	if renderer != null:
+		renderer.show_grid = enabled
+
+func _on_seed_changed(val: int) -> void:
+	config.seed = val
+
+func _on_algorithm_changed(algo: String) -> void:
+	config.generator_type = algo
+
+func _on_floor_spin_changed(val: int) -> void:
+	config.floor_count = val
+
 func _on_copy_ascii_pressed() -> void:
 	var floor_data = controller.get_current_floor_result()
 	var d_result: DungeonResult = null
@@ -193,7 +286,7 @@ func _on_copy_ascii_pressed() -> void:
 	else:
 		sem_res = controller.get_active_semantic_result()
 
-	# 3. Fallback explícito: construir DungeonResult para el piso actual si no hay original (ej. multi-floor)
+	# 3. Fallback explícito: construir DungeonResult para el piso actual si no hay original
 	if d_result == null and floor_data != null:
 		if floor_data.has_method("to_dungeon_result"):
 			d_result = floor_data.to_dungeon_result()
@@ -225,13 +318,16 @@ func _on_copy_ascii_pressed() -> void:
 
 func _toggle_view_mode() -> void:
 	if current_view_mode == ViewMode.VIEW_2D:
-		current_view_mode = ViewMode.VIEW_3D
-		if view_mode_btn != null:
-			view_mode_btn.text = "🗺️ 2D Map"
+		set_view_mode(ViewMode.VIEW_3D)
 	else:
-		current_view_mode = ViewMode.VIEW_2D
-		if view_mode_btn != null:
-			view_mode_btn.text = "🏰 3D View"
+		set_view_mode(ViewMode.VIEW_2D)
+
+func set_view_mode(mode: ViewMode) -> void:
+	if current_view_mode == mode:
+		return
+	current_view_mode = mode
+	if view_mode_btn != null:
+		view_mode_btn.text = "🗺️ 2D Map" if mode == ViewMode.VIEW_3D else "🏰 3D View"
 	_update_view_mode_visibility()
 
 func _update_view_mode_visibility() -> void:
@@ -239,8 +335,12 @@ func _update_view_mode_visibility() -> void:
 		renderer.visible = (current_view_mode == ViewMode.VIEW_2D)
 	if viewport_container_3d != null:
 		viewport_container_3d.visible = (current_view_mode == ViewMode.VIEW_3D)
-		if viewport_container_3d.visible and viewer_3d != null:
+		if viewport_container_3d.visible and viewer_3d != null and is_inside_tree() and viewer_3d.is_inside_tree():
 			viewer_3d.frame_dungeon()
+	if ui_viewport_toolbar != null:
+		ui_viewport_toolbar.set_3d_mode(current_view_mode == ViewMode.VIEW_3D)
+	if ui_top_bar != null:
+		ui_top_bar.set_view_mode(1 if current_view_mode == ViewMode.VIEW_3D else 0)
 
 func frame_dungeon_view() -> void:
 	if current_view_mode == ViewMode.VIEW_3D and viewer_3d != null:
@@ -289,6 +389,33 @@ func _setup_overlay_checkboxes() -> void:
 	_bind_checkbox("CheckTemplateId", func(v: bool): overlay.show_template_id = v)
 	_bind_checkbox("CheckStairs", func(v: bool): overlay.show_stairs = v)
 
+func _on_overlay_toggled(opt_name: String, enabled: bool) -> void:
+	match opt_name:
+		"bounds": overlay.show_room_bounds = enabled
+		"footprint": overlay.show_template_footprint = enabled
+		"doors": overlay.show_internal_doors = enabled
+		"entrances": overlay.show_entrances = enabled
+		"corridors": overlay.show_corridors = enabled
+		"labels": overlay.show_semantic_labels = enabled
+		"template_id": overlay.show_template_id = enabled
+		"corridor_details":
+			overlay.show_corridor_details = enabled
+			if inspector_text != null and inspector != null:
+				if enabled:
+					var floor_data = controller.get_current_floor_result()
+					var diags: Array = []
+					if floor_data != null and floor_data.metadata.has("corridor_diagnostics"):
+						diags = floor_data.metadata["corridor_diagnostics"]
+					var paths: Array = floor_data.corridor_paths if floor_data != null else []
+					inspector_text.text = inspector.format_corridor_diagnostics(diags, paths)
+				else:
+					var sem_res = controller.get_active_semantic_result()
+					if sem_res != null:
+						_display_generation_summary(sem_res, null)
+		"spatial": overlay.show_spatial_overlay = enabled
+		"semantics": overlay.show_semantics_overlay = enabled
+		"stairs": overlay.show_stairs = enabled
+
 func _bind_checkbox(node_name: String, setter: Callable) -> void:
 	var cb = find_child(node_name, true, false) as CheckBox
 	if cb != null and not cb.toggled.is_connected(setter):
@@ -315,6 +442,8 @@ func _on_random_seed_pressed() -> void:
 		var le = seed_input.get_line_edit()
 		if le != null:
 			le.text = str(new_seed)
+	if ui_left_panel != null and ui_left_panel.seed_edit != null:
+		ui_left_panel.seed_edit.text = str(new_seed)
 	generate_current()
 
 func _on_mode_tab_changed(tab_idx: int) -> void:
@@ -415,12 +544,14 @@ func sync_ui_from_config() -> void:
 		pref_dist_spin.value = config.mission_aware_preferred_distance
 
 func _on_generation_started() -> void:
+	_gen_start_time_msec = Time.get_ticks_msec()
 	_set_status("Generating dungeon (seed %d)..." % config.seed)
 	if progress_bar != null:
 		progress_bar.visible = true
 		progress_bar.value = 0
 
 func _on_generation_completed(result: Dictionary) -> void:
+	var elapsed_ms := float(Time.get_ticks_msec() - _gen_start_time_msec)
 	_set_status("Generation complete (seed %d)!" % config.seed)
 	if progress_bar != null:
 		progress_bar.visible = false
@@ -443,14 +574,42 @@ func _on_generation_completed(result: Dictionary) -> void:
 	if viewer_3d != null:
 		pres_res = viewer_3d.load_dungeon(sem_res, presentation_builder, config.to_dungeon_config())
 
+	# Update footer badge
+	if ui_left_panel != null:
+		ui_left_panel.update_footer(controller.get_current_floor() + 1, config.generator_type, config.seed)
+
+	# Update right panel cards
+	if ui_right_panel != null and sem_res != null:
+		var total_rooms: int = sem_res.rooms.size()
+		var resolved_templates: int = 0
+		var fallback_templates: int = 0
+		for r in sem_res.rooms:
+			var t_id: StringName = r.custom_data.get("resolved_template_id", &"procedural_fallback") if "custom_data" in r else &"procedural_fallback"
+			if t_id != StringName() and t_id != &"procedural_fallback" and t_id != &"none":
+				resolved_templates += 1
+			else:
+				fallback_templates += 1
+
+		ui_right_panel.update_summary(config.seed, config.floor_count, config.generator_type, true)
+		ui_right_panel.update_metrics(
+			total_rooms,
+			sem_res.corridor_paths.size(),
+			sem_res.door_pairs.size(),
+			sem_res.stairs.size() if "stairs" in sem_res else 0,
+			resolved_templates,
+			fallback_templates,
+			elapsed_ms
+		)
+		ui_right_panel.populate_rooms(sem_res.rooms)
+
 	# Update stats in inspector panel if in GENERATE mode
 	if current_mode == LabMode.GENERATE and inspector_text != null and sem_res != null:
 		_display_generation_summary(sem_res, pres_res)
 
 func _display_generation_summary(sem_res: DungeonSemanticResult, pres_res) -> void:
-	var total_rooms := sem_res.rooms.size()
-	var resolved_templates := 0
-	var fallback_templates := 0
+	var total_rooms: int = sem_res.rooms.size()
+	var resolved_templates: int = 0
+	var fallback_templates: int = 0
 	for r in sem_res.rooms:
 		var t_id: StringName = r.custom_data.get("resolved_template_id", &"procedural_fallback") if "custom_data" in r else &"procedural_fallback"
 		if t_id != StringName() and t_id != &"procedural_fallback" and t_id != &"none":
@@ -497,6 +656,8 @@ func _on_generation_failed(reason: String) -> void:
 		renderer.render_failure(reason)
 	if viewer_3d != null:
 		viewer_3d.on_generation_failed(reason)
+	if ui_right_panel != null:
+		ui_right_panel.update_summary(config.seed, config.floor_count, config.generator_type, false)
 
 func _on_floor_changed(_floor_idx: int) -> void:
 	var floor_data = controller.get_current_floor_result()
@@ -504,9 +665,11 @@ func _on_floor_changed(_floor_idx: int) -> void:
 		renderer.render_floor(floor_data, overlay)
 	if viewer_3d != null:
 		viewer_3d.on_floor_changed(_floor_idx, controller.get_multi_floor_result(), presentation_builder, config.to_dungeon_config())
+	if ui_left_panel != null:
+		ui_left_panel.update_footer(_floor_idx + 1, config.generator_type, config.seed)
 
 func _on_room_selected(room: RefCounted) -> void:
-	if room == null or inspector_text == null:
+	if room == null:
 		return
 
 	if viewer_3d != null:
@@ -515,25 +678,47 @@ func _on_room_selected(room: RefCounted) -> void:
 	var bundle = controller.get_profile_bundle()
 	var diag = inspector.inspect_room(room, bundle, config.seed)
 
-	var bbcode := "[b]ROOM #%d[/b]\n" % diag.get("room_id", 0)
-	bbcode += "Type: [color=cyan]%s[/color]\n" % str(diag.get("purpose", ""))
-	bbcode += "Profile: [color=yellow]%s[/color]\n" % str(diag.get("profile_id", ""))
-	bbcode += "Resolved: [color=%s]%s[/color]\n" % [
-		"green" if not diag.get("is_fallback", true) else "coral",
-		str(diag.get("resolved_template_id", ""))
-	]
-	bbcode += "Size: %s\n" % str(diag.get("room_size", ""))
-	bbcode += "Fallback: %s\n\n" % str(diag.get("is_fallback", true))
+	if ui_right_panel != null:
+		ui_right_panel.show_room_details({
+			"id": diag.get("room_id", 0),
+			"type": str(diag.get("purpose", "")),
+			"pos": room.rect.position if "rect" in room else Vector2i.ZERO,
+			"size": diag.get("room_size", Vector2i.ZERO),
+			"template_id": diag.get("resolved_template_id", "procedural_fallback"),
+			"is_fallback": diag.get("is_fallback", true)
+		})
 
-	bbcode += "[b]Candidates (%d):[/b]\n" % diag.get("candidate_templates", []).size()
-	for c in diag.get("candidate_templates", []):
-		if diag.get("compatible_templates", []).has(c):
-			bbcode += "  [color=green]✔ %s (Compatible)[/color]\n" % str(c)
-		else:
-			var reas = diag.get("rejected_templates", {}).get(c, ["Incompatible"])
-			bbcode += "  [color=coral]✖ %s: %s[/color]\n" % [str(c), ", ".join(reas)]
+	if inspector_text != null:
+		var bbcode := "[b]ROOM #%d[/b]\n" % diag.get("room_id", 0)
+		bbcode += "Type: [color=cyan]%s[/color]\n" % str(diag.get("purpose", ""))
+		bbcode += "Profile: [color=yellow]%s[/color]\n" % str(diag.get("profile_id", ""))
+		bbcode += "Resolved: [color=%s]%s[/color]\n" % [
+			"green" if not diag.get("is_fallback", true) else "coral",
+			str(diag.get("resolved_template_id", ""))
+		]
+		bbcode += "Size: %s\n" % str(diag.get("room_size", ""))
+		bbcode += "Fallback: %s\n\n" % str(diag.get("is_fallback", true))
 
-	inspector_text.text = bbcode
+		bbcode += "[b]Candidates (%d):[/b]\n" % diag.get("candidate_templates", []).size()
+		for c in diag.get("candidate_templates", []):
+			if diag.get("compatible_templates", []).has(c):
+				bbcode += "  [color=green]✔ %s (Compatible)[/color]\n" % str(c)
+			else:
+				var reas = diag.get("rejected_templates", {}).get(c, ["Incompatible"])
+				bbcode += "  [color=coral]✖ %s: %s[/color]\n" % [str(c), ", ".join(reas)]
+
+		inspector_text.text = bbcode
+
+func _on_right_panel_room_selected(room_id: int) -> void:
+	var floor_data = controller.get_current_floor_result()
+	if floor_data != null and ("rooms" in floor_data) and floor_data.rooms != null:
+		for r in floor_data.rooms:
+			if r.id == room_id:
+				if renderer != null:
+					renderer._selected_room = r
+					renderer.queue_redraw()
+				_on_room_selected(r)
+				break
 
 func _run_showcase(profile_id: StringName) -> void:
 	var bundle = controller.get_profile_bundle()
@@ -582,3 +767,5 @@ func run_regression_mode() -> Dictionary:
 func _set_status(msg: String) -> void:
 	if status_label != null:
 		status_label.text = msg
+	if ui_top_bar != null:
+		ui_top_bar.set_status_text(msg)
