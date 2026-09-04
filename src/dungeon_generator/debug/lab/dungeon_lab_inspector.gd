@@ -39,3 +39,60 @@ func inspect_room(
 		"compatible_templates": raw_diag.get("compatible_templates", []),
 		"rejected_templates": raw_diag.get("rejected_templates", {})
 	}
+
+func format_corridor_diagnostics(diagnostics: Array, corridor_paths: Array = []) -> String:
+	if diagnostics.is_empty() and corridor_paths.is_empty():
+		return "[color=gray]No corridor diagnostic data available.[/color]"
+
+	var bbcode := "[b]CORRIDOR DETAILS & ROUTING ROBUSTNESS[/b]\n\n"
+
+	var path_map: Dictionary = {}
+	for cp in corridor_paths:
+		if cp != null:
+			path_map[cp.connection_id] = cp
+
+	var displayed_conns: Dictionary = {}
+
+	for diag in diagnostics:
+		var cid: int = diag.get("connection_id", -1)
+		displayed_conns[cid] = true
+		var r_a = diag.get("room_a_id", diag.get("room_a", "?"))
+		var r_b = diag.get("room_b_id", diag.get("room_b", "?"))
+		var role = diag.get("role", "UNKNOWN")
+		var routing = diag.get("routing_preference", "DEFAULT")
+		var strat = diag.get("strategy", "Unknown")
+		var pref_len = diag.get("preferred_length", 0.0)
+		var act_len = diag.get("actual_length", 0)
+		var turns = diag.get("turn_count", 0)
+		var states = diag.get("expanded_states", 0)
+		var ms = diag.get("elapsed_ms", 0.0)
+		var term_reason = diag.get("termination_reason", diag.get("reason", "OK"))
+		var status = diag.get("status", "SUCCESS")
+		var rep_att = diag.get("repair_attempted", false)
+		var rep_succ = diag.get("repair_success", false)
+
+		var rep_str := "N/A"
+		if rep_att:
+			rep_str = "[color=green]REPAIRED[/color]" if rep_succ else "[color=coral]FAILED[/color]"
+
+		var status_color := "green" if (status == "SUCCESS" or status == "REPAIRED") else "coral"
+
+		bbcode += "[b]Connection #%d (Room %s ➔ %s)[/b]\n" % [cid, str(r_a), str(r_b)]
+		bbcode += "  - Role: [color=cyan]%s[/color] | Status: [color=%s]%s[/color]\n" % [str(role), status_color, str(status)]
+		bbcode += "  - Routing: %s (%s)\n" % [str(routing), str(strat)]
+		bbcode += "  - Preferred Length: %.1f | Actual Length: %d\n" % [float(pref_len), int(act_len)]
+		bbcode += "  - Turns: %d\n" % int(turns)
+		bbcode += "  - Search States: %d | Search Time: %.2f ms\n" % [int(states), float(ms)]
+		if status == "FAILED" or status == "REJECTED" or term_reason != "SUCCESS":
+			bbcode += "  - Failure Reason: [color=coral]%s[/color]\n" % str(term_reason)
+		bbcode += "  - Repair Status: %s\n\n" % rep_str
+
+	for cid in path_map:
+		if not displayed_conns.has(cid):
+			var cp = path_map[cid]
+			bbcode += "[b]Connection #%d (Room %d ➔ %d)[/b]\n" % [cp.connection_id, cp.room_a_id, cp.room_b_id]
+			bbcode += "  - Routing Strategy: %s\n" % cp.routing_strategy
+			bbcode += "  - Actual Length: %d | Turns: %d\n" % [cp.centerline_cells.size(), cp.turn_count]
+			bbcode += "  - Search States: %d | Search Time: %.2f ms\n\n" % [cp.expanded_states, cp.elapsed_ms]
+
+	return bbcode

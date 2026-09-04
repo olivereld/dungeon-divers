@@ -1,6 +1,8 @@
 class_name DungeonLabConfiguration
 extends RefCounted
 
+const SpaceGrammarConfig = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
+
 var seed: int = 100001
 var generator_type: String = "Hybrid"
 var archetype_id: StringName = &"necropolis"
@@ -14,6 +16,14 @@ var use_mission_aware_placement: bool = true
 var mission_aware_preferred_distance: float = 12.0
 var mission_aware_candidate_count: int = 15
 var mission_aware_distance_jitter: float = 4.0
+
+# Spatial Constraints v1 (6 new parameters)
+var min_room_separation: int = 2
+var min_mission_edge_distance: float = 6.0
+var max_mission_edge_distance: float = 24.0
+var progression_strength: float = 1.0
+var density_strength: float = 0.5
+var preferred_progression_direction: Vector2 = Vector2.ZERO
 
 # Profile & Template Forcing Overrides
 var profile_mode: StringName = &"normal" # &"normal", &"force_profile", &"force_template"
@@ -36,6 +46,33 @@ func to_dungeon_config() -> DungeonConfig:
 	cfg.mission_aware_preferred_distance = mission_aware_preferred_distance
 	cfg.mission_aware_candidate_count = mission_aware_candidate_count
 	cfg.mission_aware_distance_jitter = mission_aware_distance_jitter
+	cfg.min_room_separation = min_room_separation
+	cfg.min_mission_edge_distance = min_mission_edge_distance
+	cfg.max_mission_edge_distance = max_mission_edge_distance
+	cfg.progression_strength = progression_strength
+	cfg.density_strength = density_strength
+	cfg.preferred_progression_direction = preferred_progression_direction
+
+	# Profile & Template Forcing Overrides
+	cfg.profile_mode = profile_mode
+	cfg.forced_profile_id = forced_profile_id
+	cfg.template_mode = template_mode
+	cfg.forced_template_id = forced_template_id
+
+	# SpaceGrammarConfig transport & sync
+	if cfg.space_grammar_config == null:
+		cfg.space_grammar_config = SpaceGrammarConfig.new()
+	cfg.space_grammar_config.use_mission_aware_placement = use_mission_aware_placement
+	cfg.space_grammar_config.mission_aware_preferred_distance = mission_aware_preferred_distance
+	cfg.space_grammar_config.mission_aware_candidate_count = mission_aware_candidate_count
+	cfg.space_grammar_config.mission_aware_distance_jitter = mission_aware_distance_jitter
+	cfg.space_grammar_config.min_room_separation = min_room_separation
+	cfg.space_grammar_config.min_mission_edge_distance = min_mission_edge_distance
+	cfg.space_grammar_config.max_mission_edge_distance = max_mission_edge_distance
+	cfg.space_grammar_config.progression_strength = progression_strength
+	cfg.space_grammar_config.density_strength = density_strength
+	cfg.space_grammar_config.preferred_progression_direction = preferred_progression_direction
+
 	return cfg
 
 func validate() -> Array[String]:
@@ -46,6 +83,12 @@ func validate() -> Array[String]:
 		errors.append("floor_count must be at least 1")
 	if hallway_width <= 0:
 		errors.append("hallway_width must be at least 1")
+	if min_room_separation < 0:
+		errors.append("min_room_separation cannot be negative")
+	if min_mission_edge_distance <= 0:
+		errors.append("min_mission_edge_distance must be positive")
+	if max_mission_edge_distance < min_mission_edge_distance:
+		errors.append("max_mission_edge_distance cannot be less than min_mission_edge_distance")
 	if template_mode == &"specific" and forced_template_id == &"":
 		errors.append("template_mode 'specific' requires forced_template_id")
 	if profile_mode == &"force_profile" and forced_profile_id == &"":

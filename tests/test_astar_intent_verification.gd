@@ -152,7 +152,7 @@ func test_group_c_room_avoidance() -> void:
 		1, 1, 2,
 		Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO,
 		true, _CorridorRequestScript.ROLE_SIDE_PATH, Vector2i(1, 2),
-		30.0, 4, 60, _CorridorRequestScript.ROUTING_AVOID_ROOMS
+		0.0, 4, 60, _CorridorRequestScript.ROUTING_AVOID_ROOMS
 	)
 	req.bind_physical_entrances(pair)
 
@@ -224,6 +224,7 @@ func test_group_d_preferred_length() -> void:
 	req_short.bind_physical_entrances(s_short["pair"])
 	var cfg_short := DungeonConfig.new()
 	cfg_short.prefer_orthogonal_routes = false # Evaluar A* directamente
+	cfg_short.corridor_width = 1
 	var res_short: CorridorCarveResult = _AStarCarverScript.carve_corridors(s_short["grid"], [s_short["room_a"], s_short["room_b"]], [req_short], [], cfg_short)
 	assert(res_short.is_valid, "Group D: Short preferred_length must succeed")
 	var path_short: CorridorPath = res_short.paths[0]
@@ -240,6 +241,7 @@ func test_group_d_preferred_length() -> void:
 	req_long.bind_physical_entrances(s_long["pair"])
 	var cfg_long := DungeonConfig.new()
 	cfg_long.prefer_orthogonal_routes = false # Evaluar A* directamente
+	cfg_long.corridor_width = 1
 	var res_long: CorridorCarveResult = _AStarCarverScript.carve_corridors(s_long["grid"], [s_long["room_a"], s_long["room_b"]], [req_long], [], cfg_long)
 	assert(res_long.is_valid, "Group D: Long preferred_length must succeed")
 	var path_long: CorridorPath = res_long.paths[0]

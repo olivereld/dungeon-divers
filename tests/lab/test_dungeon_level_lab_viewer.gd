@@ -19,7 +19,8 @@ func _init() -> void:
 	
 	var viewer: _ViewerScript = lab.viewer_3d
 	assert(viewer != null, "FAIL: 3D Viewer must be present in DungeonLevelLab")
-	print("  [OK] Point 1: Lab scene and 3D Viewer successfully instantiated")
+	lab.set_view_mode(lab.ViewMode.VIEW_3D)
+	print("  [OK] Point 1: Lab scene and 3D Viewer successfully instantiated (3D View Mode active)")
 	
 	# 2. Generation -> Semantic Result != null
 	lab.config.seed = 100001

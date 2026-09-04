@@ -81,6 +81,9 @@ func set_current_floor(floor_idx: int) -> void:
 	_current_floor_idx = floor_idx
 	floor_changed.emit(floor_idx)
 
+func get_current_floor() -> int:
+	return _current_floor_idx
+
 func get_current_floor_result():
 	var floors: Array = _current_result.get("floors", [])
 	if _current_floor_idx >= 0 and _current_floor_idx < floors.size():

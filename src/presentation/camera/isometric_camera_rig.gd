@@ -27,6 +27,11 @@ var _target_zoom: float = 24.0
 		return _target
 	set(val):
 		set_target(val)
+var target_position: Vector3:
+	get:
+		if _target != null:
+			return _target.global_position if _target.is_inside_tree() else _target.position
+		return global_position if is_inside_tree() else position
 @export var target_offset: Vector3 = Vector3(0.0, 0.7, 0.0)
 @export var follow_enabled: bool = true
 
@@ -216,7 +221,11 @@ func clear_target() -> void:
 
 func teleport_to_target() -> void:
 	if _target != null and is_instance_valid(_target):
-		global_position = _target.global_position + target_offset
+		var t_pos: Vector3 = _target.global_position if _target.is_inside_tree() else _target.position
+		if is_inside_tree():
+			global_position = t_pos + target_offset
+		else:
+			position = t_pos + target_offset
 		_current_velocity = Vector3.ZERO
 
 func set_follow_enabled(enabled: bool) -> void:
@@ -240,6 +249,10 @@ func zoom_out(amount: float = -1.0) -> void:
 
 func get_zoom() -> float:
 	return _target_zoom
+
+var camera: Camera3D:
+	get:
+		return get_camera()
 
 func get_camera() -> Camera3D:
 	if _camera == null:

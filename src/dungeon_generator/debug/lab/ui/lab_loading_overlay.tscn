@@ -1,0 +1,54 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/ui/lab_loading_overlay.gd" id="1_scrim"]
+[ext_resource type="Theme" path="res://src/dungeon_generator/debug/lab/ui/lab_theme.tres" id="2_theme"]
+
+[node name="LabLoadingOverlay" type="PanelContainer"]
+z_index = 20
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 0
+theme = ExtResource("2_theme")
+script = ExtResource("1_scrim")
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 2
+
+[node name="CenterCard" type="PanelContainer" parent="CenterContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 100)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/CenterCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="SpinnerLabel" type="Label" parent="CenterContainer/CenterCard/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.133333, 0.827451, 0.933333, 1)
+theme_override_font_sizes/font_size = 28
+text = "❖"
+horizontal_alignment = 1
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/CenterCard/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
+theme_override_font_sizes/font_size = 13
+text = "LOADING VIEW..."
+horizontal_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/CenterCard/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+theme_override_font_sizes/font_size = 11
+text = "Please wait"
+horizontal_alignment = 1

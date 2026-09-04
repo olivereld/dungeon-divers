@@ -1,8 +1,14 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=9 format=3 uid="uid://d3x1a2b3c4d5e"]
 
 [ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/dungeon_level_lab.gd" id="1_lab"]
-[ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/dungeon_lab_renderer.gd" id="2_renderer"]
-[ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/viewer/dungeon_3d_viewer.tscn" id="3_viewer"]
+[ext_resource type="Theme" path="res://src/dungeon_generator/debug/lab/ui/lab_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/ui/lab_top_bar.tscn" id="3_top_bar"]
+[ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/ui/lab_left_panel.tscn" id="4_left_panel"]
+[ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/dungeon_lab_renderer.gd" id="5_renderer"]
+[ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/viewer/dungeon_3d_viewer.tscn" id="6_viewer"]
+[ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/ui/lab_viewport_toolbar.tscn" id="7_toolbar"]
+[ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/ui/lab_right_panel.tscn" id="8_right_panel"]
+[ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/ui/lab_loading_overlay.tscn" id="9_loading"]
 
 [node name="DungeonLevelLab" type="Control"]
 layout_mode = 3
@@ -11,6 +17,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("2_theme")
 script = ExtResource("1_lab")
 
 [node name="VBox" type="VBoxContainer" parent="."]
@@ -20,185 +27,30 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/separation = 0
 
-[node name="TopBar" type="HBoxContainer" parent="VBox"]
-custom_minimum_size = Vector2(0, 42)
+[node name="TopBar" parent="VBox" instance=ExtResource("3_top_bar")]
 layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="TitleLabel" type="Label" parent="VBox/TopBar"]
-layout_mode = 2
-text = "  🧪 DungeonLevelLab  "
-
-[node name="SeedLabel" type="Label" parent="VBox/TopBar"]
-layout_mode = 2
-text = "Seed:"
-
-[node name="SeedSpin" type="SpinBox" parent="VBox/TopBar"]
-custom_minimum_size = Vector2(130, 0)
-layout_mode = 2
-min_value = 1.0
-max_value = 2e+09
-value = 100001.0
-
-[node name="RandomSeedBtn" type="Button" parent="VBox/TopBar"]
-layout_mode = 2
-text = "🎲 Random"
-
-[node name="AlgoLabel" type="Label" parent="VBox/TopBar"]
-layout_mode = 2
-text = "Algo:"
-
-[node name="AlgoOption" type="OptionButton" parent="VBox/TopBar"]
-custom_minimum_size = Vector2(120, 0)
-layout_mode = 2
-
-[node name="FloorLabel" type="Label" parent="VBox/TopBar"]
-layout_mode = 2
-text = "Floors:"
-
-[node name="FloorSpin" type="SpinBox" parent="VBox/TopBar"]
-layout_mode = 2
-min_value = 1.0
-max_value = 10.0
-value = 1.0
-
-[node name="FloorSelectOption" type="OptionButton" parent="VBox/TopBar"]
-custom_minimum_size = Vector2(90, 0)
-layout_mode = 2
-
-[node name="GenerateBtn" type="Button" parent="VBox/TopBar"]
-layout_mode = 2
-text = "  ⚡ GENERATE  "
-
-[node name="VSeparator" type="VSeparator" parent="VBox/TopBar"]
-layout_mode = 2
-
-[node name="ViewModeBtn" type="Button" parent="VBox/TopBar"]
-layout_mode = 2
-text = "🏰 3D View"
-
-[node name="FrameDungeonBtn" type="Button" parent="VBox/TopBar"]
-layout_mode = 2
-text = "🎯 Frame"
-
-[node name="RotateLeftBtn" type="Button" parent="VBox/TopBar"]
-layout_mode = 2
-text = "↺ -45°"
-
-[node name="RotateRightBtn" type="Button" parent="VBox/TopBar"]
-layout_mode = 2
-text = "↻ +45°"
-
-[node name="ExportAsciiBtn" type="Button" parent="VBox/TopBar"]
-layout_mode = 2
-text = "📋 Copiar ASCII"
-
-[node name="StatusLabel" type="Label" parent="VBox/TopBar"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Ready"
 
 [node name="HBox" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_constants/separation = 0
 
-[node name="LeftPanel" type="VBoxContainer" parent="VBox/HBox"]
-custom_minimum_size = Vector2(260, 0)
+[node name="LeftPanel" parent="VBox/HBox" instance=ExtResource("4_left_panel")]
 layout_mode = 2
 
-[node name="ModeTabs" type="TabBar" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-tab_count = 5
-tab_0/title = "🏰 Gen"
-tab_1/title = "🧩 Room"
-tab_2/title = "🖼️ Show"
-tab_3/title = "📊 Cov"
-tab_4/title = "🛡️ Reg"
-
-[node name="HSeparator" type="HSeparator" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-
-[node name="OverlayHeader" type="Label" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-text = " Layer Overlays:"
-
-[node name="CheckRoomBounds" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = true
-text = "Room Bounds"
-
-[node name="CheckTemplateFootprint" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = true
-text = "Template Footprint"
-
-[node name="CheckEntrances" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = true
-text = "Entrances"
-
-[node name="CheckCorridors" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = true
-text = "Corridors"
-
-[node name="CheckCorridorDetails" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = false
-text = "Corridor Details"
-
-[node name="CheckSpatialOverlay" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = false
-text = "Spatial Intent & Edges"
-
-[node name="CheckSemanticsOverlay" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = false
-text = "Semantics (Start/Boss/CP)"
-
-[node name="CheckInternalDoors" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = true
-text = "Internal Doors"
-
-[node name="CheckSemanticLabels" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = true
-text = "Semantic Labels"
-
-[node name="CheckTemplateId" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = true
-text = "Template IDs"
-
-[node name="CheckStairs" type="CheckBox" parent="VBox/HBox/LeftPanel"]
-layout_mode = 2
-button_pressed = true
-text = "Stairs"
-
-[node name="CenterPanel" type="Panel" parent="VBox/HBox"]
+[node name="CenterPanel" type="PanelContainer" parent="VBox/HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="Renderer" type="Control" parent="VBox/HBox/CenterPanel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("2_renderer")
+layout_mode = 2
+script = ExtResource("5_renderer")
 
 [node name="ViewportContainer3D" type="SubViewportContainer" parent="VBox/HBox/CenterPanel"]
 visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
 stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="VBox/HBox/CenterPanel/ViewportContainer3D"]
@@ -206,22 +58,17 @@ handle_input_locally = true
 size = Vector2i(800, 600)
 render_target_update_mode = 3
 
-[node name="Viewer3D" parent="VBox/HBox/CenterPanel/ViewportContainer3D/SubViewport" instance=ExtResource("3_viewer")]
+[node name="Viewer3D" parent="VBox/HBox/CenterPanel/ViewportContainer3D/SubViewport" instance=ExtResource("6_viewer")]
 
-[node name="RightPanel" type="VBoxContainer" parent="VBox/HBox"]
-custom_minimum_size = Vector2(320, 0)
-layout_mode = 2
-
-[node name="InspectorHeader" type="Label" parent="VBox/HBox/RightPanel"]
-layout_mode = 2
-text = "📋 Inspector & Metrics"
-
-[node name="ProgressBar" type="ProgressBar" parent="VBox/HBox/RightPanel"]
+[node name="LabLoadingOverlay" parent="VBox/HBox/CenterPanel" instance=ExtResource("9_loading")]
+unique_name_in_owner = true
 visible = false
 layout_mode = 2
 
-[node name="InspectorText" type="RichTextLabel" parent="VBox/HBox/RightPanel"]
+[node name="LabViewportToolbar" parent="VBox/HBox/CenterPanel" instance=ExtResource("7_toolbar")]
 layout_mode = 2
-size_flags_vertical = 3
-bbcode_enabled = true
-text = "Select a room or run a mode to view details."
+size_flags_horizontal = 4
+size_flags_vertical = 0
+
+[node name="RightPanel" parent="VBox/HBox" instance=ExtResource("8_right_panel")]
+layout_mode = 2

@@ -80,39 +80,40 @@ static func carve_corridors(
 	for req in requests:
 		var res: Dictionary = _carve_single_request(grid, rooms, room_map, req, cfg, astar, width, height)
 
+		var diag: Dictionary = {
+			"connection_id": req.connection_id,
+			"room_a_id": req.room_a_id,
+			"room_b_id": req.room_b_id,
+			"role": req.corridor_role,
+			"routing_preference": req.routing_preference,
+			"preferred_length": req.preferred_length,
+			"actual_length": 0,
+			"turn_count": 0,
+			"strategy": res.get("strategy", "Unknown"),
+			"expanded_states": res.get("expanded_states", 0),
+			"elapsed_ms": res.get("elapsed_ms", 0.0),
+			"termination_reason": res.get("termination_reason", res.get("reason", "UNKNOWN")),
+			"repair_attempted": false,
+			"repair_success": false
+		}
+
 		if res["success"]:
 			var path: CorridorPath = res["path"]
-			result.add_path(path, {
-				"connection_id": req.connection_id,
-				"room_a": req.room_a_id,
-				"room_b": req.room_b_id,
-				"start": str(req.start),
-				"goal": str(req.goal),
-				"cost": path.cost,
-				"carved_cells": path.carved_cells.size(),
-				"reused_cells": path.reused_cells_count,
-				"turns": path.turn_count,
-				"strategy": path.routing_strategy,
-				"status": "SUCCESS"
-			})
+			diag["actual_length"] = path.centerline_cells.size()
+			diag["turn_count"] = path.turn_count
+			diag["cost"] = path.cost
+			diag["carved_cells"] = path.carved_cells.size()
+			diag["reused_cells"] = path.reused_cells_count
+			diag["status"] = "SUCCESS"
+			result.add_path(path, diag)
 		else:
 			var reason: String = res.get("reason", "NO_PATH")
+			diag["status"] = "FAILED" if req.is_required else "REJECTED"
+			diag["reason"] = reason
 			if req.is_required:
-				result.add_failure(req.connection_id, reason, {
-					"connection_id": req.connection_id,
-					"room_a": req.room_a_id,
-					"room_b": req.room_b_id,
-					"start": str(req.start),
-					"goal": str(req.goal)
-				})
+				result.add_failure(req.connection_id, reason, diag)
 			else:
-				result.add_rejection(req.connection_id, reason, {
-					"connection_id": req.connection_id,
-					"room_a": req.room_a_id,
-					"room_b": req.room_b_id,
-					"start": str(req.start),
-					"goal": str(req.goal)
-				})
+				result.add_rejection(req.connection_id, reason, diag)
 
 	return result
 
@@ -132,12 +133,30 @@ static func _carve_single_request(
 
 	# Validación básica de bounds
 	if not grid.is_in_bounds(start_pos):
-		return {"success": false, "reason": "START_OUT_OF_BOUNDS"}
+		return {
+			"success": false,
+			"reason": "START_OUT_OF_BOUNDS",
+			"expanded_states": 0,
+			"elapsed_ms": 0.0,
+			"termination_reason": "START_OUT_OF_BOUNDS",
+			"strategy": "None"
+		}
 	if not grid.is_in_bounds(goal_pos):
-		return {"success": false, "reason": "GOAL_OUT_OF_BOUNDS"}
+		return {
+			"success": false,
+			"reason": "GOAL_OUT_OF_BOUNDS",
+			"expanded_states": 0,
+			"elapsed_ms": 0.0,
+			"termination_reason": "GOAL_OUT_OF_BOUNDS",
+			"strategy": "None"
+		}
 
 	var centerline: Array[Vector2i] = []
 	var routing_strategy: String = "Unknown"
+	var expanded_states: int = 0
+	var elapsed_ms: float = 0.0
+	var termination_reason: String = "NO_PATH"
+	var failure_reason: String = "NO_PATH"
 
 	# --- PASO 1: FIND (Jerarquía controlada por req.routing_preference) ---
 	var try_orthogonal: bool = config.prefer_orthogonal_routes
@@ -150,29 +169,52 @@ static func _carve_single_request(
 		if ortho_res.get("success", false):
 			centerline = ortho_res["centerline"]
 			routing_strategy = ortho_res.get("strategy", "Orthogonal")
+			termination_reason = "SUCCESS"
+			failure_reason = "SUCCESS"
 
 	# Fallback a A* direccional si el planificador ortogonal no encontró ruta o no está activado
 	if centerline.is_empty() and config.allow_astar_fallback:
 		var astar_res: Dictionary = _find_direction_aware_path(grid, rooms, room_map, req, config, grid_width, grid_height)
+		expanded_states = astar_res.get("expanded_states", 0)
+		elapsed_ms = astar_res.get("elapsed_ms", 0.0)
+		termination_reason = astar_res.get("termination_reason", "NO_PATH")
+		failure_reason = astar_res.get("reason", "NO_PATH")
+
 		if astar_res.get("success", false):
 			centerline = astar_res["centerline"]
 			routing_strategy = "AStar_TurnAware"
 		else:
-			# Fallback clásico mediante AStar2D si el direccional estricto fallara
-			if astar == null:
-				astar = _build_base_astar_graph(grid, config)
-			var classic_path := _find_classic_astar_path(astar, rooms, req, config, grid_width)
-			if not classic_path.is_empty():
-				centerline = classic_path
-				routing_strategy = "AStar_Classic"
+			# NO SILENT CLASSIC FALLBACK: Failures surface explicitly as SEARCH_BUDGET_EXCEEDED or NO_PATH.
+			return {
+				"success": false,
+				"reason": failure_reason,
+				"expanded_states": expanded_states,
+				"elapsed_ms": elapsed_ms,
+				"termination_reason": termination_reason,
+				"strategy": "AStar_TurnAware"
+			}
 
 	if centerline.is_empty():
-		return {"success": false, "reason": "NO_PATH"}
+		return {
+			"success": false,
+			"reason": failure_reason,
+			"expanded_states": expanded_states,
+			"elapsed_ms": elapsed_ms,
+			"termination_reason": termination_reason,
+			"strategy": routing_strategy
+		}
 
 	# --- PASO 2: VALIDATE (Validación del camino central) ---
 	var val_error: String = _validate_centerline(centerline, start_pos, goal_pos, grid, rooms, req.room_a_id, req.room_b_id)
 	if not val_error.is_empty():
-		return {"success": false, "reason": val_error}
+		return {
+			"success": false,
+			"reason": val_error,
+			"expanded_states": expanded_states,
+			"elapsed_ms": elapsed_ms,
+			"termination_reason": val_error,
+			"strategy": routing_strategy
+		}
 
 	# --- PASO 3: WIDEN (Cálculo y validación de la región ensanchada con preservación de esquinas y cuello de botella) ---
 	var c_width: int = config.corridor_width if ("corridor_width" in config) else 2
@@ -193,16 +235,37 @@ static func _carve_single_request(
 	# Validar que toda la región a tallar no viole restricciones y no invada salas (Fase 8)
 	for cell in candidate_carved_cells:
 		if not grid.is_in_bounds(cell):
-			return {"success": false, "reason": "WIDENING_OUT_OF_BOUNDS"}
+			return {
+				"success": false,
+				"reason": "WIDENING_OUT_OF_BOUNDS",
+				"expanded_states": expanded_states,
+				"elapsed_ms": elapsed_ms,
+				"termination_reason": "WIDENING_OUT_OF_BOUNDS",
+				"strategy": routing_strategy
+			}
 		var cell_type := grid.get_cell(cell)
 		if cell_type == CellGrid.CellType.COLUMN or cell_type == CellGrid.CellType.OBSTACLE or cell_type == CellGrid.CellType.VOID:
-			return {"success": false, "reason": "BLOCKED_CELL_IN_REGION"}
+			return {
+				"success": false,
+				"reason": "BLOCKED_CELL_IN_REGION",
+				"expanded_states": expanded_states,
+				"elapsed_ms": elapsed_ms,
+				"termination_reason": "BLOCKED_CELL_IN_REGION",
+				"strategy": routing_strategy
+			}
 		if cell != req.start_boundary and cell != req.goal_boundary:
 			var c_owner: int = grid.get_room_owner(cell)
 			if c_owner == -1:
 				c_owner = _get_room_id_at(cell, rooms)
 			if c_owner != -1 and c_owner != req.room_a_id and c_owner != req.room_b_id:
-				return {"success": false, "reason": "FORBIDDEN_ROOM_INVADED"}
+				return {
+					"success": false,
+					"reason": "FORBIDDEN_ROOM_INVADED",
+					"expanded_states": expanded_states,
+					"elapsed_ms": elapsed_ms,
+					"termination_reason": "FORBIDDEN_ROOM_INVADED",
+					"strategy": routing_strategy
+				}
 
 	# --- PASO 4: COMMIT (Commit atómico al CellGrid) ---
 	var reused_count: int = 0
@@ -259,11 +322,19 @@ static func _carve_single_request(
 		routing_strategy
 	)
 	path.straight_run_count = metrics["straight_run_count"]
+	path.expanded_states = expanded_states
+	path.elapsed_ms = elapsed_ms
+	path.termination_reason = "SUCCESS"
 
 	return {
 		"success": true,
-		"path": path
+		"path": path,
+		"expanded_states": expanded_states,
+		"elapsed_ms": elapsed_ms,
+		"termination_reason": "SUCCESS",
+		"strategy": routing_strategy
 	}
+
 
 ## Calcula métricas geométricas y estéticas sobre un centerline.
 static func compute_path_metrics(path: Array[Vector2i]) -> Dictionary:
@@ -302,6 +373,96 @@ static func compute_path_metrics(path: Array[Vector2i]) -> Dictionary:
 		"longest_straight_run": longest
 	}
 
+class _HeapNode extends RefCounted:
+	var pos: Vector2i
+	var dir: Vector2i
+	var g: float
+	var f: float
+	var dev: float
+	var key: int
+	var steps: int
+
+	func _init(p_pos: Vector2i, p_dir: Vector2i, p_g: float, p_f: float, p_dev: float, p_key: int, p_steps: int) -> void:
+		pos = p_pos
+		dir = p_dir
+		g = p_g
+		f = p_f
+		dev = p_dev
+		key = p_key
+		steps = p_steps
+
+class _SearchMinHeap extends RefCounted:
+	var _data: Array[_HeapNode] = []
+	var _pref_len: float = 0.0
+
+	func _init(pref_len: float = 0.0) -> void:
+		_pref_len = pref_len
+
+	func is_empty() -> bool:
+		return _data.is_empty()
+
+	func size() -> int:
+		return _data.size()
+
+	func _is_higher_priority(a: _HeapNode, b: _HeapNode) -> bool:
+		var diff: float = a.f - b.f
+		if diff < -0.0001:
+			return true
+		if diff > 0.0001:
+			return false
+		if _pref_len > 0.0:
+			var dev_diff: float = a.dev - b.dev
+			if dev_diff < -0.0001:
+				return true
+			if dev_diff > 0.0001:
+				return false
+		if a.steps != b.steps:
+			return a.steps < b.steps
+		if a.pos.x != b.pos.x:
+			return a.pos.x < b.pos.x
+		if a.pos.y != b.pos.y:
+			return a.pos.y < b.pos.y
+		if a.dir.x != b.dir.x:
+			return a.dir.x < b.dir.x
+		return a.dir.y < b.dir.y
+
+	func push(item: _HeapNode) -> void:
+		_data.append(item)
+		var i: int = _data.size() - 1
+		while i > 0:
+			var parent: int = (i - 1) >> 1
+			if _is_higher_priority(_data[i], _data[parent]):
+				var tmp: _HeapNode = _data[i]
+				_data[i] = _data[parent]
+				_data[parent] = tmp
+				i = parent
+			else:
+				break
+
+	func pop() -> _HeapNode:
+		var top: _HeapNode = _data[0]
+		var last: _HeapNode = _data.pop_back()
+		if not _data.is_empty():
+			_data[0] = last
+			var i: int = 0
+			var n: int = _data.size()
+			while true:
+				var left: int = (i << 1) + 1
+				var right: int = left + 1
+				var best: int = i
+				if left < n and _is_higher_priority(_data[left], _data[best]):
+					best = left
+				if right < n and _is_higher_priority(_data[right], _data[best]):
+					best = right
+				if best != i:
+					var tmp: _HeapNode = _data[i]
+					_data[i] = _data[best]
+					_data[best] = tmp
+					i = best
+				else:
+					break
+		return top
+
 ## Búsqueda A* Direccional (Turn-Aware): explora en el espacio (posición, dirección_entrada)
 ## penalizando severamente cada cambio de dirección para eliminar el patrón de escalera.
 static func _find_direction_aware_path(
@@ -338,91 +499,76 @@ static func _find_direction_aware_path(
 		Vector2i(0, -1)
 	]
 
-	# Cola de prioridad simulada (ordenada por f_score)
-	# Estado: String clave "x,y,dx,dy"
-	var open_set: Array[Dictionary] = []
+	# Precalcular rectángulos de salas ajenas y sus buffers para evitar allocs en el bucle caliente
+	var foreign_rects: Array[Rect2i] = []
+	var foreign_grown_rects: Array[Rect2i] = []
+	for r in rooms:
+		if r != null and r.id != req.room_a_id and r.id != req.room_b_id:
+			foreign_rects.append(r.rect)
+			foreign_grown_rects.append(r.rect.grow(1))
+
+	# Precalcular jambas protegidas de puertas de inicio y fin
+	var jamb_cells: Dictionary = {}
+	if req.start_direction.y != 0:
+		jamb_cells[req.start_boundary + Vector2i(-1, 0)] = true
+		jamb_cells[req.start_boundary + Vector2i(1, 0)] = true
+	elif req.start_direction.x != 0:
+		jamb_cells[req.start_boundary + Vector2i(0, -1)] = true
+		jamb_cells[req.start_boundary + Vector2i(0, 1)] = true
+
+	if req.goal_direction.y != 0:
+		jamb_cells[req.goal_boundary + Vector2i(-1, 0)] = true
+		jamb_cells[req.goal_boundary + Vector2i(1, 0)] = true
+	elif req.goal_direction.x != 0:
+		jamb_cells[req.goal_boundary + Vector2i(0, -1)] = true
+		jamb_cells[req.goal_boundary + Vector2i(0, 1)] = true
+
+	# Cola de prioridad binaria (MinHeap) ordenada por f_score y desempates lexicográficos
+	var open_set := _SearchMinHeap.new(req.preferred_length)
 	var g_score: Dictionary = {}
 	var came_from: Dictionary = {}
 
 	var start_dir := req.start_direction
-	var start_key := "%d,%d,%d,%d,%d" % [start_pos.x, start_pos.y, start_dir.x, start_dir.y, 0]
+	var start_dir_code: int = (start_dir.x + 1) * 3 + (start_dir.y + 1)
+	var start_pos_id: int = start_pos.y * grid_width + start_pos.x
+	var start_key: int = (start_pos_id << 8) | (start_dir_code << 4)
 	g_score[start_key] = 0.0
 
 	var h_start: float = _heuristic_turn_aware(start_pos, start_dir, goal_pos, turn_penalty)
 	var est_start_len: float = float(absi(goal_pos.x - start_pos.x) + absi(goal_pos.y - start_pos.y))
 	var start_dev: float = absf(est_start_len - req.preferred_length) if req.preferred_length > 0.0 else 0.0
 
-	open_set.append({
-		"pos": start_pos,
-		"dir": start_dir,
-		"g": 0.0,
-		"f": h_start,
-		"length_deviation": start_dev,
-		"key": start_key,
-		"steps": 0
-	})
+	open_set.push(_HeapNode.new(start_pos, start_dir, 0.0, h_start, start_dev, start_key, 0))
 
-	var best_goal_state: String = ""
+	var max_states: int = config.corridor_max_search_states if ("corridor_max_search_states" in config) else 12000
+	var max_ms: float = config.corridor_max_search_ms if ("corridor_max_search_ms" in config) else 250.0
+	var t_start: int = Time.get_ticks_msec()
+	var expanded_states: int = 0
+	var termination_reason: String = "NO_PATH"
+
+	var best_goal_state: int = -1
 	var min_goal_cost: float = INF
-	var iterations: int = 0
-	var max_iterations: int = grid_width * grid_height * 8
 
-	while not open_set.is_empty() and iterations < max_iterations:
-		iterations += 1
+	while not open_set.is_empty():
+		expanded_states += 1
 
-		# Extraer nodo con menor f_score (y desempate lexicográfico secundario por preferred_length)
-		var best_idx: int = 0
-		var best_node: Dictionary = open_set[0]
-		for i in range(1, open_set.size()):
-			var node: Dictionary = open_set[i]
-			if node["f"] < best_node["f"] - 0.0001:
-				best_node = node
-				best_idx = i
-			elif absf(node["f"] - best_node["f"]) <= 0.0001:
-				# 1. Desviación respecto a preferred_length
-				var dev_curr: float = node.get("length_deviation", 0.0)
-				var dev_best: float = best_node.get("length_deviation", 0.0)
-				if req.preferred_length > 0.0 and absf(dev_curr - dev_best) > 0.0001:
-					if dev_curr < dev_best:
-						best_node = node
-						best_idx = i
-				else:
-					# 2. Steps
-					var steps_curr: int = node.get("steps", 0)
-					var steps_best: int = best_node.get("steps", 0)
-					if steps_curr != steps_best:
-						if steps_curr < steps_best:
-							best_node = node
-							best_idx = i
-					else:
-						# 3. Posición y dirección deterministas
-						var pos_curr: Vector2i = node["pos"]
-						var pos_best: Vector2i = best_node["pos"]
-						if pos_curr.x != pos_best.x:
-							if pos_curr.x < pos_best.x:
-								best_node = node
-								best_idx = i
-						elif pos_curr.y != pos_best.y:
-							if pos_curr.y < pos_best.y:
-								best_node = node
-								best_idx = i
-						elif node["dir"].x != best_node["dir"].x:
-							if node["dir"].x < best_node["dir"].x:
-								best_node = node
-								best_idx = i
-						elif node["dir"].y < best_node["dir"].y:
-							best_node = node
-							best_idx = i
+		# Límites estrictos de presupuesto de búsqueda
+		if expanded_states > max_states:
+			termination_reason = "SEARCH_BUDGET_EXCEEDED"
+			break
+		if (expanded_states & 63) == 0:
+			var elapsed_ms: float = float(Time.get_ticks_msec() - t_start)
+			if elapsed_ms >= max_ms:
+				termination_reason = "SEARCH_BUDGET_EXCEEDED"
+				break
 
-		var current: Dictionary = open_set[best_idx]
-		open_set.remove_at(best_idx)
+		var current: _HeapNode = open_set.pop()
 
-		var curr_pos: Vector2i = current["pos"]
-		var curr_dir: Vector2i = current["dir"]
-		var curr_key: String = current["key"]
-		var curr_g: float = current["g"]
-
-		var curr_steps: int = current.get("steps", 0)
+		var curr_pos: Vector2i = current.pos
+		var curr_dir: Vector2i = current.dir
+		var curr_key: int = current.key
+		var curr_g: float = current.g
+		var curr_steps: int = current.steps
 
 		if curr_g > g_score.get(curr_key, INF):
 			continue
@@ -431,18 +577,27 @@ static func _find_direction_aware_path(
 			if curr_g < min_goal_cost:
 				min_goal_cost = curr_g
 				best_goal_state = curr_key
+				termination_reason = "SUCCESS"
 				break
 
 		# Explorar vecinos cardinales
+		var b_dist: int = config.corridor_bottleneck_distance if ("corridor_bottleneck_distance" in config) else 1
 		for d in directions:
 			var next_pos: Vector2i = curr_pos + d
 
 			if not grid.is_in_bounds(next_pos):
 				continue
 
-			var ctype: int = grid.get_cell(next_pos)
-			if ctype == CellGrid.CellType.VOID or ctype == CellGrid.CellType.COLUMN or ctype == CellGrid.CellType.OBSTACLE:
+			# Widen-aware validation en tiempo de búsqueda
+			var is_endpoint: bool = (next_pos == goal_pos or next_pos == start_pos)
+			var dist_start: int = absi(next_pos.x - start_pos.x) + absi(next_pos.y - start_pos.y)
+			var dist_goal: int = absi(goal_pos.x - next_pos.x) + absi(goal_pos.y - next_pos.y)
+			var eff_w: int = 1 if (is_endpoint or dist_start <= b_dist or dist_goal <= b_dist) else config.corridor_width
+
+			if not _is_corridor_footprint_valid(grid, next_pos, d, eff_w, room_map, req.room_a_id, req.room_b_id, foreign_rects, foreign_grown_rects):
 				continue
+
+			var ctype: int = grid.get_cell(next_pos)
 
 			# Coste de terreno
 			var step_cost: float = cost_wall
@@ -451,42 +606,9 @@ static func _find_direction_aware_path(
 			elif ctype == CellGrid.CellType.FLOOR or ctype == CellGrid.CellType.DOOR:
 				step_cost = cost_floor
 
-			# Prohibición de invasión de salas y perímetro prohibido de distancia 1
-			if next_pos != goal_pos and next_pos != start_pos:
-				var owner_id: int = grid.get_room_owner(next_pos)
-				if owner_id == -1:
-					owner_id = _get_room_id_at(next_pos, rooms)
-				if owner_id != -1 and owner_id != req.room_a_id and owner_id != req.room_b_id:
-					continue
-
-				# Si no es corredor previo, no puede penetrar en el perímetro de 1 de distancia de salas ajenas
-				if ctype != CellGrid.CellType.CORRIDOR:
-					var in_buffer := false
-					for r in rooms:
-						if r != null and r.id != req.room_a_id and r.id != req.room_b_id and r.rect.grow(1).has_point(next_pos):
-							in_buffer = true
-							break
-					if in_buffer:
-						continue
-
-				# 1. Proteger jambas laterales de las puertas del inicio y final de la conexión
-				var is_jamb := false
-				if req.start_direction.y != 0:
-					if next_pos == req.start_boundary + Vector2i(-1, 0) or next_pos == req.start_boundary + Vector2i(1, 0):
-						is_jamb = true
-				elif req.start_direction.x != 0:
-					if next_pos == req.start_boundary + Vector2i(0, -1) or next_pos == req.start_boundary + Vector2i(0, 1):
-						is_jamb = true
-
-				if req.goal_direction.y != 0:
-					if next_pos == req.goal_boundary + Vector2i(-1, 0) or next_pos == req.goal_boundary + Vector2i(1, 0):
-						is_jamb = true
-				elif req.goal_direction.x != 0:
-					if next_pos == req.goal_boundary + Vector2i(0, -1) or next_pos == req.goal_boundary + Vector2i(0, 1):
-						is_jamb = true
-
-				if is_jamb:
-					step_cost += 50.0
+			# Proteger jambas laterales de las puertas del inicio y final de la conexión
+			if jamb_cells.has(next_pos):
+				step_cost += 50.0
 
 			# Penalización de giro si cambia de dirección respecto a curr_dir
 			var turn_cost: float = 0.0
@@ -495,8 +617,11 @@ static func _find_direction_aware_path(
 
 			var tentative_g: float = curr_g + step_cost + turn_cost
 			var next_steps: int = curr_steps + 1
-			var bucket: int = int(next_steps / 4) if req.preferred_length > 0.0 else 0
-			var next_key := "%d,%d,%d,%d,%d" % [next_pos.x, next_pos.y, d.x, d.y, bucket]
+			# Control de espacio de estados: bucket acotado de longitud
+			var bucket: int = clampi(int(next_steps / 4), 0, 8) if req.preferred_length > 0.0 else 0
+			var next_dir_code: int = (d.x + 1) * 3 + (d.y + 1)
+			var next_pos_id: int = next_pos.y * grid_width + next_pos.x
+			var next_key: int = (next_pos_id << 8) | (next_dir_code << 4) | bucket
 
 			if tentative_g < g_score.get(next_key, INF):
 				g_score[next_key] = tentative_g
@@ -504,41 +629,51 @@ static func _find_direction_aware_path(
 				var h: float = _heuristic_turn_aware(next_pos, d, goal_pos, turn_penalty)
 				var dev: float = 0.0
 				var len_bias: float = 0.0
+				var est_total_len: float = float(next_steps) + float(absi(goal_pos.x - next_pos.x) + absi(goal_pos.y - next_pos.y))
 				if req.preferred_length > 0.0:
-					var est_total_len: float = float(next_steps) + float(absi(goal_pos.x - next_pos.x) + absi(goal_pos.y - next_pos.y))
 					dev = absf(est_total_len - req.preferred_length)
-					len_bias = dev * 1.0
-				open_set.append({
-					"pos": next_pos,
-					"dir": d,
-					"g": tentative_g,
-					"f": tentative_g + h + len_bias,
-					"length_deviation": dev,
-					"key": next_key,
-					"steps": next_steps
-				})
+					len_bias += dev * 1.5
+				if req.max_length > 0 and est_total_len > float(req.max_length):
+					len_bias += (est_total_len - float(req.max_length)) * 1.5
+				elif req.min_length > 0 and est_total_len < float(req.min_length):
+					len_bias += (float(req.min_length) - est_total_len) * 1.5
 
-	if best_goal_state.is_empty():
-		return {"success": false, "centerline": [] as Array[Vector2i]}
+				open_set.push(_HeapNode.new(next_pos, d, tentative_g, tentative_g + h + len_bias, dev, next_key, next_steps))
+
+	var total_elapsed_ms: float = float(Time.get_ticks_msec() - t_start)
+	if best_goal_state == -1:
+		return {
+			"success": false,
+			"centerline": [] as Array[Vector2i],
+			"expanded_states": expanded_states,
+			"elapsed_ms": total_elapsed_ms,
+			"termination_reason": termination_reason,
+			"reason": termination_reason
+		}
 
 	# Reconstruir camino hacia atrás
 	var path_reversed: Array[Vector2i] = []
-	var curr_trace: String = best_goal_state
+	var curr_trace: int = best_goal_state
 
 	while came_from.has(curr_trace):
-		var parts := curr_trace.split(",")
-		path_reversed.append(Vector2i(int(parts[0]), int(parts[1])))
+		var pos_id: int = curr_trace >> 8
+		path_reversed.append(Vector2i(pos_id % grid_width, pos_id / grid_width))
 		curr_trace = came_from[curr_trace]
 
 	# Añadir punto inicial
-	var start_parts := curr_trace.split(",")
-	path_reversed.append(Vector2i(int(start_parts[0]), int(start_parts[1])))
+	var final_pos_id: int = curr_trace >> 8
+	path_reversed.append(Vector2i(final_pos_id % grid_width, final_pos_id / grid_width))
 	path_reversed.reverse()
 
 	return {
 		"success": true,
-		"centerline": path_reversed
+		"centerline": path_reversed,
+		"expanded_states": expanded_states,
+		"elapsed_ms": total_elapsed_ms,
+		"termination_reason": "SUCCESS",
+		"reason": "SUCCESS"
 	}
+
 
 static func _heuristic_turn_aware(pos: Vector2i, dir: Vector2i, goal: Vector2i, turn_penalty: float) -> float:
 	var manhattan: float = float(absi(goal.x - pos.x) + absi(goal.y - pos.y))
@@ -631,6 +766,87 @@ static func _validate_centerline(
 
 	return ""
 
+## Verifica si una celda y su huella lateral según corridor_width y direction son válidas para el corredor.
+static func _is_corridor_footprint_valid(
+	grid: CellGrid,
+	center_cell: Vector2i,
+	direction: Vector2i,
+	corridor_width: int,
+	room_map: Dictionary,
+	room_a_id: int,
+	room_b_id: int,
+	foreign_rects: Array[Rect2i] = [],
+	foreign_grown_rects: Array[Rect2i] = []
+) -> bool:
+	if not grid.is_in_bounds(center_cell):
+		return false
+
+	var ctype: int = grid.get_cell(center_cell)
+	if ctype == CellGrid.CellType.VOID or ctype == CellGrid.CellType.COLUMN or ctype == CellGrid.CellType.OBSTACLE:
+		return false
+
+	var center_owner: int = grid.get_room_owner(center_cell)
+	if center_owner != -1 and center_owner != room_a_id and center_owner != room_b_id:
+		return false
+
+	if not foreign_rects.is_empty():
+		if center_owner == -1:
+			for fr in foreign_rects:
+				if fr.has_point(center_cell):
+					return false
+		if ctype != CellGrid.CellType.CORRIDOR:
+			for fgr in foreign_grown_rects:
+				if fgr.has_point(center_cell):
+					return false
+	else:
+		var rooms_list: Array = room_map.values()
+		if center_owner == -1:
+			center_owner = _get_room_id_at(center_cell, rooms_list)
+		if center_owner != -1 and center_owner != room_a_id and center_owner != room_b_id:
+			return false
+		if ctype != CellGrid.CellType.CORRIDOR:
+			for r in rooms_list:
+				if r != null and r.id != room_a_id and r.id != room_b_id and r.rect.grow(1).has_point(center_cell):
+					return false
+
+	if corridor_width <= 1 or direction == Vector2i.ZERO:
+		return true
+
+	# Validar desplazamiento lateral según ancho del corredor
+	var perp := Vector2i(-direction.y, direction.x)
+	for offset in range(1, corridor_width):
+		var side_cell: Vector2i = center_cell + perp * offset
+		if not grid.is_in_bounds(side_cell):
+			return false
+		var side_type: int = grid.get_cell(side_cell)
+		if side_type == CellGrid.CellType.VOID or side_type == CellGrid.CellType.COLUMN or side_type == CellGrid.CellType.OBSTACLE:
+			return false
+		var side_owner: int = grid.get_room_owner(side_cell)
+		if side_owner != -1 and side_owner != room_a_id and side_owner != room_b_id:
+			return false
+
+		if not foreign_rects.is_empty():
+			if side_owner == -1:
+				for fr in foreign_rects:
+					if fr.has_point(side_cell):
+						return false
+			if side_type != CellGrid.CellType.CORRIDOR:
+				for fgr in foreign_grown_rects:
+					if fgr.has_point(side_cell):
+						return false
+		else:
+			var rooms_list: Array = room_map.values()
+			if side_owner == -1:
+				side_owner = _get_room_id_at(side_cell, rooms_list)
+			if side_owner != -1 and side_owner != room_a_id and side_owner != room_b_id:
+				return false
+			if side_type != CellGrid.CellType.CORRIDOR:
+				for r in rooms_list:
+					if r != null and r.id != room_a_id and r.id != room_b_id and r.rect.grow(1).has_point(side_cell):
+						return false
+
+	return true
+
 static func _compute_widened_corridor_cells(
 	centerline: Array[Vector2i],
 	boundary_cells: Array[Vector2i],
@@ -718,7 +934,7 @@ static func _is_safe_widening_cell(
 
 	return true
 
-static func _get_room_id_at(pos: Vector2i, rooms: Array[RoomData]) -> int:
+static func _get_room_id_at(pos: Vector2i, rooms: Array) -> int:
 	for r in rooms:
 		if r != null and r.rect.has_point(pos):
 			return r.id

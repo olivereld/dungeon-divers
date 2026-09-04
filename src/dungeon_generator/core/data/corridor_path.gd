@@ -14,6 +14,9 @@ var turn_count: int = 0
 var straight_run_count: int = 0
 var longest_straight_run: int = 0
 var routing_strategy: String = "Unknown"
+var expanded_states: int = 0
+var elapsed_ms: float = 0.0
+var termination_reason: String = "SUCCESS"
 
 func _init(
 	p_conn_id: int = -1,
