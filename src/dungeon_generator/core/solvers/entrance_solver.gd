@@ -15,7 +15,8 @@ static func resolve(
 	rooms: Array[RoomData],
 	connections: Array,
 	grid: CellGrid,
-	config: DungeonConfig = null
+	config: DungeonConfig = null,
+	corridor_plan = null
 ) -> EntranceResolutionResult:
 	var result = _EntranceResolutionResultScript.new()
 
@@ -42,8 +43,8 @@ static func resolve(
 		if r != null:
 			candidates_by_room[r.id] = generate_candidates(r, grid, corner_margin)
 
-	# 3. Estructurar y ordenar conexiones por prioridad
-	var sorted_conns: Array = _sort_connections_by_priority(connections, room_map, candidates_by_room)
+	# 3. Estructurar y ordenar conexiones por prioridad (consumiendo prioridad semántica del plan si existe)
+	var sorted_conns: Array = _sort_connections_by_priority(connections, room_map, candidates_by_room, corridor_plan)
 
 	# 4. Estado de reservas por habitación
 	var reserved_positions: Dictionary = {}
@@ -493,13 +494,15 @@ static func _tie_breaker_a_over_b(
 
 ## Ordena conexiones por prioridad:
 ## 1. Mandatory/MST primero
-## 2. Menor cantidad de candidatos (más restringidas primero)
-## 3. Mayor distancia entre centros
-## 4. Connection ID estable
+## 2. Prioridad semántica de rol (MAIN_PATH > SIDE_PATH > OPTIONAL > SHORTCUT)
+## 3. Menor cantidad de candidatos (más restringidas primero)
+## 4. Mayor distancia entre centros
+## 5. Connection ID estable
 static func _sort_connections_by_priority(
 	connections: Array,
 	room_map: Dictionary,
-	candidates_by_room: Dictionary
+	candidates_by_room: Dictionary,
+	corridor_plan = null
 ) -> Array:
 	var conns := connections.duplicate()
 	conns.sort_custom(func(a, b):
@@ -509,7 +512,24 @@ static func _sort_connections_by_priority(
 		if req_a != req_b:
 			return req_a # true antes que false
 
-		# 2. Restricción de candidatos
+		# 2. Prioridad semántica de rol desde CorridorPlan (si está disponible)
+		if corridor_plan != null and corridor_plan.has_method("get_request_for_connection"):
+			var plan_a = corridor_plan.get_request_for_connection(a.id if ("id" in a) else -1)
+			var plan_b = corridor_plan.get_request_for_connection(b.id if ("id" in b) else -1)
+			var role_rank := func(r) -> int:
+				if r == null or not ("corridor_role" in r):
+					return 0
+				match r.corridor_role:
+					&"main_path": return 3
+					&"side_path": return 2
+					&"optional": return 1
+					_: return 0
+			var rank_a: int = role_rank.call(plan_a)
+			var rank_b: int = role_rank.call(plan_b)
+			if rank_a != rank_b:
+				return rank_a > rank_b
+
+		# 3. Restricción de candidatos
 		var c_count_a: int = candidates_by_room.get(a.room_a_id, []).size() * candidates_by_room.get(a.room_b_id, []).size()
 		var c_count_b: int = candidates_by_room.get(b.room_a_id, []).size() * candidates_by_room.get(b.room_b_id, []).size()
 		if c_count_a != c_count_b:

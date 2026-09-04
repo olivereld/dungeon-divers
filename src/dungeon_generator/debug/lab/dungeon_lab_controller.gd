@@ -54,7 +54,9 @@ func generate_dungeon(config: _ConfigScript) -> Dictionary:
 		var floor_data = null
 		var sem_res = null
 		if single_res != null:
-			floor_data = _DungeonFloorDataScript.new(1, single_res.grid, single_res.rooms, single_res.doors)
+			floor_data = _DungeonFloorDataScript.from_dungeon_result(single_res)
+			if floor_data.floor_number <= 0:
+				floor_data.floor_number = 1
 			sem_res = _semantic_orchestrator.generate_semantics(single_res, d_cfg)
 			floor_data.semantic_result = sem_res
 		result = {
@@ -102,3 +104,11 @@ func get_multi_floor_result() -> DungeonMultiFloorResult:
 
 func get_current_result() -> Dictionary:
 	return _current_result
+
+func get_profile_bundle():
+	if _pipeline != null:
+		return _pipeline.get_profile_bundle()
+	return null
+
+func get_pipeline():
+	return _pipeline

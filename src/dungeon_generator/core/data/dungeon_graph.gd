@@ -97,6 +97,18 @@ func get_predecessors(id: int) -> Array[int]:
 	result.sort()
 	return result
 
+func get_neighbors(id: int) -> Array[int]:
+	var neighbors: Dictionary = {}
+	for succ in get_successors(id):
+		neighbors[succ] = true
+	for pred in get_predecessors(id):
+		neighbors[pred] = true
+	var result: Array[int] = []
+	for n_id in neighbors.keys():
+		result.append(int(n_id))
+	result.sort()
+	return result
+
 func get_all_node_ids() -> Array[int]:
 	var result: Array[int] = []
 	for id in _nodes.keys():

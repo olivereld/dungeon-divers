@@ -4,6 +4,7 @@ extends Resource
 ## Configuración completa y exportable para el generador de mazmorras.
 
 const _DungeonArchetypeScript = preload("res://src/dungeon_generator/core/semantic/archetype/dungeon_archetype.gd")
+const SpaceGrammarConfig = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
 
 @export_group("Identificación y Semilla")
 @export var dungeon_id: StringName = &"dungeon_01"
@@ -42,6 +43,19 @@ func get_effective_archetype_id() -> StringName:
 @export_range(0.0, 1.0, 0.05) var lock_key_frequency: float = 0.35
 @export_range(0.0, 1.0, 0.05) var optional_branch_chance: float = 0.25
 @export var boss_enabled: bool = true
+
+@export_group("Gramática Espacial (Mission-Aware)")
+@export var space_grammar_config: SpaceGrammarConfig = null
+@export var use_mission_aware_placement: bool = true
+@export var mission_aware_preferred_distance: float = 12.0
+@export var mission_aware_candidate_count: int = 15
+@export var mission_aware_distance_jitter: float = 4.0
+@export var min_room_separation: int = 2
+@export var min_mission_edge_distance: float = 6.0
+@export var max_mission_edge_distance: float = 24.0
+@export var progression_strength: float = 1.0
+@export var density_strength: float = 0.5
+@export var preferred_progression_direction: Vector2 = Vector2.ZERO
 
 @export_group("Algoritmo de Construcción")
 @export_enum("Template", "Hybrid", "BSP", "CellularAutomata") var algorithm: String = "Template"
@@ -164,6 +178,18 @@ func duplicate_config() -> DungeonConfig:
 	c.lock_key_frequency = lock_key_frequency
 	c.optional_branch_chance = optional_branch_chance
 	c.boss_enabled = boss_enabled
+	if space_grammar_config != null:
+		c.space_grammar_config = space_grammar_config.duplicate_config()
+	c.use_mission_aware_placement = use_mission_aware_placement
+	c.mission_aware_preferred_distance = mission_aware_preferred_distance
+	c.mission_aware_candidate_count = mission_aware_candidate_count
+	c.mission_aware_distance_jitter = mission_aware_distance_jitter
+	c.min_room_separation = min_room_separation
+	c.min_mission_edge_distance = min_mission_edge_distance
+	c.max_mission_edge_distance = max_mission_edge_distance
+	c.progression_strength = progression_strength
+	c.density_strength = density_strength
+	c.preferred_progression_direction = preferred_progression_direction
 	c.algorithm = algorithm
 	c.ca_fill_chance = ca_fill_chance
 	c.ca_iterations = ca_iterations

@@ -92,7 +92,10 @@ const TEST_SUITES: Array[String] = [
 
 	# 10. Integrated Dungeon Validation & Migration (Fase 10.19)
 	"res://tests/integration/test_dungeon_presentation_pipeline_purity.gd",
-	"res://tests/integration/test_crypt_multi_seed_sweep.gd"
+	"res://tests/integration/test_crypt_multi_seed_sweep.gd",
+
+	# 11. Diagnostic & Baseline System
+	"res://tests/test_dungeon_diagnostics.gd"
 ]
 
 func _init() -> void:

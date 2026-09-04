@@ -57,7 +57,7 @@ func generate_semantics(dungeon_result: DungeonResult, config: DungeonConfig = n
 	semantic_result.corridor_paths = dungeon_result.corridor_paths
 	semantic_result.door_pairs = dungeon_result.door_pairs
 
-	# 1. Start / Boss Solver
+	# 1. Start / Boss Solver (Reutilizando semántica de SpatialIntentBuilder / MissionGraph)
 	var start_boss_seed: int = _DungeonSeedFactoryScript.derive_seed(attempt_seed, 0, &"start_boss")
 	seed_trace.append({ "stage": "start_boss", "seed": start_boss_seed })
 
@@ -67,15 +67,18 @@ func generate_semantics(dungeon_result: DungeonResult, config: DungeonConfig = n
 		dungeon_result.connections,
 		dungeon_result.grid,
 		config,
-		depth_map_preliminary
+		depth_map_preliminary,
+		dungeon_result.mission_graph
 	)
 	var start_id: int = sb_res["start_room_id"]
 	var boss_id: int = sb_res["boss_room_id"]
 
 	semantic_result.start_room_id = start_id
 	semantic_result.boss_room_id = boss_id
+	semantic_result.start_node_id = sb_res.get("start_node_id", -1)
+	semantic_result.boss_node_id = sb_res.get("boss_node_id", -1)
 
-	# 2. Critical Path Solver
+	# 2. Critical Path Solver (Determinista sobre MissionGraph)
 	var critical_seed: int = _DungeonSeedFactoryScript.derive_seed(attempt_seed, 0, &"critical_path")
 	seed_trace.append({ "stage": "critical_path", "seed": critical_seed })
 
@@ -83,12 +86,17 @@ func generate_semantics(dungeon_result: DungeonResult, config: DungeonConfig = n
 		start_id,
 		boss_id,
 		dungeon_result.rooms,
-		dungeon_result.connections
+		dungeon_result.connections,
+		dungeon_result.mission_graph
 	)
 	semantic_result.critical_path_rooms = cp_res["critical_path_rooms"]
 	semantic_result.critical_path_connections = cp_res["critical_path_connections"]
 	semantic_result.mandatory_connections = cp_res["mandatory_connections"]
 	semantic_result.depth_map = cp_res["depth_map"]
+	if cp_res.has("mission_critical_path"):
+		semantic_result.main_path = cp_res["mission_critical_path"]
+	else:
+		semantic_result.main_path = cp_res["critical_path_rooms"]
 
 	# 3. Key / Lock Planner
 	var key_lock_seed: int = _DungeonSeedFactoryScript.derive_seed(attempt_seed, 0, &"key_lock")
@@ -123,7 +131,9 @@ func generate_semantics(dungeon_result: DungeonResult, config: DungeonConfig = n
 		config,
 		obj_seed,
 		semantic_result.critical_path_rooms,
-		dungeon_result.connections
+		dungeon_result.connections,
+		dungeon_result.mission_graph,
+		semantic_result.keys
 	)
 	semantic_result.objectives = objectives
 
@@ -155,19 +165,19 @@ func generate_semantics(dungeon_result: DungeonResult, config: DungeonConfig = n
 	semantic_result.seed_trace = seed_trace
 
 
-	# 6. Final Gameplay Validator
-	var final_val := _gameplay_validator.validate_gameplay(
-		start_id,
-		boss_id,
-		dungeon_result.rooms,
-		dungeon_result.connections,
-		semantic_result.keys,
-		semantic_result.locks,
-		semantic_result.objectives
-	)
-
-	semantic_result.gameplay_valid = final_val["is_resolvable"]
-	semantic_result.gameplay_diagnostics = final_val
+	# 6. Final Gameplay Validator (C1, C2, C3)
+	var final_val_result := _gameplay_validator.validate(semantic_result)
+	semantic_result.validation_result = final_val_result
+	semantic_result.gameplay_valid = final_val_result.valid
+	semantic_result.gameplay_diagnostics = {
+		"is_resolvable": final_val_result.valid,
+		"failure_reason": final_val_result.failure_reason,
+		"failing_reasons": final_val_result.failing_reasons,
+		"blocked_locks": final_val_result.blocked_locks.map(func(l): return l.id),
+		"unavailable_keys": final_val_result.unavailable_keys.map(func(k): return k.id),
+		"unreachable_objectives": final_val_result.unreachable_objectives.map(func(o): return o.id),
+		"critical_path": final_val_result.critical_path
+	}
 	semantic_result.mark_committed()
 
 	if semantic_result.gameplay_valid:

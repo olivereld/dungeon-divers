@@ -90,6 +90,10 @@ text = "↺ -45°"
 layout_mode = 2
 text = "↻ +45°"
 
+[node name="ExportAsciiBtn" type="Button" parent="VBox/TopBar"]
+layout_mode = 2
+text = "📋 Copiar ASCII"
+
 [node name="StatusLabel" type="Label" parent="VBox/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -138,6 +142,21 @@ text = "Entrances"
 layout_mode = 2
 button_pressed = true
 text = "Corridors"
+
+[node name="CheckCorridorDetails" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = false
+text = "Corridor Details"
+
+[node name="CheckSpatialOverlay" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = false
+text = "Spatial Intent & Edges"
+
+[node name="CheckSemanticsOverlay" type="CheckBox" parent="VBox/HBox/LeftPanel"]
+layout_mode = 2
+button_pressed = false
+text = "Semantics (Start/Boss/CP)"
 
 [node name="CheckInternalDoors" type="CheckBox" parent="VBox/HBox/LeftPanel"]
 layout_mode = 2

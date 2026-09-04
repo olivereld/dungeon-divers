@@ -21,7 +21,8 @@ static func repair_missing_corridors(
 	connections: Array,
 	initial_res: CorridorCarveResult,
 	repair_seed: int,
-	config: DungeonConfig = null
+	config: DungeonConfig = null,
+	corridor_plan = null
 ) -> Dictionary:
 	if initial_res == null or initial_res.is_valid:
 		return {
@@ -77,7 +78,9 @@ static func repair_missing_corridors(
 			# Opcional: ignorar fallo si no es obligatoria
 			continue
 
-		var req := _CorridorRequestScript.from_entrance_pair(pair, is_req)
+		var req = corridor_plan.get_request_for_connection(failed_id) if (corridor_plan != null and corridor_plan.has_method("get_request_for_connection")) else null
+		if req == null:
+			req = _CorridorRequestScript.from_entrance_pair(pair, is_req)
 		if req == null:
 			all_repaired = false
 			break

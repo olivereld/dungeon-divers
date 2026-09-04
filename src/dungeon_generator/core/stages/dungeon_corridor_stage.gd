@@ -16,10 +16,23 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	var corridor_seed: int = _DungeonSeedFactoryScript.derive_seed(ctx.base_seed, ctx.attempt, &"corridor")
 	ctx.stage_seeds["corridor"] = corridor_seed
 
+	# Consumir el CorridorPlan sellado y vinculado físicamente desde DungeonEntranceStage
+	var corridor_plan = ctx.corridor_plan
+
+	if not ctx.connections.is_empty() and (corridor_plan == null or corridor_plan.is_empty()):
+		if ctx.diagnostics_enabled:
+			push_warning("[DungeonCorridorStage] Attempt %d: CorridorPlanner produced empty plan for %d connections." % [
+				ctx.attempt, ctx.connections.size()
+			])
+		ctx.mark_attempt_failed("CORRIDOR_PLANNING_FAILED", "TRANSIENT")
+		return false
+
+	var requests: Array = corridor_plan.get_requests() if corridor_plan != null else []
+
 	var corridor_res = _AStarCarverScript.carve_corridors(
 		ctx.grid,
 		ctx.rooms,
-		ctx.entrance_pairs,
+		requests,
 		ctx.connections,
 		ctx.config
 	)
@@ -28,7 +41,7 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	if not corridor_res.is_valid:
 		var corridor_repair_seed: int = _DungeonSeedFactoryScript.derive_seed(ctx.base_seed, ctx.attempt, &"repair_corridors")
 		var c_rep_res = _CorridorConnectivityRepairScript.repair_missing_corridors(
-			ctx.grid, ctx.rooms, ctx.entrance_pairs, ctx.connections, corridor_res, corridor_repair_seed, ctx.config
+			ctx.grid, ctx.rooms, ctx.entrance_pairs, ctx.connections, corridor_res, corridor_repair_seed, ctx.config, ctx.corridor_plan
 		)
 
 		ctx.record_repair("corridor_repair", corridor_repair_seed, c_rep_res.success, {

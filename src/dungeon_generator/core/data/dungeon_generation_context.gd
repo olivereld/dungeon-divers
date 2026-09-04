@@ -20,9 +20,12 @@ var repair_seed_chain: Array[Dictionary] = [] # Registro cronológico de reparac
 
 # 2. Topología y Espacio
 var mission_graph: DungeonGraph = null
+var spatial_intent = null                   # SpatialIntentResult (intención espacial semántica)
+var placement_plan = null                   # RoomPlacementPlan (plan inmutable de colocación de salas)
 var rooms: Array[RoomData] = []
 var connections: Array = []                 # Array[RoomConnection]
 var entrance_pairs: Array = []              # Array[EntrancePair]
+var corridor_plan = null                    # CorridorPlan (plan inmutable de peticiones de pasillos)
 var grid: CellGrid = null
 var corridor_paths: Array = []              # Array[CorridorPath]
 var doors: Array = []                       # Array[DoorPlacement]
@@ -41,6 +44,12 @@ var locked_doors: Array = []                # Array[LockedDoor]
 # 4. Campo de Distancia Canónico y Reservas Espaciales
 var distance_field: Dictionary = {}         # Vector2i -> int
 var reserved_mask: DungeonReservedMask = null
+
+var placement_tier_3: int = 0
+var placement_tier_4: int = 0
+var before_separator_metrics: Dictionary = {}
+var after_separator_metrics: Dictionary = {}
+var rooms_before_separator: Array[RoomData] = []
 
 # 5. Métricas, Tiempos y Diagnósticos
 var stage_timings_ms: Dictionary = {}       # String -> float
@@ -74,6 +83,11 @@ func _init(p_config: DungeonConfig = null, p_base_seed: int = 0, p_attempt: int 
 	locked_doors.clear()
 	distance_field.clear()
 	stage_timings_ms.clear()
+	placement_tier_3 = 0
+	placement_tier_4 = 0
+	before_separator_metrics.clear()
+	after_separator_metrics.clear()
+	rooms_before_separator.clear()
 	metrics.clear()
 	diagnostics.clear()
 	is_attempt_failed = false
@@ -116,7 +130,11 @@ func to_dungeon_result() -> DungeonResult:
 	res.fitness_score = fitness_score
 	res.seed_used = base_seed
 	res.floor_number = config.floor_number if config != null else 1
-	res.checksum = _DungeonChecksumCalculatorScript.compute_checksum(res)
+	res.placement_tier_3 = placement_tier_3
+	res.placement_tier_4 = placement_tier_4
+	res.before_separator_metrics = before_separator_metrics
+	res.after_separator_metrics = after_separator_metrics
+	res.rooms_before_separator = rooms_before_separator
 	
 	var total_time: float = 0.0
 	for t in stage_timings_ms.values():
@@ -133,4 +151,5 @@ func to_dungeon_result() -> DungeonResult:
 		"metrics": metrics,
 		"diagnostics": diagnostics
 	}
+	res.checksum = _DungeonChecksumCalculatorScript.compute_checksum(res)
 	return res

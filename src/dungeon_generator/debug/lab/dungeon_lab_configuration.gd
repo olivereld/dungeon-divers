@@ -9,6 +9,12 @@ var mission_depth: int = 5
 var hallway_width: int = 2
 var floor_count: int = 1
 
+# Mission-Aware Room Placement
+var use_mission_aware_placement: bool = true
+var mission_aware_preferred_distance: float = 12.0
+var mission_aware_candidate_count: int = 15
+var mission_aware_distance_jitter: float = 4.0
+
 # Profile & Template Forcing Overrides
 var profile_mode: StringName = &"normal" # &"normal", &"force_profile", &"force_template"
 var forced_profile_id: StringName = &""
@@ -26,6 +32,10 @@ func to_dungeon_config() -> DungeonConfig:
 	cfg.mission_depth = mission_depth
 	cfg.corridor_width = hallway_width
 	cfg.total_floors = floor_count
+	cfg.use_mission_aware_placement = use_mission_aware_placement
+	cfg.mission_aware_preferred_distance = mission_aware_preferred_distance
+	cfg.mission_aware_candidate_count = mission_aware_candidate_count
+	cfg.mission_aware_distance_jitter = mission_aware_distance_jitter
 	return cfg
 
 func validate() -> Array[String]:

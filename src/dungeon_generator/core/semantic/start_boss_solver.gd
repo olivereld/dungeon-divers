@@ -1,26 +1,78 @@
 class_name StartBossSolver
 extends RefCounted
 
-## Resuelve de forma determinista las salas de inicio (Start) y jefe final (Boss).
+## Resuelve de forma determinista las salas y nodos de inicio (Start) y jefe final (Boss).
+## Reutiliza formalmente la semántica de SpatialIntentBuilder para garantizar 0 divergencias
+## entre la intención espacial y la semántica de gameplay.
 ## 100% puro: no muta geometría ni depende de renderizado.
+
+const SpatialIntentBuilder = preload("res://src/dungeon_generator/core/grammars/spatial_intent_builder.gd")
+const SpatialIntentResult = preload("res://src/dungeon_generator/core/data/spatial_intent_result.gd")
+const DungeonGraph = preload("res://src/dungeon_generator/core/data/dungeon_graph.gd")
 
 func resolve_start_and_boss(
 	rooms: Array = [],
 	connections: Array = [],
 	grid: CellGrid = null,
 	config: DungeonConfig = null,
-	depth_map: Dictionary = {}
+	depth_map: Dictionary = {},
+	mission_graph: DungeonGraph = null,
+	spatial_intent: SpatialIntentResult = null
 ) -> Dictionary:
-	# Retorna: { "start_room_id": int, "boss_room_id": int }
+	# 1. Si se dispone de mission_graph o spatial_intent, reutilizar la semántica canónica de SpatialIntentBuilder
+	var intent_res: SpatialIntentResult = spatial_intent
+	if intent_res == null and mission_graph != null:
+		var builder := SpatialIntentBuilder.new()
+		intent_res = builder.build(mission_graph)
+
+	if intent_res != null and intent_res.valid:
+		var s_node: int = intent_res.start_node_id
+		var b_node: int = intent_res.terminal_node_id
+
+		var mapped_start: int = -1
+		var mapped_boss: int = -1
+
+		for r in rooms:
+			if r != null and "mission_node_id" in r:
+				if r.mission_node_id == s_node and mapped_start == -1:
+					mapped_start = r.id
+				if r.mission_node_id == b_node and mapped_boss == -1:
+					mapped_boss = r.id
+
+		if mapped_start != -1 and mapped_boss != -1:
+			return {
+				"start_room_id": mapped_start,
+				"boss_room_id": mapped_boss,
+				"start_node_id": s_node,
+				"boss_node_id": b_node
+			}
+		elif mapped_start != -1:
+			# Si boss no tuviera sala asignada directamente, resolver por tipo o profundidad
+			var resolved_boss := _resolve_boss_room(rooms, mapped_start, depth_map)
+			return {
+				"start_room_id": mapped_start,
+				"boss_room_id": resolved_boss,
+				"start_node_id": s_node,
+				"boss_node_id": b_node
+			}
+
+	# 2. Fallback determinista sobre habitaciones cuando no se pasa un grafo de misión
 	if rooms.is_empty():
-		return { "start_room_id": -1, "boss_room_id": -1 }
+		return {
+			"start_room_id": -1,
+			"boss_room_id": -1,
+			"start_node_id": -1,
+			"boss_node_id": -1
+		}
 
 	var start_id: int = _resolve_start_room(rooms, grid, config)
 	var boss_id: int = _resolve_boss_room(rooms, start_id, depth_map)
 
 	return {
 		"start_room_id": start_id,
-		"boss_room_id": boss_id
+		"boss_room_id": boss_id,
+		"start_node_id": -1,
+		"boss_node_id": -1
 	}
 
 func _resolve_start_room(rooms: Array = [], grid: CellGrid = null, config: DungeonConfig = null) -> int:

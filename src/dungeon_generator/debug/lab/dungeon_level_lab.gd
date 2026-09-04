@@ -13,6 +13,7 @@ const _CoverageScript = preload("res://src/dungeon_generator/debug/lab/dungeon_l
 const _GoldenRunnerScript = preload("res://src/dungeon_generator/debug/lab/dungeon_lab_golden_runner.gd")
 const _DungeonPresentationBuilderScript = preload("res://src/dungeon_generator/presentation/dungeon_presentation_builder.gd")
 const _Dungeon3DViewerScript = preload("res://src/dungeon_generator/debug/lab/viewer/dungeon_3d_viewer.gd")
+const _DungeonAsciiExporterScript = preload("res://src/dungeon_generator/debug/dungeon_ascii_exporter.gd")
 
 enum LabMode {
 	GENERATE = 0,
@@ -30,19 +31,19 @@ enum ViewMode {
 var current_mode: LabMode = LabMode.GENERATE
 var current_view_mode: ViewMode = ViewMode.VIEW_2D
 
-var config: _LabConfigScript = _LabConfigScript.new()
-var controller: _LabControllerScript = _LabControllerScript.new()
-var overlay: _OverlayScript = _OverlayScript.new()
-var inspector: _InspectorScript = _InspectorScript.new()
-var showcase: _ShowcaseScript = _ShowcaseScript.new()
-var coverage: _CoverageScript = _CoverageScript.new()
-var golden_runner: _GoldenRunnerScript = _GoldenRunnerScript.new()
-var presentation_builder: _DungeonPresentationBuilderScript = _DungeonPresentationBuilderScript.new()
+var config: DungeonLabConfiguration = DungeonLabConfiguration.new()
+var controller: DungeonLabController = DungeonLabController.new()
+var overlay: DungeonLabOverlay = DungeonLabOverlay.new()
+var inspector: DungeonLabInspector = DungeonLabInspector.new()
+var showcase: DungeonLabTemplateShowcase = DungeonLabTemplateShowcase.new()
+var coverage: DungeonLabCoverage = DungeonLabCoverage.new()
+var golden_runner: DungeonLabGoldenRunner = DungeonLabGoldenRunner.new()
+var presentation_builder: DungeonPresentationBuilder = DungeonPresentationBuilder.new()
 
 # Sub-nodes
-var renderer: _RendererScript
+var renderer: DungeonLabRenderer
 var viewport_container_3d: SubViewportContainer
-var viewer_3d: _Dungeon3DViewerScript
+var viewer_3d: Dungeon3DViewer
 var seed_input: SpinBox
 var random_seed_btn: Button
 var algo_option: OptionButton
@@ -53,6 +54,7 @@ var view_mode_btn: Button
 var frame_dungeon_btn: Button
 var rotate_left_btn: Button
 var rotate_right_btn: Button
+var export_ascii_btn: Button
 var mode_tabs: TabBar
 var status_label: Label
 var inspector_text: RichTextLabel
@@ -85,6 +87,8 @@ func _ensure_nodes() -> void:
 		rotate_left_btn = find_child("RotateLeftBtn", true, false) as Button
 	if rotate_right_btn == null:
 		rotate_right_btn = find_child("RotateRightBtn", true, false) as Button
+	if export_ascii_btn == null:
+		export_ascii_btn = find_child("ExportAsciiBtn", true, false) as Button
 	if mode_tabs == null:
 		mode_tabs = find_child("ModeTabs", true, false) as TabBar
 	if status_label == null:
@@ -157,6 +161,9 @@ func _setup_topbar_ui() -> void:
 	if rotate_right_btn != null and not rotate_right_btn.pressed.is_connected(_on_rotate_right_pressed):
 		rotate_right_btn.pressed.connect(_on_rotate_right_pressed)
 
+	if export_ascii_btn != null and not export_ascii_btn.pressed.is_connected(_on_copy_ascii_pressed):
+		export_ascii_btn.pressed.connect(_on_copy_ascii_pressed)
+
 	if seed_input != null:
 		if not seed_input.value_changed.is_connected(_on_seed_value_changed):
 			seed_input.value_changed.connect(_on_seed_value_changed)
@@ -167,6 +174,54 @@ func _setup_topbar_ui() -> void:
 
 	if floor_selector != null and not floor_selector.item_selected.is_connected(_on_floor_selector_item_selected):
 		floor_selector.item_selected.connect(_on_floor_selector_item_selected)
+
+func _on_copy_ascii_pressed() -> void:
+	var floor_data = controller.get_current_floor_result()
+	var d_result: DungeonResult = null
+	var sem_res: DungeonSemanticResult = null
+
+	# 1. Priorizar la reutilización del DungeonResult original cuando esté disponible
+	var cur_res: Dictionary = controller.get_current_result()
+	if cur_res.has("dungeon_result") and cur_res["dungeon_result"] != null:
+		var orig_res: DungeonResult = cur_res["dungeon_result"]
+		if cur_res.get("total_floors", 1) <= 1 or (floor_data != null and orig_res.floor_number == floor_data.floor_number):
+			d_result = orig_res
+
+	# 2. Resolver sem_res activo
+	if floor_data != null and "semantic_result" in floor_data and floor_data.semantic_result != null:
+		sem_res = floor_data.semantic_result
+	else:
+		sem_res = controller.get_active_semantic_result()
+
+	# 3. Fallback explícito: construir DungeonResult para el piso actual si no hay original (ej. multi-floor)
+	if d_result == null and floor_data != null:
+		if floor_data.has_method("to_dungeon_result"):
+			d_result = floor_data.to_dungeon_result()
+		else:
+			d_result = DungeonResult.new()
+			d_result.grid = floor_data.grid
+			d_result.rooms = floor_data.rooms
+			d_result.connections = floor_data.connections
+			d_result.door_pairs = floor_data.door_pairs
+			d_result.corridor_paths = floor_data.corridor_paths
+			d_result.floor_number = floor_data.floor_number
+			d_result.seed_used = floor_data.seed_used if floor_data.seed_used != 0 else config.seed
+			d_result.metadata = floor_data.metadata.duplicate(true)
+
+	if d_result != null and d_result.grid != null:
+		var ascii_text := _DungeonAsciiExporterScript.export_ascii(d_result, sem_res, true)
+		DisplayServer.clipboard_set(ascii_text)
+		if export_ascii_btn != null:
+			var orig := export_ascii_btn.text
+			export_ascii_btn.text = "✓ ¡Copiado!"
+			if is_inside_tree() and get_tree() != null:
+				get_tree().create_timer(1.2).timeout.connect(func():
+					if export_ascii_btn != null:
+						export_ascii_btn.text = orig
+				)
+		_set_status("¡Mapa ASCII copiado al portapapeles!")
+	else:
+		_set_status("No hay mazmorra generada para copiar.")
 
 func _toggle_view_mode() -> void:
 	if current_view_mode == ViewMode.VIEW_2D:
@@ -212,6 +267,9 @@ func _setup_overlay_checkboxes() -> void:
 	_bind_checkbox("CheckTemplateFootprint", func(v: bool): overlay.show_template_footprint = v)
 	_bind_checkbox("CheckEntrances", func(v: bool): overlay.show_entrances = v)
 	_bind_checkbox("CheckCorridors", func(v: bool): overlay.show_corridors = v)
+	_bind_checkbox("CheckCorridorDetails", func(v: bool): overlay.show_corridor_details = v)
+	_bind_checkbox("CheckSpatialOverlay", func(v: bool): overlay.show_spatial_overlay = v)
+	_bind_checkbox("CheckSemanticsOverlay", func(v: bool): overlay.show_semantics_overlay = v)
 	_bind_checkbox("CheckInternalDoors", func(v: bool): overlay.show_internal_doors = v)
 	_bind_checkbox("CheckSemanticLabels", func(v: bool): overlay.show_semantic_labels = v)
 	_bind_checkbox("CheckTemplateId", func(v: bool): overlay.show_template_id = v)
@@ -368,7 +426,7 @@ func _on_room_selected(room: RefCounted) -> void:
 	if viewer_3d != null:
 		viewer_3d.focus_room(room)
 
-	var bundle = controller._pipeline.get_profile_bundle()
+	var bundle = controller.get_profile_bundle()
 	var diag = inspector.inspect_room(room, bundle, config.seed)
 
 	var bbcode := "[b]ROOM #%d[/b]\n" % diag.get("room_id", 0)
@@ -392,7 +450,7 @@ func _on_room_selected(room: RefCounted) -> void:
 	inspector_text.text = bbcode
 
 func _run_showcase(profile_id: StringName) -> void:
-	var bundle = controller._pipeline.get_profile_bundle()
+	var bundle = controller.get_profile_bundle()
 	if bundle == null or bundle.template_registry == null:
 		return
 	var items = showcase.showcase_profile(profile_id, bundle.template_registry)
@@ -406,7 +464,7 @@ func _run_showcase(profile_id: StringName) -> void:
 
 func run_coverage_mode(seed_count: int = 100) -> Dictionary:
 	_set_status("Running coverage on %d seeds..." % seed_count)
-	var report = coverage.run_coverage(controller._pipeline, config.archetype_id, config.seed, seed_count)
+	var report = coverage.run_coverage(controller.get_pipeline(), config.archetype_id, config.seed, seed_count)
 	if inspector_text != null:
 		var bbcode := "[b]COVERAGE REPORT (%d seeds)[/b]\n" % report.get("seed_count", 0)
 		bbcode += "Total Rooms: %d\n" % report.get("total_rooms", 0)

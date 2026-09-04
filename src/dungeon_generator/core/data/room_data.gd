@@ -3,11 +3,22 @@ extends RefCounted
 
 ## Descriptor de habitación individual en el layout espacial.
 
+class RoomType:
+	const START: StringName = &"start"
+	const EXPLORE: StringName = &"explore"
+	const COMBAT: StringName = &"combat"
+	const BOSS: StringName = &"boss"
+	const TREASURE: StringName = &"treasure"
+	const PUZZLE: StringName = &"puzzle"
+	const GOAL: StringName = &"goal"
+
 var id: int = 0
 var rect: Rect2i = Rect2i()
 var room_type: StringName = &"explore"   # &"start", &"explore", &"combat", &"boss", &"treasure", &"puzzle", &"goal"
 var mission_node_id: int = -1
 var is_required: bool = true
+var is_placed: bool = false
+var region: StringName = &""
 var depth_in_graph: int = 0
 var custom_data: Dictionary = {}
 
@@ -83,6 +94,8 @@ func duplicate_room() -> RoomData:
 	var copy := RoomData.new(id, rect, room_type)
 	copy.mission_node_id = mission_node_id
 	copy.is_required = is_required
+	copy.is_placed = is_placed
+	copy.region = region
 	copy.depth_in_graph = depth_in_graph
 	copy.custom_data = custom_data.duplicate(true)
 	return copy

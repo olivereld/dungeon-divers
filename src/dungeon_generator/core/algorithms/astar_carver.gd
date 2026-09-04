@@ -77,10 +77,24 @@ static func carve_corridors(
 			if req != null:
 				requests.append(req)
 
-	# Ordenar peticiones: mandatory primero, luego por ID estable
+	# Ordenar peticiones: mandatory primero, luego por rol semántico (MAIN_PATH > SIDE_PATH > OPTIONAL), luego por distancia e ID
 	requests.sort_custom(func(a: CorridorRequest, b: CorridorRequest):
 		if a.is_required != b.is_required:
 			return a.is_required
+		var role_rank := func(r: StringName) -> int:
+			match r:
+				CorridorRequest.ROLE_MAIN_PATH:
+					return 3
+				CorridorRequest.ROLE_SIDE_PATH:
+					return 2
+				CorridorRequest.ROLE_OPTIONAL:
+					return 1
+				_:
+					return 0
+		var r_a: int = role_rank.call(a.corridor_role)
+		var r_b: int = role_rank.call(b.corridor_role)
+		if r_a != r_b:
+			return r_a > r_b
 		var dist_a: int = absi(a.goal.x - a.start.x) + absi(a.goal.y - a.start.y)
 		var dist_b: int = absi(b.goal.x - b.start.x) + absi(b.goal.y - b.start.y)
 		if dist_a != dist_b:
@@ -157,8 +171,13 @@ static func _carve_single_request(
 	var centerline: Array[Vector2i] = []
 	var routing_strategy: String = "Unknown"
 
-	# --- PASO 1: FIND (Jerarquía: 1. OrthogonalPlanner -> 2. Direction-Aware A*) ---
-	if config.prefer_orthogonal_routes:
+	# --- PASO 1: FIND (Jerarquía controlada por req.routing_preference) ---
+	var try_orthogonal: bool = config.prefer_orthogonal_routes
+	if req.routing_preference == CorridorRequest.ROUTING_AVOID_ROOMS:
+		# En modo AVOID_ROOMS evitamos el planificador ortogonal rígido para priorizar A* con evasión de salas
+		try_orthogonal = false
+
+	if try_orthogonal:
 		var ortho_res: Dictionary = _OrthogonalPlannerScript.plan_route(grid, rooms, req.room_a_id, req.room_b_id, start_pos, goal_pos, config)
 		if ortho_res.get("success", false):
 			centerline = ortho_res["centerline"]
@@ -234,6 +253,18 @@ static func _carve_single_request(
 				astar.set_point_weight_scale(cid, w_corridor)
 
 		total_cost += 1.0
+
+	# Costo suave de longitud (Fase 5.5: preferred_length no rechaza, modula suavemente el coste)
+	var length_weight: float = config.corridor_length_weight if ("corridor_length_weight" in config) else 0.5
+	var actual_len: float = float(centerline.size())
+	if req.preferred_length > 0.0:
+		total_cost += absf(actual_len - req.preferred_length) * length_weight
+
+	# Criterios de calidad suave para min_length / max_length (Fase 5.6)
+	if req.max_length > 0 and actual_len > float(req.max_length):
+		total_cost += (actual_len - float(req.max_length)) * (length_weight * 2.0)
+	elif req.min_length > 0 and actual_len < float(req.min_length):
+		total_cost += (float(req.min_length) - actual_len) * (length_weight * 2.0)
 
 	# Asegurar que los interiores de entrada (inner_cell) sean transitable FLOOR y se conecten al interior de la sala
 	var room_a: RoomData = room_map.get(req.room_a_id, null)
@@ -321,6 +352,16 @@ static func _find_direction_aware_path(
 	var cost_wall: float = config.corridor_cost_wall
 	var cost_floor: float = config.corridor_cost_room_floor
 	var other_room_cost: float = config.corridor_cost_other_room
+
+	# Modulación de costes según la preferencia de ruteo de la petición (Fase 5)
+	match req.routing_preference:
+		CorridorRequest.ROUTING_DIRECT:
+			turn_penalty *= 1.6
+		CorridorRequest.ROUTING_AVOID_ROOMS:
+			other_room_cost *= 2.5
+			cost_floor *= 2.0
+		CorridorRequest.ROUTING_MANHATTAN:
+			turn_penalty *= 1.2
 
 	var directions: Array[Vector2i] = [
 		Vector2i(1, 0),
