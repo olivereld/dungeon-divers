@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://d3x1a2b3c4d5e"]
+[gd_scene load_steps=9 format=3 uid="uid://d3x1a2b3c4d5e"]
 
 [ext_resource type="Script" path="res://src/dungeon_generator/debug/lab/dungeon_level_lab.gd" id="1_lab"]
 [ext_resource type="Theme" path="res://src/dungeon_generator/debug/lab/ui/lab_theme.tres" id="2_theme"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/viewer/dungeon_3d_viewer.tscn" id="6_viewer"]
 [ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/ui/lab_viewport_toolbar.tscn" id="7_toolbar"]
 [ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/ui/lab_right_panel.tscn" id="8_right_panel"]
+[ext_resource type="PackedScene" path="res://src/dungeon_generator/debug/lab/ui/lab_loading_overlay.tscn" id="9_loading"]
 
 [node name="DungeonLevelLab" type="Control"]
 layout_mode = 3
@@ -58,6 +59,11 @@ size = Vector2i(800, 600)
 render_target_update_mode = 3
 
 [node name="Viewer3D" parent="VBox/HBox/CenterPanel/ViewportContainer3D/SubViewport" instance=ExtResource("6_viewer")]
+
+[node name="LabLoadingOverlay" parent="VBox/HBox/CenterPanel" instance=ExtResource("9_loading")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
 
 [node name="LabViewportToolbar" parent="VBox/HBox/CenterPanel" instance=ExtResource("7_toolbar")]
 layout_mode = 2

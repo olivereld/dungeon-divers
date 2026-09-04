@@ -18,6 +18,7 @@ func _init() -> void:
 	_test_4_left_panel()
 	_test_5_right_panel()
 	_test_6_full_lab_integration()
+	_test_7_lazy_view_generation_and_loading()
 
 	print("\n>>> ALL LAB UI COMPONENT TESTS PASSED SUCCESSFULLY! <<<\n")
 	quit(0)
@@ -183,3 +184,52 @@ func _test_6_full_lab_integration() -> void:
 
 	lab.queue_free()
 	print("  [OK] Full DungeonLevelLab integration validated.")
+
+func _test_7_lazy_view_generation_and_loading() -> void:
+	print("\n[TEST 7] Verifying lazy view generation (2D vs 3D) and loading transitions...")
+	var lab = _LabScene.instantiate()
+	root.add_child(lab)
+	lab._ready()
+
+	assert(lab.ui_loading_overlay != null, "FAIL: ui_loading_overlay should be present")
+
+	# Test 1: Start in 2D mode, generate -> 2D is rendered, 3D must NOT be generated yet
+	lab.set_view_mode(lab.ViewMode.VIEW_2D)
+	lab.config.seed = 333001
+	lab.config.floor_count = 1
+	lab.generate_current()
+
+	assert(lab.renderer.get_rendered_room_count() > 0, "FAIL: 2D renderer must be populated in 2D mode")
+	assert(lab._view_3d_dirty == true, "FAIL: 3D view must be marked dirty when generated from 2D mode")
+	assert(lab.viewer_3d.dungeon_root.get_child_count() == 0, "FAIL: 3D presentation must NOT be built while in 2D mode")
+
+	# Test 2: Switch to 3D mode -> triggers lazy 3D materialization
+	lab.set_view_mode(lab.ViewMode.VIEW_3D)
+	assert(lab.current_view_mode == lab.ViewMode.VIEW_3D, "FAIL: should now be in 3D mode")
+	assert(lab._view_3d_dirty == false, "FAIL: 3D view dirty flag must be cleared after materialization")
+	assert(lab.viewer_3d.dungeon_root.get_child_count() == 1, "FAIL: 3D presentation must be built after switching to 3D")
+
+	# Test 3: Change seed while in 3D mode -> 3D updates, 2D must NOT be updated and must be marked dirty
+	lab.config.seed = 333002
+	lab.generate_current()
+	assert(lab.current_view_mode == lab.ViewMode.VIEW_3D, "FAIL: still in 3D mode")
+	assert(lab._view_3d_dirty == false, "FAIL: 3D view must be fresh")
+	assert(lab._view_2d_dirty == true, "FAIL: 2D view must be marked dirty when generated in 3D mode")
+
+	# Test 4: Switch back to 2D mode -> triggers lazy 2D materialization
+	lab.set_view_mode(lab.ViewMode.VIEW_2D)
+	assert(lab.current_view_mode == lab.ViewMode.VIEW_2D, "FAIL: should now be in 2D mode")
+	assert(lab._view_2d_dirty == false, "FAIL: 2D view dirty flag must be cleared after materialization")
+
+	# Test 5: Loading overlay manual trigger test
+	lab._show_loading("TEST LOADING", "Testing subtitle")
+	assert(lab.ui_loading_overlay.visible == true, "FAIL: loading overlay must be visible when shown")
+	assert(lab.ui_loading_overlay.title_label.text == "TEST LOADING", "FAIL: loading title mismatch")
+	assert(lab.ui_loading_overlay.subtitle_label.text == "Testing subtitle", "FAIL: loading subtitle mismatch")
+
+	lab._hide_loading()
+	assert(lab.ui_loading_overlay.visible == false, "FAIL: loading overlay must be hidden after hide_loading")
+
+	root.remove_child(lab)
+	lab.queue_free()
+	print("  [OK] Lazy view generation and loading transitions validated.")

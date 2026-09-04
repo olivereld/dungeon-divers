@@ -20,6 +20,7 @@ const _LabTopBarScript = preload("res://src/dungeon_generator/debug/lab/ui/lab_t
 const _LabLeftPanelScript = preload("res://src/dungeon_generator/debug/lab/ui/lab_left_panel.gd")
 const _LabViewportToolbarScript = preload("res://src/dungeon_generator/debug/lab/ui/lab_viewport_toolbar.gd")
 const _LabRightPanelScript = preload("res://src/dungeon_generator/debug/lab/ui/lab_right_panel.gd")
+const _LabLoadingOverlayScript = preload("res://src/dungeon_generator/debug/lab/ui/lab_loading_overlay.gd")
 
 enum LabMode {
 	GENERATE = 0,
@@ -51,6 +52,7 @@ var ui_top_bar: LabTopBar
 var ui_left_panel: LabLeftPanel
 var ui_viewport_toolbar: LabViewportToolbar
 var ui_right_panel: LabRightPanel
+var ui_loading_overlay: LabLoadingOverlay
 
 # Sub-nodes (Preserved for 100% test compatibility)
 var renderer: DungeonLabRenderer
@@ -73,6 +75,12 @@ var inspector_text: RichTextLabel
 var progress_bar: ProgressBar
 
 var _gen_start_time_msec: int = 0
+var _view_2d_dirty: bool = true
+var _view_3d_dirty: bool = true
+var _last_rendered_floor_2d: int = -1
+var _last_rendered_floor_3d: int = -1
+var _last_generated_seed_2d: int = -1
+var _last_generated_seed_3d: int = -1
 
 func _ensure_nodes() -> void:
 	if ui_top_bar == null:
@@ -83,6 +91,8 @@ func _ensure_nodes() -> void:
 		ui_viewport_toolbar = find_child("LabViewportToolbar", true, false) as _LabViewportToolbarScript
 	if ui_right_panel == null:
 		ui_right_panel = find_child("RightPanel", true, false) as _LabRightPanelScript
+	if ui_loading_overlay == null:
+		ui_loading_overlay = find_child("LabLoadingOverlay", true, false) as _LabLoadingOverlayScript
 
 	if renderer == null:
 		renderer = find_child("Renderer", true, false) as _RendererScript
@@ -328,7 +338,35 @@ func set_view_mode(mode: ViewMode) -> void:
 	current_view_mode = mode
 	if view_mode_btn != null:
 		view_mode_btn.text = "🗺️ 2D Map" if mode == ViewMode.VIEW_3D else "🏰 3D View"
-	_update_view_mode_visibility()
+
+	if mode == ViewMode.VIEW_3D:
+		var needs_mat: bool = _view_3d_dirty or _last_rendered_floor_3d != controller.get_current_floor() or _last_generated_seed_3d != config.seed
+		if needs_mat:
+			_show_loading("GENERATING 3D VIEW", "Building isometric presentation...")
+			_update_view_mode_visibility()
+			if is_inside_tree() and get_tree() != null:
+				await get_tree().process_frame
+				await get_tree().process_frame
+			_materialize_3d_view()
+			if is_inside_tree() and get_tree() != null:
+				await get_tree().create_timer(0.2).timeout
+			_hide_loading()
+		else:
+			_update_view_mode_visibility()
+	elif mode == ViewMode.VIEW_2D:
+		var needs_mat: bool = _view_2d_dirty or _last_rendered_floor_2d != controller.get_current_floor() or _last_generated_seed_2d != config.seed
+		if needs_mat:
+			_show_loading("RENDERING 2D MAP", "Drawing blueprint canvas...")
+			_update_view_mode_visibility()
+			if is_inside_tree() and get_tree() != null:
+				await get_tree().process_frame
+				await get_tree().process_frame
+			_materialize_2d_view()
+			if is_inside_tree() and get_tree() != null:
+				await get_tree().create_timer(0.2).timeout
+			_hide_loading()
+		else:
+			_update_view_mode_visibility()
 
 func _update_view_mode_visibility() -> void:
 	if renderer != null:
@@ -468,6 +506,10 @@ func _update_ui_for_mode() -> void:
 
 func generate_current() -> void:
 	_sync_config_from_ui()
+	_show_loading("GENERATING DUNGEON", "Processing seed %d..." % config.seed)
+	if is_inside_tree() and get_tree() != null:
+		await get_tree().process_frame
+		await get_tree().process_frame
 	controller.generate_dungeon(config)
 
 func _sync_config_from_ui() -> void:
@@ -549,6 +591,7 @@ func _on_generation_started() -> void:
 	if progress_bar != null:
 		progress_bar.visible = true
 		progress_bar.value = 0
+	_show_loading("GENERATING DUNGEON", "Seed %d..." % config.seed)
 
 func _on_generation_completed(result: Dictionary) -> void:
 	var elapsed_ms := float(Time.get_ticks_msec() - _gen_start_time_msec)
@@ -564,15 +607,20 @@ func _on_generation_completed(result: Dictionary) -> void:
 		if floors.size() > 0:
 			floor_selector.selected = 0
 
-	var floor_data = controller.get_current_floor_result()
-	if renderer != null:
-		renderer.render_floor(floor_data, overlay)
-
-	# 3D Presentation Materialization & Update
 	var sem_res = controller.get_active_semantic_result()
 	var pres_res = null
-	if viewer_3d != null:
-		pres_res = viewer_3d.load_dungeon(sem_res, presentation_builder, config.to_dungeon_config())
+
+	# Lazy Materialization: Only generate the view corresponding to current tab
+	if current_view_mode == ViewMode.VIEW_2D:
+		_materialize_2d_view()
+		_view_3d_dirty = true
+	else:
+		pres_res = _materialize_3d_view()
+		_view_2d_dirty = true
+
+	if is_inside_tree() and get_tree() != null:
+		await get_tree().create_timer(0.2).timeout
+	_hide_loading()
 
 	# Update footer badge
 	if ui_left_panel != null:
@@ -649,6 +697,7 @@ func _display_generation_summary(sem_res: DungeonSemanticResult, pres_res) -> vo
 	inspector_text.text = bbcode
 
 func _on_generation_failed(reason: String) -> void:
+	_hide_loading()
 	_set_status("ERROR: %s" % reason)
 	if progress_bar != null:
 		progress_bar.visible = false
@@ -660,13 +709,59 @@ func _on_generation_failed(reason: String) -> void:
 		ui_right_panel.update_summary(config.seed, config.floor_count, config.generator_type, false)
 
 func _on_floor_changed(_floor_idx: int) -> void:
+	_show_loading("LOADING FLOOR %d" % (_floor_idx + 1), "Updating spatial layout...")
+	if is_inside_tree() and get_tree() != null:
+		await get_tree().process_frame
+	if current_view_mode == ViewMode.VIEW_2D:
+		_materialize_2d_view()
+		_view_3d_dirty = true
+	else:
+		if viewer_3d != null:
+			viewer_3d.on_floor_changed(_floor_idx, controller.get_multi_floor_result(), presentation_builder, config.to_dungeon_config())
+		_view_3d_dirty = false
+		_last_rendered_floor_3d = _floor_idx
+		_view_2d_dirty = true
+
+	if ui_left_panel != null:
+		ui_left_panel.update_footer(_floor_idx + 1, config.generator_type, config.seed)
+	if is_inside_tree() and get_tree() != null:
+		await get_tree().create_timer(0.18).timeout
+	_hide_loading()
+
+func _materialize_2d_view() -> void:
 	var floor_data = controller.get_current_floor_result()
 	if renderer != null:
 		renderer.render_floor(floor_data, overlay)
+	_view_2d_dirty = false
+	_last_rendered_floor_2d = controller.get_current_floor()
+	_last_generated_seed_2d = config.seed
+
+func _materialize_3d_view() -> Variant:
+	var sem_res = controller.get_active_semantic_result()
+	var pres_res = null
 	if viewer_3d != null:
-		viewer_3d.on_floor_changed(_floor_idx, controller.get_multi_floor_result(), presentation_builder, config.to_dungeon_config())
-	if ui_left_panel != null:
-		ui_left_panel.update_footer(_floor_idx + 1, config.generator_type, config.seed)
+		pres_res = viewer_3d.load_dungeon(sem_res, presentation_builder, config.to_dungeon_config())
+	_view_3d_dirty = false
+	_last_rendered_floor_3d = controller.get_current_floor()
+	_last_generated_seed_3d = config.seed
+	return pres_res
+
+func _show_loading(title: String, subtitle: String = "") -> void:
+	if ui_loading_overlay != null:
+		ui_loading_overlay.show_loading(title, subtitle)
+
+func _hide_loading() -> void:
+	if ui_loading_overlay != null:
+		ui_loading_overlay.hide_loading()
+
+func ensure_3d_view_loaded() -> Variant:
+	if _view_3d_dirty or _last_rendered_floor_3d != controller.get_current_floor() or _last_generated_seed_3d != config.seed:
+		return _materialize_3d_view()
+	return viewer_3d._current_presentation if viewer_3d != null else null
+
+func ensure_2d_view_loaded() -> void:
+	if _view_2d_dirty or _last_rendered_floor_2d != controller.get_current_floor() or _last_generated_seed_2d != config.seed:
+		_materialize_2d_view()
 
 func _on_room_selected(room: RefCounted) -> void:
 	if room == null:
