@@ -41,7 +41,7 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	if not corridor_res.is_valid:
 		var corridor_repair_seed: int = _DungeonSeedFactoryScript.derive_seed(ctx.base_seed, ctx.attempt, &"repair_corridors")
 		var c_rep_res = _CorridorConnectivityRepairScript.repair_missing_corridors(
-			ctx.grid, ctx.rooms, ctx.entrance_pairs, ctx.connections, corridor_res, corridor_repair_seed, ctx.config, ctx.corridor_plan
+			ctx.grid, ctx.rooms, ctx.entrance_pairs, ctx.connections, corridor_res, corridor_repair_seed, ctx.corridor_plan, ctx.config
 		)
 
 		ctx.record_repair("corridor_repair", corridor_repair_seed, c_rep_res.success, {

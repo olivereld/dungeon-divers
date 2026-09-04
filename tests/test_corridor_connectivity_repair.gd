@@ -9,6 +9,8 @@ const _CorridorCarveResultScript = preload("res://src/dungeon_generator/core/dat
 const _RoomConnectionScript = preload("res://src/dungeon_generator/core/data/room_connection.gd")
 const _EntrancePairScript = preload("res://src/dungeon_generator/core/data/entrance_pair.gd")
 const _RoomEntranceScript = preload("res://src/dungeon_generator/core/data/room_entrance.gd")
+const _CorridorPlanScript = preload("res://src/dungeon_generator/core/data/corridor_plan.gd")
+const _CorridorRequestScript = preload("res://src/dungeon_generator/core/data/corridor_request.gd")
 
 func _init() -> void:
 	print("\n--- Running test_corridor_connectivity_repair ---")
@@ -24,9 +26,10 @@ func test_corridor_repair_already_valid() -> void:
 	var grid := CellGrid.new(20, 20, CellGrid.CellType.WALL)
 	var initial_res = _CorridorCarveResultScript.new()
 	initial_res.is_valid = true
+	var plan = _CorridorPlanScript.new()
 
 	var repair_res = _CorridorConnectivityRepairScript.repair_missing_corridors(
-		grid, [], [], [], initial_res, 123
+		grid, [], [], [], initial_res, 123, plan
 	)
 
 	assert(repair_res.success, "Must return success for already valid result")
@@ -49,8 +52,14 @@ func test_corridor_repair_success() -> void:
 	var initial_res = _CorridorCarveResultScript.new()
 	initial_res.add_failure(0, "SIMULATED_FAILURE")
 
+	var plan = _CorridorPlanScript.new()
+	var req = _CorridorRequestScript.new(0, 0, 1)
+	req.bind_physical_entrances(pair)
+	plan.add_request(req)
+	plan.seal()
+
 	var repair_res = _CorridorConnectivityRepairScript.repair_missing_corridors(
-		grid, [room_a, room_b], [pair], [conn], initial_res, 456
+		grid, [room_a, room_b], [pair], [conn], initial_res, 456, plan
 	)
 
 	assert(repair_res.success, "Corridor repair must succeed")
@@ -87,8 +96,14 @@ func test_corridor_repair_rollback_on_impossible() -> void:
 	var initial_res = _CorridorCarveResultScript.new()
 	initial_res.add_failure(0, "BLOCKED")
 
+	var plan = _CorridorPlanScript.new()
+	var req = _CorridorRequestScript.new(0, 0, 1)
+	req.bind_physical_entrances(pair)
+	plan.add_request(req)
+	plan.seal()
+
 	var repair_res = _CorridorConnectivityRepairScript.repair_missing_corridors(
-		grid, [room_a, room_b], [pair], [conn], initial_res, 789
+		grid, [room_a, room_b], [pair], [conn], initial_res, 789, plan
 	)
 
 	assert(not repair_res.success, "Corridor repair must fail when path is physically impossible")

@@ -10,42 +10,19 @@ extends RefCounted
 const _CorridorRequestScript = preload("res://src/dungeon_generator/core/data/corridor_request.gd")
 const _CorridorPathScript = preload("res://src/dungeon_generator/core/data/corridor_path.gd")
 const _CorridorCarveResultScript = preload("res://src/dungeon_generator/core/data/corridor_carve_result.gd")
-const _RoomConnectionScript = preload("res://src/dungeon_generator/core/data/room_connection.gd")
-const _EntranceSolverScript = preload("res://src/dungeon_generator/core/solvers/entrance_solver.gd")
 const _OrthogonalPlannerScript = preload("res://src/dungeon_generator/core/algorithms/orthogonal_corridor_planner.gd")
 
-## Método de compatibilidad para llamadas con conexiones basadas en Vector2i.
-static func carve_connections(
-	grid: CellGrid,
-	rooms: Array[RoomData],
-	connections: Array[Vector2i],
-	config: DungeonConfig = null,
-	_rng: RandomNumberGenerator = null
-) -> void:
-	if connections.is_empty() or rooms.size() < 2:
-		return
-
-	var room_conns: Array = []
-	var cid: int = 0
-	for pair in connections:
-		room_conns.append(_RoomConnectionScript.new(cid, pair.x, pair.y, true))
-		cid += 1
-
-	var ent_res = _EntranceSolverScript.resolve(rooms, room_conns, grid, config)
-	if ent_res.is_valid:
-		carve_corridors(grid, rooms, ent_res.entrance_pairs, room_conns, config)
-
-## Ejecuta el tallado para todos los pares de entrada proporcionados por Fase 4.
+## Ejecuta el tallado para todas las peticiones CorridorRequest planificadas y vinculadas.
 static func carve_corridors(
 	grid: CellGrid,
 	rooms: Array[RoomData],
-	entrance_pairs: Array,
+	corridor_requests: Array,
 	connections: Array = [],
 	config: DungeonConfig = null
 ) -> CorridorCarveResult:
 	var result = _CorridorCarveResultScript.new()
 
-	if entrance_pairs.is_empty() or rooms.size() < 2:
+	if corridor_requests.is_empty() or rooms.size() < 2:
 		result.is_valid = true
 		return result
 
@@ -65,17 +42,11 @@ static func carve_corridors(
 	# 1. Grafo base AStar2D (construido lazy únicamente si se requiere fallback clásico)
 	var astar: AStar2D = null
 
-	# 2. Convertir EntrancePairs o CorridorRequests y ordenar por prioridad
+	# 2. Filtrar peticiones CorridorRequest y ordenar por prioridad
 	var requests: Array[CorridorRequest] = []
-	for pair in entrance_pairs:
-		if pair is CorridorRequest:
-			requests.append(pair)
-		elif pair != null and "entrance_a" in pair and pair.entrance_a != null and pair.entrance_b != null:
-			var conn = conn_map.get(pair.connection_id, null)
-			var is_req: bool = conn.is_required if (conn != null and "is_required" in conn) else true
-			var req := CorridorRequest.from_entrance_pair(pair, is_req)
-			if req != null:
-				requests.append(req)
+	for item in corridor_requests:
+		if item is _CorridorRequestScript:
+			requests.append(item)
 
 	# Ordenar peticiones: mandatory primero, luego por rol semántico (MAIN_PATH > SIDE_PATH > OPTIONAL), luego por distancia e ID
 	requests.sort_custom(func(a: CorridorRequest, b: CorridorRequest):
@@ -270,8 +241,8 @@ static func _carve_single_request(
 	var room_a: RoomData = room_map.get(req.room_a_id, null)
 	var room_b: RoomData = room_map.get(req.room_b_id, null)
 
-	var inner_a: Vector2i = req.start_boundary - req.start_direction
-	var inner_b: Vector2i = req.goal_boundary - req.goal_direction
+	var inner_a: Vector2i = req.start_inner if req.start_inner != Vector2i.ZERO else (req.start_boundary - req.start_direction)
+	var inner_b: Vector2i = req.goal_inner if req.goal_inner != Vector2i.ZERO else (req.goal_boundary - req.goal_direction)
 	_connect_inner_to_room_floor(grid, room_a, inner_a)
 	_connect_inner_to_room_floor(grid, room_b, inner_b)
 
