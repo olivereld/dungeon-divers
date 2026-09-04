@@ -246,6 +246,60 @@ layout_mode = 2
 button_pressed = true
 text = "Template IDs"
 
+[node name="HSep4" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
+layout_mode = 2
+
+[node name="CompositionMargin" type="MarginContainer" parent="VBox/GenScroll/GenVBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_right = 10
+
+[node name="CompositionVBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompositionMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CompositionHeader" type="Label" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "▼ OVERLAYS · COMPOSICIÓN"
+
+[node name="CheckCompositionAnchors" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = false
+text = "Composition Anchors"
+
+[node name="BtnAnchorsTiming" type="Button" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+text = "Anchors: Both (Pre+Post)"
+
+[node name="CheckProgressionAxis" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = false
+text = "Progression Axis"
+
+[node name="CheckMainPathComp" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = false
+text = "Main Path Composition"
+
+[node name="CheckBranchZones" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = false
+text = "Branch Zones"
+
+[node name="CheckDensityZones" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = false
+text = "Density Zones"
+
 [node name="RoomScroll" type="ScrollContainer" parent="VBox"]
 unique_name_in_owner = true
 visible = false

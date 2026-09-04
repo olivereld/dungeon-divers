@@ -136,7 +136,14 @@ func to_dungeon_result() -> DungeonResult:
 	res.before_separator_metrics = before_separator_metrics
 	res.after_separator_metrics = after_separator_metrics
 	res.rooms_before_separator = rooms_before_separator
+	res.spatial_composition = spatial_composition
+	res.spatial_intent = spatial_intent
+	res.placement_plan = placement_plan
 	res.metadata = metrics.duplicate()
+	if spatial_composition != null:
+		res.metadata["spatial_composition"] = spatial_composition
+	if placement_plan != null:
+		res.metadata["placement_plan"] = placement_plan
 	if diagnostics.has("corridor"):
 		res.metadata["corridor_diagnostics"] = diagnostics["corridor"]
 	

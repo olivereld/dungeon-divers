@@ -204,6 +204,8 @@ func _setup_component_signals() -> void:
 			ui_left_panel.floor_changed.connect(_on_floor_spin_changed)
 		if not ui_left_panel.overlay_toggled.is_connected(_on_overlay_toggled):
 			ui_left_panel.overlay_toggled.connect(_on_overlay_toggled)
+		if "anchors_timing_toggled" in ui_left_panel and not ui_left_panel.anchors_timing_toggled.is_connected(set_anchors_timing_mode):
+			ui_left_panel.anchors_timing_toggled.connect(set_anchors_timing_mode)
 
 	if ui_right_panel != null:
 		if not ui_right_panel.room_selected.is_connected(_on_right_panel_room_selected):
@@ -426,6 +428,11 @@ func _setup_overlay_checkboxes() -> void:
 	_bind_checkbox("CheckSemanticLabels", func(v: bool): overlay.show_semantic_labels = v)
 	_bind_checkbox("CheckTemplateId", func(v: bool): overlay.show_template_id = v)
 	_bind_checkbox("CheckStairs", func(v: bool): overlay.show_stairs = v)
+	_bind_checkbox("CheckCompositionAnchors", func(v: bool): overlay.show_composition_anchors = v)
+	_bind_checkbox("CheckProgressionAxis", func(v: bool): overlay.show_progression_axis = v)
+	_bind_checkbox("CheckMainPathComp", func(v: bool): overlay.show_main_path_composition = v)
+	_bind_checkbox("CheckBranchZones", func(v: bool): overlay.show_branch_zones = v)
+	_bind_checkbox("CheckDensityZones", func(v: bool): overlay.show_density_zones = v)
 
 func _on_overlay_toggled(opt_name: String, enabled: bool) -> void:
 	match opt_name:
@@ -450,9 +457,17 @@ func _on_overlay_toggled(opt_name: String, enabled: bool) -> void:
 					var sem_res = controller.get_active_semantic_result()
 					if sem_res != null:
 						_display_generation_summary(sem_res, null)
-		"spatial": overlay.show_spatial_overlay = enabled
-		"semantics": overlay.show_semantics_overlay = enabled
+		"spatial", "spatial_overlay": overlay.show_spatial_overlay = enabled
+		"semantics", "semantics_overlay": overlay.show_semantics_overlay = enabled
 		"stairs": overlay.show_stairs = enabled
+		"composition_anchors", "anchors": overlay.show_composition_anchors = enabled
+		"progression_axis", "progression": overlay.show_progression_axis = enabled
+		"main_path_composition", "main_path": overlay.show_main_path_composition = enabled
+		"branch_zones", "branches": overlay.show_branch_zones = enabled
+		"density_zones", "density": overlay.show_density_zones = enabled
+
+func set_anchors_timing_mode(mode: StringName) -> void:
+	overlay.anchors_timing_mode = mode
 
 func _bind_checkbox(node_name: String, setter: Callable) -> void:
 	var cb = find_child(node_name, true, false) as CheckBox
@@ -849,7 +864,11 @@ func _on_room_selected(room: RefCounted) -> void:
 		viewer_3d.focus_room(room)
 
 	var bundle = controller.get_profile_bundle()
-	var diag = inspector.inspect_room(room, bundle, config.seed)
+	var floor_data = controller.get_current_floor_result()
+	var comp = floor_data.spatial_composition if floor_data != null and ("spatial_composition" in floor_data) else null
+	if comp == null and floor_data != null and floor_data.metadata.has("spatial_composition"):
+		comp = floor_data.metadata["spatial_composition"]
+	var diag = inspector.inspect_room(room, bundle, config.seed, [], comp)
 
 	if ui_right_panel != null:
 		ui_right_panel.show_room_details({
@@ -858,7 +877,13 @@ func _on_room_selected(room: RefCounted) -> void:
 			"pos": room.rect.position if "rect" in room else Vector2i.ZERO,
 			"size": diag.get("room_size", Vector2i.ZERO),
 			"template_id": diag.get("resolved_template_id", "procedural_fallback"),
-			"is_fallback": diag.get("is_fallback", true)
+			"is_fallback": diag.get("is_fallback", true),
+			"composition_region": diag.get("composition_region", "none"),
+			"progression_factor": diag.get("progression_factor", -1.0),
+			"anchor_position": diag.get("anchor_position", Vector2.ZERO),
+			"density": diag.get("density", 1.0),
+			"main_path": diag.get("main_path", false),
+			"branch_anchor": diag.get("branch_anchor", -1)
 		})
 
 	if inspector_text != null:
@@ -871,6 +896,17 @@ func _on_room_selected(room: RefCounted) -> void:
 		]
 		bbcode += "Size: %s\n" % str(diag.get("room_size", ""))
 		bbcode += "Fallback: %s\n\n" % str(diag.get("is_fallback", true))
+
+		bbcode += "[b]SPATIAL COMPOSITION[/b]\n"
+		bbcode += "  Region: [color=cyan]%s[/color]\n" % str(diag.get("composition_region", "none"))
+		var p_fac: float = float(diag.get("progression_factor", -1.0))
+		bbcode += "  Progression Factor: [color=yellow]%.2f[/color]\n" % p_fac if p_fac >= 0.0 else "  Progression Factor: [color=gray]N/A[/color]\n"
+		var a_pos: Vector2 = diag.get("anchor_position", Vector2.ZERO)
+		bbcode += "  Anchor Position: [color=white](%.1f, %.1f)[/color]\n" % [a_pos.x, a_pos.y]
+		bbcode += "  Density: [color=green]%.2f[/color]\n" % float(diag.get("density", 1.0))
+		bbcode += "  Main Path: %s\n" % ("[color=green]YES[/color]" if diag.get("main_path", false) else "[color=gray]NO[/color]")
+		var b_anc: int = diag.get("branch_anchor", -1)
+		bbcode += "  Branch Anchor: %s\n\n" % ("Node #%d" % b_anc if b_anc >= 0 else "[color=gray]None[/color]")
 
 		bbcode += "[b]Candidates (%d):[/b]\n" % diag.get("candidate_templates", []).size()
 		for c in diag.get("candidate_templates", []):

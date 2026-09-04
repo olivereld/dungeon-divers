@@ -11,6 +11,7 @@ signal floor_changed(count: int)
 signal floor_selected(floor_idx: int)
 signal tab_changed(tab_idx: int)
 signal overlay_toggled(key: String, enabled: bool)
+signal anchors_timing_toggled(mode: String)
 
 const _LabColors = preload("res://src/dungeon_generator/debug/lab/ui/lab_colors.gd")
 
@@ -45,6 +46,15 @@ const _LabColors = preload("res://src/dungeon_generator/debug/lab/ui/lab_colors.
 @onready var check_spatial_overlay: CheckBox = %CheckSpatialOverlay
 @onready var check_semantics_overlay: CheckBox = %CheckSemanticsOverlay
 @onready var check_template_id: CheckBox = %CheckTemplateId
+
+# Checkboxes de Overlays - Composición Espacial Global
+var check_composition_anchors: CheckBox = null
+var check_progression_axis: CheckBox = null
+var check_main_path_comp: CheckBox = null
+var check_branch_zones: CheckBox = null
+var check_density_zones: CheckBox = null
+var btn_anchors_timing: Button = null
+var _current_timing_idx: int = 0
 
 var _signals_setup := false
 
@@ -95,6 +105,65 @@ func _ensure_nodes() -> void:
 		check_semantics_overlay = find_child("CheckSemanticsOverlay", true, false) as CheckBox
 	if check_template_id == null:
 		check_template_id = find_child("CheckTemplateId", true, false) as CheckBox
+	if check_composition_anchors == null:
+		check_composition_anchors = find_child("CheckCompositionAnchors", true, false) as CheckBox
+	if check_progression_axis == null:
+		check_progression_axis = find_child("CheckProgressionAxis", true, false) as CheckBox
+	if check_main_path_comp == null:
+		check_main_path_comp = find_child("CheckMainPathComp", true, false) as CheckBox
+	if check_branch_zones == null:
+		check_branch_zones = find_child("CheckBranchZones", true, false) as CheckBox
+	if check_density_zones == null:
+		check_density_zones = find_child("CheckDensityZones", true, false) as CheckBox
+	if btn_anchors_timing == null:
+		btn_anchors_timing = find_child("BtnAnchorsTiming", true, false) as Button
+
+	var comp_vbox = find_child("CompositionVBox", true, false) as VBoxContainer
+	if comp_vbox == null:
+		comp_vbox = find_child("DebugVBox", true, false) as VBoxContainer
+
+	if comp_vbox != null and check_composition_anchors == null:
+		var comp_header := Label.new()
+		comp_header.text = "▼ OVERLAYS · COMPOSICIÓN"
+		comp_header.add_theme_color_override("font_color", _LabColors.AMBER)
+		comp_header.add_theme_font_size_override("font_size", 9)
+		comp_vbox.add_child(comp_header)
+
+		check_composition_anchors = CheckBox.new()
+		check_composition_anchors.name = "CheckCompositionAnchors"
+		check_composition_anchors.text = "Composition Anchors"
+		check_composition_anchors.add_theme_font_size_override("font_size", 10)
+		comp_vbox.add_child(check_composition_anchors)
+
+		btn_anchors_timing = Button.new()
+		btn_anchors_timing.name = "BtnAnchorsTiming"
+		btn_anchors_timing.text = "Anchors: Both (Pre+Post)"
+		btn_anchors_timing.add_theme_font_size_override("font_size", 9)
+		comp_vbox.add_child(btn_anchors_timing)
+
+		check_progression_axis = CheckBox.new()
+		check_progression_axis.name = "CheckProgressionAxis"
+		check_progression_axis.text = "Progression Axis"
+		check_progression_axis.add_theme_font_size_override("font_size", 10)
+		comp_vbox.add_child(check_progression_axis)
+
+		check_main_path_comp = CheckBox.new()
+		check_main_path_comp.name = "CheckMainPathComp"
+		check_main_path_comp.text = "Main Path Composition"
+		check_main_path_comp.add_theme_font_size_override("font_size", 10)
+		comp_vbox.add_child(check_main_path_comp)
+
+		check_branch_zones = CheckBox.new()
+		check_branch_zones.name = "CheckBranchZones"
+		check_branch_zones.text = "Branch Zones"
+		check_branch_zones.add_theme_font_size_override("font_size", 10)
+		comp_vbox.add_child(check_branch_zones)
+
+		check_density_zones = CheckBox.new()
+		check_density_zones.name = "CheckDensityZones"
+		check_density_zones.text = "Density Zones"
+		check_density_zones.add_theme_font_size_override("font_size", 10)
+		comp_vbox.add_child(check_density_zones)
 
 func _ready() -> void:
 	_ensure_nodes()
@@ -183,6 +252,26 @@ func _setup_signals() -> void:
 	_bind_checkbox(check_spatial_overlay, "spatial_overlay")
 	_bind_checkbox(check_semantics_overlay, "semantics_overlay")
 	_bind_checkbox(check_template_id, "template_id")
+	_bind_checkbox(check_composition_anchors, "composition_anchors")
+	_bind_checkbox(check_progression_axis, "progression_axis")
+	_bind_checkbox(check_main_path_comp, "main_path_composition")
+	_bind_checkbox(check_branch_zones, "branch_zones")
+	_bind_checkbox(check_density_zones, "density_zones")
+
+	if btn_anchors_timing != null and not btn_anchors_timing.pressed.is_connected(_on_anchors_timing_btn_pressed):
+		btn_anchors_timing.pressed.connect(_on_anchors_timing_btn_pressed)
+
+func _on_anchors_timing_btn_pressed() -> void:
+	var modes: Array[String] = ["both", "before", "after"]
+	var mode_labels: Array[String] = [
+		"Anchors: Both (Pre+Post)",
+		"Anchors: Before (Planned)",
+		"Anchors: After (Placed)"
+	]
+	_current_timing_idx = (_current_timing_idx + 1) % modes.size()
+	if btn_anchors_timing != null:
+		btn_anchors_timing.text = mode_labels[_current_timing_idx]
+	anchors_timing_toggled.emit(modes[_current_timing_idx])
 
 func _bind_checkbox(cb: CheckBox, key: String) -> void:
 	if cb != null:

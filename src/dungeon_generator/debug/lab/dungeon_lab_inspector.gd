@@ -9,7 +9,8 @@ func inspect_room(
 	room: RoomData,
 	bundle: ProfileBundle,
 	p_seed: int = 0,
-	entrances: Array[Vector2i] = []
+	entrances: Array[Vector2i] = [],
+	spatial_composition = null
 ) -> Dictionary:
 	if room == null or bundle == null:
 		return {}
@@ -28,6 +29,24 @@ func inspect_room(
 	var resolver := _RoomTemplateResolverScript.new(bundle.template_registry)
 	var raw_diag := resolver.resolve_with_diagnostics(room, room_profile, entrances, p_seed)
 
+	var node_id: int = room.mission_node_id if room.mission_node_id >= 0 else room.id
+	var comp_region: StringName = &"none"
+	var prog_factor: float = -1.0
+	var anchor_pos: Vector2 = Vector2.ZERO
+	var density_val: float = 1.0
+	var is_main_path: bool = false
+	var branch_anchor_id: int = -1
+
+	if spatial_composition != null:
+		comp_region = spatial_composition.get_region(node_id)
+		prog_factor = spatial_composition.get_main_path_factor(node_id)
+		if prog_factor < 0.0:
+			prog_factor = spatial_composition.get_branch_factor(node_id)
+		anchor_pos = spatial_composition.get_anchor_target(node_id)
+		density_val = spatial_composition.get_density(node_id)
+		is_main_path = spatial_composition.is_main_path(node_id)
+		branch_anchor_id = spatial_composition.get_branch_anchor(node_id)
+
 	return {
 		"room_id": room.id,
 		"purpose": room.room_type,
@@ -37,7 +56,13 @@ func inspect_room(
 		"room_size": raw_diag.get("room_size", room.rect.size),
 		"candidate_templates": raw_diag.get("candidate_templates", []),
 		"compatible_templates": raw_diag.get("compatible_templates", []),
-		"rejected_templates": raw_diag.get("rejected_templates", {})
+		"rejected_templates": raw_diag.get("rejected_templates", {}),
+		"composition_region": comp_region,
+		"progression_factor": prog_factor,
+		"anchor_position": anchor_pos,
+		"density": density_val,
+		"main_path": is_main_path,
+		"branch_anchor": branch_anchor_id
 	}
 
 func format_corridor_diagnostics(diagnostics: Array, corridor_paths: Array = []) -> String:
