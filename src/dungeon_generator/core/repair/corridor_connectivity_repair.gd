@@ -238,7 +238,7 @@ static func _carve_with_journal(
 		reused_count,
 		metrics["turn_count"],
 		metrics["longest_straight_run"],
-		"Repair_Width1"
+		"Repair"
 	)
 	path.straight_run_count = metrics["straight_run_count"]
 

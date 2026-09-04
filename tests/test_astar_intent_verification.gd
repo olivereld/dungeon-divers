@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Suite de verificación y endurecimiento de consumo de intención en AStarCarver.
-## Grupos de test: A-I conforme al plan de ejecución.
+## Grupos de test: A-I conforme al plan de ejecución final.
 
 const _AStarCarverScript = preload("res://src/dungeon_generator/core/algorithms/astar_carver.gd")
 const _CorridorRequestScript = preload("res://src/dungeon_generator/core/data/corridor_request.gd")
@@ -68,45 +68,78 @@ func test_group_a_request_identity() -> void:
 
 # -------------------------------------------------------------------------
 # Grupo B: Routing Preference
-# Verifica que routing_preference modula la estrategia de ruteo (p. ej. AVOID_ROOMS desactiva orthogonal rígido)
+# Verifica geométricamente:
+# ROUTING_DIRECT toma la ruta directa a través del área de suelo central,
+# mientras que ROUTING_AVOID_ROOMS evita dicha área y toma la ruta alternativa alrededor.
 # -------------------------------------------------------------------------
 func test_group_b_routing_preference() -> void:
-	var grid := CellGrid.new(40, 40, CellGrid.CellType.WALL)
-	var room_a := _RoomDataScript.new(1, Rect2i(2, 2, 6, 6))
-	var room_b := _RoomDataScript.new(2, Rect2i(25, 20, 6, 6))
-	grid.fill_rect(room_a.rect, CellGrid.CellType.FLOOR)
-	grid.fill_rect(room_b.rect, CellGrid.CellType.FLOOR)
+	var make_setup := func() -> Dictionary:
+		var grid := CellGrid.new(40, 40, CellGrid.CellType.WALL)
+		var room_a := _RoomDataScript.new(1, Rect2i(2, 10, 6, 6))
+		var room_b := _RoomDataScript.new(2, Rect2i(26, 10, 6, 6))
+		grid.fill_rect(room_a.rect, CellGrid.CellType.FLOOR)
+		grid.fill_rect(room_b.rect, CellGrid.CellType.FLOOR)
 
-	var ent_a := _RoomEntranceScript.new(1, 0, Vector2i(8, 5), _RoomEntranceScript.Side.EAST, Vector2i(7, 5), Vector2i(9, 5))
-	var ent_b := _RoomEntranceScript.new(2, 0, Vector2i(24, 23), _RoomEntranceScript.Side.WEST, Vector2i(25, 23), Vector2i(23, 23))
-	var pair := _EntrancePairScript.new(1, ent_a, ent_b)
+		# Área de suelo intermedia entre Room A y Room B
+		var central_floor := Rect2i(14, 11, 5, 5)
+		grid.fill_rect(central_floor, CellGrid.CellType.FLOOR)
 
+		var ent_a := _RoomEntranceScript.new(1, 0, Vector2i(8, 13), _RoomEntranceScript.Side.EAST, Vector2i(7, 13), Vector2i(9, 13))
+		var ent_b := _RoomEntranceScript.new(2, 0, Vector2i(25, 13), _RoomEntranceScript.Side.WEST, Vector2i(26, 13), Vector2i(24, 13))
+		var pair := _EntrancePairScript.new(1, ent_a, ent_b)
+		return {"grid": grid, "room_a": room_a, "room_b": room_b, "pair": pair, "central_floor": central_floor}
+
+	# 1. ROUTING_DIRECT: utiliza la ruta directa recta atravesando el área de suelo
+	var s_dir = make_setup.call()
+	var req_dir := _CorridorRequestScript.create_planned(
+		1, 1, 2,
+		Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO,
+		true, _CorridorRequestScript.ROLE_MAIN_PATH, Vector2i(1, 2),
+		15.0, 4, 40, _CorridorRequestScript.ROUTING_DIRECT
+	)
+	req_dir.bind_physical_entrances(s_dir["pair"])
+	var cfg_dir := DungeonConfig.new()
+	cfg_dir.prefer_orthogonal_routes = true
+	var res_dir: CorridorCarveResult = _AStarCarverScript.carve_corridors(s_dir["grid"], [s_dir["room_a"], s_dir["room_b"]], [req_dir], [], cfg_dir)
+	assert(res_dir.is_valid, "Group B: DIRECT must succeed")
+	var path_dir: CorridorPath = res_dir.paths[0]
+	var intersects_floor := false
+	for cell in path_dir.centerline_cells:
+		if s_dir["central_floor"].has_point(cell):
+			intersects_floor = true
+			break
+	assert(intersects_floor, "Group B: DIRECT must take the direct path crossing the central floor area")
+
+	# 2. ROUTING_AVOID_ROOMS: penaliza el suelo y toma la ruta alternativa alrededor
+	var s_avoid = make_setup.call()
 	var req_avoid := _CorridorRequestScript.create_planned(
 		1, 1, 2,
 		Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO,
 		true, _CorridorRequestScript.ROLE_SIDE_PATH, Vector2i(1, 2),
-		20.0, 4, 40, _CorridorRequestScript.ROUTING_AVOID_ROOMS
+		15.0, 4, 40, _CorridorRequestScript.ROUTING_AVOID_ROOMS
 	)
-	req_avoid.bind_physical_entrances(pair)
+	req_avoid.bind_physical_entrances(s_avoid["pair"])
+	var cfg_avoid := DungeonConfig.new()
+	var res_avoid: CorridorCarveResult = _AStarCarverScript.carve_corridors(s_avoid["grid"], [s_avoid["room_a"], s_avoid["room_b"]], [req_avoid], [], cfg_avoid)
+	assert(res_avoid.is_valid, "Group B: AVOID_ROOMS must succeed")
+	var path_avoid: CorridorPath = res_avoid.paths[0]
+	for cell in path_avoid.centerline_cells:
+		assert(not s_avoid["central_floor"].has_point(cell), "Group B: AVOID_ROOMS centerline must not invade central floor area")
+	for cell in path_avoid.carved_cells:
+		assert(not s_avoid["central_floor"].has_point(cell), "Group B: AVOID_ROOMS carved cells must not invade central floor area")
 
-	var cfg := DungeonConfig.new()
-	cfg.prefer_orthogonal_routes = true # Config dice true, pero req.ROUTING_AVOID_ROOMS debe forzar AStar
-	var res: CorridorCarveResult = _AStarCarverScript.carve_corridors(grid, [room_a, room_b], [req_avoid], [], cfg)
-
-	assert(res.is_valid, "Group B: Carving with AVOID_ROOMS must succeed")
-	var path: CorridorPath = res.paths[0]
-	assert(path.routing_strategy.begins_with("AStar"), "Group B: ROUTING_AVOID_ROOMS must bypass Orthogonal planner in favor of AStar, got: %s" % path.routing_strategy)
-	print("  [OK] Group B: Routing Preference behavior verified (AVOID_ROOMS -> %s)" % path.routing_strategy)
+	print("  [OK] Group B: Routing Preference geometrically verified (DIRECT traverses direct, AVOID_ROOMS detours around)")
 
 # -------------------------------------------------------------------------
 # Grupo C: Room Avoidance
-# Verifica que con una sala ajena C en el camino directo, el corredor rutea alrededor de C
+# Verifica que con una sala ajena C registrada y una alternativa disponible,
+# AStarCarver rutea por la alternativa y no invade Room C ni su buffer.
 # -------------------------------------------------------------------------
 func test_group_c_room_avoidance() -> void:
 	var grid := CellGrid.new(45, 45, CellGrid.CellType.WALL)
 	var room_a := _RoomDataScript.new(1, Rect2i(2, 10, 6, 6))
 	var room_b := _RoomDataScript.new(2, Rect2i(32, 10, 6, 6))
-	var room_c := _RoomDataScript.new(3, Rect2i(15, 8, 10, 10)) # Sala ajena en el medio
+	var room_c := _RoomDataScript.new(3, Rect2i(15, 8, 10, 10)) # Sala ajena intermedia
 	grid.fill_rect(room_a.rect, CellGrid.CellType.FLOOR)
 	grid.fill_rect(room_b.rect, CellGrid.CellType.FLOOR)
 	grid.fill_rect(room_c.rect, CellGrid.CellType.FLOOR)
@@ -129,90 +162,158 @@ func test_group_c_room_avoidance() -> void:
 	assert(res.is_valid, "Group C: Carving must succeed avoiding unrelated Room C")
 	var path: CorridorPath = res.paths[0]
 
-	# Ninguna celda del camino central ni celdas ensanchadas puede tocar Room C
 	for cell in path.centerline_cells:
 		assert(not room_c.rect.has_point(cell), "Group C: Centerline cell %s must not invade Room C" % str(cell))
 	for cell in path.carved_cells:
 		assert(not room_c.rect.has_point(cell), "Group C: Carved cell %s must not invade Room C" % str(cell))
 
-	print("  [OK] Group C: Unrelated Room Avoidance verified (Room C completely bypassed)")
+	print("  [OK] Group C: Room Avoidance verified (Room C completely bypassed, alternative chosen)")
 
 # -------------------------------------------------------------------------
 # Grupo D: Preferred Length
-# Verifica que preferred_length es un sesgo suave y nunca causa rechazo duro
+# Demuestra con dos rutas posibles de igual coste base que preferred_length
+# cambia deterministamente la selección de ruta hacia la longitud deseada.
 # -------------------------------------------------------------------------
 func test_group_d_preferred_length() -> void:
-	var grid := CellGrid.new(35, 35, CellGrid.CellType.WALL)
-	var room_a := _RoomDataScript.new(1, Rect2i(2, 5, 6, 6))
-	var room_b := _RoomDataScript.new(2, Rect2i(20, 5, 6, 6))
-	grid.fill_rect(room_a.rect, CellGrid.CellType.FLOOR)
-	grid.fill_rect(room_b.rect, CellGrid.CellType.FLOOR)
+	var make_dual_route_setup := func() -> Dictionary:
+		# Grid de 30x30 relleno de VOID (así solo existirán las dos rutas explícitamente talladas)
+		var grid := CellGrid.new(30, 30, CellGrid.CellType.VOID)
+		var room_a := _RoomDataScript.new(1, Rect2i(2, 8, 6, 5))
+		var room_b := _RoomDataScript.new(2, Rect2i(19, 8, 6, 5))
+		grid.fill_rect(room_a.rect, CellGrid.CellType.FLOOR)
+		grid.fill_rect(room_b.rect, CellGrid.CellType.FLOOR)
 
-	var ent_a := _RoomEntranceScript.new(1, 0, Vector2i(8, 8), _RoomEntranceScript.Side.EAST, Vector2i(7, 8), Vector2i(9, 8))
-	var ent_b := _RoomEntranceScript.new(2, 0, Vector2i(19, 8), _RoomEntranceScript.Side.WEST, Vector2i(20, 8), Vector2i(18, 8))
-	var pair := _EntrancePairScript.new(1, ent_a, ent_b)
+		# Entradas: start=(9, 10), goal=(18, 10)
+		var ent_a := _RoomEntranceScript.new(1, 0, Vector2i(8, 10), _RoomEntranceScript.Side.EAST, Vector2i(7, 10), Vector2i(9, 10))
+		var ent_b := _RoomEntranceScript.new(2, 0, Vector2i(19, 10), _RoomEntranceScript.Side.WEST, Vector2i(20, 10), Vector2i(18, 10))
+		grid.set_cell(Vector2i(8, 10), CellGrid.CellType.FLOOR)
+		grid.set_cell(Vector2i(19, 10), CellGrid.CellType.FLOOR)
+		var pair := _EntrancePairScript.new(1, ent_a, ent_b)
 
-	# Longitud imposible (999.0) en un espacio de distancia 10
-	var req := _CorridorRequestScript.create_planned(
+		# Ruta 1 (Corta): recta horizontal por y=10 de x=9 a x=18 (10 celdas, 9 pasos)
+		# 4 pasos WALL (4 * 15 = 60.0) + 5 pasos CORRIDOR (5 * 1 = 5.0) = 65.0 coste base
+		for x in range(9, 19):
+			grid.set_cell(Vector2i(x, 10), CellGrid.CellType.CORRIDOR)
+		grid.set_cell(Vector2i(10, 10), CellGrid.CellType.WALL)
+		grid.set_cell(Vector2i(11, 10), CellGrid.CellType.WALL)
+		grid.set_cell(Vector2i(12, 10), CellGrid.CellType.WALL)
+		grid.set_cell(Vector2i(13, 10), CellGrid.CellType.WALL)
+
+		# Ruta 2 (Larga): detour hacia el sur por y=15 (19 celdas, 18 pasos)
+		# 18 pasos CORRIDOR (18.0) + 3 giros (30.0) = 48.0 coste base (cercano a 51.0)
+		for y in range(11, 16):
+			grid.set_cell(Vector2i(9, y), CellGrid.CellType.CORRIDOR)
+		for x in range(10, 19):
+			grid.set_cell(Vector2i(x, 15), CellGrid.CellType.CORRIDOR)
+		for y in range(11, 15):
+			grid.set_cell(Vector2i(18, y), CellGrid.CellType.CORRIDOR)
+
+		return {"grid": grid, "room_a": room_a, "room_b": room_b, "pair": pair}
+
+	var short_target: float = 10.0
+	var long_target: float = 19.0
+
+	# 1. Petición con preferred_length corta (10.0)
+	var s_short = make_dual_route_setup.call()
+	var req_short := _CorridorRequestScript.create_planned(
 		1, 1, 2,
 		Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO,
 		true, _CorridorRequestScript.ROLE_MAIN_PATH, Vector2i(1, 2),
-		999.0, 4, 64, _CorridorRequestScript.ROUTING_DIRECT
+		short_target, 1, 64, _CorridorRequestScript.ROUTING_DIRECT
 	)
-	req.bind_physical_entrances(pair)
+	req_short.bind_physical_entrances(s_short["pair"])
+	var cfg_short := DungeonConfig.new()
+	cfg_short.prefer_orthogonal_routes = false # Evaluar A* directamente
+	var res_short: CorridorCarveResult = _AStarCarverScript.carve_corridors(s_short["grid"], [s_short["room_a"], s_short["room_b"]], [req_short], [], cfg_short)
+	assert(res_short.is_valid, "Group D: Short preferred_length must succeed")
+	var path_short: CorridorPath = res_short.paths[0]
+	var len_short: float = float(path_short.centerline_cells.size())
 
-	var cfg := DungeonConfig.new()
-	var res: CorridorCarveResult = _AStarCarverScript.carve_corridors(grid, [room_a, room_b], [req], [], cfg)
+	# 2. Petición con preferred_length larga (19.0)
+	var s_long = make_dual_route_setup.call()
+	var req_long := _CorridorRequestScript.create_planned(
+		1, 1, 2,
+		Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO,
+		true, _CorridorRequestScript.ROLE_MAIN_PATH, Vector2i(1, 2),
+		long_target, 1, 64, _CorridorRequestScript.ROUTING_DIRECT
+	)
+	req_long.bind_physical_entrances(s_long["pair"])
+	var cfg_long := DungeonConfig.new()
+	cfg_long.prefer_orthogonal_routes = false # Evaluar A* directamente
+	var res_long: CorridorCarveResult = _AStarCarverScript.carve_corridors(s_long["grid"], [s_long["room_a"], s_long["room_b"]], [req_long], [], cfg_long)
+	assert(res_long.is_valid, "Group D: Long preferred_length must succeed")
+	var path_long: CorridorPath = res_long.paths[0]
+	var len_long: float = float(path_long.centerline_cells.size())
 
-	assert(res.is_valid, "Group D: Impossible preferred_length must NEVER cause rejection (soft bias)")
-	assert(res.paths.size() == 1, "Group D: Exactly 1 path must be carved")
-	assert(res.paths[0].cost > 0.0, "Group D: Soft length penalty reflected in path cost")
-	print("  [OK] Group D: Preferred Length verified as non-rejecting soft preference (cost=%.2f)" % res.paths[0].cost)
+	# Verificación conceptual estricta:
+	# absf(path_short.length - short_length) < absf(path_short.length - long_length)
+	# absf(path_long.length - long_length) < absf(path_long.length - short_length)
+	assert(absf(len_short - short_target) < absf(len_short - long_target),
+		"Group D: short request (len=%.1f) must be closer to short_target (%.1f) than long_target (%.1f)" % [len_short, short_target, long_target])
+	assert(absf(len_long - long_target) < absf(len_long - short_target),
+		"Group D: long request (len=%.1f) must be closer to long_target (%.1f) than short_target (%.1f)" % [len_long, long_target, short_target])
+
+	print("  [OK] Group D: Preferred Length verified with dual-route selection (short=%.1f, long=%.1f)" % [len_short, len_long])
 
 # -------------------------------------------------------------------------
 # Grupo E: Min / Max Length
-# Verifica que min_length y max_length aplican penalizaciones suaves de coste sin rechazo duro
+# Verifica que min_length y max_length imposibles no rechazan el corredor (preferencia soft)
 # -------------------------------------------------------------------------
 func test_group_e_min_max_length() -> void:
-	var grid := CellGrid.new(35, 35, CellGrid.CellType.WALL)
-	var room_a := _RoomDataScript.new(1, Rect2i(2, 5, 6, 6))
-	var room_b := _RoomDataScript.new(2, Rect2i(20, 5, 6, 6))
-	grid.fill_rect(room_a.rect, CellGrid.CellType.FLOOR)
-	grid.fill_rect(room_b.rect, CellGrid.CellType.FLOOR)
+	var make_setup := func() -> Dictionary:
+		var grid := CellGrid.new(35, 35, CellGrid.CellType.WALL)
+		var room_a := _RoomDataScript.new(1, Rect2i(2, 5, 6, 6))
+		var room_b := _RoomDataScript.new(2, Rect2i(20, 5, 6, 6))
+		grid.fill_rect(room_a.rect, CellGrid.CellType.FLOOR)
+		grid.fill_rect(room_b.rect, CellGrid.CellType.FLOOR)
 
-	var ent_a := _RoomEntranceScript.new(1, 0, Vector2i(8, 8), _RoomEntranceScript.Side.EAST, Vector2i(7, 8), Vector2i(9, 8))
-	var ent_b := _RoomEntranceScript.new(2, 0, Vector2i(19, 8), _RoomEntranceScript.Side.WEST, Vector2i(20, 8), Vector2i(18, 8))
-	var pair := _EntrancePairScript.new(1, ent_a, ent_b)
+		var ent_a := _RoomEntranceScript.new(1, 0, Vector2i(8, 8), _RoomEntranceScript.Side.EAST, Vector2i(7, 8), Vector2i(9, 8))
+		var ent_b := _RoomEntranceScript.new(2, 0, Vector2i(19, 8), _RoomEntranceScript.Side.WEST, Vector2i(20, 8), Vector2i(18, 8))
+		var pair := _EntrancePairScript.new(1, ent_a, ent_b)
+		return {"grid": grid, "room_a": room_a, "room_b": room_b, "pair": pair}
 
-	# Requiere mínimo 80 celdas (imposible para un tramo de 10)
+	# 1. Requiere mínimo 100 celdas (imposible para un tramo de 10)
+	var s_min = make_setup.call()
 	var req_min := _CorridorRequestScript.create_planned(
 		1, 1, 2,
 		Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO,
 		true, _CorridorRequestScript.ROLE_MAIN_PATH, Vector2i(1, 2),
-		10.0, 80, 100, _CorridorRequestScript.ROUTING_DIRECT
+		10.0, 100, 200, _CorridorRequestScript.ROUTING_DIRECT
 	)
-	req_min.bind_physical_entrances(pair)
-
+	req_min.bind_physical_entrances(s_min["pair"])
 	var cfg := DungeonConfig.new()
-	var res: CorridorCarveResult = _AStarCarverScript.carve_corridors(grid, [room_a, room_b], [req_min], [], cfg)
+	var res_min: CorridorCarveResult = _AStarCarverScript.carve_corridors(s_min["grid"], [s_min["room_a"], s_min["room_b"]], [req_min], [], cfg)
+	assert(res_min.is_valid, "Group E: Impossible min_length must NOT reject corridor")
+	assert(res_min.paths.size() == 1, "Group E: Exactly 1 path must be carved for impossible min_length")
 
-	assert(res.is_valid, "Group E: Violating min_length must not reject corridor, only apply soft cost penalty")
-	assert(res.paths.size() == 1, "Group E: Exactly 1 path must be carved")
-	print("  [OK] Group E: Min/Max length verified as soft quality penalties without hard rejection")
+	# 2. Requiere máximo 2 celdas (imposible para un tramo de 10)
+	var s_max = make_setup.call()
+	var req_max := _CorridorRequestScript.create_planned(
+		2, 1, 2,
+		Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO,
+		true, _CorridorRequestScript.ROLE_MAIN_PATH, Vector2i(1, 2),
+		10.0, 1, 2, _CorridorRequestScript.ROUTING_DIRECT
+	)
+	req_max.bind_physical_entrances(s_max["pair"])
+	var res_max: CorridorCarveResult = _AStarCarverScript.carve_corridors(s_max["grid"], [s_max["room_a"], s_max["room_b"]], [req_max], [], cfg)
+	assert(res_max.is_valid, "Group E: Impossible max_length must NOT reject corridor")
+	assert(res_max.paths.size() == 1, "Group E: Exactly 1 path must be carved for impossible max_length")
+
+	print("  [OK] Group E: Min/Max length verified as soft preferences (impossible min & max both carve successfully)")
 
 # -------------------------------------------------------------------------
 # Grupo F: Role Priority
-# Verifica que AStarCarver procesa en orden: Required > MAIN_PATH > SIDE_PATH > OPTIONAL
+# Verifica que AStarCarver procesa en orden: Required > MAIN_PATH > SIDE_PATH > OPTIONAL / SHORTCUT
 # -------------------------------------------------------------------------
 func test_group_f_role_priority() -> void:
 	var req_opt := _CorridorRequestScript.new(10, 1, 2, Vector2i(2, 2), Vector2i(10, 2), Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, false, _CorridorRequestScript.ROLE_OPTIONAL)
 	var req_side := _CorridorRequestScript.new(20, 1, 2, Vector2i(2, 2), Vector2i(10, 2), Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, true, _CorridorRequestScript.ROLE_SIDE_PATH)
 	var req_main := _CorridorRequestScript.new(30, 1, 2, Vector2i(2, 2), Vector2i(10, 2), Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, true, _CorridorRequestScript.ROLE_MAIN_PATH)
 	var req_main_opt := _CorridorRequestScript.new(40, 1, 2, Vector2i(2, 2), Vector2i(10, 2), Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, false, _CorridorRequestScript.ROLE_MAIN_PATH)
+	var req_shortcut := _CorridorRequestScript.new(50, 1, 2, Vector2i(2, 2), Vector2i(10, 2), Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, false, _CorridorRequestScript.ROLE_SHORTCUT)
 
-	var requests: Array[CorridorRequest] = [req_opt, req_side, req_main, req_main_opt]
+	var requests: Array[CorridorRequest] = [req_opt, req_side, req_main, req_main_opt, req_shortcut]
 
-	# Simular el sort_custom idéntico de AStarCarver
 	requests.sort_custom(func(a: CorridorRequest, b: CorridorRequest):
 		if a.is_required != b.is_required:
 			return a.is_required
@@ -237,7 +338,8 @@ func test_group_f_role_priority() -> void:
 	assert(requests[1].connection_id == 20, "Group F: #2 must be req_side (required, SIDE_PATH)")
 	assert(requests[2].connection_id == 40, "Group F: #3 must be req_main_opt (optional, MAIN_PATH)")
 	assert(requests[3].connection_id == 10, "Group F: #4 must be req_opt (optional, OPTIONAL)")
-	print("  [OK] Group F: Role Priority verified (Required > MAIN_PATH > SIDE_PATH > OPTIONAL)")
+	assert(requests[4].connection_id == 50, "Group F: #5 must be req_shortcut (optional, SHORTCUT)")
+	print("  [OK] Group F: Role Priority verified (Required > MAIN_PATH > SIDE_PATH > OPTIONAL / SHORTCUT)")
 
 # -------------------------------------------------------------------------
 # Grupo G: Required vs. Optional Semantics
