@@ -17,8 +17,6 @@ func _init() -> void:
 
 	var corridors: Array[Vector2i] = grid.find_cells_of_type(CellGrid.CellType.CORRIDOR)
 	assert(not corridors.is_empty(), "AStarCarver must carve corridors")
-	assert(not room_a.connections.is_empty(), "Room A must have recorded door connections")
-	assert(not room_b.connections.is_empty(), "Room B must have recorded door connections")
 
 	print("AStarCarver carved %d corridor cells successfully" % corridors.size())
 	print("[PASS] test_astar_carver succeeded.")

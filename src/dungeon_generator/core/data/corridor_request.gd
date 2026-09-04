@@ -29,6 +29,8 @@ var _start_boundary: Vector2i = Vector2i.ZERO # boundary_cell de Entrance A
 var _goal_boundary: Vector2i = Vector2i.ZERO  # boundary_cell de Entrance B
 var _start_direction: Vector2i = Vector2i.ZERO # outward vector de Entrance A
 var _goal_direction: Vector2i = Vector2i.ZERO  # outward vector de Entrance B
+var _start_inner: Vector2i = Vector2i.ZERO # inner_cell de Entrance A
+var _goal_inner: Vector2i = Vector2i.ZERO  # inner_cell de Entrance B
 
 # Requisitos de conectividad
 var _is_required: bool = true
@@ -96,6 +98,18 @@ var goal_direction: Vector2i:
 		assert(not _is_sealed, "CorridorRequest is sealed and immutable.")
 		if not _is_sealed: _goal_direction = val
 
+var start_inner: Vector2i:
+	get: return _start_inner
+	set(val):
+		assert(not _is_sealed, "CorridorRequest is sealed and immutable.")
+		if not _is_sealed: _start_inner = val
+
+var goal_inner: Vector2i:
+	get: return _goal_inner
+	set(val):
+		assert(not _is_sealed, "CorridorRequest is sealed and immutable.")
+		if not _is_sealed: _goal_inner = val
+
 var is_required: bool:
 	get: return _is_required
 	set(val):
@@ -138,22 +152,6 @@ var routing_preference: StringName:
 		assert(not _is_sealed, "CorridorRequest is sealed and immutable.")
 		if not _is_sealed: _routing_preference = val
 
-# Aliases de compatibilidad
-var from_room: int:
-	get: return _room_a_id
-	set(val): room_a_id = val
-
-var to_room: int:
-	get: return _room_b_id
-	set(val): room_b_id = val
-
-var preferred_entrance: Vector2i:
-	get: return _start
-	set(val): start = val
-
-var preferred_exit: Vector2i:
-	get: return _goal
-	set(val): goal = val
 
 func _init(
 	p_conn_id: int = -1,
@@ -212,25 +210,6 @@ static func create_planned(
 	req._routing_preference = p_routing_pref
 	return req
 
-## [DEPRECATED / NO PRODUCTIVO] Método legacy de compatibilidad para tests unitarios aislados.
-## En el pipeline principal de producción, las peticiones deben crearse exclusivamente
-## mediante CorridorPlanner y completarse con bind_physical_entrances().
-static func from_entrance_pair(pair: EntrancePair, is_required_conn: bool = true) -> CorridorRequest:
-	if pair == null or pair.entrance_a == null or pair.entrance_b == null:
-		return null
-	return CorridorRequest.new(
-		pair.connection_id,
-		pair.entrance_a.room_id,
-		pair.entrance_b.room_id,
-		pair.entrance_a.outer_cell,
-		pair.entrance_b.outer_cell,
-		pair.entrance_a.boundary_cell,
-		pair.entrance_b.boundary_cell,
-		pair.entrance_a.get_outward_direction(),
-		pair.entrance_b.get_outward_direction(),
-		is_required_conn
-	)
-
 func bind_physical_entrances(pair: EntrancePair) -> void:
 	assert(not _is_sealed, "CorridorRequest is sealed and immutable.")
 	if not _is_sealed and pair != null and pair.entrance_a != null and pair.entrance_b != null:
@@ -238,10 +217,10 @@ func bind_physical_entrances(pair: EntrancePair) -> void:
 		_goal = pair.entrance_b.outer_cell
 		_start_boundary = pair.entrance_a.boundary_cell
 		_goal_boundary = pair.entrance_b.boundary_cell
+		_start_inner = pair.entrance_a.inner_cell
+		_goal_inner = pair.entrance_b.inner_cell
 		_start_direction = pair.entrance_a.get_outward_direction()
 		_goal_direction = pair.entrance_b.get_outward_direction()
-		if _preferred_length <= 0.0:
-			_preferred_length = float(_start.distance_to(_goal))
 
 func seal() -> void:
 	_is_sealed = true

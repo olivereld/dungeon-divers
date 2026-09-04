@@ -7,6 +7,7 @@ const _AStarCarverScript = preload("res://src/dungeon_generator/core/algorithms/
 const _EntrancePairScript = preload("res://src/dungeon_generator/core/data/entrance_pair.gd")
 const _RoomEntranceScript = preload("res://src/dungeon_generator/core/data/room_entrance.gd")
 const _RoomConnectionScript = preload("res://src/dungeon_generator/core/data/room_connection.gd")
+const _CorridorRequestScript = preload("res://src/dungeon_generator/core/data/corridor_request.gd")
 
 func _init() -> void:
 	print("--- Running test_corridor_aesthetic_quality ---")
@@ -63,7 +64,9 @@ func _init() -> void:
 	var ent_b1 = _RoomEntranceScript.new(1, 0, Vector2i(25, 27), _RoomEntranceScript.Side.WEST, Vector2i(26, 27), Vector2i(24, 27))
 	var p_pair = _EntrancePairScript.new(0, ent_a1, ent_b1, 0.0)
 	var c_diag = _RoomConnectionScript.new(0, 0, 1, true)
-	var carve_res = _AStarCarverScript.carve_corridors(grid_diag, [rd1, rd2], [p_pair], [c_diag], cfg)
+	var req_diag := _CorridorRequestScript.new(0, 0, 1)
+	req_diag.bind_physical_entrances(p_pair)
+	var carve_res = _AStarCarverScript.carve_corridors(grid_diag, [rd1, rd2], [req_diag], [c_diag], cfg)
 
 	assert(carve_res.is_valid and carve_res.paths.size() == 1, "Must carve corridor")
 	var path_diag: _CorridorPathScript = carve_res.paths[0]
@@ -94,7 +97,9 @@ func _init() -> void:
 	var cfg_fallback := DungeonConfig.new()
 	cfg_fallback.prefer_orthogonal_routes = false
 	cfg_fallback.allow_astar_fallback = true
-	var carve_maze = _AStarCarverScript.carve_corridors(grid_maze, [rm1, rm2], [p_maze], [c_maze], cfg_fallback)
+	var req_maze := _CorridorRequestScript.new(1, 0, 1)
+	req_maze.bind_physical_entrances(p_maze)
+	var carve_maze = _AStarCarverScript.carve_corridors(grid_maze, [rm1, rm2], [req_maze], [c_maze], cfg_fallback)
 
 	assert(carve_maze.is_valid and carve_maze.paths.size() == 1, "Must carve corridor through maze using fallback")
 	var path_maze: _CorridorPathScript = carve_maze.paths[0]

@@ -78,9 +78,7 @@ static func repair_missing_corridors(
 			# Opcional: ignorar fallo si no es obligatoria
 			continue
 
-		var req = corridor_plan.get_request_for_connection(failed_id) if (corridor_plan != null and corridor_plan.has_method("get_request_for_connection")) else null
-		if req == null:
-			req = _CorridorRequestScript.from_entrance_pair(pair, is_req)
+		var req: _CorridorRequestScript = corridor_plan.get_request_for_connection(failed_id) if (corridor_plan != null and corridor_plan.has_method("get_request_for_connection")) else null
 		if req == null:
 			all_repaired = false
 			break
@@ -212,8 +210,8 @@ static func _carve_with_journal(
 	var room_a: RoomData = room_map.get(req.room_a_id, null)
 	var room_b: RoomData = room_map.get(req.room_b_id, null)
 
-	var inner_a: Vector2i = req.start_boundary - req.start_direction
-	var inner_b: Vector2i = req.goal_boundary - req.goal_direction
+	var inner_a: Vector2i = req.start_inner if req.start_inner != Vector2i.ZERO else (req.start_boundary - req.start_direction)
+	var inner_b: Vector2i = req.goal_inner if req.goal_inner != Vector2i.ZERO else (req.goal_boundary - req.goal_direction)
 	_AStarCarverScript._connect_inner_to_room_floor(grid, room_a, inner_a, journal)
 	_AStarCarverScript._connect_inner_to_room_floor(grid, room_b, inner_b, journal)
 

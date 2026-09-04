@@ -8,6 +8,7 @@ const _AStarCarverScript = preload("res://src/dungeon_generator/core/algorithms/
 const _RoomConnectionScript = preload("res://src/dungeon_generator/core/data/room_connection.gd")
 const _CorridorPathScript = preload("res://src/dungeon_generator/core/data/corridor_path.gd")
 const _DoorPlacementScript = preload("res://src/dungeon_generator/core/data/door_placement.gd")
+const _CorridorRequestScript = preload("res://src/dungeon_generator/core/data/corridor_request.gd")
 
 func _init() -> void:
 	print("--- Running test_door_endpoint_quality (Task 8) ---")
@@ -23,7 +24,13 @@ func _init() -> void:
 	var ent_res = _EntranceSolverScript.resolve([r1, r2], [conn], grid, cfg)
 	assert(ent_res.is_valid, "Entrance resolution must succeed")
 
-	var carve_res = _AStarCarverScript.carve_corridors(grid, [r1, r2], ent_res.entrance_pairs, [conn], cfg)
+	var requests: Array[_CorridorRequestScript] = []
+	for p in ent_res.entrance_pairs:
+		var req := _CorridorRequestScript.new(p.connection_id, p.entrance_a.room_id, p.entrance_b.room_id)
+		req.bind_physical_entrances(p)
+		requests.append(req)
+
+	var carve_res = _AStarCarverScript.carve_corridors(grid, [r1, r2], requests, [conn], cfg)
 	assert(carve_res.is_valid, "Corridor carving must succeed")
 	var path: _CorridorPathScript = carve_res.paths[0]
 
