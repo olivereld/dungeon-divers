@@ -226,6 +226,8 @@ static func _carve_with_journal(
 	_AStarCarverScript._connect_inner_to_room_floor(grid, room_a, inner_a, journal)
 	_AStarCarverScript._connect_inner_to_room_floor(grid, room_b, inner_b, journal)
 
+	var metrics: Dictionary = _AStarCarverScript.compute_path_metrics(centerline)
+
 	var path = _CorridorPathScript.new(
 		req.connection_id,
 		req.room_a_id,
@@ -233,8 +235,12 @@ static func _carve_with_journal(
 		centerline,
 		candidate_carved_cells,
 		total_cost,
-		reused_count
+		reused_count,
+		metrics["turn_count"],
+		metrics["longest_straight_run"],
+		"Repair"
 	)
+	path.straight_run_count = metrics["straight_run_count"]
 
 	return {
 		"success": true,

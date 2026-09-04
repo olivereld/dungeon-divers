@@ -33,12 +33,6 @@ static func carve_corridors(
 	var width: int = grid.width
 	var height: int = grid.height
 
-	# Mapear conexiones para extraer atributos topológicos (is_required)
-	var conn_map: Dictionary = {}
-	for conn in connections:
-		if conn != null:
-			conn_map[conn.id] = conn
-
 	# 1. Grafo base AStar2D (construido lazy únicamente si se requiere fallback clásico)
 	var astar: AStar2D = null
 
@@ -59,6 +53,9 @@ static func carve_corridors(
 				CorridorRequest.ROLE_SIDE_PATH:
 					return 2
 				CorridorRequest.ROLE_OPTIONAL:
+					return 1
+				CorridorRequest.ROLE_SHORTCUT:
+					# SHORTCUT and OPTIONAL are both non-critical auxiliary corridors.
 					return 1
 				_:
 					return 0
@@ -348,16 +345,21 @@ static func _find_direction_aware_path(
 	var came_from: Dictionary = {}
 
 	var start_dir := req.start_direction
-	var start_key := "%d,%d,%d,%d" % [start_pos.x, start_pos.y, start_dir.x, start_dir.y]
+	var start_key := "%d,%d,%d,%d,%d" % [start_pos.x, start_pos.y, start_dir.x, start_dir.y, 0]
 	g_score[start_key] = 0.0
 
 	var h_start: float = _heuristic_turn_aware(start_pos, start_dir, goal_pos, turn_penalty)
+	var est_start_len: float = float(absi(goal_pos.x - start_pos.x) + absi(goal_pos.y - start_pos.y))
+	var start_dev: float = absf(est_start_len - req.preferred_length) if req.preferred_length > 0.0 else 0.0
+
 	open_set.append({
 		"pos": start_pos,
 		"dir": start_dir,
 		"g": 0.0,
 		"f": h_start,
-		"key": start_key
+		"length_deviation": start_dev,
+		"key": start_key,
+		"steps": 0
 	})
 
 	var best_goal_state: String = ""
@@ -368,13 +370,49 @@ static func _find_direction_aware_path(
 	while not open_set.is_empty() and iterations < max_iterations:
 		iterations += 1
 
-		# Extraer nodo con menor f_score
+		# Extraer nodo con menor f_score (y desempate lexicográfico secundario por preferred_length)
 		var best_idx: int = 0
-		var best_f: float = open_set[0]["f"]
+		var best_node: Dictionary = open_set[0]
 		for i in range(1, open_set.size()):
-			if open_set[i]["f"] < best_f:
-				best_f = open_set[i]["f"]
+			var node: Dictionary = open_set[i]
+			if node["f"] < best_node["f"] - 0.0001:
+				best_node = node
 				best_idx = i
+			elif absf(node["f"] - best_node["f"]) <= 0.0001:
+				# 1. Desviación respecto a preferred_length
+				var dev_curr: float = node.get("length_deviation", 0.0)
+				var dev_best: float = best_node.get("length_deviation", 0.0)
+				if req.preferred_length > 0.0 and absf(dev_curr - dev_best) > 0.0001:
+					if dev_curr < dev_best:
+						best_node = node
+						best_idx = i
+				else:
+					# 2. Steps
+					var steps_curr: int = node.get("steps", 0)
+					var steps_best: int = best_node.get("steps", 0)
+					if steps_curr != steps_best:
+						if steps_curr < steps_best:
+							best_node = node
+							best_idx = i
+					else:
+						# 3. Posición y dirección deterministas
+						var pos_curr: Vector2i = node["pos"]
+						var pos_best: Vector2i = best_node["pos"]
+						if pos_curr.x != pos_best.x:
+							if pos_curr.x < pos_best.x:
+								best_node = node
+								best_idx = i
+						elif pos_curr.y != pos_best.y:
+							if pos_curr.y < pos_best.y:
+								best_node = node
+								best_idx = i
+						elif node["dir"].x != best_node["dir"].x:
+							if node["dir"].x < best_node["dir"].x:
+								best_node = node
+								best_idx = i
+						elif node["dir"].y < best_node["dir"].y:
+							best_node = node
+							best_idx = i
 
 		var current: Dictionary = open_set[best_idx]
 		open_set.remove_at(best_idx)
@@ -383,6 +421,8 @@ static func _find_direction_aware_path(
 		var curr_dir: Vector2i = current["dir"]
 		var curr_key: String = current["key"]
 		var curr_g: float = current["g"]
+
+		var curr_steps: int = current.get("steps", 0)
 
 		if curr_g > g_score.get(curr_key, INF):
 			continue
@@ -454,18 +494,28 @@ static func _find_direction_aware_path(
 				turn_cost = turn_penalty
 
 			var tentative_g: float = curr_g + step_cost + turn_cost
-			var next_key := "%d,%d,%d,%d" % [next_pos.x, next_pos.y, d.x, d.y]
+			var next_steps: int = curr_steps + 1
+			var bucket: int = int(next_steps / 4) if req.preferred_length > 0.0 else 0
+			var next_key := "%d,%d,%d,%d,%d" % [next_pos.x, next_pos.y, d.x, d.y, bucket]
 
 			if tentative_g < g_score.get(next_key, INF):
 				g_score[next_key] = tentative_g
 				came_from[next_key] = curr_key
 				var h: float = _heuristic_turn_aware(next_pos, d, goal_pos, turn_penalty)
+				var dev: float = 0.0
+				var len_bias: float = 0.0
+				if req.preferred_length > 0.0:
+					var est_total_len: float = float(next_steps) + float(absi(goal_pos.x - next_pos.x) + absi(goal_pos.y - next_pos.y))
+					dev = absf(est_total_len - req.preferred_length)
+					len_bias = dev * 1.0
 				open_set.append({
 					"pos": next_pos,
 					"dir": d,
 					"g": tentative_g,
-					"f": tentative_g + h,
-					"key": next_key
+					"f": tentative_g + h + len_bias,
+					"length_deviation": dev,
+					"key": next_key,
+					"steps": next_steps
 				})
 
 	if best_goal_state.is_empty():
