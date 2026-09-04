@@ -140,18 +140,24 @@ func _build_room_floors(grid: CellGrid, rooms: Array[RoomData], config: DungeonC
 
 		var room_profile = null
 		if ctx != null and ctx.profile_bundle != null:
-			room_profile = ctx.profile_bundle.get_room(room.room_type)
-			if room_profile == null and ctx.profile_bundle.archetype != null:
-				var g_map: Dictionary = ctx.profile_bundle.archetype.gameplay_purpose_map
-				var key: String = str(room.room_type).to_upper()
-				if g_map.has(key) and not g_map[key].is_empty():
-					var candidates_list: Array = g_map[key]
-					var mapped_purpose = candidates_list[room_rng.randi_range(0, candidates_list.size() - 1)]
-					room_profile = ctx.profile_bundle.get_room(mapped_purpose)
+			if config != null and config.profile_mode == &"force_profile" and not config.forced_profile_id.is_empty():
+				room_profile = ctx.profile_bundle.get_room(config.forced_profile_id)
+			else:
+				room_profile = ctx.profile_bundle.get_room(room.room_type)
+				if room_profile == null and ctx.profile_bundle.archetype != null:
+					var g_map: Dictionary = ctx.profile_bundle.archetype.gameplay_purpose_map
+					var key: String = str(room.room_type).to_upper()
+					if g_map.has(key) and not g_map[key].is_empty():
+						var candidates_list: Array = g_map[key]
+						var mapped_purpose = candidates_list[room_rng.randi_range(0, candidates_list.size() - 1)]
+						room_profile = ctx.profile_bundle.get_room(mapped_purpose)
 
 		var resolved_tpl: RoomTemplate = null
 		if template_resolver != null:
-			resolved_tpl = template_resolver.resolve_template(room, room_profile, [], room_seed)
+			if config != null and (config.template_mode == &"specific" or config.profile_mode == &"force_template") and not config.forced_template_id.is_empty():
+				resolved_tpl = ctx.profile_bundle.template_registry.get_template(config.forced_template_id)
+			else:
+				resolved_tpl = template_resolver.resolve_template(room, room_profile, [], room_seed)
 
 		var is_fallback: bool = (resolved_tpl == null or resolved_tpl.id == &"procedural_fallback")
 		var prof_id: StringName = room_profile.id if room_profile != null else &"none"

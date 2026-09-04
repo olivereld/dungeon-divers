@@ -117,6 +117,12 @@ func get_effective_archetype_id() -> StringName:
 @export_group("Iluminación Procedural")
 @export var lighting_config: Resource = null
 
+@export_group("Overrides de Plantillas y Perfiles (Lab)")
+@export var profile_mode: StringName = &"normal" ## &"normal", &"force_profile", &"force_template"
+@export var forced_profile_id: StringName = &""
+@export var template_mode: StringName = &"automatic" ## &"automatic", &"specific", &"random_variant"
+@export var forced_template_id: StringName = &""
+
 func get_effective_seed() -> int:
 	if use_fixed_seed or seed != 0:
 		return seed
@@ -166,6 +172,7 @@ func duplicate_config() -> DungeonConfig:
 	c.floor_height = floor_height
 	c.seed = seed
 	c.use_fixed_seed = use_fixed_seed
+	c.archetype_id = archetype_id
 	c.dungeon_archetype = dungeon_archetype
 	c.grid_width = grid_width
 	c.grid_height = grid_height
@@ -199,4 +206,37 @@ func duplicate_config() -> DungeonConfig:
 	c.corridor_width = corridor_width
 	c.extra_loop_chance = extra_loop_chance
 	c.use_astar_carver = use_astar_carver
+	c.corner_margin = corner_margin
+	c.minimum_entrance_spacing = minimum_entrance_spacing
+	c.entrance_distance_weight = entrance_distance_weight
+	c.entrance_alignment_weight = entrance_alignment_weight
+	c.entrance_corner_penalty = entrance_corner_penalty
+	c.entrance_conflict_penalty = entrance_conflict_penalty
+	c.corridor_cost_corridor = corridor_cost_corridor
+	c.corridor_cost_wall = corridor_cost_wall
+	c.corridor_cost_room_floor = corridor_cost_room_floor
+	c.corridor_cost_other_room = corridor_cost_other_room
+	c.corridor_bottleneck_distance = corridor_bottleneck_distance
+	c.corridor_turn_penalty = corridor_turn_penalty
+	c.corridor_proximity_penalty = corridor_proximity_penalty
+	c.corridor_max_preferred_turns = corridor_max_preferred_turns
+	c.prefer_orthogonal_routes = prefer_orthogonal_routes
+	c.allow_astar_fallback = allow_astar_fallback
+	c.minimum_corridor_door_spacing = minimum_corridor_door_spacing
+	c.same_side_door_penalty = same_side_door_penalty
+	c.corridor_door_proximity_penalty = corridor_door_proximity_penalty
+	c.distribute_room_doors_across_sides = distribute_room_doors_across_sides
+	c.min_corridor_length_for_double_doors = min_corridor_length_for_double_doors
+	c.short_corridor_single_door_threshold = short_corridor_single_door_threshold
+	c.door_open_passage_chance = door_open_passage_chance
+	c.door_single_door_chance = door_single_door_chance
+	c.door_double_door_chance = door_double_door_chance
+	c.difficulty = difficulty
+	c.biome_profile = biome_profile
+	c.floor_tile_config = floor_tile_config
+	c.lighting_config = lighting_config
+	c.profile_mode = profile_mode
+	c.forced_profile_id = forced_profile_id
+	c.template_mode = template_mode
+	c.forced_template_id = forced_template_id
 	return c

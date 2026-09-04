@@ -336,6 +336,70 @@ func _sync_config_from_ui() -> void:
 	if floor_spin != null:
 		config.floor_count = int(floor_spin.value)
 
+	var sep_spin = find_child("MinRoomSepSpin", true, false) as SpinBox
+	if sep_spin != null:
+		config.min_room_separation = int(sep_spin.value)
+	var min_edge_spin = find_child("MinMissionEdgeSpin", true, false) as SpinBox
+	if min_edge_spin != null:
+		config.min_mission_edge_distance = float(min_edge_spin.value)
+	var max_edge_spin = find_child("MaxMissionEdgeSpin", true, false) as SpinBox
+	if max_edge_spin != null:
+		config.max_mission_edge_distance = float(max_edge_spin.value)
+	var prog_spin = find_child("ProgressionStrengthSpin", true, false) as SpinBox
+	if prog_spin != null:
+		config.progression_strength = float(prog_spin.value)
+	var dens_spin = find_child("DensityStrengthSpin", true, false) as SpinBox
+	if dens_spin != null:
+		config.density_strength = float(dens_spin.value)
+	var pref_dist_spin = find_child("PrefDistSpin", true, false) as SpinBox
+	if pref_dist_spin != null:
+		config.mission_aware_preferred_distance = float(pref_dist_spin.value)
+
+	var prof_mode_opt = find_child("ProfileModeOption", true, false) as OptionButton
+	if prof_mode_opt != null and prof_mode_opt.selected >= 0:
+		config.profile_mode = StringName(prof_mode_opt.get_item_text(prof_mode_opt.selected))
+	var forced_prof_edit = find_child("ForcedProfileEdit", true, false) as LineEdit
+	if forced_prof_edit != null and not forced_prof_edit.text.strip_edges().is_empty():
+		config.forced_profile_id = StringName(forced_prof_edit.text.strip_edges())
+
+	var tpl_mode_opt = find_child("TemplateModeOption", true, false) as OptionButton
+	if tpl_mode_opt != null and tpl_mode_opt.selected >= 0:
+		config.template_mode = StringName(tpl_mode_opt.get_item_text(tpl_mode_opt.selected))
+	var forced_tpl_edit = find_child("ForcedTemplateEdit", true, false) as LineEdit
+	if forced_tpl_edit != null and not forced_tpl_edit.text.strip_edges().is_empty():
+		config.forced_template_id = StringName(forced_tpl_edit.text.strip_edges())
+
+func sync_ui_from_config() -> void:
+	_ensure_nodes()
+	if seed_input != null:
+		seed_input.value = config.seed
+	if algo_option != null:
+		for i in range(algo_option.item_count):
+			if algo_option.get_item_text(i) == config.generator_type:
+				algo_option.selected = i
+				break
+	if floor_spin != null:
+		floor_spin.value = config.floor_count
+
+	var sep_spin = find_child("MinRoomSepSpin", true, false) as SpinBox
+	if sep_spin != null:
+		sep_spin.value = config.min_room_separation
+	var min_edge_spin = find_child("MinMissionEdgeSpin", true, false) as SpinBox
+	if min_edge_spin != null:
+		min_edge_spin.value = config.min_mission_edge_distance
+	var max_edge_spin = find_child("MaxMissionEdgeSpin", true, false) as SpinBox
+	if max_edge_spin != null:
+		max_edge_spin.value = config.max_mission_edge_distance
+	var prog_spin = find_child("ProgressionStrengthSpin", true, false) as SpinBox
+	if prog_spin != null:
+		prog_spin.value = config.progression_strength
+	var dens_spin = find_child("DensityStrengthSpin", true, false) as SpinBox
+	if dens_spin != null:
+		dens_spin.value = config.density_strength
+	var pref_dist_spin = find_child("PrefDistSpin", true, false) as SpinBox
+	if pref_dist_spin != null:
+		pref_dist_spin.value = config.mission_aware_preferred_distance
+
 func _on_generation_started() -> void:
 	_set_status("Generating dungeon (seed %d)..." % config.seed)
 	if progress_bar != null:

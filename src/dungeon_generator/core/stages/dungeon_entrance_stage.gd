@@ -73,7 +73,19 @@ func _carve_templates_with_entrances(ctx: DungeonGenerationContext) -> void:
 		var room_rng := RandomNumberGenerator.new()
 		room_rng.seed = room_seed
 
-		var room_profile = ctx.profile_bundle.get_room(room.room_type)
+		var room_profile = null
+		if ctx.config != null and ctx.config.profile_mode == &"force_profile" and not ctx.config.forced_profile_id.is_empty():
+			room_profile = ctx.profile_bundle.get_room(ctx.config.forced_profile_id)
+		else:
+			room_profile = ctx.profile_bundle.get_room(room.room_type)
+			if room_profile == null and ctx.profile_bundle.archetype != null:
+				var g_map: Dictionary = ctx.profile_bundle.archetype.gameplay_purpose_map
+				var key: String = str(room.room_type).to_upper()
+				if g_map.has(key) and not g_map[key].is_empty():
+					var candidates_list: Array = g_map[key]
+					var mapped_purpose = candidates_list[room_rng.randi_range(0, candidates_list.size() - 1)]
+					room_profile = ctx.profile_bundle.get_room(mapped_purpose)
+
 		var room_entrances: Array[Vector2i] = []
 		if entrances_by_room.has(room.id):
 			var raw_ents: Array = entrances_by_room[room.id]
@@ -81,7 +93,11 @@ func _carve_templates_with_entrances(ctx: DungeonGenerationContext) -> void:
 				if e is Vector2i:
 					room_entrances.append(e)
 
-		var resolved_tpl = template_resolver.resolve_template(room, room_profile, room_entrances, room_seed)
+		var resolved_tpl = null
+		if ctx.config != null and (ctx.config.template_mode == &"specific" or ctx.config.profile_mode == &"force_template") and not ctx.config.forced_template_id.is_empty():
+			resolved_tpl = ctx.profile_bundle.template_registry.get_template(ctx.config.forced_template_id)
+		else:
+			resolved_tpl = template_resolver.resolve_template(room, room_profile, room_entrances, room_seed)
 		var orientation := _RoomTemplateShapeCarverScript.determine_orientation_from_entrances(room.rect, room_entrances, room_seed)
 		var carve_res = _RoomTemplateShapeCarverScript.carve(ctx.grid, room, resolved_tpl, room_entrances, room_rng, orientation)
 		if "custom_data" in room and room.custom_data is Dictionary:
