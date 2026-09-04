@@ -6,7 +6,7 @@ var generator_type: String = "Hybrid"
 var archetype_id: StringName = &"necropolis"
 var grid_size: Vector2i = Vector2i(64, 64)
 var mission_depth: int = 5
-var hallway_width: int = 2
+var hallway_width: int = 1
 var floor_count: int = 1
 
 # Mission-Aware Room Placement
