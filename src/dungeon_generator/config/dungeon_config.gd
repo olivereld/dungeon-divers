@@ -58,6 +58,7 @@ func get_effective_archetype_id() -> StringName:
 @export var preferred_progression_direction: Vector2 = Vector2.ZERO
 
 @export_group("Composición Espacial Global")
+@export var composition_version: int = 2 ## 1 = V1 Local progression/anchoring, 2 = V2 Global SpatialComposition
 @export var composition_candidate_count: int = 24
 @export var candidate_count: int = 24
 @export var anchor_distance_strength: float = 1.0
@@ -214,6 +215,7 @@ func duplicate_config() -> DungeonConfig:
 	c.progression_strength = progression_strength
 	c.density_strength = density_strength
 	c.preferred_progression_direction = preferred_progression_direction
+	c.composition_version = composition_version
 	c.composition_candidate_count = composition_candidate_count
 	c.candidate_count = candidate_count
 	c.anchor_distance_strength = anchor_distance_strength

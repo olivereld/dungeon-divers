@@ -14,6 +14,7 @@ const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/
 const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
 const _SemanticMappingValidatorScript = preload("res://src/dungeon_generator/core/validation/semantic_mapping_validator.gd")
 const _CompositionStrategyScript = preload("res://src/dungeon_generator/core/grammars/composition_strategy.gd")
+const _CompositionStrategyV1Script = preload("res://src/dungeon_generator/core/grammars/composition_strategy_v1.gd")
 const _SpatialIntentBuilderScript = preload("res://src/dungeon_generator/core/grammars/spatial_intent_builder.gd")
 const _SpatialCompositionBuilderScript = preload("res://src/dungeon_generator/core/grammars/spatial_composition_builder.gd")
 const _RoomPlacementPlanScript = preload("res://src/dungeon_generator/core/data/room_placement_plan.gd")
@@ -89,14 +90,25 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		ctx.spatial_composition = null
 
 	# Pass to CompositionStrategy & Generate RoomPlacementPlan
-	var plan: _RoomPlacementPlanScript = strategy.create_placement_plan(
-		ctx.rooms,
-		ctx.mission_graph,
-		grid_bounds,
-		sg_config,
-		ctx.spatial_intent,
-		ctx.spatial_composition
-	)
+	var plan: _RoomPlacementPlanScript
+	if ctx.config != null and ctx.config.composition_version == 1:
+		var strat_v1 := _CompositionStrategyV1Script.new(placement_rng)
+		plan = strat_v1.create_placement_plan(
+			ctx.rooms,
+			ctx.mission_graph,
+			grid_bounds,
+			sg_config,
+			ctx.spatial_intent
+		)
+	else:
+		plan = strategy.create_placement_plan(
+			ctx.rooms,
+			ctx.mission_graph,
+			grid_bounds,
+			sg_config,
+			ctx.spatial_intent,
+			ctx.spatial_composition
+		)
 	ctx.placement_plan = plan
 
 	if plan == null or not plan.is_sealed():
