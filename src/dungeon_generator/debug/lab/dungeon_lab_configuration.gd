@@ -26,6 +26,7 @@ var density_strength: float = 0.5
 var preferred_progression_direction: Vector2 = Vector2.ZERO
 
 # Core Composition Control Parameters
+var composition_version: int = 2
 var composition_candidate_count: int = 24
 var candidate_count: int = 24
 var anchor_distance_strength: float = 1.0
@@ -66,6 +67,7 @@ func to_dungeon_config() -> DungeonConfig:
 	cfg.progression_strength = progression_strength
 	cfg.density_strength = density_strength
 	cfg.preferred_progression_direction = preferred_progression_direction
+	cfg.composition_version = composition_version
 	cfg.composition_candidate_count = composition_candidate_count
 	cfg.candidate_count = candidate_count
 	cfg.anchor_distance_strength = anchor_distance_strength

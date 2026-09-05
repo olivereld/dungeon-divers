@@ -536,6 +536,9 @@ func _sync_config_from_ui() -> void:
 	if floor_spin != null:
 		config.floor_count = int(floor_spin.value)
 
+	if ui_left_panel != null:
+		ui_left_panel.apply_to_lab_config(config)
+
 	var sep_spin = find_child("MinRoomSepSpin", true, false) as SpinBox
 	if sep_spin != null:
 		config.min_room_separation = int(sep_spin.value)

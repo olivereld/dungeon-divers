@@ -48,27 +48,37 @@ theme_override_constants/margin_bottom = 8
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="GenHeader" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+[node name="GenHeader" type="Button" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+unique_name_in_owner = true
 layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
 theme_override_font_sizes/font_size = 9
 text = "▼ GENERATION"
+flat = true
+alignment = 0
 
-[node name="SeedBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+[node name="GenBody" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SeedBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody"]
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="SeedLabel" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/SeedBox"]
+[node name="SeedLabel" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody/SeedBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
 theme_override_font_sizes/font_size = 9
 text = "SEED"
 
-[node name="SeedHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/SeedBox"]
+[node name="SeedHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody/SeedBox"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="SeedSpin" type="SpinBox" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/SeedBox/SeedHBox"]
+[node name="SeedSpin" type="SpinBox" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody/SeedBox/SeedHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -76,50 +86,50 @@ min_value = 1.0
 max_value = 2e+09
 value = 759537791.0
 
-[node name="RandomSeedBtn" type="Button" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/SeedBox/SeedHBox"]
+[node name="RandomSeedBtn" type="Button" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody/SeedBox/SeedHBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(28, 24)
 layout_mode = 2
 tooltip_text = "Random Seed"
 text = "⟳"
 
-[node name="AlgoBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+[node name="AlgoBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody"]
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="AlgoLabel" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/AlgoBox"]
+[node name="AlgoLabel" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody/AlgoBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
 theme_override_font_sizes/font_size = 9
 text = "ALGORITHM"
 
-[node name="AlgoOption" type="OptionButton" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/AlgoBox"]
+[node name="AlgoOption" type="OptionButton" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody/AlgoBox"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="FloorBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+[node name="FloorBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody"]
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="FloorLabel" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/FloorBox"]
+[node name="FloorLabel" type="Label" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody/FloorBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
 theme_override_font_sizes/font_size = 9
 text = "FLOORS"
 
-[node name="FloorSpin" type="SpinBox" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/FloorBox"]
+[node name="FloorSpin" type="SpinBox" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody/FloorBox"]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0
 max_value = 10.0
 value = 1.0
 
-[node name="FloorSelectOption" type="OptionButton" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/FloorBox"]
+[node name="FloorSelectOption" type="OptionButton" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody/FloorBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 
-[node name="GenerateBtn" type="Button" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox"]
+[node name="GenerateBtn" type="Button" parent="VBox/GenScroll/GenVBox/GenMargin/InnerVBox/GenBody"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
@@ -127,6 +137,372 @@ theme_override_font_sizes/font_size = 11
 text = "⚡ GENERATE"
 
 [node name="HSep1" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
+layout_mode = 2
+
+[node name="CompTuningMargin" type="MarginContainer" parent="VBox/GenScroll/GenVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_right = 10
+
+[node name="CompTuningVBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CompTuningHeader" type="Button" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "▼ COMPOSITION TUNING"
+flat = true
+alignment = 0
+
+[node name="CompTuningBody" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CompVersionBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="CompVersionLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/CompVersionBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "COMPOSITION VERSION"
+
+[node name="CompVersionOption" type="OptionButton" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/CompVersionBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ProgDirBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="ProgDirLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/ProgDirBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "PROGRESSION DIRECTION"
+
+[node name="ProgDirButtons" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/ProgDirBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnDirHoriz" type="Button" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/ProgDirBox/ProgDirButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 9
+text = "Horiz"
+
+[node name="BtnDirVert" type="Button" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/ProgDirBox/ProgDirButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 9
+text = "Vert"
+
+[node name="BtnDirDiag" type="Button" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/ProgDirBox/ProgDirButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 9
+text = "Diag"
+
+[node name="BtnDirRand" type="Button" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/ProgDirBox/ProgDirButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 9
+text = "Rand"
+
+[node name="DirStatusLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/ProgDirBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.13, 0.83, 0.93, 1)
+theme_override_font_sizes/font_size = 8
+text = "DIR: RANDOM (0, 0)"
+
+[node name="AnchorDistBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="AnchorDistHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AnchorDistBox"]
+layout_mode = 2
+
+[node name="AnchorDistLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AnchorDistBox/AnchorDistHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "ANCHOR DISTANCE"
+
+[node name="AnchorDistStrengthVal" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AnchorDistBox/AnchorDistHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "1.00"
+
+[node name="AnchorDistStrengthSlider" type="HSlider" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AnchorDistBox"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 5.0
+step = 0.1
+value = 1.0
+
+[node name="NeighborCohBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="NeighborCohHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/NeighborCohBox"]
+layout_mode = 2
+
+[node name="NeighborCohLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/NeighborCohBox/NeighborCohHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "NEIGHBOR COHERENCE"
+
+[node name="NeighborCoherenceStrengthVal" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/NeighborCohBox/NeighborCohHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "1.00"
+
+[node name="NeighborCoherenceStrengthSlider" type="HSlider" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/NeighborCohBox"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 5.0
+step = 0.1
+value = 1.0
+
+[node name="MainPathAlignBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="MainPathAlignHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/MainPathAlignBox"]
+layout_mode = 2
+
+[node name="MainPathAlignLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/MainPathAlignBox/MainPathAlignHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "MAIN PATH ALIGN"
+
+[node name="MainPathAlignmentStrengthVal" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/MainPathAlignBox/MainPathAlignHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "1.00"
+
+[node name="MainPathAlignmentStrengthSlider" type="HSlider" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/MainPathAlignBox"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 5.0
+step = 0.1
+value = 1.0
+
+[node name="BranchLatBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="BranchLatHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/BranchLatBox"]
+layout_mode = 2
+
+[node name="BranchLatLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/BranchLatBox/BranchLatHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "BRANCH LATERAL"
+
+[node name="BranchLateralStrengthVal" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/BranchLatBox/BranchLatHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "0.75"
+
+[node name="BranchLateralStrengthSlider" type="HSlider" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/BranchLatBox"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 5.0
+step = 0.05
+value = 0.75
+
+[node name="TermSpacingBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="TermSpacingHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/TermSpacingBox"]
+layout_mode = 2
+
+[node name="TermSpacingLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/TermSpacingBox/TermSpacingHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "TERMINAL SPACING"
+
+[node name="TerminalSpacingStrengthVal" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/TermSpacingBox/TermSpacingHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "0.75"
+
+[node name="TerminalSpacingStrengthSlider" type="HSlider" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/TermSpacingBox"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 5.0
+step = 0.05
+value = 0.75
+
+[node name="CandCountBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="CandCountHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/CandCountBox"]
+layout_mode = 2
+
+[node name="CandCountLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/CandCountBox/CandCountHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "CANDIDATE COUNT"
+
+[node name="CompositionCandidateCountVal" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/CandCountBox/CandCountHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
+theme_override_font_sizes/font_size = 9
+text = "24"
+
+[node name="CompositionCandidateCountSlider" type="HSlider" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/CandCountBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 8.0
+max_value = 48.0
+step = 1.0
+value = 24.0
+
+[node name="AdvHSep" type="HSeparator" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+layout_mode = 2
+
+[node name="AdvTuningHeader" type="Button" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.53, 0.57, 0.67, 1)
+theme_override_font_sizes/font_size = 9
+text = "▶ ADVANCED"
+flat = true
+alignment = 0
+
+[node name="AdvTuningBody" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PrefDistBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="PrefDistHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/PrefDistBox"]
+layout_mode = 2
+
+[node name="PrefDistLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/PrefDistBox/PrefDistHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "PREFERRED DISTANCE"
+
+[node name="PrefDistVal" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/PrefDistBox/PrefDistHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.13, 0.83, 0.93, 1)
+theme_override_font_sizes/font_size = 9
+text = "12.0"
+
+[node name="PrefDistSlider" type="HSlider" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/PrefDistBox"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 4.0
+max_value = 30.0
+step = 1.0
+value = 12.0
+
+[node name="DistJitterBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="DistJitterHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/DistJitterBox"]
+layout_mode = 2
+
+[node name="DistJitterLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/DistJitterBox/DistJitterHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "DISTANCE JITTER"
+
+[node name="DistJitterVal" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/DistJitterBox/DistJitterHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.13, 0.83, 0.93, 1)
+theme_override_font_sizes/font_size = 9
+text = "4.0"
+
+[node name="DistJitterSlider" type="HSlider" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/DistJitterBox"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 15.0
+step = 0.5
+value = 4.0
+
+[node name="DensityStrengthBox" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="DensityStrengthHBox" type="HBoxContainer" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/DensityStrengthBox"]
+layout_mode = 2
+
+[node name="DensityStrengthLabel" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/DensityStrengthBox/DensityStrengthHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.29, 0.33, 0.41, 1)
+theme_override_font_sizes/font_size = 9
+text = "DENSITY STRENGTH"
+
+[node name="DensityStrengthVal" type="Label" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/DensityStrengthBox/DensityStrengthHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.13, 0.83, 0.93, 1)
+theme_override_font_sizes/font_size = 9
+text = "0.50"
+
+[node name="DensityStrengthSlider" type="HSlider" parent="VBox/GenScroll/GenVBox/CompTuningMargin/CompTuningVBox/CompTuningBody/AdvTuningBody/DensityStrengthBox"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 2.0
+step = 0.05
+value = 0.5
+
+[node name="HSep2" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
 layout_mode = 2
 
 [node name="StructMargin" type="MarginContainer" parent="VBox/GenScroll/GenVBox"]
@@ -138,37 +514,47 @@ theme_override_constants/margin_right = 10
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="StructHeader" type="Label" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+[node name="StructHeader" type="Button" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+unique_name_in_owner = true
 layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
 theme_override_font_sizes/font_size = 9
 text = "▼ OVERLAYS · STRUCTURE"
+flat = true
+alignment = 0
 
-[node name="CheckRoomBounds" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+[node name="StructBody" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CheckRoomBounds" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox/StructBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Room Bounds"
 
-[node name="CheckTemplateFootprint" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+[node name="CheckTemplateFootprint" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox/StructBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Template Footprint"
 
-[node name="CheckCorridors" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+[node name="CheckCorridors" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox/StructBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Corridors"
 
-[node name="CheckCorridorDetails" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox"]
+[node name="CheckCorridorDetails" type="CheckBox" parent="VBox/GenScroll/GenVBox/StructMargin/StructVBox/StructBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = false
 text = "Corridor Details"
 
-[node name="HSep2" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
+[node name="HSep3" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
 layout_mode = 2
 
 [node name="SemanticMargin" type="MarginContainer" parent="VBox/GenScroll/GenVBox"]
@@ -180,37 +566,47 @@ theme_override_constants/margin_right = 10
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="SemanticHeader" type="Label" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+[node name="SemanticHeader" type="Button" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+unique_name_in_owner = true
 layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
 theme_override_font_sizes/font_size = 9
 text = "▼ OVERLAYS · SEMANTIC"
+flat = true
+alignment = 0
 
-[node name="CheckEntrances" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+[node name="SemanticBody" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CheckEntrances" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox/SemanticBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Entrances"
 
-[node name="CheckInternalDoors" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+[node name="CheckInternalDoors" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox/SemanticBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Internal Doors"
 
-[node name="CheckSemanticLabels" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+[node name="CheckSemanticLabels" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox/SemanticBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Semantic Labels"
 
-[node name="CheckStairs" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox"]
+[node name="CheckStairs" type="CheckBox" parent="VBox/GenScroll/GenVBox/SemanticMargin/SemanticVBox/SemanticBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Stairs"
 
-[node name="HSep3" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
+[node name="HSep4" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
 layout_mode = 2
 
 [node name="DebugMargin" type="MarginContainer" parent="VBox/GenScroll/GenVBox"]
@@ -222,31 +618,41 @@ theme_override_constants/margin_right = 10
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="DebugHeader" type="Label" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox"]
+[node name="DebugHeader" type="Button" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox"]
+unique_name_in_owner = true
 layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
 theme_override_font_sizes/font_size = 9
 text = "▼ OVERLAYS · DEBUG"
+flat = true
+alignment = 0
 
-[node name="CheckSpatialOverlay" type="CheckBox" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox"]
+[node name="DebugBody" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CheckSpatialOverlay" type="CheckBox" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox/DebugBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = false
 text = "Spatial Intent & Edges"
 
-[node name="CheckSemanticsOverlay" type="CheckBox" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox"]
+[node name="CheckSemanticsOverlay" type="CheckBox" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox/DebugBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = false
 text = "Semantics Start/Boss/CP"
 
-[node name="CheckTemplateId" type="CheckBox" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox"]
+[node name="CheckTemplateId" type="CheckBox" parent="VBox/GenScroll/GenVBox/DebugMargin/DebugVBox/DebugBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Template IDs"
 
-[node name="HSep4" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
+[node name="HSep5" type="HSeparator" parent="VBox/GenScroll/GenVBox"]
 layout_mode = 2
 
 [node name="CompositionMargin" type="MarginContainer" parent="VBox/GenScroll/GenVBox"]
@@ -258,43 +664,53 @@ theme_override_constants/margin_right = 10
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="CompositionHeader" type="Label" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+[node name="CompositionHeader" type="Button" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+unique_name_in_owner = true
 layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.96, 0.62, 0.04, 1)
 theme_override_font_sizes/font_size = 9
 text = "▼ OVERLAYS · COMPOSICIÓN"
+flat = true
+alignment = 0
 
-[node name="CheckCompositionAnchors" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+[node name="CompositionBody" type="VBoxContainer" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CheckCompositionAnchors" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox/CompositionBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = false
 text = "Composition Anchors"
 
-[node name="BtnAnchorsTiming" type="Button" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+[node name="BtnAnchorsTiming" type="Button" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox/CompositionBody"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 9
 text = "Anchors: Both (Pre+Post)"
 
-[node name="CheckProgressionAxis" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+[node name="CheckProgressionAxis" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox/CompositionBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = false
 text = "Progression Axis"
 
-[node name="CheckMainPathComp" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+[node name="CheckMainPathComp" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox/CompositionBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = false
 text = "Main Path Composition"
 
-[node name="CheckBranchZones" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+[node name="CheckBranchZones" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox/CompositionBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = false
 text = "Branch Zones"
 
-[node name="CheckDensityZones" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox"]
+[node name="CheckDensityZones" type="CheckBox" parent="VBox/GenScroll/GenVBox/CompositionMargin/CompositionVBox/CompositionBody"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = false
