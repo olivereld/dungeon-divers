@@ -176,3 +176,41 @@ func _test_composition_strategy_multi_seed_integrity() -> void:
 			assert(bounds.encloses(r.rect), "Seed %d: Room %d rect %s must be inside bounds %s" % [seed_val, r.id, str(r.rect), str(bounds)])
 
 	print("  [OK] CompositionStrategy + RoomPlacer verified over 50 seeds with zero collisions.")
+
+	# 5. Strict refusal when unplaceable (Zero relaxation, zero least-overlap, no separator dependency)
+	var tight_bounds := Rect2i(0, 0, 16, 16)
+	var tight_graph := DungeonGraph.new()
+	var tn0: int = tight_graph.add_node(&"START")
+	var tn1: int = tight_graph.add_node(&"ROOM_1")
+	var tn2: int = tight_graph.add_node(&"ROOM_2")
+	tight_graph.add_edge(tn0, tn1)
+	tight_graph.add_edge(tn1, tn2)
+
+	# Three large rooms (12x12 each) cannot fit in 16x16 with min_separation >= 2
+	var tr0 := RoomData.new(0, Rect2i(0, 0, 12, 12), &"start")
+	tr0.mission_node_id = tn0
+	var tr1 := RoomData.new(1, Rect2i(0, 0, 12, 12), &"explore")
+	tr1.mission_node_id = tn1
+	var tr2 := RoomData.new(2, Rect2i(0, 0, 12, 12), &"boss")
+	tr2.mission_node_id = tn2
+
+	var tight_rooms: Array[RoomData] = [tr0, tr1, tr2]
+	var tight_rng := RandomNumberGenerator.new()
+	tight_rng.seed = 9999
+	var tight_strategy := CompositionStrategy.new(tight_rng)
+	var tight_comp = SpatialCompositionBuilder.new(tight_rng).build(tight_graph, null, null, tight_bounds)
+	var tight_plan: RoomPlacementPlan = tight_strategy.create_placement_plan(tight_rooms, tight_graph, tight_bounds, null, tight_comp)
+
+	assert(tight_plan != null and tight_plan.is_sealed(), "Plan must be created and sealed")
+	assert(tight_plan.size() < tight_rooms.size(), "Unplaceable rooms must NOT be forced into the plan (no relaxation/least-overlap)")
+	var applied_count: int = placer.apply_plan(tight_rooms, tight_plan)
+	assert(applied_count < tight_rooms.size(), "RoomPlacer must reflect incomplete placement so pipeline aborts")
+	# All successfully placed rooms must strictly obey bounds and zero overlap
+	var placed_tight_rooms: Array[RoomData] = []
+	for r in tight_rooms:
+		if r.is_placed:
+			placed_tight_rooms.append(r)
+			assert(tight_bounds.encloses(r.rect), "Placed room must be inside bounds")
+	assert(placer.validate_placement_integrity(placed_tight_rooms, 2), "Placed rooms must strictly satisfy separation without overlaps")
+	print("  [OK] Strict refusal contract verified: zero relaxation, zero overlaps, incomplete plan triggers failure.")
+

@@ -117,11 +117,6 @@ func create_placement_plan(
 		if "min_mission_edge_distance" in config:
 			min_edge_dist = float(config.min_mission_edge_distance)
 
-	var max_dim: float = minf(float(bounds.size.x), float(bounds.size.y))
-	if max_dim > 0 and max_dim <= 36.0:
-		preferred_distance = minf(preferred_distance, max_dim * 0.35)
-		min_separation = mini(min_separation, 1)
-		min_edge_dist = minf(min_edge_dist, max_dim * 0.22)
 
 	var strengths: Dictionary = extract_strengths(config)
 	var p_composition_candidate_count: int = strengths.get("composition_candidate_count", 24)
