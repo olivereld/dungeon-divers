@@ -109,7 +109,8 @@ func test_hard_constraints_enforcement() -> void:
 	r2.mission_node_id = n2
 
 	var strategy := CompositionStrategy.new()
-	var plan: RoomPlacementPlan = strategy.create_placement_plan([r0, r1, r2], graph, bounds, config)
+	var comp = SpatialCompositionBuilder.new().build(graph, null, config, bounds)
+	var plan: RoomPlacementPlan = strategy.create_placement_plan([r0, r1, r2], graph, bounds, config, comp)
 
 	assert(plan.size() == 3, "All 3 rooms must be placed")
 
@@ -170,7 +171,8 @@ func test_main_path_alignment_and_monotonicity() -> void:
 	config.preferred_progression_direction = Vector2(1, 0) # strictly east
 
 	var strategy := CompositionStrategy.new()
-	var plan: RoomPlacementPlan = strategy.create_placement_plan(rooms, graph, bounds, config)
+	var comp = SpatialCompositionBuilder.new().build(graph, null, config, bounds)
+	var plan: RoomPlacementPlan = strategy.create_placement_plan(rooms, graph, bounds, config, comp)
 
 	assert(plan.size() == 5, "All 5 main path rooms must be placed")
 
@@ -219,7 +221,8 @@ func test_branch_lateral_offset_and_separation() -> void:
 	config.preferred_progression_direction = Vector2(1, 0) # Main path runs in X
 
 	var strategy := CompositionStrategy.new()
-	var plan: RoomPlacementPlan = strategy.create_placement_plan(rooms, graph, bounds, config)
+	var comp = SpatialCompositionBuilder.new().build(graph, null, config, bounds)
+	var plan: RoomPlacementPlan = strategy.create_placement_plan(rooms, graph, bounds, config, comp)
 
 	assert(plan.size() == 4, "All 4 rooms must be placed")
 
@@ -254,7 +257,9 @@ func test_non_mutating_contract_and_sealing() -> void:
 	var orig_placed1 := r1.is_placed
 
 	var strategy := CompositionStrategy.new()
-	var plan := strategy.create_placement_plan([r0, r1], graph, Rect2i(0, 0, 60, 60))
+	var comp_bounds := Rect2i(0, 0, 60, 60)
+	var comp = SpatialCompositionBuilder.new().build(graph, null, null, comp_bounds)
+	var plan := strategy.create_placement_plan([r0, r1], graph, comp_bounds, null, comp)
 
 	assert(plan.is_sealed(), "Returned plan must be sealed")
 	assert(r0.rect.position == orig_pos0, "RoomData position must NOT be mutated")
@@ -327,39 +332,26 @@ func test_composition_control_parameters() -> void:
 	# 1. DungeonConfig defaults (7 float strengths + 1 candidate count matching 1.0, 0.75, 0.5, 24)
 	var dc := DungeonConfig.new()
 	assert(dc.composition_candidate_count == 24, "Default composition_candidate_count must be 24")
-	assert(dc.candidate_count == 24, "Default candidate_count must be 24")
 	assert(dc.progression_strength == 1.0, "Default progression_strength must be 1.0")
 	assert(dc.anchor_distance_strength == 1.0, "Default anchor_distance_strength must be 1.0")
-	assert(dc.anchor_strength == 1.0, "Default anchor_strength must be 1.0")
 	assert(dc.neighbor_coherence_strength == 1.0, "Default neighbor_coherence_strength must be 1.0")
-	assert(dc.neighbor_strength == 1.0, "Default neighbor_strength must be 1.0")
 	assert(dc.main_path_alignment_strength == 1.0, "Default main_path_alignment_strength must be 1.0")
-	assert(dc.main_path_strength == 1.0, "Default main_path_strength must be 1.0")
 	assert(dc.branch_lateral_strength == 0.75, "Default branch_lateral_strength must be 0.75")
-	assert(dc.branch_strength == 0.75, "Default branch_strength must be 0.75")
 	assert(dc.terminal_spacing_strength == 0.75, "Default terminal_spacing_strength must be 0.75")
-	assert(dc.terminal_strength == 0.75, "Default terminal_strength must be 0.75")
 	assert(dc.density_strength == 0.5, "Default density_strength must be 0.5")
 
 	# 2. DungeonConfig.duplicate_config() copies all composition parameters
 	dc.composition_candidate_count = 32
-	dc.candidate_count = 32
 	dc.progression_strength = 1.6
 	dc.anchor_distance_strength = 2.1
-	dc.anchor_strength = 2.1
 	dc.neighbor_coherence_strength = 1.9
-	dc.neighbor_strength = 1.9
 	dc.main_path_alignment_strength = 1.4
-	dc.main_path_strength = 1.4
 	dc.branch_lateral_strength = 0.95
-	dc.branch_strength = 0.95
 	dc.terminal_spacing_strength = 1.15
-	dc.terminal_strength = 1.15
 	dc.density_strength = 0.75
 
 	var dc_dup: DungeonConfig = dc.duplicate_config()
 	assert(dc_dup.composition_candidate_count == 32, "dc_dup composition_candidate_count mismatch")
-	assert(dc_dup.candidate_count == 32, "dc_dup candidate_count mismatch")
 	assert(dc_dup.progression_strength == 1.6, "dc_dup progression_strength mismatch")
 	assert(dc_dup.anchor_distance_strength == 2.1, "dc_dup anchor_distance_strength mismatch")
 	assert(dc_dup.neighbor_coherence_strength == 1.9, "dc_dup neighbor_coherence_strength mismatch")
@@ -371,7 +363,6 @@ func test_composition_control_parameters() -> void:
 	# 3. SpaceGrammarConfig defaults, parameters consumed, and duplicate_config()
 	var sg := SpaceGrammarConfig.new()
 	assert(sg.composition_candidate_count == 24, "Default sg.composition_candidate_count must be 24")
-	assert(sg.candidate_count == 24, "Default sg.candidate_count must be 24")
 	assert(sg.progression_strength == 1.0, "Default sg.progression_strength must be 1.0")
 	assert(sg.anchor_distance_strength == 1.0, "Default sg.anchor_distance_strength must be 1.0")
 	assert(sg.neighbor_coherence_strength == 1.0, "Default sg.neighbor_coherence_strength must be 1.0")
@@ -381,7 +372,6 @@ func test_composition_control_parameters() -> void:
 	assert(sg.density_strength == 0.5, "Default sg.density_strength must be 0.5")
 
 	sg.composition_candidate_count = 18
-	sg.candidate_count = 18
 	sg.anchor_distance_strength = 1.3
 	sg.neighbor_coherence_strength = 1.7
 	sg.main_path_alignment_strength = 1.2
@@ -392,7 +382,6 @@ func test_composition_control_parameters() -> void:
 
 	var sg_dup: SpaceGrammarConfig = sg.duplicate_config()
 	assert(sg_dup.composition_candidate_count == 18, "sg_dup composition_candidate_count mismatch")
-	assert(sg_dup.candidate_count == 18, "sg_dup candidate_count mismatch")
 	assert(sg_dup.anchor_distance_strength == 1.3, "sg_dup anchor_distance_strength mismatch")
 	assert(sg_dup.neighbor_coherence_strength == 1.7, "sg_dup neighbor_coherence_strength mismatch")
 	assert(sg_dup.main_path_alignment_strength == 1.2, "sg_dup main_path_alignment_strength mismatch")
@@ -409,13 +398,12 @@ func test_composition_control_parameters() -> void:
 	assert(lab_cfg.density_strength == 0.5, "lab_cfg default density_strength must be 0.5")
 
 	lab_cfg.composition_candidate_count = 40
-	lab_cfg.candidate_count = 40
 	lab_cfg.anchor_distance_strength = 1.8
 	lab_cfg.branch_lateral_strength = 0.6
 	lab_cfg.terminal_spacing_strength = 0.9
 
 	var transported_dc: DungeonConfig = lab_cfg.to_dungeon_config()
-	assert(transported_dc.composition_candidate_count == 40, "transported_dc candidate_count mismatch")
+	assert(transported_dc.composition_candidate_count == 40, "transported_dc composition_candidate_count mismatch")
 	assert(transported_dc.anchor_distance_strength == 1.8, "transported_dc anchor mismatch")
 	assert(transported_dc.branch_lateral_strength == 0.6, "transported_dc branch mismatch")
 	assert(transported_dc.terminal_spacing_strength == 0.9, "transported_dc terminal mismatch")
@@ -424,10 +412,10 @@ func test_composition_control_parameters() -> void:
 
 	# 5. CompositionStrategy respects config strengths
 	var strengths: Dictionary = CompositionStrategy.extract_strengths(transported_dc)
-	assert(strengths["anchor"] == 1.8, "Extracted anchor strength mismatch")
-	assert(strengths["branch"] == 0.6, "Extracted branch strength mismatch")
-	assert(strengths["terminal"] == 0.9, "Extracted terminal strength mismatch")
-	assert(strengths["candidate_count"] == 40, "Extracted candidate count mismatch")
+	assert(strengths["anchor_distance_strength"] == 1.8, "Extracted anchor strength mismatch")
+	assert(strengths["branch_lateral_strength"] == 0.6, "Extracted branch strength mismatch")
+	assert(strengths["terminal_spacing_strength"] == 0.9, "Extracted terminal strength mismatch")
+	assert(strengths["composition_candidate_count"] == 40, "Extracted candidate count mismatch")
 
 	# 6. Lab UI sync for composition parameters
 	var lab_inst = load("res://src/dungeon_generator/debug/lab/dungeon_level_lab.tscn").instantiate()

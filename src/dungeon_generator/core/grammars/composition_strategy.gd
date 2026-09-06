@@ -17,11 +17,7 @@ const RoomPlacementPlan = preload("res://src/dungeon_generator/core/data/room_pl
 const RoomData = preload("res://src/dungeon_generator/core/data/room_data.gd")
 const DungeonGraph = preload("res://src/dungeon_generator/core/data/dungeon_graph.gd")
 const SpaceGrammarConfig = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
-const SpatialIntent = preload("res://src/dungeon_generator/core/data/spatial_intent.gd")
-const SpatialIntentResult = preload("res://src/dungeon_generator/core/data/spatial_intent_result.gd")
-const SpatialIntentBuilder = preload("res://src/dungeon_generator/core/grammars/spatial_intent_builder.gd")
 const SpatialComposition = preload("res://src/dungeon_generator/core/data/spatial_composition.gd")
-const SpatialCompositionBuilder = preload("res://src/dungeon_generator/core/grammars/spatial_composition_builder.gd")
 
 const REGION_START: StringName = &"region_start"
 const REGION_EARLY: StringName = &"region_early"
@@ -32,12 +28,6 @@ const REGION_BRANCH: StringName = &"region_branch"
 const REGION_OPTIONAL: StringName = &"region_optional"
 const REGION_MAIN_PATH: StringName = &"region_main_path"
 
-const _DIRECTIONS: Array[Vector2] = [
-	Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1),
-	Vector2(0.7071, 0.7071), Vector2(-0.7071, 0.7071),
-	Vector2(0.7071, -0.7071), Vector2(-0.7071, -0.7071)
-]
-
 var _rng: RandomNumberGenerator
 
 func _init(rng: RandomNumberGenerator = null) -> void:
@@ -47,15 +37,7 @@ func _init(rng: RandomNumberGenerator = null) -> void:
 		_rng = RandomNumberGenerator.new()
 
 static func extract_strengths(config) -> Dictionary:
-	var candidate_count: int = 24
-	if config != null:
-		if "composition_candidate_count" in config and config.composition_candidate_count > 0:
-			candidate_count = config.composition_candidate_count
-		elif "candidate_count" in config and config.candidate_count > 0:
-			candidate_count = config.candidate_count
-		elif "mission_aware_candidate_count" in config and config.mission_aware_candidate_count > 0:
-			candidate_count = config.mission_aware_candidate_count
-
+	var comp_candidate_count: int = 24
 	var progression_strength: float = 1.0
 	var density_strength: float = 0.5
 	var anchor_distance_strength: float = 1.0
@@ -65,86 +47,88 @@ static func extract_strengths(config) -> Dictionary:
 	var terminal_spacing_strength: float = 0.75
 
 	if config != null:
+		if "composition_candidate_count" in config and config.composition_candidate_count > 0:
+			comp_candidate_count = config.composition_candidate_count
+
 		if "progression_strength" in config:
 			progression_strength = float(config.progression_strength)
 		if "density_strength" in config:
 			density_strength = float(config.density_strength)
 		if "anchor_distance_strength" in config:
 			anchor_distance_strength = float(config.anchor_distance_strength)
-		elif "anchor_strength" in config:
-			anchor_distance_strength = float(config.anchor_strength)
 		if "neighbor_coherence_strength" in config:
 			neighbor_coherence_strength = float(config.neighbor_coherence_strength)
-		elif "neighbor_strength" in config:
-			neighbor_coherence_strength = float(config.neighbor_strength)
 		if "main_path_alignment_strength" in config:
 			main_path_alignment_strength = float(config.main_path_alignment_strength)
-		elif "main_path_strength" in config:
-			main_path_alignment_strength = float(config.main_path_strength)
 		if "branch_lateral_strength" in config:
 			branch_lateral_strength = float(config.branch_lateral_strength)
-		elif "branch_strength" in config:
-			branch_lateral_strength = float(config.branch_strength)
 		if "terminal_spacing_strength" in config:
 			terminal_spacing_strength = float(config.terminal_spacing_strength)
-		elif "terminal_strength" in config:
-			terminal_spacing_strength = float(config.terminal_strength)
 
 	return {
-		"candidate_count": candidate_count,
+		"composition_candidate_count": comp_candidate_count,
 		"progression": progression_strength,
+		"progression_strength": progression_strength,
 		"anchor_distance": anchor_distance_strength,
-		"anchor": anchor_distance_strength,
+		"anchor_distance_strength": anchor_distance_strength,
 		"neighbor_coherence": neighbor_coherence_strength,
-		"neighbor": neighbor_coherence_strength,
+		"neighbor_coherence_strength": neighbor_coherence_strength,
 		"main_path_alignment": main_path_alignment_strength,
-		"main_path": main_path_alignment_strength,
+		"main_path_alignment_strength": main_path_alignment_strength,
 		"branch_lateral": branch_lateral_strength,
-		"branch": branch_lateral_strength,
+		"branch_lateral_strength": branch_lateral_strength,
 		"density": density_strength,
+		"density_strength": density_strength,
 		"terminal_spacing": terminal_spacing_strength,
-		"terminal": terminal_spacing_strength
+		"terminal_spacing_strength": terminal_spacing_strength
 	}
 
 ## Genera un plan de colocación espacial sellado (RoomPlacementPlan) guiado por SpatialComposition.
-## Acepta SpatialComposition directamente, o lo construye desde MissionGraph / SpatialIntent si no se provee.
+## Exige una instancia válida y sellada de SpatialComposition creada externamente.
 func create_placement_plan(
 	rooms: Array[RoomData],
-	mission_graph_or_composition = null,
-	bounds: Rect2i = Rect2i(),
-	config: SpaceGrammarConfig = null,
-	spatial_intent_or_composition = null,
-	spatial_composition: SpatialComposition = null
+	mission_graph: DungeonGraph,
+	bounds: Rect2i,
+	config: SpaceGrammarConfig,
+	spatial_composition: SpatialComposition
 ) -> RoomPlacementPlan:
 	var plan := RoomPlacementPlan.new()
 	if rooms.is_empty():
 		plan.seal()
 		return plan
 
-	# 1. Resolver MissionGraph y SpatialComposition desde los argumentos polimórficos
-	var mission_graph: DungeonGraph = null
-	var comp: SpatialComposition = null
+	assert(spatial_composition != null, "[CompositionStrategy] spatial_composition must not be null.")
+	assert(spatial_composition.is_sealed(), "[CompositionStrategy] spatial_composition must be sealed.")
+	assert(bounds.size.x > 0 and bounds.size.y > 0, "[CompositionStrategy] bounds must have positive dimensions.")
 
-	if mission_graph_or_composition is SpatialComposition:
-		comp = mission_graph_or_composition
-	elif mission_graph_or_composition is DungeonGraph:
-		mission_graph = mission_graph_or_composition
+	if spatial_composition == null or not spatial_composition.is_sealed() or bounds.size.x <= 0 or bounds.size.y <= 0:
+		push_error("[CompositionStrategy] Invalid input contract: spatial_composition is null/unsealed or bounds are invalid.")
+		plan.seal()
+		return plan
 
-	if spatial_composition != null:
-		comp = spatial_composition
-	elif comp == null and spatial_intent_or_composition is SpatialComposition:
-		comp = spatial_intent_or_composition
+	var comp: SpatialComposition = spatial_composition
 
-	# Si aún no tenemos SpatialComposition, construirla canónicamente
-	if comp == null:
-		var comp_builder := SpatialCompositionBuilder.new(_rng)
-		comp = comp_builder.build(mission_graph, spatial_intent_or_composition, config, bounds)
+	# 1. Extraer parámetros de configuración
+	var preferred_distance: float = 12.0
+	var distance_jitter: float = 4.0
+	var min_separation: int = 2
+	var min_edge_dist: float = 6.0
 
-	# 2. Extraer parámetros de configuración
-	var preferred_distance: float = config.mission_aware_preferred_distance if config != null else 12.0
-	var distance_jitter: float = config.mission_aware_distance_jitter if config != null else 4.0
-	var min_separation: int = config.min_room_separation if config != null else 2
-	var min_edge_dist: float = config.min_mission_edge_distance if config != null else 6.0
+	if config != null:
+		if "preferred_distance" in config:
+			preferred_distance = float(config.preferred_distance)
+		elif "mission_aware_preferred_distance" in config:
+			preferred_distance = float(config.mission_aware_preferred_distance)
+
+		if "distance_jitter" in config:
+			distance_jitter = float(config.distance_jitter)
+		elif "mission_aware_distance_jitter" in config:
+			distance_jitter = float(config.mission_aware_distance_jitter)
+
+		if "min_room_separation" in config:
+			min_separation = int(config.min_room_separation)
+		if "min_mission_edge_distance" in config:
+			min_edge_dist = float(config.min_mission_edge_distance)
 
 	var max_dim: float = minf(float(bounds.size.x), float(bounds.size.y))
 	if max_dim > 0 and max_dim <= 36.0:
@@ -153,9 +137,9 @@ func create_placement_plan(
 		min_edge_dist = minf(min_edge_dist, max_dim * 0.22)
 
 	var strengths: Dictionary = extract_strengths(config)
-	var candidate_count: int = strengths.get("candidate_count", 24)
+	var p_composition_candidate_count: int = strengths.get("composition_candidate_count", 24)
 
-	# 3. Indexar salas por ID y por mission_node_id
+	# 2. Indexar salas por ID y por mission_node_id
 	var room_by_id: Dictionary = {}
 	var room_by_node_id: Dictionary = {}
 	for r in rooms:
@@ -241,7 +225,7 @@ func create_placement_plan(
 				start_center,
 				prev_main_center,
 				preferred_distance,
-				candidate_count,
+				p_composition_candidate_count,
 				distance_jitter,
 				min_separation,
 				min_edge_dist,
@@ -311,7 +295,7 @@ func _find_best_position(
 	start_center: Vector2,
 	prev_main_center: Vector2,
 	preferred_distance: float,
-	candidate_count: int,
+	p_candidate_count: int,
 	distance_jitter: float,
 	min_separation: int,
 	min_edge_dist: float,
@@ -376,12 +360,12 @@ func _find_best_position(
 	var best_score: float = -INF
 
 	# 3. Búsqueda primaria de candidatos
-	var attempts: int = candidate_count * 2
+	var attempts: int = p_candidate_count * 2
 	for i in range(attempts):
 		var target_center: Vector2
 
 		if global_target != Vector2.ZERO and (i % 2 == 0 or i < 4):
-			# Candidato explorando directamente las proximidades de SpatialComposition.get_anchor_target
+			# Branch 1: Exploración directa en torno a SpatialComposition.get_anchor_target (target global)
 			var jitter_radius: float = _rng.randf_range(0.0, maxf(distance_jitter, 3.0))
 			var jitter_angle: float = _rng.randf() * TAU
 			target_center = global_target + Vector2(cos(jitter_angle), sin(jitter_angle)) * jitter_radius
@@ -390,19 +374,18 @@ func _find_best_position(
 			var roll: float = _rng.randf()
 
 			if not is_main and roll < 0.5:
-				# Para ramas secundarias: sesgo lateral para ramificarse perpendicularmente del camino principal
+				# Branch 2: Sesgo lateral para ramas secundarias (ramificarse perpendicularmente del camino principal)
 				var lat_sign: float = -1.0 if _rng.randf() < 0.5 else 1.0
 				var lat_jitter: float = _rng.randf_range(-0.4, 0.4)
 				dir = (perp_dir * lat_sign + prog_dir * 0.3).rotated(lat_jitter).normalized()
-			elif roll < 0.45:
-				# Sesgo hacia el target global de progresión
+			elif (is_main and roll < 0.55) or (not is_main and roll < 0.75):
+				# Branch 3: Sesgo hacia el target global de progresión
 				var angle_jitter: float = _rng.randf_range(-0.5, 0.5)
 				dir = to_global.rotated(angle_jitter).normalized()
 			else:
-				# Exploración omnidireccional
-				var dir_idx: int = _rng.randi_range(0, _DIRECTIONS.size() - 1)
-				var angle_jitter: float = _rng.randf_range(-0.3, 0.3)
-				dir = _DIRECTIONS[dir_idx].rotated(angle_jitter).normalized()
+				# Branch 4: Exploración omnidireccional
+				var angle: float = _rng.randf() * TAU
+				dir = Vector2(cos(angle), sin(angle))
 
 			var dist: float = preferred_distance + _rng.randf_range(-distance_jitter, distance_jitter)
 			target_center = anchor + dir * dist
@@ -414,7 +397,7 @@ func _find_best_position(
 			continue
 
 		# SOFT SCORING: Puntuación guiada por SpatialComposition
-		var score: float = _score_candidate(
+		var score: float = _score_placement_candidate(
 			cand_pos,
 			size,
 			bounds,
@@ -532,7 +515,7 @@ const WEIGHT_TERMINAL_SPACING: float = 1.3
 ## Evaluación de Puntuación Suave (Soft Scoring).
 ## Evalúa calidad espacial calculando 7 términos independientes con pesos para asegurar coherencia global
 ## sin incurrir en búsquedas exhaustivas ni recocido simulado.
-func _score_candidate(
+func _score_placement_candidate(
 	cand_pos: Vector2i,
 	size: Vector2i,
 	bounds: Rect2i,
@@ -602,13 +585,13 @@ func _score_candidate(
 	var jitter: float = _rng.randf() * 0.05
 
 	# Suma ponderada con pesos configurables (o por defecto)
-	var w_prog: float = strengths.get("progression", progression_strength * WEIGHT_PROGRESSION)
-	var w_anchor: float = strengths.get("anchor_distance", WEIGHT_ANCHOR_DISTANCE)
-	var w_neighbor: float = strengths.get("neighbor_coherence", WEIGHT_NEIGHBOR_COHERENCE)
-	var w_main: float = strengths.get("main_path_alignment", WEIGHT_MAIN_PATH_ALIGNMENT)
-	var w_branch: float = strengths.get("branch_lateral", WEIGHT_BRANCH_LATERAL)
-	var w_density: float = strengths.get("density", density_strength * WEIGHT_DENSITY)
-	var w_terminal: float = strengths.get("terminal_spacing", WEIGHT_TERMINAL_SPACING)
+	var w_prog: float = strengths.get("progression_strength", strengths.get("progression", progression_strength * WEIGHT_PROGRESSION))
+	var w_anchor: float = strengths.get("anchor_distance_strength", strengths.get("anchor_distance", WEIGHT_ANCHOR_DISTANCE))
+	var w_neighbor: float = strengths.get("neighbor_coherence_strength", strengths.get("neighbor_coherence", WEIGHT_NEIGHBOR_COHERENCE))
+	var w_main: float = strengths.get("main_path_alignment_strength", strengths.get("main_path_alignment", WEIGHT_MAIN_PATH_ALIGNMENT))
+	var w_branch: float = strengths.get("branch_lateral_strength", strengths.get("branch_lateral", WEIGHT_BRANCH_LATERAL))
+	var w_density: float = strengths.get("density_strength", strengths.get("density", density_strength * WEIGHT_DENSITY))
+	var w_terminal: float = strengths.get("terminal_spacing_strength", strengths.get("terminal_spacing", WEIGHT_TERMINAL_SPACING))
 
 	var total_score: float = (
 		(w_prog * progression_score)
@@ -913,7 +896,7 @@ func _expanded_valid_candidate_search(
 				if not _passes_hard_constraints(cand_pos, size, bounds, placed_rects, neighbor_rects, min_separation, min_edge_dist, start_center, room.room_type, comp, node_id):
 					continue
 
-				var score: float = _score_candidate(
+				var score: float = _score_placement_candidate(
 					cand_pos,
 					size,
 					bounds,
@@ -942,44 +925,6 @@ func _expanded_valid_candidate_search(
 
 			if best_pos != Vector2i.MIN:
 				return best_pos
-
-	# Fallback para rejillas pequeñas o alta densidad: relajar margen de separación (0)
-	if min_separation > 0:
-		for origin in search_origins:
-			var max_search_radius: int = maxi(int(preferred_distance * 2.8), 40)
-			for radius in range(maxi(2, int(min_edge_dist * 0.5)), max_search_radius, 2):
-				var steps: int = clampi(int(TAU * radius / 3.0), 8, 36)
-				for s in range(steps):
-					var angle: float = (float(s) / float(steps)) * TAU
-					var cand_pos := Vector2i(
-						int(origin.x + cos(angle) * radius - size.x / 2.0),
-						int(origin.y + sin(angle) * radius - size.y / 2.0)
-					)
-					if not _passes_hard_constraints(cand_pos, size, bounds, placed_rects, neighbor_rects, 0, min_edge_dist * 0.5, start_center, room.room_type, comp, node_id):
-						continue
-					return cand_pos
-
-	# Fallback determinista final: escaneo de rejilla dentro de bounds buscando hueco libre o menor solapamiento
-	var min_overlap_area: int = 999999
-	var least_overlap_pos: Vector2i = Vector2i.MIN
-
-	for y in range(bounds.position.y, bounds.end.y - size.y + 1):
-		for x in range(bounds.position.x, bounds.end.x - size.x + 1):
-			var cand_pos := Vector2i(x, y)
-			var cand_rect := Rect2i(cand_pos, size)
-			var overlap_area: int = 0
-			for pr in placed_rects.values():
-				if cand_rect.intersects(pr):
-					var inter: Rect2i = cand_rect.intersection(pr)
-					overlap_area += inter.size.x * inter.size.y
-			if overlap_area == 0:
-				return cand_pos
-			if overlap_area < min_overlap_area:
-				min_overlap_area = overlap_area
-				least_overlap_pos = cand_pos
-
-	if least_overlap_pos != Vector2i.MIN:
-		return least_overlap_pos
 
 	return Vector2i.MIN
 

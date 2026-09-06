@@ -14,7 +14,6 @@ const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/
 const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
 const _SemanticMappingValidatorScript = preload("res://src/dungeon_generator/core/validation/semantic_mapping_validator.gd")
 const _CompositionStrategyScript = preload("res://src/dungeon_generator/core/grammars/composition_strategy.gd")
-const _CompositionStrategyV1Script = preload("res://src/dungeon_generator/core/grammars/composition_strategy_v1.gd")
 const _SpatialIntentBuilderScript = preload("res://src/dungeon_generator/core/grammars/spatial_intent_builder.gd")
 const _SpatialCompositionBuilderScript = preload("res://src/dungeon_generator/core/grammars/spatial_composition_builder.gd")
 const _RoomPlacementPlanScript = preload("res://src/dungeon_generator/core/data/room_placement_plan.gd")
@@ -55,28 +54,20 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	var sg_config: _SpaceGrammarConfigScript = ctx.config.space_grammar_config if (ctx.config != null and ctx.config.space_grammar_config != null) else null
 	if sg_config == null and ctx.config != null:
 		sg_config = _SpaceGrammarConfigScript.new()
-		sg_config.use_mission_aware_placement = ctx.config.use_mission_aware_placement
-		sg_config.mission_aware_preferred_distance = ctx.config.mission_aware_preferred_distance
-		sg_config.mission_aware_candidate_count = ctx.config.mission_aware_candidate_count
-		sg_config.mission_aware_distance_jitter = ctx.config.mission_aware_distance_jitter
 		sg_config.min_room_separation = ctx.config.min_room_separation
 		sg_config.min_mission_edge_distance = ctx.config.min_mission_edge_distance
 		sg_config.max_mission_edge_distance = ctx.config.max_mission_edge_distance
+		sg_config.preferred_distance = ctx.config.preferred_distance
+		sg_config.distance_jitter = ctx.config.distance_jitter
 		sg_config.progression_strength = ctx.config.progression_strength
 		sg_config.density_strength = ctx.config.density_strength
 		sg_config.preferred_progression_direction = ctx.config.preferred_progression_direction
 		sg_config.composition_candidate_count = ctx.config.composition_candidate_count
-		sg_config.candidate_count = ctx.config.candidate_count
 		sg_config.anchor_distance_strength = ctx.config.anchor_distance_strength
-		sg_config.anchor_strength = ctx.config.anchor_strength
 		sg_config.neighbor_coherence_strength = ctx.config.neighbor_coherence_strength
-		sg_config.neighbor_strength = ctx.config.neighbor_strength
 		sg_config.main_path_alignment_strength = ctx.config.main_path_alignment_strength
-		sg_config.main_path_strength = ctx.config.main_path_strength
 		sg_config.branch_lateral_strength = ctx.config.branch_lateral_strength
-		sg_config.branch_strength = ctx.config.branch_strength
 		sg_config.terminal_spacing_strength = ctx.config.terminal_spacing_strength
-		sg_config.terminal_strength = ctx.config.terminal_strength
 
 	# Build SpatialIntent & SpatialComposition
 	if ctx.mission_graph != null:
@@ -90,25 +81,13 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 		ctx.spatial_composition = null
 
 	# Pass to CompositionStrategy & Generate RoomPlacementPlan
-	var plan: _RoomPlacementPlanScript
-	if ctx.config != null and ctx.config.composition_version == 1:
-		var strat_v1 := _CompositionStrategyV1Script.new(placement_rng)
-		plan = strat_v1.create_placement_plan(
-			ctx.rooms,
-			ctx.mission_graph,
-			grid_bounds,
-			sg_config,
-			ctx.spatial_intent
-		)
-	else:
-		plan = strategy.create_placement_plan(
-			ctx.rooms,
-			ctx.mission_graph,
-			grid_bounds,
-			sg_config,
-			ctx.spatial_intent,
-			ctx.spatial_composition
-		)
+	var plan: _RoomPlacementPlanScript = strategy.create_placement_plan(
+		ctx.rooms,
+		ctx.mission_graph,
+		grid_bounds,
+		sg_config,
+		ctx.spatial_composition
+	)
 	ctx.placement_plan = plan
 
 	if plan == null or not plan.is_sealed():

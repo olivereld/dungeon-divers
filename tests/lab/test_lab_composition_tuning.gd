@@ -93,7 +93,6 @@ func _test_composition_tuning_controls() -> void:
 	root.add_child(panel)
 	panel._ready()
 
-	assert(panel.get_composition_version() == 2, "FAIL: initial composition_version should be 2")
 	assert(panel.get_preferred_progression_direction() == Vector2.ZERO, "FAIL: initial direction should be Vector2.ZERO")
 	assert(is_equal_approx(panel.get_anchor_distance_strength(), 1.0), "FAIL: anchor_distance_strength default")
 	assert(is_equal_approx(panel.get_neighbor_coherence_strength(), 1.0), "FAIL: neighbor_coherence_strength default")
@@ -176,8 +175,6 @@ func _test_config_overrides() -> void:
 	root.add_child(panel)
 	panel._ready()
 
-	# Select version 1
-	panel.set_composition_version(1)
 	# Select Horizontal
 	panel.set_progression_direction_mode("horizontal")
 	# Change sliders
@@ -195,7 +192,6 @@ func _test_config_overrides() -> void:
 	var lab_cfg = _LabConfigScript.new()
 	panel.apply_to_lab_config(lab_cfg)
 
-	assert(lab_cfg.composition_version == 1, "FAIL: lab_cfg composition_version")
 	assert(lab_cfg.preferred_progression_direction == Vector2(1, 0), "FAIL: lab_cfg progression_direction")
 	assert(is_equal_approx(lab_cfg.anchor_distance_strength, 4.2), "FAIL: lab_cfg anchor_distance_strength")
 	assert(is_equal_approx(lab_cfg.neighbor_coherence_strength, 2.8), "FAIL: lab_cfg neighbor_coherence_strength")
@@ -203,18 +199,17 @@ func _test_config_overrides() -> void:
 	assert(is_equal_approx(lab_cfg.branch_lateral_strength, 1.65), "FAIL: lab_cfg branch_lateral_strength")
 	assert(is_equal_approx(lab_cfg.terminal_spacing_strength, 2.45), "FAIL: lab_cfg terminal_spacing_strength")
 	assert(lab_cfg.composition_candidate_count == 40, "FAIL: lab_cfg composition_candidate_count")
-	assert(is_equal_approx(lab_cfg.mission_aware_preferred_distance, 16.0), "FAIL: lab_cfg preferred_distance")
-	assert(is_equal_approx(lab_cfg.mission_aware_distance_jitter, 6.0), "FAIL: lab_cfg distance_jitter")
+	assert(is_equal_approx(lab_cfg.preferred_distance, 16.0), "FAIL: lab_cfg preferred_distance")
+	assert(is_equal_approx(lab_cfg.distance_jitter, 6.0), "FAIL: lab_cfg distance_jitter")
 	assert(is_equal_approx(lab_cfg.density_strength, 0.85), "FAIL: lab_cfg density_strength")
 
 	# Test lab_cfg.to_dungeon_config()
 	var d_cfg = lab_cfg.to_dungeon_config()
-	assert(d_cfg.composition_version == 1, "FAIL: d_cfg composition_version")
 	assert(d_cfg.preferred_progression_direction == Vector2(1, 0), "FAIL: d_cfg progression_direction")
 	assert(is_equal_approx(d_cfg.anchor_distance_strength, 4.2), "FAIL: d_cfg anchor_distance_strength")
 	assert(is_equal_approx(d_cfg.space_grammar_config.anchor_distance_strength, 4.2), "FAIL: sgc anchor_distance_strength")
 	assert(d_cfg.composition_candidate_count == 40, "FAIL: d_cfg composition_candidate_count")
-	assert(is_equal_approx(d_cfg.space_grammar_config.mission_aware_preferred_distance, 16.0), "FAIL: sgc preferred_distance")
+	assert(is_equal_approx(d_cfg.space_grammar_config.preferred_distance, 16.0), "FAIL: sgc preferred_distance")
 
 	root.remove_child(panel)
 	panel.queue_free()

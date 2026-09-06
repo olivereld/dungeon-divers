@@ -48,7 +48,6 @@ const _LabColors = preload("res://src/dungeon_generator/debug/lab/ui/lab_colors.
 @onready var composition_body: Control = %CompositionBody
 
 # Controles de Composition Tuning
-@onready var comp_version_option: OptionButton = %CompVersionOption
 @onready var btn_dir_horiz: Button = %BtnDirHoriz
 @onready var btn_dir_vert: Button = %BtnDirVert
 @onready var btn_dir_diag: Button = %BtnDirDiag
@@ -162,8 +161,6 @@ func _ensure_nodes() -> void:
 		composition_body = find_child("CompositionBody", true, false) as Control
 
 	# Composition Tuning
-	if comp_version_option == null:
-		comp_version_option = find_child("CompVersionOption", true, false) as OptionButton
 	if btn_dir_horiz == null:
 		btn_dir_horiz = find_child("BtnDirHoriz", true, false) as Button
 	if btn_dir_vert == null:
@@ -305,16 +302,6 @@ func _toggle_accordion(header_btn: Button, body_node: Control, title: String) ->
 	header_btn.text = ("▼ " if now_open else "▶ ") + title
 
 func _setup_composition_controls() -> void:
-	# Inicializar CompVersionOption
-	if comp_version_option != null and comp_version_option.item_count == 0:
-		comp_version_option.add_item("V2 (Global Spatial)", 2)
-		comp_version_option.add_item("V1 (Local)", 1)
-		comp_version_option.selected = 0
-		comp_version_option.item_selected.connect(func(idx):
-			var v = comp_version_option.get_item_id(idx)
-			composition_tuning_changed.emit("composition_version", v)
-		)
-
 	# Inicializar botones direccionales
 	if btn_dir_horiz != null and not btn_dir_horiz.pressed.is_connected(set_progression_direction_mode.bind("horizontal")):
 		btn_dir_horiz.pressed.connect(set_progression_direction_mode.bind("horizontal"))
@@ -403,12 +390,6 @@ func _update_direction_button_styles() -> void:
 			sb.set_corner_radius_all(3)
 			btn.add_theme_stylebox_override("normal", sb)
 
-func get_composition_version() -> int:
-	if comp_version_option == null or comp_version_option.selected < 0:
-		return 2
-	var id = comp_version_option.get_item_id(comp_version_option.selected)
-	return id if id > 0 else 2
-
 func get_preferred_progression_direction() -> Vector2:
 	return _current_progression_dir
 
@@ -441,7 +422,6 @@ func get_density_strength() -> float:
 
 func get_composition_tuning_settings() -> Dictionary:
 	return {
-		"composition_version": get_composition_version(),
 		"preferred_progression_direction": get_preferred_progression_direction(),
 		"anchor_distance_strength": get_anchor_distance_strength(),
 		"neighbor_coherence_strength": get_neighbor_coherence_strength(),
@@ -453,15 +433,6 @@ func get_composition_tuning_settings() -> Dictionary:
 		"distance_jitter": get_distance_jitter(),
 		"density_strength": get_density_strength()
 	}
-
-func set_composition_version(version: int) -> void:
-	_ensure_nodes()
-	if comp_version_option != null:
-		for i in range(comp_version_option.item_count):
-			if comp_version_option.get_item_id(i) == version:
-				comp_version_option.selected = i
-				composition_tuning_changed.emit("composition_version", version)
-				break
 
 func set_anchor_distance_strength(val: float) -> void:
 	_ensure_nodes()
@@ -538,63 +509,64 @@ func set_density_strength(val: float) -> void:
 func apply_to_lab_config(l_cfg) -> void:
 	if l_cfg == null:
 		return
-	l_cfg.composition_version = get_composition_version()
 	l_cfg.preferred_progression_direction = get_preferred_progression_direction()
 	l_cfg.anchor_distance_strength = get_anchor_distance_strength()
-	l_cfg.anchor_strength = get_anchor_distance_strength()
 	l_cfg.neighbor_coherence_strength = get_neighbor_coherence_strength()
-	l_cfg.neighbor_strength = get_neighbor_coherence_strength()
 	l_cfg.main_path_alignment_strength = get_main_path_alignment_strength()
-	l_cfg.main_path_strength = get_main_path_alignment_strength()
 	l_cfg.branch_lateral_strength = get_branch_lateral_strength()
-	l_cfg.branch_strength = get_branch_lateral_strength()
 	l_cfg.terminal_spacing_strength = get_terminal_spacing_strength()
-	l_cfg.terminal_strength = get_terminal_spacing_strength()
 	l_cfg.composition_candidate_count = get_composition_candidate_count()
-	l_cfg.candidate_count = get_composition_candidate_count()
-	l_cfg.mission_aware_preferred_distance = get_preferred_distance()
-	l_cfg.mission_aware_distance_jitter = get_distance_jitter()
+	l_cfg.preferred_distance = get_preferred_distance()
+	l_cfg.distance_jitter = get_distance_jitter()
 	l_cfg.density_strength = get_density_strength()
 
 func apply_to_dungeon_config(d_cfg) -> void:
 	if d_cfg == null:
 		return
-	d_cfg.composition_version = get_composition_version()
 	d_cfg.preferred_progression_direction = get_preferred_progression_direction()
 	d_cfg.anchor_distance_strength = get_anchor_distance_strength()
-	d_cfg.anchor_strength = get_anchor_distance_strength()
 	d_cfg.neighbor_coherence_strength = get_neighbor_coherence_strength()
-	d_cfg.neighbor_strength = get_neighbor_coherence_strength()
 	d_cfg.main_path_alignment_strength = get_main_path_alignment_strength()
-	d_cfg.main_path_strength = get_main_path_alignment_strength()
 	d_cfg.branch_lateral_strength = get_branch_lateral_strength()
-	d_cfg.branch_strength = get_branch_lateral_strength()
 	d_cfg.terminal_spacing_strength = get_terminal_spacing_strength()
-	d_cfg.terminal_strength = get_terminal_spacing_strength()
 	d_cfg.composition_candidate_count = get_composition_candidate_count()
-	d_cfg.candidate_count = get_composition_candidate_count()
-	d_cfg.mission_aware_preferred_distance = get_preferred_distance()
-	d_cfg.mission_aware_distance_jitter = get_distance_jitter()
+	d_cfg.preferred_distance = get_preferred_distance()
+	d_cfg.distance_jitter = get_distance_jitter()
 	d_cfg.density_strength = get_density_strength()
 
 	if "space_grammar_config" in d_cfg and d_cfg.space_grammar_config != null:
 		var sgc = d_cfg.space_grammar_config
 		sgc.composition_candidate_count = d_cfg.composition_candidate_count
-		sgc.candidate_count = d_cfg.candidate_count
 		sgc.anchor_distance_strength = d_cfg.anchor_distance_strength
-		sgc.anchor_strength = d_cfg.anchor_strength
 		sgc.neighbor_coherence_strength = d_cfg.neighbor_coherence_strength
-		sgc.neighbor_strength = d_cfg.neighbor_strength
 		sgc.main_path_alignment_strength = d_cfg.main_path_alignment_strength
-		sgc.main_path_strength = d_cfg.main_path_strength
 		sgc.branch_lateral_strength = d_cfg.branch_lateral_strength
-		sgc.branch_strength = d_cfg.branch_strength
 		sgc.terminal_spacing_strength = d_cfg.terminal_spacing_strength
-		sgc.terminal_strength = d_cfg.terminal_strength
-		sgc.mission_aware_preferred_distance = d_cfg.mission_aware_preferred_distance
-		sgc.mission_aware_distance_jitter = d_cfg.mission_aware_distance_jitter
+		sgc.preferred_distance = d_cfg.preferred_distance
+		sgc.distance_jitter = d_cfg.distance_jitter
 		sgc.density_strength = d_cfg.density_strength
-		sgc.preferred_progression_direction = d_cfg.preferred_progression_direction
+
+func sync_from_lab_config(l_cfg) -> void:
+	if l_cfg == null:
+		return
+	if "anchor_distance_strength" in l_cfg:
+		set_anchor_distance_strength(l_cfg.anchor_distance_strength)
+	if "neighbor_coherence_strength" in l_cfg:
+		set_neighbor_coherence_strength(l_cfg.neighbor_coherence_strength)
+	if "main_path_alignment_strength" in l_cfg:
+		set_main_path_alignment_strength(l_cfg.main_path_alignment_strength)
+	if "branch_lateral_strength" in l_cfg:
+		set_branch_lateral_strength(l_cfg.branch_lateral_strength)
+	if "terminal_spacing_strength" in l_cfg:
+		set_terminal_spacing_strength(l_cfg.terminal_spacing_strength)
+	if "composition_candidate_count" in l_cfg:
+		set_composition_candidate_count(l_cfg.composition_candidate_count)
+	if "preferred_distance" in l_cfg:
+		set_preferred_distance(l_cfg.preferred_distance)
+	if "distance_jitter" in l_cfg:
+		set_distance_jitter(l_cfg.distance_jitter)
+	if "density_strength" in l_cfg:
+		set_density_strength(l_cfg.density_strength)
 
 func _style_generate_button() -> void:
 	if generate_btn == null:

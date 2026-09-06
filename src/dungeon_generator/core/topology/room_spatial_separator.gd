@@ -2,6 +2,12 @@ class_name RoomSpatialSeparator
 extends RefCounted
 
 ## Separador espacial determinista de habitaciones (Fase 6).
+## ROL ARQUITECTÓNICO: REPARACIÓN EXCLUSIVA (REPAIR ONLY).
+## Este componente NO debe ser utilizado nunca como mecanismo primario de colocación de salas.
+## Su único rol canónico es actuar como paso de reparación/contingencia de integridad en DungeonRoomStage
+## en caso de que ocurra una colisión o solapamiento inesperado post-plan.
+## NOTA DE AUDITORÍA FUTURA: Revisar consumidores residuales una vez consolidada la estabilidad de V2.
+##
 ## Garantiza que todas las habitaciones tengan al menos `min_padding` celdas de separación,
 ## estén completamente contenidas en los límites (`bounds`) y se procesen en orden estricto `room_id ascending`.
 

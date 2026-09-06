@@ -6,6 +6,7 @@ const RoomData = preload("res://src/dungeon_generator/core/data/room_data.gd")
 const DungeonGraph = preload("res://src/dungeon_generator/core/data/dungeon_graph.gd")
 const SpaceGrammarConfig = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
 const CompositionStrategy = preload("res://src/dungeon_generator/core/grammars/composition_strategy.gd")
+const SpatialCompositionBuilder = preload("res://src/dungeon_generator/core/grammars/spatial_composition_builder.gd")
 
 func _init() -> void:
 	print("--- Running test_room_placement_plan_and_placer ---")
@@ -99,8 +100,8 @@ func _test_composition_strategy_immutability_and_determinism() -> void:
 	var rng1 := RandomNumberGenerator.new()
 	rng1.seed = 98765
 	var strategy1 := CompositionStrategy.new(rng1)
-
-	var plan1: RoomPlacementPlan = strategy1.create_placement_plan(original_rooms, graph, bounds)
+	var comp1 = SpatialCompositionBuilder.new(rng1).build(graph, null, null, bounds)
+	var plan1: RoomPlacementPlan = strategy1.create_placement_plan(original_rooms, graph, bounds, null, comp1)
 
 	# CRITICAL: Verify create_placement_plan did NOT mutate original_rooms!
 	assert(not r0.is_placed, "create_placement_plan must NOT mutate is_placed on inputs")
@@ -116,7 +117,8 @@ func _test_composition_strategy_immutability_and_determinism() -> void:
 	var rng2 := RandomNumberGenerator.new()
 	rng2.seed = 98765
 	var strategy2 := CompositionStrategy.new(rng2)
-	var plan2: RoomPlacementPlan = strategy2.create_placement_plan(original_rooms, graph, bounds)
+	var comp2 = SpatialCompositionBuilder.new(rng2).build(graph, null, null, bounds)
+	var plan2: RoomPlacementPlan = strategy2.create_placement_plan(original_rooms, graph, bounds, null, comp2)
 
 	for room_id in plan1.get_all_room_ids():
 		assert(plan1.get_position(room_id) == plan2.get_position(room_id), "Positions must be 100% deterministic for seed")
@@ -159,7 +161,8 @@ func _test_composition_strategy_multi_seed_integrity() -> void:
 		var test_rooms: Array[RoomData] = [r0, r1, r2, r3, r4]
 
 		var strategy := CompositionStrategy.new(rng)
-		var plan: RoomPlacementPlan = strategy.create_placement_plan(test_rooms, graph, bounds)
+		var comp = SpatialCompositionBuilder.new(rng).build(graph, null, null, bounds)
+		var plan: RoomPlacementPlan = strategy.create_placement_plan(test_rooms, graph, bounds, null, comp)
 		assert(plan != null and plan.is_sealed())
 		assert(plan.size() == 5)
 
