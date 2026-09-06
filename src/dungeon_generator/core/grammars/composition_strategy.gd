@@ -189,7 +189,7 @@ func create_placement_plan(
 		)
 
 		if is_start_room:
-			best_pos = _place_start_room(size, bounds, global_target, comp.progression_direction)
+			best_pos = _find_start_position(size, bounds, global_target, comp.progression_direction)
 			if best_pos != Vector2i.MIN:
 				start_center = Vector2(best_pos) + Vector2(size) / 2.0
 				prev_main_center = start_center
@@ -229,8 +229,8 @@ func create_placement_plan(
 	plan.seal()
 	return plan
 
-## Coloca la sala START en torno a su target global dentro de los límites estrictos.
-func _place_start_room(size: Vector2i, bounds: Rect2i, target_pos: Vector2, progression_dir: Vector2) -> Vector2i:
+## Encuentra la posición inicial para la sala START en torno a su target global dentro de los límites estrictos.
+func _find_start_position(size: Vector2i, bounds: Rect2i, target_pos: Vector2, progression_dir: Vector2) -> Vector2i:
 	if size.x > bounds.size.x or size.y > bounds.size.y:
 		return Vector2i.MIN
 
