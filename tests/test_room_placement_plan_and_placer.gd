@@ -6,6 +6,7 @@ const RoomData = preload("res://src/dungeon_generator/core/data/room_data.gd")
 const DungeonGraph = preload("res://src/dungeon_generator/core/data/dungeon_graph.gd")
 const SpaceGrammarConfig = preload("res://src/dungeon_generator/config/space_grammar_config.gd")
 const CompositionStrategy = preload("res://src/dungeon_generator/core/grammars/composition_strategy.gd")
+const SpatialCompositionBuilder = preload("res://src/dungeon_generator/core/grammars/spatial_composition_builder.gd")
 
 func _init() -> void:
 	print("--- Running test_room_placement_plan_and_placer ---")
@@ -99,8 +100,8 @@ func _test_composition_strategy_immutability_and_determinism() -> void:
 	var rng1 := RandomNumberGenerator.new()
 	rng1.seed = 98765
 	var strategy1 := CompositionStrategy.new(rng1)
-
-	var plan1: RoomPlacementPlan = strategy1.create_placement_plan(original_rooms, graph, bounds)
+	var comp1 = SpatialCompositionBuilder.new(rng1).build(graph, null, null, bounds)
+	var plan1: RoomPlacementPlan = strategy1.create_placement_plan(original_rooms, graph, bounds, null, comp1)
 
 	# CRITICAL: Verify create_placement_plan did NOT mutate original_rooms!
 	assert(not r0.is_placed, "create_placement_plan must NOT mutate is_placed on inputs")
@@ -116,7 +117,8 @@ func _test_composition_strategy_immutability_and_determinism() -> void:
 	var rng2 := RandomNumberGenerator.new()
 	rng2.seed = 98765
 	var strategy2 := CompositionStrategy.new(rng2)
-	var plan2: RoomPlacementPlan = strategy2.create_placement_plan(original_rooms, graph, bounds)
+	var comp2 = SpatialCompositionBuilder.new(rng2).build(graph, null, null, bounds)
+	var plan2: RoomPlacementPlan = strategy2.create_placement_plan(original_rooms, graph, bounds, null, comp2)
 
 	for room_id in plan1.get_all_room_ids():
 		assert(plan1.get_position(room_id) == plan2.get_position(room_id), "Positions must be 100% deterministic for seed")
@@ -159,7 +161,8 @@ func _test_composition_strategy_multi_seed_integrity() -> void:
 		var test_rooms: Array[RoomData] = [r0, r1, r2, r3, r4]
 
 		var strategy := CompositionStrategy.new(rng)
-		var plan: RoomPlacementPlan = strategy.create_placement_plan(test_rooms, graph, bounds)
+		var comp = SpatialCompositionBuilder.new(rng).build(graph, null, null, bounds)
+		var plan: RoomPlacementPlan = strategy.create_placement_plan(test_rooms, graph, bounds, null, comp)
 		assert(plan != null and plan.is_sealed())
 		assert(plan.size() == 5)
 
@@ -173,3 +176,41 @@ func _test_composition_strategy_multi_seed_integrity() -> void:
 			assert(bounds.encloses(r.rect), "Seed %d: Room %d rect %s must be inside bounds %s" % [seed_val, r.id, str(r.rect), str(bounds)])
 
 	print("  [OK] CompositionStrategy + RoomPlacer verified over 50 seeds with zero collisions.")
+
+	# 5. Strict refusal when unplaceable (Zero relaxation, zero least-overlap, no separator dependency)
+	var tight_bounds := Rect2i(0, 0, 16, 16)
+	var tight_graph := DungeonGraph.new()
+	var tn0: int = tight_graph.add_node(&"START")
+	var tn1: int = tight_graph.add_node(&"ROOM_1")
+	var tn2: int = tight_graph.add_node(&"ROOM_2")
+	tight_graph.add_edge(tn0, tn1)
+	tight_graph.add_edge(tn1, tn2)
+
+	# Three large rooms (12x12 each) cannot fit in 16x16 with min_separation >= 2
+	var tr0 := RoomData.new(0, Rect2i(0, 0, 12, 12), &"start")
+	tr0.mission_node_id = tn0
+	var tr1 := RoomData.new(1, Rect2i(0, 0, 12, 12), &"explore")
+	tr1.mission_node_id = tn1
+	var tr2 := RoomData.new(2, Rect2i(0, 0, 12, 12), &"boss")
+	tr2.mission_node_id = tn2
+
+	var tight_rooms: Array[RoomData] = [tr0, tr1, tr2]
+	var tight_rng := RandomNumberGenerator.new()
+	tight_rng.seed = 9999
+	var tight_strategy := CompositionStrategy.new(tight_rng)
+	var tight_comp = SpatialCompositionBuilder.new(tight_rng).build(tight_graph, null, null, tight_bounds)
+	var tight_plan: RoomPlacementPlan = tight_strategy.create_placement_plan(tight_rooms, tight_graph, tight_bounds, null, tight_comp)
+
+	assert(tight_plan != null and tight_plan.is_sealed(), "Plan must be created and sealed")
+	assert(tight_plan.size() < tight_rooms.size(), "Unplaceable rooms must NOT be forced into the plan (no relaxation/least-overlap)")
+	var applied_count: int = placer.apply_plan(tight_rooms, tight_plan)
+	assert(applied_count < tight_rooms.size(), "RoomPlacer must reflect incomplete placement so pipeline aborts")
+	# All successfully placed rooms must strictly obey bounds and zero overlap
+	var placed_tight_rooms: Array[RoomData] = []
+	for r in tight_rooms:
+		if r.is_placed:
+			placed_tight_rooms.append(r)
+			assert(tight_bounds.encloses(r.rect), "Placed room must be inside bounds")
+	assert(placer.validate_placement_integrity(placed_tight_rooms, 2), "Placed rooms must strictly satisfy separation without overlaps")
+	print("  [OK] Strict refusal contract verified: zero relaxation, zero overlaps, incomplete plan triggers failure.")
+

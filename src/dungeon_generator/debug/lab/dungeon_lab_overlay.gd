@@ -88,3 +88,47 @@ var show_semantics_overlay: bool:
 		_show_semantics_overlay = v
 		overlay_changed.emit()
 
+# Nuevos Overlays de Composición Espacial Global
+var _show_composition_anchors: bool = false
+var show_composition_anchors: bool:
+	get: return _show_composition_anchors
+	set(v):
+		_show_composition_anchors = v
+		overlay_changed.emit()
+
+var _show_progression_axis: bool = false
+var show_progression_axis: bool:
+	get: return _show_progression_axis
+	set(v):
+		_show_progression_axis = v
+		overlay_changed.emit()
+
+var _show_main_path_composition: bool = false
+var show_main_path_composition: bool:
+	get: return _show_main_path_composition
+	set(v):
+		_show_main_path_composition = v
+		overlay_changed.emit()
+
+var _show_branch_zones: bool = false
+var show_branch_zones: bool:
+	get: return _show_branch_zones
+	set(v):
+		_show_branch_zones = v
+		overlay_changed.emit()
+
+var _show_density_zones: bool = false
+var show_density_zones: bool:
+	get: return _show_density_zones
+	set(v):
+		_show_density_zones = v
+		overlay_changed.emit()
+
+# Visualización de anclas antes/después del placement: "both", "before", "after"
+var _anchors_timing_mode: StringName = &"both"
+var anchors_timing_mode: StringName:
+	get: return _anchors_timing_mode
+	set(v):
+		_anchors_timing_mode = v
+		overlay_changed.emit()
+

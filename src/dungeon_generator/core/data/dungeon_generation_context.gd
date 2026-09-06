@@ -21,6 +21,7 @@ var repair_seed_chain: Array[Dictionary] = [] # Registro cronológico de reparac
 # 2. Topología y Espacio
 var mission_graph: DungeonGraph = null
 var spatial_intent = null                   # SpatialIntentResult (intención espacial semántica)
+var spatial_composition = null              # SpatialComposition (composición espacial global)
 var placement_plan = null                   # RoomPlacementPlan (plan inmutable de colocación de salas)
 var rooms: Array[RoomData] = []
 var connections: Array = []                 # Array[RoomConnection]
@@ -135,7 +136,14 @@ func to_dungeon_result() -> DungeonResult:
 	res.before_separator_metrics = before_separator_metrics
 	res.after_separator_metrics = after_separator_metrics
 	res.rooms_before_separator = rooms_before_separator
+	res.spatial_composition = spatial_composition
+	res.spatial_intent = spatial_intent
+	res.placement_plan = placement_plan
 	res.metadata = metrics.duplicate()
+	if spatial_composition != null:
+		res.metadata["spatial_composition"] = spatial_composition
+	if placement_plan != null:
+		res.metadata["placement_plan"] = placement_plan
 	if diagnostics.has("corridor"):
 		res.metadata["corridor_diagnostics"] = diagnostics["corridor"]
 	

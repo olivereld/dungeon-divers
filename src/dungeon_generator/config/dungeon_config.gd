@@ -44,18 +44,74 @@ func get_effective_archetype_id() -> StringName:
 @export_range(0.0, 1.0, 0.05) var optional_branch_chance: float = 0.25
 @export var boss_enabled: bool = true
 
-@export_group("Gramática Espacial (Mission-Aware)")
+func _init() -> void:
+	if space_grammar_config == null:
+		space_grammar_config = SpaceGrammarConfig.new()
+
+func _ensure_space_grammar_config() -> SpaceGrammarConfig:
+	if space_grammar_config == null:
+		space_grammar_config = SpaceGrammarConfig.new()
+	return space_grammar_config
+
+@export_group("Composición Espacial Global (Spatial Composition V2)")
 @export var space_grammar_config: SpaceGrammarConfig = null
-@export var use_mission_aware_placement: bool = true
-@export var mission_aware_preferred_distance: float = 12.0
-@export var mission_aware_candidate_count: int = 15
-@export var mission_aware_distance_jitter: float = 4.0
-@export var min_room_separation: int = 2
-@export var min_mission_edge_distance: float = 6.0
-@export var max_mission_edge_distance: float = 24.0
-@export var progression_strength: float = 1.0
-@export var density_strength: float = 0.5
-@export var preferred_progression_direction: Vector2 = Vector2.ZERO
+
+# Delegación directa a SpaceGrammarConfig (única fuente canónica de verdad):
+var composition_candidate_count: int:
+	get: return _ensure_space_grammar_config().composition_candidate_count
+	set(val): _ensure_space_grammar_config().composition_candidate_count = val
+
+var preferred_distance: float:
+	get: return _ensure_space_grammar_config().preferred_distance
+	set(val): _ensure_space_grammar_config().preferred_distance = val
+
+var distance_jitter: float:
+	get: return _ensure_space_grammar_config().distance_jitter
+	set(val): _ensure_space_grammar_config().distance_jitter = val
+
+var min_room_separation: int:
+	get: return _ensure_space_grammar_config().min_room_separation
+	set(val): _ensure_space_grammar_config().min_room_separation = val
+
+var min_mission_edge_distance: float:
+	get: return _ensure_space_grammar_config().min_mission_edge_distance
+	set(val): _ensure_space_grammar_config().min_mission_edge_distance = val
+
+var max_mission_edge_distance: float:
+	get: return _ensure_space_grammar_config().max_mission_edge_distance
+	set(val): _ensure_space_grammar_config().max_mission_edge_distance = val
+
+var progression_strength: float:
+	get: return _ensure_space_grammar_config().progression_strength
+	set(val): _ensure_space_grammar_config().progression_strength = val
+
+var density_strength: float:
+	get: return _ensure_space_grammar_config().density_strength
+	set(val): _ensure_space_grammar_config().density_strength = val
+
+var preferred_progression_direction: Vector2:
+	get: return _ensure_space_grammar_config().preferred_progression_direction
+	set(val): _ensure_space_grammar_config().preferred_progression_direction = val
+
+var anchor_distance_strength: float:
+	get: return _ensure_space_grammar_config().anchor_distance_strength
+	set(val): _ensure_space_grammar_config().anchor_distance_strength = val
+
+var neighbor_coherence_strength: float:
+	get: return _ensure_space_grammar_config().neighbor_coherence_strength
+	set(val): _ensure_space_grammar_config().neighbor_coherence_strength = val
+
+var main_path_alignment_strength: float:
+	get: return _ensure_space_grammar_config().main_path_alignment_strength
+	set(val): _ensure_space_grammar_config().main_path_alignment_strength = val
+
+var branch_lateral_strength: float:
+	get: return _ensure_space_grammar_config().branch_lateral_strength
+	set(val): _ensure_space_grammar_config().branch_lateral_strength = val
+
+var terminal_spacing_strength: float:
+	get: return _ensure_space_grammar_config().terminal_spacing_strength
+	set(val): _ensure_space_grammar_config().terminal_spacing_strength = val
 
 @export_group("Algoritmo de Construcción")
 @export_enum("Template", "Hybrid", "BSP", "CellularAutomata") var algorithm: String = "Template"
@@ -190,16 +246,8 @@ func duplicate_config() -> DungeonConfig:
 	c.boss_enabled = boss_enabled
 	if space_grammar_config != null:
 		c.space_grammar_config = space_grammar_config.duplicate_config()
-	c.use_mission_aware_placement = use_mission_aware_placement
-	c.mission_aware_preferred_distance = mission_aware_preferred_distance
-	c.mission_aware_candidate_count = mission_aware_candidate_count
-	c.mission_aware_distance_jitter = mission_aware_distance_jitter
-	c.min_room_separation = min_room_separation
-	c.min_mission_edge_distance = min_mission_edge_distance
-	c.max_mission_edge_distance = max_mission_edge_distance
-	c.progression_strength = progression_strength
-	c.density_strength = density_strength
-	c.preferred_progression_direction = preferred_progression_direction
+	else:
+		c.space_grammar_config = SpaceGrammarConfig.new()
 	c.algorithm = algorithm
 	c.ca_fill_chance = ca_fill_chance
 	c.ca_iterations = ca_iterations

@@ -14,6 +14,7 @@ var stairs: Array = []
 var seed_used: int = 0
 var metadata: Dictionary = {}
 var semantic_result: DungeonSemanticResult = null
+var spatial_composition = null
 
 func _init(
 	p_floor_number: int = 0,
@@ -62,6 +63,7 @@ static func from_dungeon_result(res: DungeonResult, p_stairs: Array = []) -> Dun
 	floor_data.corridor_paths = res.corridor_paths if "corridor_paths" in res else []
 	floor_data.seed_used = res.seed_used
 	floor_data.metadata = res.metadata.duplicate(true)
+	floor_data.spatial_composition = res.spatial_composition if ("spatial_composition" in res and res.spatial_composition != null) else res.metadata.get("spatial_composition", null)
 	return floor_data
 
 func _to_string() -> String:

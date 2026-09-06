@@ -85,6 +85,11 @@ func _test_3_overlay_properties_and_renderer_methods() -> void:
 	assert("show_spatial_overlay" in overlay, "FAIL: show_spatial_overlay missing in overlay")
 	assert("show_corridor_details" in overlay, "FAIL: show_corridor_details missing in overlay")
 	assert("show_semantics_overlay" in overlay, "FAIL: show_semantics_overlay missing in overlay")
+	assert("show_composition_anchors" in overlay, "FAIL: show_composition_anchors missing in overlay")
+	assert("show_progression_axis" in overlay, "FAIL: show_progression_axis missing in overlay")
+	assert("show_main_path_composition" in overlay, "FAIL: show_main_path_composition missing in overlay")
+	assert("show_branch_zones" in overlay, "FAIL: show_branch_zones missing in overlay")
+	assert("show_density_zones" in overlay, "FAIL: show_density_zones missing in overlay")
 
 	overlay.show_spatial_overlay = true
 	assert(changed[0] == 1, "FAIL: show_spatial_overlay did not emit overlay_changed, changed[0]=%d" % changed[0])
@@ -95,10 +100,30 @@ func _test_3_overlay_properties_and_renderer_methods() -> void:
 	overlay.show_semantics_overlay = true
 	assert(changed[0] == 3, "FAIL: show_semantics_overlay did not emit overlay_changed")
 
+	overlay.show_composition_anchors = true
+	assert(changed[0] == 4, "FAIL: show_composition_anchors did not emit overlay_changed")
+
+	overlay.show_progression_axis = true
+	assert(changed[0] == 5, "FAIL: show_progression_axis did not emit overlay_changed")
+
+	overlay.show_main_path_composition = true
+	assert(changed[0] == 6, "FAIL: show_main_path_composition did not emit overlay_changed")
+
+	overlay.show_branch_zones = true
+	assert(changed[0] == 7, "FAIL: show_branch_zones did not emit overlay_changed")
+
+	overlay.show_density_zones = true
+	assert(changed[0] == 8, "FAIL: show_density_zones did not emit overlay_changed")
+
 	var renderer = lab.renderer
 	assert(renderer.has_method("_draw_corridors_overlay"), "FAIL: renderer missing _draw_corridors_overlay")
 	assert(renderer.has_method("_draw_spatial_overlay"), "FAIL: renderer missing _draw_spatial_overlay")
 	assert(renderer.has_method("_draw_semantics_overlay"), "FAIL: renderer missing _draw_semantics_overlay")
+	assert(renderer.has_method("_draw_composition_anchors_overlay"), "FAIL: renderer missing _draw_composition_anchors_overlay")
+	assert(renderer.has_method("_draw_progression_axis_overlay"), "FAIL: renderer missing _draw_progression_axis_overlay")
+	assert(renderer.has_method("_draw_main_path_composition_overlay"), "FAIL: renderer missing _draw_main_path_composition_overlay")
+	assert(renderer.has_method("_draw_branch_zones_overlay"), "FAIL: renderer missing _draw_branch_zones_overlay")
+	assert(renderer.has_method("_draw_density_zones_overlay"), "FAIL: renderer missing _draw_density_zones_overlay")
 	print("  [OK] Propiedades de overlay reactivas y métodos de dibujo presentes en Renderer.")
 
 	lab.queue_free()

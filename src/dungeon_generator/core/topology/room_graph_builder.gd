@@ -93,7 +93,7 @@ static func build_topology(
 
 static func _calc_metrics(
 	room_count: int,
-	candidate_count: int,
+	p_candidate_edge_count: int,
 	mst_count: int,
 	non_mst_count: int,
 	opt_count: int,
@@ -104,7 +104,7 @@ static func _calc_metrics(
 ) -> Dictionary:
 	return {
 		"room_count": room_count,
-		"candidate_edge_count": candidate_count,
+		"candidate_edge_count": p_candidate_edge_count,
 		"mst_edge_count": mst_count,
 		"non_mst_edge_count": non_mst_count,
 		"optional_edge_count": opt_count,
