@@ -52,22 +52,8 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 
 	var strategy := _CompositionStrategyScript.new(placement_rng)
 	var sg_config: _SpaceGrammarConfigScript = ctx.config.space_grammar_config if (ctx.config != null and ctx.config.space_grammar_config != null) else null
-	if sg_config == null and ctx.config != null:
+	if sg_config == null:
 		sg_config = _SpaceGrammarConfigScript.new()
-		sg_config.min_room_separation = ctx.config.min_room_separation
-		sg_config.min_mission_edge_distance = ctx.config.min_mission_edge_distance
-		sg_config.max_mission_edge_distance = ctx.config.max_mission_edge_distance
-		sg_config.preferred_distance = ctx.config.preferred_distance
-		sg_config.distance_jitter = ctx.config.distance_jitter
-		sg_config.progression_strength = ctx.config.progression_strength
-		sg_config.density_strength = ctx.config.density_strength
-		sg_config.preferred_progression_direction = ctx.config.preferred_progression_direction
-		sg_config.composition_candidate_count = ctx.config.composition_candidate_count
-		sg_config.anchor_distance_strength = ctx.config.anchor_distance_strength
-		sg_config.neighbor_coherence_strength = ctx.config.neighbor_coherence_strength
-		sg_config.main_path_alignment_strength = ctx.config.main_path_alignment_strength
-		sg_config.branch_lateral_strength = ctx.config.branch_lateral_strength
-		sg_config.terminal_spacing_strength = ctx.config.terminal_spacing_strength
 
 	# Build SpatialIntent & SpatialComposition
 	if ctx.mission_graph != null:
