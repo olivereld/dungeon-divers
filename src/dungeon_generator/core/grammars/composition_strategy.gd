@@ -67,19 +67,12 @@ static func extract_strengths(config) -> Dictionary:
 
 	return {
 		"composition_candidate_count": comp_candidate_count,
-		"progression": progression_strength,
 		"progression_strength": progression_strength,
-		"anchor_distance": anchor_distance_strength,
 		"anchor_distance_strength": anchor_distance_strength,
-		"neighbor_coherence": neighbor_coherence_strength,
 		"neighbor_coherence_strength": neighbor_coherence_strength,
-		"main_path_alignment": main_path_alignment_strength,
 		"main_path_alignment_strength": main_path_alignment_strength,
-		"branch_lateral": branch_lateral_strength,
 		"branch_lateral_strength": branch_lateral_strength,
-		"density": density_strength,
 		"density_strength": density_strength,
-		"terminal_spacing": terminal_spacing_strength,
 		"terminal_spacing_strength": terminal_spacing_strength
 	}
 
@@ -117,14 +110,8 @@ func create_placement_plan(
 	if config != null:
 		if "preferred_distance" in config:
 			preferred_distance = float(config.preferred_distance)
-		elif "mission_aware_preferred_distance" in config:
-			preferred_distance = float(config.mission_aware_preferred_distance)
-
 		if "distance_jitter" in config:
 			distance_jitter = float(config.distance_jitter)
-		elif "mission_aware_distance_jitter" in config:
-			distance_jitter = float(config.mission_aware_distance_jitter)
-
 		if "min_room_separation" in config:
 			min_separation = int(config.min_room_separation)
 		if "min_mission_edge_distance" in config:
@@ -229,8 +216,8 @@ func create_placement_plan(
 				distance_jitter,
 				min_separation,
 				min_edge_dist,
-				strengths.get("progression", 1.0),
-				strengths.get("density", 0.5),
+				strengths.get("progression_strength", 1.0),
+				strengths.get("density_strength", 0.5),
 				strengths
 			)
 			if best_pos != Vector2i.MIN and is_main:
@@ -585,13 +572,13 @@ func _score_placement_candidate(
 	var jitter: float = _rng.randf() * 0.05
 
 	# Suma ponderada con pesos configurables (o por defecto)
-	var w_prog: float = strengths.get("progression_strength", strengths.get("progression", progression_strength * WEIGHT_PROGRESSION))
-	var w_anchor: float = strengths.get("anchor_distance_strength", strengths.get("anchor_distance", WEIGHT_ANCHOR_DISTANCE))
-	var w_neighbor: float = strengths.get("neighbor_coherence_strength", strengths.get("neighbor_coherence", WEIGHT_NEIGHBOR_COHERENCE))
-	var w_main: float = strengths.get("main_path_alignment_strength", strengths.get("main_path_alignment", WEIGHT_MAIN_PATH_ALIGNMENT))
-	var w_branch: float = strengths.get("branch_lateral_strength", strengths.get("branch_lateral", WEIGHT_BRANCH_LATERAL))
-	var w_density: float = strengths.get("density_strength", strengths.get("density", density_strength * WEIGHT_DENSITY))
-	var w_terminal: float = strengths.get("terminal_spacing_strength", strengths.get("terminal_spacing", WEIGHT_TERMINAL_SPACING))
+	var w_prog: float = float(strengths.get("progression_strength", progression_strength * WEIGHT_PROGRESSION))
+	var w_anchor: float = float(strengths.get("anchor_distance_strength", WEIGHT_ANCHOR_DISTANCE))
+	var w_neighbor: float = float(strengths.get("neighbor_coherence_strength", WEIGHT_NEIGHBOR_COHERENCE))
+	var w_main: float = float(strengths.get("main_path_alignment_strength", WEIGHT_MAIN_PATH_ALIGNMENT))
+	var w_branch: float = float(strengths.get("branch_lateral_strength", WEIGHT_BRANCH_LATERAL))
+	var w_density: float = float(strengths.get("density_strength", density_strength * WEIGHT_DENSITY))
+	var w_terminal: float = float(strengths.get("terminal_spacing_strength", WEIGHT_TERMINAL_SPACING))
 
 	var total_score: float = (
 		(w_prog * progression_score)

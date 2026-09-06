@@ -322,8 +322,8 @@ func _setup_composition_controls() -> void:
 	_bind_slider_label(cand_count_slider, cand_count_val, "%d", "composition_candidate_count")
 
 	# Sliders Avanzados
-	_bind_slider_label(pref_dist_slider, pref_dist_val, "%.1f", "mission_aware_preferred_distance")
-	_bind_slider_label(dist_jitter_slider, dist_jitter_val, "%.1f", "mission_aware_distance_jitter")
+	_bind_slider_label(pref_dist_slider, pref_dist_val, "%.1f", "preferred_distance")
+	_bind_slider_label(dist_jitter_slider, dist_jitter_val, "%.1f", "distance_jitter")
 	_bind_slider_label(density_strength_slider, density_strength_val, "%.2f", "density_strength")
 
 func _bind_slider_label(slider: HSlider, label: Label, format_str: String, param_key: String = "") -> void:
@@ -488,7 +488,7 @@ func set_preferred_distance(val: float) -> void:
 		pref_dist_slider.value = val
 	if pref_dist_val != null:
 		pref_dist_val.text = "%.1f" % val
-	composition_tuning_changed.emit("mission_aware_preferred_distance", val)
+	composition_tuning_changed.emit("preferred_distance", val)
 
 func set_distance_jitter(val: float) -> void:
 	_ensure_nodes()
@@ -496,7 +496,7 @@ func set_distance_jitter(val: float) -> void:
 		dist_jitter_slider.value = val
 	if dist_jitter_val != null:
 		dist_jitter_val.text = "%.1f" % val
-	composition_tuning_changed.emit("mission_aware_distance_jitter", val)
+	composition_tuning_changed.emit("distance_jitter", val)
 
 func set_density_strength(val: float) -> void:
 	_ensure_nodes()

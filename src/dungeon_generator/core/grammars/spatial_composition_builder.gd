@@ -74,8 +74,8 @@ func build(
 			preferred_dir = config.preferred_progression_direction
 		if "density_strength" in config:
 			density_strength = float(config.density_strength)
-		if "mission_aware_preferred_distance" in config:
-			preferred_dist = float(config.mission_aware_preferred_distance)
+		if "preferred_distance" in config:
+			preferred_dist = float(config.preferred_distance)
 		# Fallback a space_grammar_config si está anidado
 		if "space_grammar_config" in config and config.space_grammar_config != null:
 			var sgc = config.space_grammar_config
@@ -83,6 +83,8 @@ func build(
 				preferred_dir = sgc.preferred_progression_direction
 			if "density_strength" in sgc:
 				density_strength = float(sgc.density_strength)
+			if "preferred_distance" in sgc:
+				preferred_dist = float(sgc.preferred_distance)
 
 	# Determinismo del RNG local
 	var local_rng := RandomNumberGenerator.new()
