@@ -2,15 +2,20 @@ class_name WallPathGeometry
 extends RefCounted
 
 ## Representación geométrica intermedia de un recorrido continuo de muro (bucle cerrado o cadena abierta).
-## Agrupa la centerline 3D, las esquinas pre-resueltas (CornerSolution) y los puntos de perfil offset reales.
+## Agrupa la centerline 3D y los vértices de perfil offset reales (ProfileVertex).
 ## Permite unificar la generación de malla para WallComponent y WallSection.
 
-const _WallCornerResolverScript = preload("res://src/geometry_generator/geometry/wall_corner_resolver.gd")
+const _WallProfileBuilderScript = preload("res://src/geometry_generator/geometry/wall_profile_builder.gd")
 const _WallSectionScript = preload("res://src/geometry_generator/data/wall_section.gd")
 const _WallGeometryConfigScript = preload("res://src/geometry_generator/config/wall_geometry_config.gd")
 
 var points_3d: Array[Vector3] = []
-var corners: Array = [] # Array de CornerSolution
+var profiles: Array = [] # Array de ProfileVertex
+var corners: Array: # Compatibilidad temporal durante refactorización
+	get:
+		return profiles
+	set(value):
+		profiles = value
 var is_closed: bool = false
 var has_start_cap: bool = false
 var has_end_cap: bool = false
@@ -23,15 +28,17 @@ func get_segment_count() -> int:
 		return 0
 	return n if is_closed else (n - 1)
 
-func get_corner(idx: int):
-	if idx >= 0 and idx < corners.size():
-		return corners[idx]
+func get_profile(idx: int):
+	if idx >= 0 and idx < profiles.size():
+		return profiles[idx]
 	return null
+
+func get_corner(idx: int):
+	return get_profile(idx)
 
 static func from_section(
 	section: _WallSectionScript,
-	config: _WallGeometryConfigScript,
-	resolver: _WallCornerResolverScript = null
+	config: _WallGeometryConfigScript
 ) -> RefCounted:
 	var path_geom = new()
 	if section == null or section.points.size() < 2:
@@ -39,8 +46,6 @@ static func from_section(
 
 	if config == null:
 		config = _WallGeometryConfigScript.new()
-	if resolver == null:
-		resolver = _WallCornerResolverScript.new()
 
 	var tile_size: float = config.cube_size
 	var total_h: float = config.get_total_height()
@@ -77,7 +82,7 @@ static func from_section(
 
 	var is_closed: bool = section.is_closed_loop and (n >= 3)
 
-	# 3. Vecinos 3D para miters
+	# 3. Vecinos 3D para offsets
 	var start_neighbor_3d := Vector3.INF
 	if not is_closed and section.start_miter_neighbor != _WallSectionScript.INVALID_NEIGHBOR:
 		start_neighbor_3d = Vector3(
@@ -94,20 +99,20 @@ static func from_section(
 			float(section.end_miter_neighbor.y) * tile_size
 		)
 
-	# 4. Resolver todas las esquinas y puntos de perfil de una sola vez
-	var resolved_corners = resolver.resolve_path_corners(
+	# 4. Calcular perfiles continuos vía intersección de líneas offset
+	var builder := _WallProfileBuilderScript.new()
+	var resolved_profiles = builder.compute_path_profiles(
 		pts_3d,
 		is_closed,
 		start_neighbor_3d,
 		end_neighbor_3d,
-		section.corner_ids,
 		w_thick,
 		w_thin,
 		d
 	)
 
 	path_geom.points_3d = pts_3d
-	path_geom.corners = resolved_corners
+	path_geom.profiles = resolved_profiles
 	path_geom.is_closed = is_closed
 	path_geom.has_start_cap = section.has_start_cap
 	path_geom.has_end_cap = section.has_end_cap
@@ -124,8 +129,7 @@ static func from_section(
 static func from_component_loop(
 	loop_raw: Array,
 	comp_id: int,
-	config: _WallGeometryConfigScript,
-	resolver: _WallCornerResolverScript = null
+	config: _WallGeometryConfigScript
 ) -> RefCounted:
 	var path_geom = new()
 	if loop_raw.is_empty():
@@ -133,8 +137,6 @@ static func from_component_loop(
 
 	if config == null:
 		config = _WallGeometryConfigScript.new()
-	if resolver == null:
-		resolver = _WallCornerResolverScript.new()
 
 	var tile_size: float = config.cube_size
 	var total_h: float = config.get_total_height()
@@ -168,23 +170,19 @@ static func from_component_loop(
 			aabb_calc = aabb_calc.expand(p3)
 			aabb_calc = aabb_calc.expand(p3 + Vector3(0.0, total_h, 0.0))
 
-	var corner_ids: Array[int] = []
-	for i in range(n):
-		corner_ids.append(comp_id * 100000 + i)
-
-	var resolved_corners = resolver.resolve_path_corners(
+	var builder := _WallProfileBuilderScript.new()
+	var resolved_profiles = builder.compute_path_profiles(
 		pts_3d,
 		true,
 		Vector3.INF,
 		Vector3.INF,
-		corner_ids,
 		w_thick,
 		w_thin,
 		d
 	)
 
 	path_geom.points_3d = pts_3d
-	path_geom.corners = resolved_corners
+	path_geom.profiles = resolved_profiles
 	path_geom.is_closed = true
 	path_geom.has_start_cap = false
 	path_geom.has_end_cap = false
@@ -198,8 +196,7 @@ static func from_component_loop(
 static func from_component_chain(
 	chain_raw: Array,
 	comp_id: int,
-	config: _WallGeometryConfigScript,
-	resolver: _WallCornerResolverScript = null
+	config: _WallGeometryConfigScript
 ) -> RefCounted:
 	var path_geom = new()
 	if chain_raw.is_empty():
@@ -207,8 +204,6 @@ static func from_component_chain(
 
 	if config == null:
 		config = _WallGeometryConfigScript.new()
-	if resolver == null:
-		resolver = _WallCornerResolverScript.new()
 
 	var tile_size: float = config.cube_size
 	var total_h: float = config.get_total_height()
@@ -239,23 +234,19 @@ static func from_component_chain(
 			aabb_calc = aabb_calc.expand(p3)
 			aabb_calc = aabb_calc.expand(p3 + Vector3(0.0, total_h, 0.0))
 
-	var corner_ids: Array[int] = []
-	for i in range(n):
-		corner_ids.append(comp_id * 100000 + i)
-
-	var resolved_corners = resolver.resolve_path_corners(
+	var builder := _WallProfileBuilderScript.new()
+	var resolved_profiles = builder.compute_path_profiles(
 		pts_3d,
 		false,
 		Vector3.INF,
 		Vector3.INF,
-		corner_ids,
 		w_thick,
 		w_thin,
 		d
 	)
 
 	path_geom.points_3d = pts_3d
-	path_geom.corners = resolved_corners
+	path_geom.profiles = resolved_profiles
 	path_geom.is_closed = false
 	path_geom.has_start_cap = true
 	path_geom.has_end_cap = true
