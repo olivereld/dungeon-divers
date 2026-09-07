@@ -2,7 +2,8 @@ class_name BrickDecorator
 extends RefCounted
 
 ## Decorador superficial procedimental de ladrillos estilizados en relieve (Fase M4).
-## Añade la superficie de ladrillos (Bricks) a un GeneratedMesh sin mutar la topología estructural base.
+## Añade la superficie de ladrillos (Bricks) a un GeneratedMesh sin mutar la topología estructural base,
+## excluyendo ladrillos dentro de la zona de exclusión de esquinas para evitar colisiones visuales.
 
 const _GeneratedMeshScript = preload("res://src/geometry_generator/data/generated_mesh.gd")
 const _WallComponentScript = preload("res://src/geometry_generator/data/wall_component.gd")
@@ -30,6 +31,8 @@ func decorate_section(
 	var tile_size: float = geom_config.cube_size
 	var panel_h: float = geom_config.get_wall_panel_height()
 	var bot_trim_h: float = geom_config.bottom_trim_height
+	var excl_dist: float = dec_config.corner_exclusion_distance
+	var corner_pts := _get_corner_positions(section, tile_size)
 
 	var noise := FastNoiseLite.new()
 	noise.seed = dec_config.seed
@@ -73,7 +76,6 @@ func decorate_section(
 			_append_niche_decoration(st_bricks, basis, p0, p1, tangent, normal, edge_len, bot_trim_h, panel_h, dec_config, rng)
 			has_bricks = true
 
-			# Generar ladrillos sutiles y moderados en los paños de muro alrededor del nicho (sin saturar)
 			var niche_half_w: float = minf(1.50, edge_len * 0.70) * 0.5 + 0.18
 			var niche_max_y: float = (bot_trim_h + 0.45) + 1.10 + (minf(1.50, edge_len * 0.70) * 0.5) + 0.12
 			var half_len: float = edge_len * 0.5
@@ -88,7 +90,6 @@ func decorate_section(
 				for ix in range(num_x_slots):
 					var seg_dist: float = (float(ix) * step_x) + (step_x * 0.5)
 					var dist_from_mid: float = absf(seg_dist - half_len)
-					# Evitar el área ocupada por el nicho
 					if dist_from_mid < niche_half_w and slot_y < niche_max_y:
 						continue
 					if seg_dist < bw * 0.5 or seg_dist > edge_len - (bw * 0.5):
@@ -96,12 +97,13 @@ func decorate_section(
 
 					var pt_world: Vector3 = p0 + (tangent * seg_dist)
 					var n_val: float = noise.get_noise_3d(pt_world.x * 1.5, slot_y * 2.0, pt_world.z * 1.5)
-					# Densidad moderada y natural (no exagerada)
 					if n_val > 0.22:
 						var size := _get_random_brick_size(bw * 0.88, bh * 0.95, dec_config, rng)
 						var jitter_along: float = rng.randf_range(-step_x * 0.15, step_x * 0.15)
 						var jitter_y: float = rng.randf_range(-step_y * 0.10, step_y * 0.10)
 						var brick_pt: Vector3 = pt_world + (tangent * jitter_along)
+						if _is_near_corner(brick_pt, size.x * 0.5, corner_pts, excl_dist):
+							continue
 						var local_pos := Vector3(0.0, slot_y + jitter_y, 0.0)
 						_append_brick(st_bricks, basis, brick_pt, local_pos, size, dec_config, rng)
 		elif is_ornate:
@@ -130,6 +132,8 @@ func decorate_section(
 						var jitter_along: float = rng.randf_range(-step_x * 0.2, step_x * 0.2)
 						var jitter_y: float = rng.randf_range(-step_y * 0.15, step_y * 0.15)
 						var brick_pt: Vector3 = pt_world + (tangent * jitter_along)
+						if _is_near_corner(brick_pt, size.x * 0.5, corner_pts, excl_dist):
+							continue
 						var local_pos := Vector3(0.0, slot_y + jitter_y, 0.0)
 
 						_append_brick(st_bricks, basis, brick_pt, local_pos, size, dec_config, rng)
@@ -137,14 +141,17 @@ func decorate_section(
 
 						if rng.randf() < (dec_config.brick_density * 0.5):
 							var size2 := _get_random_brick_size(bw * 0.85, bh, dec_config, rng)
-							var pair_y: float = slot_y + jitter_y - bh - sp
-							if pair_y > bot_trim_h + (bh * 0.6):
-								_append_brick(st_bricks, basis, brick_pt, Vector3(rng.randf_range(-bw * 0.3, bw * 0.3), pair_y, 0.0), size2, dec_config, rng)
+							var pair_jitter_x: float = rng.randf_range(-bw * 0.3, bw * 0.3)
+							var pair_pt: Vector3 = brick_pt + (tangent * pair_jitter_x)
+							if not _is_near_corner(pair_pt, size2.x * 0.5, corner_pts, excl_dist):
+								var pair_y: float = slot_y + jitter_y - bh - sp
+								if pair_y > bot_trim_h + (bh * 0.6):
+									_append_brick(st_bricks, basis, brick_pt, Vector3(pair_jitter_x, pair_y, 0.0), size2, dec_config, rng)
 
-		# Decoración en cara trasera cuando está expuesta (ej. tabique entre habitación y pasillo)
+		# Decoración en cara trasera cuando está expuesta
 		if grid != null:
 			var w_thick: float = geom_config.wall_thickness + (geom_config.trim_overhang * 2.0)
-			if _decorate_back_face_slots(st_bricks, p0, tangent, normal, edge_len, bot_trim_h, panel_h, bw, bh, sp, w_thick, tile_size, dec_config, noise, rng, grid):
+			if _decorate_back_face_slots(st_bricks, p0, tangent, normal, edge_len, bot_trim_h, panel_h, bw, bh, sp, w_thick, tile_size, dec_config, noise, rng, grid, corner_pts, excl_dist):
 				has_bricks = true
 
 	if has_bricks:
@@ -174,6 +181,7 @@ func decorate_component(
 	var tile_size: float = geom_config.cube_size
 	var panel_h: float = geom_config.get_wall_panel_height()
 	var bot_trim_h: float = geom_config.bottom_trim_height
+	var excl_dist: float = dec_config.corner_exclusion_distance
 
 	var noise := FastNoiseLite.new()
 	noise.seed = dec_config.seed
@@ -196,6 +204,8 @@ func decorate_component(
 		if n < 3:
 			continue
 
+		var corner_pts := _get_component_corner_positions(loop_pts, tile_size)
+
 		for i in range(n):
 			var pt0: Vector2i = loop_pts[i] as Vector2i
 			var pt1: Vector2i = loop_pts[(i + 1) % n] as Vector2i
@@ -209,7 +219,7 @@ func decorate_component(
 				continue
 
 			var tangent: Vector3 = edge_vec.normalized()
-			var normal: Vector3 = Vector3(-tangent.z, 0.0, tangent.x) # Hacia el espacio abierto
+			var normal: Vector3 = Vector3(-tangent.z, 0.0, tangent.x)
 			var basis := Basis(tangent, Vector3.UP, normal)
 
 			var num_x_slots: int = maxi(2, int(edge_len / (bw * 1.2)))
@@ -234,6 +244,8 @@ func decorate_component(
 						var jitter_along: float = rng.randf_range(-step_x * 0.2, step_x * 0.2)
 						var jitter_y: float = rng.randf_range(-step_y * 0.15, step_y * 0.15)
 						var brick_pt: Vector3 = pt_world + (tangent * jitter_along)
+						if _is_near_corner(brick_pt, size.x * 0.5, corner_pts, excl_dist):
+							continue
 						var local_pos := Vector3(0.0, slot_y + jitter_y, 0.0)
 
 						_append_brick(st_bricks, basis, brick_pt, local_pos, size, dec_config, rng)
@@ -241,14 +253,16 @@ func decorate_component(
 
 						if rng.randf() < (dec_config.brick_density * 0.5):
 							var size2 := _get_random_brick_size(bw * 0.85, bh, dec_config, rng)
-							var pair_y: float = slot_y + jitter_y - bh - sp
-							if pair_y > bot_trim_h + (bh * 0.6):
-								_append_brick(st_bricks, basis, brick_pt, Vector3(rng.randf_range(-bw * 0.3, bw * 0.3), pair_y, 0.0), size2, dec_config, rng)
+							var pair_jitter_x: float = rng.randf_range(-bw * 0.3, bw * 0.3)
+							var pair_pt: Vector3 = brick_pt + (tangent * pair_jitter_x)
+							if not _is_near_corner(pair_pt, size2.x * 0.5, corner_pts, excl_dist):
+								var pair_y: float = slot_y + jitter_y - bh - sp
+								if pair_y > bot_trim_h + (bh * 0.6):
+									_append_brick(st_bricks, basis, brick_pt, Vector3(pair_jitter_x, pair_y, 0.0), size2, dec_config, rng)
 
-			# Decoración en cara trasera cuando está expuesta
 			if grid != null:
 				var w_thick: float = geom_config.wall_thickness + (geom_config.trim_overhang * 2.0)
-				if _decorate_back_face_slots(st_bricks, p0, tangent, normal, edge_len, bot_trim_h, panel_h, bw, bh, sp, w_thick, tile_size, dec_config, noise, rng, grid):
+				if _decorate_back_face_slots(st_bricks, p0, tangent, normal, edge_len, bot_trim_h, panel_h, bw, bh, sp, w_thick, tile_size, dec_config, noise, rng, grid, corner_pts, excl_dist):
 					has_bricks = true
 
 	if has_bricks:
@@ -258,6 +272,64 @@ func decorate_component(
 		g_mesh.mesh = st_bricks.commit(g_mesh.mesh)
 		var surf_idx: int = g_mesh.mesh.get_surface_count() - 1
 		g_mesh.mesh.surface_set_name(surf_idx, "Bricks")
+
+func _get_corner_positions(section: _WallSectionScript, tile_size: float) -> Array[Vector3]:
+	var corners: Array[Vector3] = []
+	var pts := section.points
+	var n: int = pts.size()
+	if n < 2:
+		return corners
+
+	if section.is_closed_loop:
+		for i in range(n):
+			var prev_pt: Vector2i = pts[(i - 1 + n) % n]
+			var curr_pt: Vector2i = pts[i]
+			var next_pt: Vector2i = pts[(i + 1) % n]
+			if (curr_pt - prev_pt) != (next_pt - curr_pt):
+				corners.append(Vector3(float(curr_pt.x) * tile_size, 0.0, float(curr_pt.y) * tile_size))
+	else:
+		for i in range(1, n - 1):
+			var v_prev: Vector2i = pts[i] - pts[i - 1]
+			var v_next: Vector2i = pts[i + 1] - pts[i]
+			if v_prev != v_next:
+				corners.append(Vector3(float(pts[i].x) * tile_size, 0.0, float(pts[i].y) * tile_size))
+
+		if section.start_miter_neighbor != _WallSectionScript.INVALID_NEIGHBOR:
+			var v_prev: Vector2i = pts[0] - section.start_miter_neighbor
+			var v_next: Vector2i = pts[1] - pts[0]
+			if v_prev != v_next:
+				corners.append(Vector3(float(pts[0].x) * tile_size, 0.0, float(pts[0].y) * tile_size))
+
+		if section.end_miter_neighbor != _WallSectionScript.INVALID_NEIGHBOR:
+			var v_prev: Vector2i = pts[n - 1] - pts[n - 2]
+			var v_next: Vector2i = section.end_miter_neighbor - pts[n - 1]
+			if v_prev != v_next:
+				corners.append(Vector3(float(pts[n - 1].x) * tile_size, 0.0, float(pts[n - 1].y) * tile_size))
+
+	return corners
+
+func _get_component_corner_positions(loop_pts: Array, tile_size: float) -> Array[Vector3]:
+	var corners: Array[Vector3] = []
+	var n: int = loop_pts.size()
+	if n < 3:
+		return corners
+	for i in range(n):
+		var prev_pt: Vector2i = loop_pts[(i - 1 + n) % n] as Vector2i
+		var curr_pt: Vector2i = loop_pts[i] as Vector2i
+		var next_pt: Vector2i = loop_pts[(i + 1) % n] as Vector2i
+		if (curr_pt - prev_pt) != (next_pt - curr_pt):
+			corners.append(Vector3(float(curr_pt.x) * tile_size, 0.0, float(curr_pt.y) * tile_size))
+	return corners
+
+func _is_near_corner(pos: Vector3, radius: float, corners: Array[Vector3], min_dist: float) -> bool:
+	if min_dist <= 0.0001 or corners.is_empty():
+		return false
+	var required := min_dist + radius
+	var req_sq := required * required
+	for cp in corners:
+		if Vector2(pos.x - cp.x, pos.z - cp.z).length_squared() < req_sq:
+			return true
+	return false
 
 func _get_random_brick_size(base_w: float, base_h: float, config: DecorationConfig, rng: RandomNumberGenerator) -> Vector3:
 	var w_var: float = rng.randf_range(-config.brick_size_variance, config.brick_size_variance)
@@ -308,11 +380,9 @@ func _append_niche_decoration(
 	var r_out: float = r_in + 0.20
 	var r_mid: float = (r_in + r_out) * 0.5
 
-	# 1. Repisa de piedra saliente
 	var shelf_pos: Vector3 = seg_center + (normal * 0.08) + Vector3(0.0, sill_y, 0.0)
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(niche_w + 0.24, sill_h, sill_d), Transform3D(basis, shelf_pos), 0.02)
 
-	# 2. Jambas verticales de enmarcado a los lados con capitel de arranque
 	var jamba_w: float = 0.15
 	var jamba_size := Vector3(jamba_w, jamba_h, 0.16)
 	var jamba_cy: float = sill_y + sill_h * 0.5 + jamba_h * 0.5
@@ -321,14 +391,12 @@ func _append_niche_decoration(
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, jamba_size, Transform3D(basis, left_jamba_pos), 0.02)
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, jamba_size, Transform3D(basis, right_jamba_pos), 0.02)
 
-	# Bloques de imposta/capitel que sellan la unión entre jamba vertical y dovela arqueada
 	var impost_size := Vector3(jamba_w * 1.30, 0.08, 0.18)
 	var left_impost := seg_center + (tangent * -r_mid) + (normal * 0.07) + Vector3(0.0, arc_cy, 0.0)
 	var right_impost := seg_center + (tangent * r_mid) + (normal * 0.07) + Vector3(0.0, arc_cy, 0.0)
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, impost_size, Transform3D(basis, left_impost), 0.015)
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, impost_size, Transform3D(basis, right_impost), 0.015)
 
-	# 3. Arco de dovelas radiales de piedra (11 dovelas en abanico continuo)
 	var num_dovelas: int = 11
 	for k in range(num_dovelas):
 		var mid_a: float = PI - (float(k) + 0.5) * (PI / float(num_dovelas))
@@ -343,7 +411,6 @@ func _append_niche_decoration(
 			rad_thick *= 1.15
 		_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(tan_w, rad_thick, 0.15), Transform3D(dovela_basis, dovela_pos), 0.015)
 
-	# 4. Hiladas de ladrillos en relieve dentro del nicho
 	var brick_rows: int = 7
 	var interior_h: float = (arc_cy + r_in) - (sill_y + sill_h * 0.5)
 	var row_h: float = interior_h / float(brick_rows)
@@ -380,7 +447,6 @@ func _append_ornate_decoration(
 ) -> void:
 	var seg_center: Vector3 = (p0 + p1) * 0.5
 
-	# 1. Pilastras laterales en relieve
 	var pil_w: float = 0.22
 	var pil_h: float = panel_h * 0.90
 	var left_pos: Vector3 = seg_center + (tangent * (-edge_len * 0.35)) + (normal * 0.06) + Vector3(0.0, bot_trim_h + pil_h * 0.5, 0.0)
@@ -388,11 +454,9 @@ func _append_ornate_decoration(
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(pil_w, pil_h, 0.12), Transform3D(basis, left_pos), 0.02)
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(pil_w, pil_h, 0.12), Transform3D(basis, right_pos), 0.02)
 
-	# 2. Moldura horizontal central (faja)
 	var belt_pos: Vector3 = seg_center + (normal * 0.05) + Vector3(0.0, bot_trim_h + panel_h * 0.5, 0.0)
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(edge_len * 0.85, 0.10, 0.08), Transform3D(basis, belt_pos), 0.015)
 
-	# 3. Escudo / Relieve heráldico en el centro superior
 	var crest_pos: Vector3 = seg_center + (normal * 0.08) + Vector3(0.0, bot_trim_h + panel_h * 0.72, 0.0)
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(0.38, 0.42, 0.10), Transform3D(basis, crest_pos), 0.02)
 
@@ -412,7 +476,9 @@ func _decorate_back_face_slots(
 	dec_config: _DecorationConfigScript,
 	noise: FastNoiseLite,
 	rng: RandomNumberGenerator,
-	grid: CellGrid
+	grid: CellGrid,
+	corner_pts: Array[Vector3] = [],
+	excl_dist: float = 0.0
 ) -> bool:
 	if grid == null:
 		return false
@@ -438,7 +504,6 @@ func _decorate_back_face_slots(
 
 			var pt_world: Vector3 = p0 + (tangent * seg_dist)
 
-			# Comprobar si la celda detrás de este punto específico del muro es transitable
 			var pt_sample_back: Vector3 = pt_world - (normal * (tile_size * 0.5))
 			var back_cell := Vector2i(int(floor(pt_sample_back.x / tile_size)), int(floor(pt_sample_back.z / tile_size)))
 			if not grid.is_in_bounds(back_cell) or not grid.is_walkable(back_cell):
@@ -453,6 +518,8 @@ func _decorate_back_face_slots(
 				var jitter_along: float = rng.randf_range(-step_x * 0.2, step_x * 0.2)
 				var jitter_y: float = rng.randf_range(-step_y * 0.15, step_y * 0.15)
 				var brick_pt_back: Vector3 = pt_world_back + (tangent * jitter_along)
+				if _is_near_corner(brick_pt_back, size.x * 0.5, corner_pts, excl_dist):
+					continue
 				var local_pos := Vector3(0.0, slot_y + jitter_y, 0.0)
 
 				_append_brick(st_bricks, back_basis, brick_pt_back, local_pos, size, dec_config, rng)
@@ -460,8 +527,11 @@ func _decorate_back_face_slots(
 
 				if rng.randf() < (dec_config.brick_density * 0.5):
 					var size2 := _get_random_brick_size(bw * 0.85, bh, dec_config, rng)
-					var pair_y: float = slot_y + jitter_y - bh - sp
-					if pair_y > bot_trim_h + (bh * 0.6):
-						_append_brick(st_bricks, back_basis, brick_pt_back, Vector3(rng.randf_range(-bw * 0.3, bw * 0.3), pair_y, 0.0), size2, dec_config, rng)
+					var pair_jitter_x: float = rng.randf_range(-bw * 0.3, bw * 0.3)
+					var pair_pt_back: Vector3 = brick_pt_back + (tangent * pair_jitter_x)
+					if not _is_near_corner(pair_pt_back, size2.x * 0.5, corner_pts, excl_dist):
+						var pair_y: float = slot_y + jitter_y - bh - sp
+						if pair_y > bot_trim_h + (bh * 0.6):
+							_append_brick(st_bricks, back_basis, brick_pt_back, Vector3(pair_jitter_x, pair_y, 0.0), size2, dec_config, rng)
 
 	return has_back_bricks

@@ -20,4 +20,5 @@ enum DecorationStyle {
 @export_range(0.0, 0.5, 0.05) var brick_depth_variance: float = 0.30
 @export_range(0.01, 0.06, 0.002) var pillowed_bevel: float = 0.028
 @export_range(0.0, 0.15, 0.01) var brick_jitter_rot: float = 0.04
+@export_range(0.0, 1.5, 0.05) var corner_exclusion_distance: float = 0.2
 @export var seed: int = 1337
