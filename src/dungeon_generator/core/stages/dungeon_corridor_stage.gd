@@ -8,7 +8,6 @@ const _CorridorConnectivityRepairScript = preload("res://src/dungeon_generator/c
 const _StructuralValidatorScript = preload("res://src/dungeon_generator/core/validation/structural_validator.gd")
 const _RoomConnectivityRepairScript = preload("res://src/dungeon_generator/core/repair/room_connectivity_repair.gd")
 const _RoomIntegrityCleanerScript = preload("res://src/dungeon_generator/core/repair/room_integrity_cleaner.gd")
-const _CorridorPrunerScript = preload("res://src/dungeon_generator/core/algorithms/corridor_pruner.gd")
 const _DungeonSeedFactoryScript = preload("res://src/dungeon_generator/core/generation/dungeon_seed_factory.gd")
 
 func execute(ctx: DungeonGenerationContext) -> bool:
@@ -83,16 +82,4 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 	# Limpieza de bolsillos huérfanos y podado de stubs ciegos
 	_RoomIntegrityCleanerScript.clean_orphaned_room_pockets(ctx.grid, ctx.rooms)
 
-	var protected_cells: Array[Vector2i] = []
-	for ep in ctx.entrance_pairs:
-		if ep != null:
-			if ep.entrance_a != null:
-				protected_cells.append(ep.entrance_a.outer_cell)
-				protected_cells.append(ep.entrance_a.boundary_cell)
-			if ep.entrance_b != null:
-				protected_cells.append(ep.entrance_b.outer_cell)
-				protected_cells.append(ep.entrance_b.boundary_cell)
-
-	_CorridorPrunerScript.connect_or_prune_collinear_stubs(ctx.grid, protected_cells)
-	_CorridorPrunerScript.prune_dead_end_stubs(ctx.grid, protected_cells)
 	return true
