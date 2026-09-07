@@ -46,5 +46,17 @@ func _init() -> void:
 	assert(grid3.get_cell(Vector2i(1, 1)) == _CellGridScript.CellType.WALL, "Celda divisoria debe permanecer WALL")
 	print("✔ Caso 3: Muro legítimo entre salas protegido con éxito.")
 
+	# Caso 4: Corredor / WALL / Habitación (FLOOR) - NO debe conectar
+	var grid4 := _CellGridScript.new(3, 3, _CellGridScript.CellType.WALL)
+	grid4.set_cell(Vector2i(1, 0), _CellGridScript.CellType.CORRIDOR)
+	grid4.set_cell(Vector2i(1, 1), _CellGridScript.CellType.WALL)
+	grid4.set_cell(Vector2i(1, 2), _CellGridScript.CellType.FLOOR)
+	grid4.set_room_owner(Vector2i(1, 2), 1)
+
+	var conns4 = _CorridorPrunerScript.connect_or_prune_collinear_stubs(grid4)
+	assert(conns4 == 0, "No debe conectar pared que separe corredor de FLOOR de habitación")
+	assert(grid4.get_cell(Vector2i(1, 1)) == _CellGridScript.CellType.WALL, "Celda divisoria debe permanecer WALL")
+	print("✔ Caso 4: Muro entre CORRIDOR y FLOOR de habitación protegido con éxito.")
+
 	print("\nTODOS LOS TESTS DE CORREDORES COLINEALES PASARON AL 100%.")
 	quit(0)
