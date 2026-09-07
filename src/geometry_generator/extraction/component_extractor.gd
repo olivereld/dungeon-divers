@@ -70,12 +70,14 @@ func extract_components(graph: WallBoundaryGraph) -> Array[WallComponent]:
 
 			curr_pt = chosen_next
 
-		if loop_points.size() >= 3:
-			var simplified: Array[Vector2i] = simplify_polygon(loop_points)
-			if simplified.size() >= 3:
-				if closed:
+		if loop_points.size() >= 2:
+			if closed and loop_points.size() >= 3:
+				var simplified: Array[Vector2i] = simplify_polygon(loop_points)
+				if simplified.size() >= 3:
 					comp.add_loop(simplified)
-				else:
+			else:
+				var simplified: Array[Vector2i] = simplify_chain(loop_points)
+				if simplified.size() >= 2:
 					comp.add_chain(simplified)
 
 		if not comp.is_empty():
@@ -105,4 +107,29 @@ static func simplify_polygon(pts: Array[Vector2i]) -> Array[Vector2i]:
 		if cross_prod != 0 or dot_prod <= 0:
 			result.append(curr)
 
+	return result
+
+## Simplifica vértices colineales en una cadena abierta sin tratar los extremos como cíclicos.
+static func simplify_chain(pts: Array[Vector2i]) -> Array[Vector2i]:
+	var n: int = pts.size()
+	if n < 3:
+		return pts
+
+	var result: Array[Vector2i] = []
+	result.append(pts[0])
+
+	for i in range(1, n - 1):
+		var prev: Vector2i = pts[i - 1]
+		var curr: Vector2i = pts[i]
+		var next: Vector2i = pts[i + 1]
+
+		var dir1: Vector2i = curr - prev
+		var dir2: Vector2i = next - curr
+
+		var cross_prod: int = dir1.x * dir2.y - dir1.y * dir2.x
+		var dot_prod: int = dir1.x * dir2.x + dir1.y * dir2.y
+		if cross_prod != 0 or dot_prod <= 0:
+			result.append(curr)
+
+	result.append(pts[n - 1])
 	return result

@@ -47,8 +47,22 @@ func build_section_mesh(
 	var bounds_init: bool = false
 	var aabb := AABB()
 
-	var pts_3d: Array[Vector3] = []
+	# Deduplicar puntos consecutivos y eliminar segmentos degenerados
+	var clean_pts: Array[Vector2i] = []
 	for pt in section.points:
+		if clean_pts.is_empty() or clean_pts[clean_pts.size() - 1] != pt:
+			clean_pts.append(pt)
+
+	# Si es bucle cerrado, no repetir el primer punto al final
+	if section.is_closed_loop and clean_pts.size() > 2 and clean_pts[0] == clean_pts[clean_pts.size() - 1]:
+		clean_pts.pop_back()
+
+	var n: int = clean_pts.size()
+	if n < 2:
+		return g_mesh
+
+	var pts_3d: Array[Vector3] = []
+	for pt in clean_pts:
 		var p3 := Vector3(float(pt.x) * tile_size, 0.0, float(pt.y) * tile_size)
 		pts_3d.append(p3)
 		if not bounds_init:
@@ -58,8 +72,7 @@ func build_section_mesh(
 			aabb = aabb.expand(p3)
 			aabb = aabb.expand(p3 + Vector3(0.0, total_h, 0.0))
 
-	var n: int = pts_3d.size()
-	var is_closed: bool = section.is_closed_loop and (n >= 3) and (section.points[0] == section.points[n - 1])
+	var is_closed: bool = section.is_closed_loop and (n >= 3)
 
 	var miter_dirs: Array[Vector3] = []
 	for i in range(n):
@@ -72,74 +85,34 @@ func build_section_mesh(
 			var diff_out: Vector3 = next_pt - curr_pt
 			var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
 			var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
-			var n_wall_in := Vector3(t_in.z, 0.0, -t_in.x)
-			var n_wall_out := Vector3(t_out.z, 0.0, -t_out.x)
-			miter = n_wall_in + n_wall_out
-			if miter.length_squared() < 0.0001:
-				miter = n_wall_in
-			else:
-				var m_dir: Vector3 = miter.normalized()
-				var dot: float = n_wall_in.dot(m_dir)
-				var m_scale: float = 1.0 / maxf(dot, 0.001)
-				miter = m_dir * clampf(m_scale, 0.5, config.max_miter_scale)
+			miter = _calculate_miter(t_in, t_out, config.max_miter_scale)
 		else:
 			if i == 0:
+				var diff_out: Vector3 = pts_3d[1] - pts_3d[0]
+				var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
 				if section.start_miter_neighbor != _WallSectionScript.INVALID_NEIGHBOR:
 					var prev_pt := Vector3(float(section.start_miter_neighbor.x) * tile_size, 0.0, float(section.start_miter_neighbor.y) * tile_size)
 					var diff_in: Vector3 = pts_3d[0] - prev_pt
-					var diff_out: Vector3 = pts_3d[1] - pts_3d[0]
-					var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
-					var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
-					var n_wall_in := Vector3(t_in.z, 0.0, -t_in.x)
-					var n_wall_out := Vector3(t_out.z, 0.0, -t_out.x)
-					miter = n_wall_in + n_wall_out
-					if miter.length_squared() < 0.0001:
-						miter = n_wall_in
-					else:
-						var m_dir: Vector3 = miter.normalized()
-						var dot: float = n_wall_in.dot(m_dir)
-						var m_scale: float = 1.0 / maxf(dot, 0.001)
-						miter = m_dir * clampf(m_scale, 0.5, config.max_miter_scale)
+					var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else t_out
+					miter = _calculate_miter(t_in, t_out, config.max_miter_scale)
 				else:
-					var diff_out: Vector3 = pts_3d[1] - pts_3d[0]
-					var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
-					miter = Vector3(t_out.z, 0.0, -t_out.x)
+					miter = _calculate_miter(t_out, t_out, config.max_miter_scale)
 			elif i == n - 1:
+				var diff_in: Vector3 = pts_3d[n - 1] - pts_3d[n - 2]
+				var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
 				if section.end_miter_neighbor != _WallSectionScript.INVALID_NEIGHBOR:
 					var next_pt := Vector3(float(section.end_miter_neighbor.x) * tile_size, 0.0, float(section.end_miter_neighbor.y) * tile_size)
-					var diff_in: Vector3 = pts_3d[n - 1] - pts_3d[n - 2]
 					var diff_out: Vector3 = next_pt - pts_3d[n - 1]
-					var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
-					var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
-					var n_wall_in := Vector3(t_in.z, 0.0, -t_in.x)
-					var n_wall_out := Vector3(t_out.z, 0.0, -t_out.x)
-					miter = n_wall_in + n_wall_out
-					if miter.length_squared() < 0.0001:
-						miter = n_wall_in
-					else:
-						var m_dir: Vector3 = miter.normalized()
-						var dot: float = n_wall_in.dot(m_dir)
-						var m_scale: float = 1.0 / maxf(dot, 0.001)
-						miter = m_dir * clampf(m_scale, 0.5, config.max_miter_scale)
+					var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else t_in
+					miter = _calculate_miter(t_in, t_out, config.max_miter_scale)
 				else:
-					var diff_in: Vector3 = pts_3d[n - 1] - pts_3d[n - 2]
-					var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
-					miter = Vector3(t_in.z, 0.0, -t_in.x)
+					miter = _calculate_miter(t_in, t_in, config.max_miter_scale)
 			else:
 				var diff_in: Vector3 = pts_3d[i] - pts_3d[i - 1]
 				var diff_out: Vector3 = pts_3d[i + 1] - pts_3d[i]
 				var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
 				var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
-				var n_wall_in := Vector3(t_in.z, 0.0, -t_in.x)
-				var n_wall_out := Vector3(t_out.z, 0.0, -t_out.x)
-				miter = n_wall_in + n_wall_out
-				if miter.length_squared() < 0.0001:
-					miter = n_wall_in
-				else:
-					var m_dir: Vector3 = miter.normalized()
-					var dot: float = n_wall_in.dot(m_dir)
-					var m_scale: float = 1.0 / maxf(dot, 0.001)
-					miter = m_dir * clampf(m_scale, 0.5, config.max_miter_scale)
+				miter = _calculate_miter(t_in, t_out, config.max_miter_scale)
 		miter_dirs.append(miter)
 
 	var segment_count: int = n if is_closed else (n - 1)
@@ -147,6 +120,8 @@ func build_section_mesh(
 		var next_i: int = (i + 1) % n
 		var p0: Vector3 = pts_3d[i]
 		var p1: Vector3 = pts_3d[next_i]
+		if p0.distance_squared_to(p1) < 0.0001:
+			continue
 		var m0: Vector3 = miter_dirs[i]
 		var m1: Vector3 = miter_dirs[next_i]
 
@@ -268,25 +243,14 @@ func build_component_mesh(
 			var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
 			var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
 
-			var n_wall_in := Vector3(t_in.z, 0.0, -t_in.x)
-			var n_wall_out := Vector3(t_out.z, 0.0, -t_out.x)
-
-			var miter: Vector3 = n_wall_in + n_wall_out
-			if miter.length_squared() < 0.0001:
-				miter = n_wall_in
-			else:
-				var m_dir: Vector3 = miter.normalized()
-				var dot: float = n_wall_in.dot(m_dir)
-				var m_scale: float = 1.0 / maxf(dot, 0.001)
-				m_scale = clampf(m_scale, 0.5, config.max_miter_scale)
-				miter = m_dir * m_scale
-
-			miter_dirs.append(miter)
+			miter_dirs.append(_calculate_miter(t_in, t_out, config.max_miter_scale))
 
 		for i in range(n):
 			var next_i: int = (i + 1) % n
 			var p0: Vector3 = pts_3d[i]
 			var p1: Vector3 = pts_3d[next_i]
+			if p0.distance_squared_to(p1) < 0.0001:
+				continue
 			var m0: Vector3 = miter_dirs[i]
 			var m1: Vector3 = miter_dirs[next_i]
 
@@ -468,3 +432,15 @@ static func _add_quad(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3
 		st.set_normal(normal2)
 		st.set_uv(Vector2(0.0, 1.0))
 		st.add_vertex(p3)
+
+## Calcula la dirección y escala de inglete (miter) continua para una esquina o extremo de muro.
+static func _calculate_miter(t_in: Vector3, t_out: Vector3, max_scale: float) -> Vector3:
+	var n_wall_in := Vector3(t_in.z, 0.0, -t_in.x)
+	var n_wall_out := Vector3(t_out.z, 0.0, -t_out.x)
+	var miter: Vector3 = n_wall_in + n_wall_out
+	if miter.length_squared() < 0.0001:
+		return n_wall_in
+	var m_dir: Vector3 = miter.normalized()
+	var dot: float = n_wall_in.dot(m_dir)
+	var m_scale: float = 1.0 / maxf(dot, 0.001)
+	return m_dir * clampf(m_scale, 0.5, max_scale)

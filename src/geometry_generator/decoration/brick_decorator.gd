@@ -15,7 +15,8 @@ func decorate_section(
 	g_mesh: _GeneratedMeshScript,
 	section: _WallSectionScript,
 	geom_config: _WallGeometryConfigScript,
-	dec_config: _DecorationConfigScript
+	dec_config: _DecorationConfigScript,
+	grid: CellGrid = null
 ) -> void:
 	if g_mesh == null or g_mesh.mesh == null or section == null or dec_config == null or section.points.size() < 2:
 		return
@@ -140,6 +141,12 @@ func decorate_section(
 							if pair_y > bot_trim_h + (bh * 0.6):
 								_append_brick(st_bricks, basis, brick_pt, Vector3(rng.randf_range(-bw * 0.3, bw * 0.3), pair_y, 0.0), size2, dec_config, rng)
 
+		# Decoración en cara trasera cuando está expuesta (ej. tabique entre habitación y pasillo)
+		if grid != null:
+			var w_thick: float = geom_config.wall_thickness + (geom_config.trim_overhang * 2.0)
+			if _decorate_back_face_slots(st_bricks, p0, tangent, normal, edge_len, bot_trim_h, panel_h, bw, bh, sp, w_thick, tile_size, dec_config, noise, rng, grid):
+				has_bricks = true
+
 	if has_bricks:
 		st_bricks.generate_normals()
 		st_bricks.index()
@@ -152,7 +159,8 @@ func decorate_component(
 	g_mesh: GeneratedMesh,
 	component: WallComponent,
 	geom_config: WallGeometryConfig,
-	dec_config: DecorationConfig
+	dec_config: DecorationConfig,
+	grid: CellGrid = null
 ) -> void:
 	if g_mesh == null or g_mesh.mesh == null or component == null or dec_config == null:
 		return
@@ -236,6 +244,12 @@ func decorate_component(
 							var pair_y: float = slot_y + jitter_y - bh - sp
 							if pair_y > bot_trim_h + (bh * 0.6):
 								_append_brick(st_bricks, basis, brick_pt, Vector3(rng.randf_range(-bw * 0.3, bw * 0.3), pair_y, 0.0), size2, dec_config, rng)
+
+			# Decoración en cara trasera cuando está expuesta
+			if grid != null:
+				var w_thick: float = geom_config.wall_thickness + (geom_config.trim_overhang * 2.0)
+				if _decorate_back_face_slots(st_bricks, p0, tangent, normal, edge_len, bot_trim_h, panel_h, bw, bh, sp, w_thick, tile_size, dec_config, noise, rng, grid):
+					has_bricks = true
 
 	if has_bricks:
 		st_bricks.generate_normals()
@@ -381,3 +395,73 @@ func _append_ornate_decoration(
 	# 3. Escudo / Relieve heráldico en el centro superior
 	var crest_pos: Vector3 = seg_center + (normal * 0.08) + Vector3(0.0, bot_trim_h + panel_h * 0.72, 0.0)
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(0.38, 0.42, 0.10), Transform3D(basis, crest_pos), 0.02)
+
+func _decorate_back_face_slots(
+	st_bricks: SurfaceTool,
+	p0: Vector3,
+	tangent: Vector3,
+	normal: Vector3,
+	edge_len: float,
+	bot_trim_h: float,
+	panel_h: float,
+	bw: float,
+	bh: float,
+	sp: float,
+	w_thick: float,
+	tile_size: float,
+	dec_config: _DecorationConfigScript,
+	noise: FastNoiseLite,
+	rng: RandomNumberGenerator,
+	grid: CellGrid
+) -> bool:
+	if grid == null:
+		return false
+
+	var back_tangent: Vector3 = -tangent
+	var back_normal: Vector3 = -normal
+	var back_basis := Basis(back_tangent, Vector3.UP, back_normal)
+
+	var num_x_slots: int = maxi(2, int(edge_len / (bw * 1.2)))
+	var num_y_slots: int = maxi(2, int(panel_h / (bh * 1.6)))
+	var step_x: float = edge_len / float(num_x_slots)
+	var step_y: float = panel_h / float(num_y_slots)
+
+	var has_back_bricks: bool = false
+
+	for iy in range(num_y_slots):
+		var slot_y: float = bot_trim_h + (float(iy) * step_y) + (step_y * 0.5)
+
+		for ix in range(num_x_slots):
+			var seg_dist: float = (float(ix) * step_x) + (step_x * 0.5)
+			if seg_dist < bw * 0.5 or seg_dist > edge_len - (bw * 0.5):
+				continue
+
+			var pt_world: Vector3 = p0 + (tangent * seg_dist)
+
+			# Comprobar si la celda detrás de este punto específico del muro es transitable
+			var pt_sample_back: Vector3 = pt_world - (normal * (tile_size * 0.5))
+			var back_cell := Vector2i(int(floor(pt_sample_back.x / tile_size)), int(floor(pt_sample_back.z / tile_size)))
+			if not grid.is_in_bounds(back_cell) or not grid.is_walkable(back_cell):
+				continue
+
+			var pt_world_back: Vector3 = pt_world - (normal * w_thick)
+			var n_val: float = noise.get_noise_3d(pt_world_back.x * 1.5 + 107.0, slot_y * 2.0, pt_world_back.z * 1.5 + 107.0)
+			var threshold: float = 0.65 - (dec_config.brick_density * 0.95)
+
+			if n_val > threshold:
+				var size := _get_random_brick_size(bw, bh, dec_config, rng)
+				var jitter_along: float = rng.randf_range(-step_x * 0.2, step_x * 0.2)
+				var jitter_y: float = rng.randf_range(-step_y * 0.15, step_y * 0.15)
+				var brick_pt_back: Vector3 = pt_world_back + (tangent * jitter_along)
+				var local_pos := Vector3(0.0, slot_y + jitter_y, 0.0)
+
+				_append_brick(st_bricks, back_basis, brick_pt_back, local_pos, size, dec_config, rng)
+				has_back_bricks = true
+
+				if rng.randf() < (dec_config.brick_density * 0.5):
+					var size2 := _get_random_brick_size(bw * 0.85, bh, dec_config, rng)
+					var pair_y: float = slot_y + jitter_y - bh - sp
+					if pair_y > bot_trim_h + (bh * 0.6):
+						_append_brick(st_bricks, back_basis, brick_pt_back, Vector3(rng.randf_range(-bw * 0.3, bw * 0.3), pair_y, 0.0), size2, dec_config, rng)
+
+	return has_back_bricks

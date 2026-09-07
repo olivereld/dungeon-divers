@@ -67,7 +67,7 @@ func generate_wall_clusters(
 			if g_mesh.mesh == null:
 				continue
 
-			_decorator.decorate_section(g_mesh, sec, wall_config, dec_config)
+			_decorator.decorate_section(g_mesh, sec, wall_config, dec_config, grid)
 			_material_resolver.resolve_materials_for_mesh(g_mesh, material_preset)
 			_collision_builder.build_collision_for_section(sec, wall_config, col_config, g_mesh)
 
@@ -134,7 +134,7 @@ func generate_wall_clusters_for_partition(
 			if config_resolver != null and prof != null:
 				dec_cfg = config_resolver.resolve_wall_decoration_config(prof, base_dec_config)
 
-			_decorator.decorate_section(g_mesh, sec, wall_config, dec_cfg)
+			_decorator.decorate_section(g_mesh, sec, wall_config, dec_cfg, grid)
 			_material_resolver.resolve_materials_for_mesh(g_mesh, material_preset)
 			_collision_builder.build_collision_for_section(sec, wall_config, col_config, g_mesh)
 

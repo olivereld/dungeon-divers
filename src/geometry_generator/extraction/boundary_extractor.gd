@@ -63,6 +63,12 @@ func extract_graph(grid: CellGrid, opening_manifest: WallOpeningManifest = null)
 
 	return graph
 
+enum BoundaryType {
+	NONE = 0,
+	SOLID_BOUNDARY = 1,
+	ROOM_CORRIDOR_BOUNDARY = 2
+}
+
 func _is_boundary(
 	grid: CellGrid,
 	cell: Vector2i,
@@ -70,12 +76,79 @@ func _is_boundary(
 	side: int,
 	opening_manifest: WallOpeningManifest
 ) -> bool:
-	if not grid.is_in_bounds(neighbor):
-		return true
+	var b_type := _classify_boundary(grid, cell, neighbor, side, opening_manifest)
+	return b_type != BoundaryType.NONE
 
-	if not grid.is_walkable(neighbor):
+func _classify_boundary(
+	grid: CellGrid,
+	cell: Vector2i,
+	neighbor: Vector2i,
+	side: int,
+	opening_manifest: WallOpeningManifest
+) -> BoundaryType:
+	# 1. Límite fuera del mapa o celda no transitable (roca sólida)
+	if not grid.is_in_bounds(neighbor) or not grid.is_walkable(neighbor):
 		if opening_manifest != null and opening_manifest.has_opening(cell, side):
-			return false
-		return true
+			return BoundaryType.NONE
+		return BoundaryType.SOLID_BOUNDARY
 
-	return false
+	# 2. Frontera arquitectónica entre ROOM y CORRIDOR (o entre distintas habitaciones)
+	if _is_room_corridor_boundary(grid, cell, neighbor):
+		var opposite_side := _opposite_side(side)
+
+		if opening_manifest != null:
+			if opening_manifest.has_opening(cell, side):
+				return BoundaryType.NONE
+			if opening_manifest.has_opening(neighbor, opposite_side):
+				return BoundaryType.NONE
+
+		# Regla de unicidad para evitar doble pared superpuesta:
+		# a) Entre ROOM y CORRIDOR: solo la habitación emite la arista
+		if _is_room_cell(grid, cell) and _is_corridor_cell(grid, neighbor):
+			return BoundaryType.ROOM_CORRIDOR_BOUNDARY
+		# b) Entre dos habitaciones distintas: solo la sala con menor room_owner emite la arista
+		if _is_room_cell(grid, cell) and _is_room_cell(grid, neighbor):
+			var owner_c: int = grid.get_room_owner(cell)
+			var owner_n: int = grid.get_room_owner(neighbor)
+			if owner_c < owner_n:
+				return BoundaryType.ROOM_CORRIDOR_BOUNDARY
+
+		return BoundaryType.NONE
+
+	return BoundaryType.NONE
+
+func _is_room_corridor_boundary(
+	grid: CellGrid,
+	cell: Vector2i,
+	neighbor: Vector2i
+) -> bool:
+	var cell_is_room := _is_room_cell(grid, cell)
+	var neighbor_is_room := _is_room_cell(grid, neighbor)
+
+	var cell_is_corridor := _is_corridor_cell(grid, cell)
+	var neighbor_is_corridor := _is_corridor_cell(grid, neighbor)
+
+	return (cell_is_room and neighbor_is_corridor) \
+		or (cell_is_corridor and neighbor_is_room) \
+		or (cell_is_room and neighbor_is_room and grid.get_room_owner(cell) != grid.get_room_owner(neighbor))
+
+func _is_room_cell(grid: CellGrid, pos: Vector2i) -> bool:
+	if not grid.is_walkable(pos):
+		return false
+	return grid.get_room_owner(pos) != -1
+
+func _is_corridor_cell(grid: CellGrid, pos: Vector2i) -> bool:
+	return grid.is_walkable(pos) \
+		and grid.get_cell(pos) == CellGrid.CellType.CORRIDOR
+
+func _opposite_side(side: int) -> int:
+	match side:
+		_RoomEntranceScript.NORTH:
+			return _RoomEntranceScript.SOUTH
+		_RoomEntranceScript.SOUTH:
+			return _RoomEntranceScript.NORTH
+		_RoomEntranceScript.EAST:
+			return _RoomEntranceScript.WEST
+		_RoomEntranceScript.WEST:
+			return _RoomEntranceScript.EAST
+	return side
