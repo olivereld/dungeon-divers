@@ -257,7 +257,7 @@ static func _carve_single_request(
 			var c_owner: int = grid.get_room_owner(cell)
 			if c_owner == -1:
 				c_owner = _get_room_id_at(cell, rooms)
-			if c_owner != -1 and c_owner != req.room_a_id and c_owner != req.room_b_id:
+			if c_owner != -1 or grid.get_cell(cell) == CellGrid.CellType.FLOOR:
 				return {
 					"success": false,
 					"reason": "FORBIDDEN_ROOM_INVADED",
@@ -503,9 +503,10 @@ static func _find_direction_aware_path(
 	var foreign_rects: Array[Rect2i] = []
 	var foreign_grown_rects: Array[Rect2i] = []
 	for r in rooms:
-		if r != null and r.id != req.room_a_id and r.id != req.room_b_id:
+		if r != null:
 			foreign_rects.append(r.rect)
-			foreign_grown_rects.append(r.rect.grow(1))
+			if r.id != req.room_a_id and r.id != req.room_b_id:
+				foreign_grown_rects.append(r.rect.grow(1))
 
 	# Precalcular jambas protegidas de puertas de inicio y fin
 	var jamb_cells: Dictionary = {}
@@ -755,7 +756,7 @@ static func _validate_centerline(
 			var owner_id: int = grid.get_room_owner(p)
 			if owner_id == -1:
 				owner_id = _get_room_id_at(p, rooms)
-			if owner_id != -1 and owner_id != room_a_id and owner_id != room_b_id:
+			if owner_id != -1 or grid.get_cell(p) == CellGrid.CellType.FLOOR:
 				return "FORBIDDEN_ROOM"
 
 			# Comprobar que no penetre en el perímetro prohibido (distancia 1) de salas ajenas
@@ -782,28 +783,29 @@ static func _is_corridor_footprint_valid(
 		return false
 
 	var ctype: int = grid.get_cell(center_cell)
-	if ctype == CellGrid.CellType.VOID or ctype == CellGrid.CellType.COLUMN or ctype == CellGrid.CellType.OBSTACLE:
+	if ctype == CellGrid.CellType.VOID or ctype == CellGrid.CellType.COLUMN or ctype == CellGrid.CellType.OBSTACLE or ctype == CellGrid.CellType.FLOOR:
 		return false
 
 	var center_owner: int = grid.get_room_owner(center_cell)
-	if center_owner != -1 and center_owner != room_a_id and center_owner != room_b_id:
+	if center_owner != -1:
 		return false
 
 	if not foreign_rects.is_empty():
-		if center_owner == -1:
-			for fr in foreign_rects:
-				if fr.has_point(center_cell):
-					return false
+		for fr in foreign_rects:
+			if fr.has_point(center_cell):
+				return false
 		if ctype != CellGrid.CellType.CORRIDOR:
 			for fgr in foreign_grown_rects:
 				if fgr.has_point(center_cell):
 					return false
 	else:
 		var rooms_list: Array = room_map.values()
-		if center_owner == -1:
-			center_owner = _get_room_id_at(center_cell, rooms_list)
-		if center_owner != -1 and center_owner != room_a_id and center_owner != room_b_id:
+		center_owner = _get_room_id_at(center_cell, rooms_list)
+		if center_owner != -1:
 			return false
+		for r in rooms_list:
+			if r != null and r.rect.has_point(center_cell):
+				return false
 		if ctype != CellGrid.CellType.CORRIDOR:
 			for r in rooms_list:
 				if r != null and r.id != room_a_id and r.id != room_b_id and r.rect.grow(1).has_point(center_cell):
@@ -819,27 +821,28 @@ static func _is_corridor_footprint_valid(
 		if not grid.is_in_bounds(side_cell):
 			return false
 		var side_type: int = grid.get_cell(side_cell)
-		if side_type == CellGrid.CellType.VOID or side_type == CellGrid.CellType.COLUMN or side_type == CellGrid.CellType.OBSTACLE:
+		if side_type == CellGrid.CellType.VOID or side_type == CellGrid.CellType.COLUMN or side_type == CellGrid.CellType.OBSTACLE or side_type == CellGrid.CellType.FLOOR:
 			return false
 		var side_owner: int = grid.get_room_owner(side_cell)
-		if side_owner != -1 and side_owner != room_a_id and side_owner != room_b_id:
+		if side_owner != -1:
 			return false
 
 		if not foreign_rects.is_empty():
-			if side_owner == -1:
-				for fr in foreign_rects:
-					if fr.has_point(side_cell):
-						return false
+			for fr in foreign_rects:
+				if fr.has_point(side_cell):
+					return false
 			if side_type != CellGrid.CellType.CORRIDOR:
 				for fgr in foreign_grown_rects:
 					if fgr.has_point(side_cell):
 						return false
 		else:
 			var rooms_list: Array = room_map.values()
-			if side_owner == -1:
-				side_owner = _get_room_id_at(side_cell, rooms_list)
-			if side_owner != -1 and side_owner != room_a_id and side_owner != room_b_id:
+			side_owner = _get_room_id_at(side_cell, rooms_list)
+			if side_owner != -1:
 				return false
+			for r in rooms_list:
+				if r != null and r.rect.has_point(side_cell):
+					return false
 			if side_type != CellGrid.CellType.CORRIDOR:
 				for r in rooms_list:
 					if r != null and r.id != room_a_id and r.id != room_b_id and r.rect.grow(1).has_point(side_cell):
