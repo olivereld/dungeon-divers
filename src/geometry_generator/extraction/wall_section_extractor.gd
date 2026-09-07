@@ -115,11 +115,23 @@ func _split_closed_loop(
 			num_cuts == 1
 		)
 
-		# Vecinos para cálculo continuo de ingletes
-		sec.start_miter_neighbor = clean_pts[(from_idx - 1 + n) % n]
-		sec.end_miter_neighbor = clean_pts[(to_idx + 1) % n]
+		var start_c_id: int = comp_id * 100000 + from_idx
+		var end_c_id: int = comp_id * 100000 + to_idx
+		var prev_neighbor: Vector2i = clean_pts[(from_idx - 1 + n) % n]
+		var next_neighbor: Vector2i = clean_pts[(to_idx + 1) % n]
+
+		sec.set_start_corner(start_c_id, prev_neighbor, corners.has(from_idx))
+		sec.set_end_corner(end_c_id, next_neighbor, corners.has(to_idx))
 		sec.has_start_cap = false
 		sec.has_end_cap = false
+
+		sec.corner_ids = []
+		var c_cur := from_idx
+		while true:
+			sec.corner_ids.append(comp_id * 100000 + c_cur)
+			if c_cur == to_idx:
+				break
+			c_cur = (c_cur + 1) % n
 
 		result.append(sec)
 
@@ -182,19 +194,19 @@ func _split_open_chain(
 			false
 		)
 
-		if from_i > 0:
-			sec.start_miter_neighbor = clean_pts[from_i - 1]
-			sec.has_start_cap = false
-		else:
-			sec.start_miter_neighbor = _WallSectionScript.INVALID_NEIGHBOR
-			sec.has_start_cap = true
+		var start_c_id: int = comp_id * 100000 + from_i
+		var end_c_id: int = comp_id * 100000 + to_i
+		var prev_pt := clean_pts[from_i - 1] if from_i > 0 else _WallSectionScript.INVALID_NEIGHBOR
+		var next_pt := clean_pts[to_i + 1] if to_i < n - 1 else _WallSectionScript.INVALID_NEIGHBOR
 
-		if to_i < n - 1:
-			sec.end_miter_neighbor = clean_pts[to_i + 1]
-			sec.has_end_cap = false
-		else:
-			sec.end_miter_neighbor = _WallSectionScript.INVALID_NEIGHBOR
-			sec.has_end_cap = true
+		sec.set_start_corner(start_c_id, prev_pt, split_indices.has(from_i))
+		sec.set_end_corner(end_c_id, next_pt, split_indices.has(to_i))
+		sec.has_start_cap = (from_i == 0)
+		sec.has_end_cap = (to_i == n - 1)
+
+		sec.corner_ids = []
+		for p_idx in range(from_i, to_i + 1):
+			sec.corner_ids.append(comp_id * 100000 + p_idx)
 
 		result.append(sec)
 

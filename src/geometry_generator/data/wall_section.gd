@@ -23,6 +23,35 @@ var end_miter_neighbor: Vector2i = INVALID_NEIGHBOR
 var has_start_cap: bool = false
 var has_end_cap: bool = false
 
+# Representación topológica de continuidad de esquinas compartidas
+var start_corner_id: int = -1
+var end_corner_id: int = -1
+var corner_ids: Array[int] = []
+var start_corner_desc: Dictionary = {}
+var end_corner_desc: Dictionary = {}
+
+func set_start_corner(c_id: int, prev_pt: Vector2i = INVALID_NEIGHBOR, is_corner: bool = true) -> void:
+	start_corner_id = c_id
+	if prev_pt != INVALID_NEIGHBOR:
+		start_miter_neighbor = prev_pt
+	start_corner_desc = {
+		"id": c_id,
+		"point": start_point,
+		"prev_point": start_miter_neighbor,
+		"is_corner": is_corner
+	}
+
+func set_end_corner(c_id: int, next_pt: Vector2i = INVALID_NEIGHBOR, is_corner: bool = true) -> void:
+	end_corner_id = c_id
+	if next_pt != INVALID_NEIGHBOR:
+		end_miter_neighbor = next_pt
+	end_corner_desc = {
+		"id": c_id,
+		"point": end_point,
+		"next_point": end_miter_neighbor,
+		"is_corner": is_corner
+	}
+
 func _init(
 	p_id: int = 0,
 	p_comp_id: int = 0,

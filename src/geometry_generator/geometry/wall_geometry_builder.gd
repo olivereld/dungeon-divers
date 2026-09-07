@@ -3,174 +3,41 @@ extends RefCounted
 
 ## Extrusor de geometría poligonal continua para muros de mazmorra (Fase M2 & Hardening).
 ## Genera mallas limpias (ArrayMesh) a nivel de WallComponent y a nivel de WallSection discreto,
-## con uniones en inglete (miter joints) matemáticamente robustas y libres de NaNs o caras degeneradas.
+## con uniones en inglete (miter joints) matemáticamente deterministas, calculadas una sola vez
+## mediante WallCornerResolver y compartidas por todos los perfiles a través de WallPathGeometry.
 
 const _GeneratedMeshScript = preload("res://src/geometry_generator/data/generated_mesh.gd")
 const _WallComponentScript = preload("res://src/geometry_generator/data/wall_component.gd")
 const _WallSectionScript = preload("res://src/geometry_generator/data/wall_section.gd")
 const _WallGeometryConfigScript = preload("res://src/geometry_generator/config/wall_geometry_config.gd")
+const _WallCornerResolverScript = preload("res://src/geometry_generator/geometry/wall_corner_resolver.gd")
+const _WallPathGeometryScript = preload("res://src/geometry_generator/geometry/wall_path_geometry.gd")
 
+var _corner_resolver: _WallCornerResolverScript
+
+func _init() -> void:
+	_corner_resolver = _WallCornerResolverScript.new()
+
+## Construye la malla para una sección discreta (WallSection) consumiendo WallPathGeometry.
 func build_section_mesh(
 	section: _WallSectionScript,
 	config: _WallGeometryConfigScript = null
 ) -> _GeneratedMeshScript:
-	var g_mesh := _GeneratedMeshScript.new()
 	if section == null or section.points.size() < 2:
-		return g_mesh
+		return _GeneratedMeshScript.new()
 
 	if config == null:
 		config = _WallGeometryConfigScript.new()
 
-	g_mesh.component_id = section.component_id
-	g_mesh.section_id = section.id
-	g_mesh.room_id = section.room_id
-	g_mesh.variant_id = section.variant_id
+	var path_geom: _WallPathGeometryScript = _WallPathGeometryScript.from_section(
+		section, config, _corner_resolver
+	)
+	if path_geom == null or path_geom.get_segment_count() == 0:
+		return _GeneratedMeshScript.new()
 
-	var st_trims := SurfaceTool.new()
-	var st_panel := SurfaceTool.new()
+	return _build_mesh_from_paths([path_geom], config, path_geom.metadata)
 
-	st_trims.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st_panel.begin(Mesh.PRIMITIVE_TRIANGLES)
-
-	var total_h: float = config.get_total_height()
-	var panel_h: float = config.get_wall_panel_height()
-	var bot_trim_h: float = config.bottom_trim_height
-	var top_trim_h: float = config.top_trim_height
-	var bot_slope_h: float = config.bottom_trim_slope_height
-	var top_slope_h: float = config.top_trim_slope_height
-
-	var w_thin: float = config.wall_thickness
-	var d: float = config.trim_overhang
-	var w_thick: float = w_thin + (d * 2.0)
-	var tile_size: float = config.cube_size
-
-	var bounds_init: bool = false
-	var aabb := AABB()
-
-	# Deduplicar puntos consecutivos y eliminar segmentos degenerados
-	var clean_pts: Array[Vector2i] = []
-	for pt in section.points:
-		if clean_pts.is_empty() or clean_pts[clean_pts.size() - 1] != pt:
-			clean_pts.append(pt)
-
-	# Si es bucle cerrado, no repetir el primer punto al final
-	if section.is_closed_loop and clean_pts.size() > 2 and clean_pts[0] == clean_pts[clean_pts.size() - 1]:
-		clean_pts.pop_back()
-
-	var n: int = clean_pts.size()
-	if n < 2:
-		return g_mesh
-
-	var pts_3d: Array[Vector3] = []
-	for pt in clean_pts:
-		var p3 := Vector3(float(pt.x) * tile_size, 0.0, float(pt.y) * tile_size)
-		pts_3d.append(p3)
-		if not bounds_init:
-			aabb = AABB(p3, Vector3(0.01, total_h, 0.01))
-			bounds_init = true
-		else:
-			aabb = aabb.expand(p3)
-			aabb = aabb.expand(p3 + Vector3(0.0, total_h, 0.0))
-
-	var is_closed: bool = section.is_closed_loop and (n >= 3)
-
-	var miter_dirs: Array[Vector3] = []
-	for i in range(n):
-		var miter := Vector3.ZERO
-		if is_closed:
-			var prev_pt: Vector3 = pts_3d[(i - 1 + n) % n]
-			var curr_pt: Vector3 = pts_3d[i]
-			var next_pt: Vector3 = pts_3d[(i + 1) % n]
-			var diff_in: Vector3 = curr_pt - prev_pt
-			var diff_out: Vector3 = next_pt - curr_pt
-			var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
-			var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
-			miter = _calculate_miter(t_in, t_out, config.max_miter_scale)
-		else:
-			if i == 0:
-				var diff_out: Vector3 = pts_3d[1] - pts_3d[0]
-				var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
-				if section.start_miter_neighbor != _WallSectionScript.INVALID_NEIGHBOR:
-					var prev_pt := Vector3(float(section.start_miter_neighbor.x) * tile_size, 0.0, float(section.start_miter_neighbor.y) * tile_size)
-					var diff_in: Vector3 = pts_3d[0] - prev_pt
-					var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else t_out
-					miter = _calculate_miter(t_in, t_out, config.max_miter_scale)
-				else:
-					miter = _calculate_miter(t_out, t_out, config.max_miter_scale)
-			elif i == n - 1:
-				var diff_in: Vector3 = pts_3d[n - 1] - pts_3d[n - 2]
-				var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
-				if section.end_miter_neighbor != _WallSectionScript.INVALID_NEIGHBOR:
-					var next_pt := Vector3(float(section.end_miter_neighbor.x) * tile_size, 0.0, float(section.end_miter_neighbor.y) * tile_size)
-					var diff_out: Vector3 = next_pt - pts_3d[n - 1]
-					var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else t_in
-					miter = _calculate_miter(t_in, t_out, config.max_miter_scale)
-				else:
-					miter = _calculate_miter(t_in, t_in, config.max_miter_scale)
-			else:
-				var diff_in: Vector3 = pts_3d[i] - pts_3d[i - 1]
-				var diff_out: Vector3 = pts_3d[i + 1] - pts_3d[i]
-				var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
-				var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
-				miter = _calculate_miter(t_in, t_out, config.max_miter_scale)
-		miter_dirs.append(miter)
-
-	var segment_count: int = n if is_closed else (n - 1)
-	for i in range(segment_count):
-		var next_i: int = (i + 1) % n
-		var p0: Vector3 = pts_3d[i]
-		var p1: Vector3 = pts_3d[next_i]
-		if p0.distance_squared_to(p1) < 0.0001:
-			continue
-		var m0: Vector3 = miter_dirs[i]
-		var m1: Vector3 = miter_dirs[next_i]
-
-		_extrude_wall_segment(
-			st_trims, st_panel, p0, p1, m0, m1,
-			w_thick, w_thin, d, total_h, panel_h,
-			bot_trim_h, top_trim_h, bot_slope_h, top_slope_h
-		)
-
-	# Tapas extremas solo para tramos realmente abiertos (terminaciones)
-	if section.has_start_cap and n >= 2:
-		var p_start = pts_3d[0]
-		var m_start = miter_dirs[0]
-		_add_quad(st_trims,
-			p_start,
-			p_start + m_start * w_thick,
-			p_start + m_start * w_thick + Vector3(0, total_h, 0),
-			p_start + Vector3(0, total_h, 0)
-		)
-
-	if section.has_end_cap and n >= 2:
-		var p_end = pts_3d[n - 1]
-		var m_end = miter_dirs[n - 1]
-		_add_quad(st_trims,
-			p_end + m_end * w_thick,
-			p_end,
-			p_end + Vector3(0, total_h, 0),
-			p_end + m_end * w_thick + Vector3(0, total_h, 0)
-		)
-
-	var mesh := ArrayMesh.new()
-	st_trims.generate_normals()
-	st_trims.index()
-	st_trims.generate_tangents()
-	mesh = st_trims.commit(mesh)
-	if mesh.get_surface_count() > 0:
-		mesh.surface_set_name(0, "Trims")
-
-	st_panel.generate_normals()
-	st_panel.index()
-	st_panel.generate_tangents()
-	mesh = st_panel.commit(mesh)
-	if mesh.get_surface_count() > 1:
-		mesh.surface_set_name(1, "WallPanel")
-
-	g_mesh.mesh = mesh
-	g_mesh.bounds = aabb
-	return g_mesh
-
+## Construye la malla para un WallComponent completo consumiendo WallPathGeometry para cada loop y chain.
 func build_component_mesh(
 	component: _WallComponentScript,
 	config: _WallGeometryConfigScript = null
@@ -184,6 +51,43 @@ func build_component_mesh(
 
 	g_mesh.component_id = component.id
 
+	var path_geometries: Array = []
+	for loop in component.loops:
+		var pg = _WallPathGeometryScript.from_component_loop(
+			loop, component.id, config, _corner_resolver
+		)
+		if pg != null and pg.get_segment_count() > 0:
+			path_geometries.append(pg)
+
+	for chain in component.open_chains:
+		var pg = _WallPathGeometryScript.from_component_chain(
+			chain, component.id, config, _corner_resolver
+		)
+		if pg != null and pg.get_segment_count() > 0:
+			path_geometries.append(pg)
+
+	if path_geometries.is_empty():
+		return g_mesh
+
+	var meta := {"component_id": component.id}
+	return _build_mesh_from_paths(path_geometries, config, meta)
+
+## Núcleo unificado de extrusión de malla a partir de uno o más recorridos WallPathGeometry.
+func _build_mesh_from_paths(
+	path_geometries: Array,
+	config: _WallGeometryConfigScript,
+	metadata: Dictionary = {}
+) -> _GeneratedMeshScript:
+	var g_mesh := _GeneratedMeshScript.new()
+	if metadata.has("component_id"):
+		g_mesh.component_id = metadata["component_id"]
+	if metadata.has("section_id"):
+		g_mesh.section_id = metadata["section_id"]
+	if metadata.has("room_id"):
+		g_mesh.room_id = metadata["room_id"]
+	if metadata.has("variant_id"):
+		g_mesh.variant_id = metadata["variant_id"]
+
 	var st_trims := SurfaceTool.new()
 	var st_panel := SurfaceTool.new()
 
@@ -197,67 +101,54 @@ func build_component_mesh(
 	var bot_slope_h: float = config.bottom_trim_slope_height
 	var top_slope_h: float = config.top_trim_slope_height
 
-	var w_thin: float = config.wall_thickness
-	var d: float = config.trim_overhang
-	var w_thick: float = w_thin + (d * 2.0)
-	var tile_size: float = config.cube_size
-
 	var bounds_init: bool = false
 	var aabb := AABB()
 
-	# Procesar cada bucle cerrado del componente
-	for loop_raw in component.loops:
-		var loop_points: Array[Vector2i] = []
-		for pt_raw in loop_raw:
-			var pt_vec: Vector2i = pt_raw as Vector2i
-			if loop_points.is_empty() or loop_points[loop_points.size() - 1] != pt_vec:
-				loop_points.append(pt_vec)
-
-		if loop_points.size() > 1 and loop_points[0] == loop_points[loop_points.size() - 1]:
-			loop_points.pop_back()
-
-		var n: int = loop_points.size()
-		if n < 3:
+	for path_geom_val in path_geometries:
+		var path_geom = path_geom_val as _WallPathGeometryScript
+		if path_geom == null:
 			continue
 
-		var pts_3d: Array[Vector3] = []
-		for pt in loop_points:
-			var p3 := Vector3(float(pt.x) * tile_size, 0.0, float(pt.y) * tile_size)
-			pts_3d.append(p3)
-			if not bounds_init:
-				aabb = AABB(p3, Vector3(0.01, total_h, 0.01))
-				bounds_init = true
-			else:
-				aabb = aabb.expand(p3)
-				aabb = aabb.expand(p3 + Vector3(0.0, total_h, 0.0))
+		if not bounds_init:
+			aabb = path_geom.aabb
+			bounds_init = true
+		else:
+			aabb = aabb.merge(path_geom.aabb)
 
-		var miter_dirs: Array[Vector3] = []
-		for i in range(n):
-			var prev_pt: Vector3 = pts_3d[(i - 1 + n) % n]
-			var curr_pt: Vector3 = pts_3d[i]
-			var next_pt: Vector3 = pts_3d[(i + 1) % n]
+		var seg_count: int = path_geom.get_segment_count()
+		var corner_count: int = path_geom.corners.size()
 
-			var diff_in: Vector3 = curr_pt - prev_pt
-			var diff_out: Vector3 = next_pt - curr_pt
+		for i in range(seg_count):
+			var next_i: int = (i + 1) % corner_count
+			var c0 = path_geom.corners[i]
+			var c1 = path_geom.corners[next_i]
 
-			var t_in: Vector3 = diff_in.normalized() if diff_in.length_squared() > 0.0001 else Vector3.FORWARD
-			var t_out: Vector3 = diff_out.normalized() if diff_out.length_squared() > 0.0001 else Vector3.FORWARD
-
-			miter_dirs.append(_calculate_miter(t_in, t_out, config.max_miter_scale))
-
-		for i in range(n):
-			var next_i: int = (i + 1) % n
-			var p0: Vector3 = pts_3d[i]
-			var p1: Vector3 = pts_3d[next_i]
-			if p0.distance_squared_to(p1) < 0.0001:
+			if c0.point.distance_squared_to(c1.point) < 0.0001:
 				continue
-			var m0: Vector3 = miter_dirs[i]
-			var m1: Vector3 = miter_dirs[next_i]
 
 			_extrude_wall_segment(
-				st_trims, st_panel, p0, p1, m0, m1,
-				w_thick, w_thin, d, total_h, panel_h,
+				st_trims, st_panel, c0, c1,
+				total_h, panel_h,
 				bot_trim_h, top_trim_h, bot_slope_h, top_slope_h
+			)
+
+		# Tapas extremas solo para terminaciones abiertas reales
+		if path_geom.has_start_cap and corner_count >= 2:
+			var c_start = path_geom.corners[0]
+			_add_quad(st_trims,
+				c_start.inner_thick,
+				c_start.outer_thick,
+				c_start.outer_thick + Vector3(0.0, total_h, 0.0),
+				c_start.inner_thick + Vector3(0.0, total_h, 0.0)
+			)
+
+		if path_geom.has_end_cap and corner_count >= 2:
+			var c_end = path_geom.corners[corner_count - 1]
+			_add_quad(st_trims,
+				c_end.outer_thick,
+				c_end.inner_thick,
+				c_end.inner_thick + Vector3(0.0, total_h, 0.0),
+				c_end.outer_thick + Vector3(0.0, total_h, 0.0)
 			)
 
 	var mesh := ArrayMesh.new()
@@ -279,16 +170,12 @@ func build_component_mesh(
 	g_mesh.bounds = aabb
 	return g_mesh
 
+## Extruye un segmento individual de muro consumiendo los puntos de perfil resueltos de c0 y c1.
 static func _extrude_wall_segment(
 	st_trims: SurfaceTool,
 	st_panel: SurfaceTool,
-	p0: Vector3,
-	p1: Vector3,
-	m0: Vector3,
-	m1: Vector3,
-	w_thick: float,
-	w_thin: float,
-	d: float,
+	c0, # CornerSolution
+	c1, # CornerSolution
 	total_h: float,
 	panel_h: float,
 	bot_trim_h: float,
@@ -296,17 +183,17 @@ static func _extrude_wall_segment(
 	bot_slope_h: float,
 	top_slope_h: float
 ) -> void:
-	var p0_inner_thick: Vector3 = p0
-	var p1_inner_thick: Vector3 = p1
+	var p0_inner_thick: Vector3 = c0.inner_thick
+	var p1_inner_thick: Vector3 = c1.inner_thick
 
-	var p0_inner_thin: Vector3 = p0 + (m0 * (d * 0.5))
-	var p1_inner_thin: Vector3 = p1 + (m1 * (d * 0.5))
+	var p0_inner_thin: Vector3 = c0.inner_thin
+	var p1_inner_thin: Vector3 = c1.inner_thin
 
-	var p0_outer_thick: Vector3 = p0 + (m0 * w_thick)
-	var p1_outer_thick: Vector3 = p1 + (m1 * w_thick)
+	var p0_outer_thick: Vector3 = c0.outer_thick
+	var p1_outer_thick: Vector3 = c1.outer_thick
 
-	var p0_outer_thin: Vector3 = p0 + (m0 * (w_thick - d * 0.5))
-	var p1_outer_thin: Vector3 = p1 + (m1 * (w_thick - d * 0.5))
+	var p0_outer_thin: Vector3 = c0.outer_thin
+	var p1_outer_thin: Vector3 = c1.outer_thin
 
 	# --- ZÓCALO INFERIOR (TRIMS) ---
 	var y_bot_base: float = 0.0
@@ -433,14 +320,15 @@ static func _add_quad(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3
 		st.set_uv(Vector2(0.0, 1.0))
 		st.add_vertex(p3)
 
-## Calcula la dirección y escala de inglete (miter) continua para una esquina o extremo de muro.
-static func _calculate_miter(t_in: Vector3, t_out: Vector3, max_scale: float) -> Vector3:
+## Calcula la dirección y escala de inglete (miter) continua para compatibilidad con código legado.
+static func _calculate_miter(t_in: Vector3, t_out: Vector3, max_scale: float = 4.0) -> Vector3:
 	var n_wall_in := Vector3(t_in.z, 0.0, -t_in.x)
 	var n_wall_out := Vector3(t_out.z, 0.0, -t_out.x)
-	var miter: Vector3 = n_wall_in + n_wall_out
-	if miter.length_squared() < 0.0001:
-		return n_wall_in
-	var m_dir: Vector3 = miter.normalized()
-	var dot: float = n_wall_in.dot(m_dir)
-	var m_scale: float = 1.0 / maxf(dot, 0.001)
-	return m_dir * clampf(m_scale, 0.5, max_scale)
+	var dot_n: float = n_wall_in.dot(n_wall_out)
+	var denom: float = 1.0 + dot_n
+	if denom > 0.0001:
+		var miter := (n_wall_in + n_wall_out) / denom
+		if miter.length() > max_scale:
+			return miter.normalized() * max_scale
+		return miter
+	return n_wall_in
