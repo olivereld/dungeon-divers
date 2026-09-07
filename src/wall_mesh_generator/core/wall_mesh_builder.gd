@@ -8,62 +8,6 @@ extends RefCounted
 const _BrickGeometryBuilderScript = preload("res://src/wall_mesh_generator/core/brick_geometry_builder.gd")
 const _DoorGeometryBuilderScript = preload("res://src/wall_mesh_generator/core/door_geometry_builder.gd")
 const _FloorTileGeometryBuilderScript = preload("res://src/wall_mesh_generator/core/floor_tile_geometry_builder.gd")
-const _DoorTypeScript = preload("res://src/dungeon_generator/core/data/door_type.gd")
-
-## Traduce un DoorType a la pieza de geometría (PieceType).
-## En corredores ultra-cortos (corr_len <= short_corridor_single_door_threshold), OPEN_PASSAGE
-## no selecciona la pieza ARCH; usa la abertura normal de pared (PieceType.WALL).
-static func resolve_door_piece_type(
-	door_type: int,
-	corr_len: int = -1,
-	short_corridor_threshold: int = 3
-) -> WallMeshConfig.PieceType:
-	match door_type:
-		_DoorTypeScript.DoorType.CLOSED_DOOR:
-			return WallMeshConfig.PieceType.ARCH_WITH_DOOR
-		_DoorTypeScript.DoorType.OPEN_PASSAGE:
-			if corr_len >= 0 and corr_len <= short_corridor_threshold:
-				return WallMeshConfig.PieceType.WALL
-			return WallMeshConfig.PieceType.ARCH
-		_:
-			return WallMeshConfig.PieceType.WALL
-
-## Comprueba si la configuración corresponde a un OPEN_PASSAGE en un corredor ultra-corto.
-func _is_short_corridor_open_passage(config: WallMeshConfig) -> bool:
-	if config == null:
-		return false
-
-	var is_open: bool = false
-	if config.has_meta("door_type"):
-		is_open = (int(config.get_meta("door_type")) == _DoorTypeScript.DoorType.OPEN_PASSAGE)
-	elif "door_type" in config and config.get("door_type") != null:
-		is_open = (int(config.get("door_type")) == _DoorTypeScript.DoorType.OPEN_PASSAGE)
-	elif config.has_meta("is_open_passage"):
-		is_open = bool(config.get_meta("is_open_passage"))
-	elif "is_open_passage" in config and config.get("is_open_passage") != null:
-		is_open = bool(config.get("is_open_passage"))
-
-	if not is_open:
-		return false
-
-	var threshold: int = 3
-	if config.has_meta("short_corridor_single_door_threshold"):
-		threshold = int(config.get_meta("short_corridor_single_door_threshold"))
-	elif "short_corridor_single_door_threshold" in config and config.get("short_corridor_single_door_threshold") != null:
-		threshold = int(config.get("short_corridor_single_door_threshold"))
-
-	if config.has_meta("is_short_corridor"):
-		return bool(config.get_meta("is_short_corridor"))
-	elif "is_short_corridor" in config and config.get("is_short_corridor") != null:
-		return bool(config.get("is_short_corridor"))
-	elif config.has_meta("corr_len"):
-		var l: int = int(config.get_meta("corr_len"))
-		return l >= 0 and l <= threshold
-	elif "corr_len" in config and config.get("corr_len") != null:
-		var l: int = int(config.get("corr_len"))
-		return l >= 0 and l <= threshold
-
-	return false
 
 ## Genera el manifiesto ordenado de partes según el tipo de pieza (Wall, Corner, Arch, Door o Floor).
 func build_brick_manifest(config: WallMeshConfig) -> Array[Dictionary]:
@@ -78,8 +22,6 @@ func build_brick_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 		WallMeshConfig.PieceType.DOOR:
 			return _build_door_manifest(config)
 		WallMeshConfig.PieceType.ARCH:
-			if _is_short_corridor_open_passage(config):
-				return []
 			return _build_arch_manifest(config)
 		WallMeshConfig.PieceType.CORNER:
 			return _build_corner_manifest(config)
@@ -107,8 +49,6 @@ func _build_arch_with_door_manifest(config: WallMeshConfig) -> Array[Dictionary]
 	return manifest
 
 func _build_door_manifest(config: WallMeshConfig) -> Array[Dictionary]:
-	if _is_short_corridor_open_passage(config):
-		return []
 	var manifest: Array[Dictionary] = []
 	manifest.append({
 		"index": 0,
@@ -128,8 +68,6 @@ func _build_door_manifest(config: WallMeshConfig) -> Array[Dictionary]:
 # 1. MANIFIESTO PARA ARCO DE ENTRADA (ARCH / DOORWAY)
 # ==============================================================================
 func _build_arch_manifest(config: WallMeshConfig) -> Array[Dictionary]:
-	if _is_short_corridor_open_passage(config):
-		return []
 	var manifest: Array[Dictionary] = []
 	var total_width: float = config.cube_size
 	var total_height: float = config.get_total_height()
