@@ -144,6 +144,55 @@ func build_collision_for_component(
 
 			g_mesh.add_collision_shape(box, xform)
 
+	for chain_pts in component.open_chains:
+		var n: int = chain_pts.size()
+		if n < 2:
+			continue
+
+		var segments: Array[Dictionary] = []
+
+		if col_config.mode == _CollisionConfigScript.CollisionMode.COMPOUND_BOX:
+			var merged_pts: Array[Vector3] = []
+			for pt_raw in chain_pts:
+				var pt_v: Vector2i = pt_raw as Vector2i
+				merged_pts.append(Vector3(float(pt_v.x) * tile_size, 0.0, float(pt_v.y) * tile_size))
+
+			var m_count: int = merged_pts.size()
+			for i in range(m_count - 1):
+				var p0: Vector3 = merged_pts[i]
+				var p1: Vector3 = merged_pts[i + 1]
+				segments.append({"p0": p0, "p1": p1})
+		else:
+			for i in range(n - 1):
+				var pt0: Vector2i = chain_pts[i] as Vector2i
+				var pt1: Vector2i = chain_pts[i + 1] as Vector2i
+				var p0 := Vector3(float(pt0.x) * tile_size, 0.0, float(pt0.y) * tile_size)
+				var p1 := Vector3(float(pt1.x) * tile_size, 0.0, float(pt1.y) * tile_size)
+				segments.append({"p0": p0, "p1": p1})
+
+		for seg in segments:
+			var p0: Vector3 = seg["p0"]
+			var p1: Vector3 = seg["p1"]
+			var diff: Vector3 = p1 - p0
+			var length: float = diff.length()
+			if length < 0.001:
+				continue
+
+			var tangent: Vector3 = diff.normalized()
+			var normal := Vector3(tangent.z, 0.0, -tangent.x)
+
+			var box := BoxShape3D.new()
+			box.size = Vector3(thickness, total_h, length)
+
+			var center: Vector3 = (p0 + p1) * 0.5
+			center.y = total_h * 0.5
+			center += normal * (thickness * 0.5)
+
+			var basis := Basis(normal, Vector3.UP, tangent)
+			var xform := Transform3D(basis, center)
+
+			g_mesh.add_collision_shape(box, xform)
+
 func build_collision_for_solid_region(
 	region, # SolidRegion
 	config: _WallGeometryConfigScript,
