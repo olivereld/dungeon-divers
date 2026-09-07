@@ -1,15 +1,15 @@
 extends SceneTree
 
-## Test suite exhaustivo para validar la refactorización geométrica de esquinas (miters)
-## y la continuidad determinista mediante WallCornerResolver y WallPathGeometry.
+## Test suite para validar la continuidad determinista de esquinas y perfiles
+## mediante WallProfileBuilder y WallPathGeometry.
 ## Valida las 5 condiciones clave:
-## 1. Esquina exterior (convex): unión limpia, sin huecos/solapes, escala exacta sqrt(2).
+## 1. Esquina exterior (convex): unión limpia, sin huecos/solapes, perpendicular distance exacta.
 ## 2. Esquina interior (concave): unión cerrada, perfiles alineados, sin triángulos degenerados.
 ## 3. Secciones rectas divididas: coincidencia exacta de vértices en puntos de corte (cero discontinuidades).
 ## 4. Secuencia de esquinas: consistencia total a lo largo de giros consecutivos.
 ## 5. ROOM ↔ CORRIDOR: continuidad topológica y geométrica, cero agujeros, normales unitarias.
 
-const _WallCornerResolverScript = preload("res://src/geometry_generator/geometry/wall_corner_resolver.gd")
+const _WallProfileBuilderScript = preload("res://src/geometry_generator/geometry/wall_profile_builder.gd")
 const _WallPathGeometryScript = preload("res://src/geometry_generator/geometry/wall_path_geometry.gd")
 const _WallGeometryBuilderScript = preload("res://src/geometry_generator/geometry/wall_geometry_builder.gd")
 const _WallGeometryConfigScript = preload("res://src/geometry_generator/config/wall_geometry_config.gd")
@@ -22,14 +22,18 @@ const _WallSectionExtractorScript = preload("res://src/geometry_generator/extrac
 
 func _init() -> void:
 	print("==================================================================")
-	print("--- Running test_wall_corner_resolver (Continuous Miters) ---")
+	print("--- Running test_wall_corner_resolver (Continuous Offset Profiles) ---")
 	print("==================================================================")
 
-	var resolver := _WallCornerResolverScript.new()
+	var profile_builder := _WallProfileBuilderScript.new()
 	var builder := _WallGeometryBuilderScript.new()
 	var config := _WallGeometryConfigScript.new()
 	config.cube_size = 2.0
 	config.cubes_high = 2
+
+	var w_thin: float = config.wall_thickness
+	var d: float = config.trim_overhang
+	var w_thick: float = w_thin + (d * 2.0)
 
 	# ------------------------------------------------------------------
 	# TEST 1: Esquina exterior (Convex Turn 90°)
@@ -38,34 +42,18 @@ func _init() -> void:
 	var p_corner := Vector3(4.0, 0.0, 0.0)
 	var p_next := Vector3(4.0, 0.0, 4.0)
 
-	var sol_convex: _WallCornerResolverScript.CornerSolution = resolver.resolve_corner(
-		p_prev, p_corner, p_next, false, false, 101
+	var pv_convex = profile_builder.compute_profile_vertex(
+		p_prev, p_corner, p_corner, p_next,
+		w_thick, w_thin, d
 	)
-	assert(sol_convex != null, "TEST 1 FAIL: Solution must not be null")
-	assert(sol_convex.corner_type == _WallCornerResolverScript.CornerType.CONVEX, "TEST 1 FAIL: Must be CONVEX corner")
-	assert(not sol_convex.is_collinear, "TEST 1 FAIL: Must not be collinear")
+	assert(pv_convex != null, "TEST 1 FAIL: Solution must not be null")
+	assert(pv_convex.inner_thick.distance_to(p_corner) < 0.001, "TEST 1 FAIL: inner_thick must match corner position")
 
-	# En giro ortogonal de 90°, el producto escalar de normales es 0, denom = 1.0
-	# M = (n_in + n_out) / 1.0 -> longitud = sqrt(1^2 + 1^2) = sqrt(2) ~ 1.4142
-	var expected_scale: float = sqrt(2.0)
-	assert(absf(sol_convex.miter_scale - expected_scale) < 0.001, "TEST 1 FAIL: Miter scale must be sqrt(2)")
-
-	# Verificar contrato matemático estricto: M . n_in == 1.0 y M . n_out == 1.0
-	var dot_in: float = sol_convex.miter_vector.dot(sol_convex.n_in)
-	var dot_out: float = sol_convex.miter_vector.dot(sol_convex.n_out)
-	assert(absf(dot_in - 1.0) < 0.0001, "TEST 1 FAIL: M . n_in must equal 1.0 exactly")
-	assert(absf(dot_out - 1.0) < 0.0001, "TEST 1 FAIL: M . n_out must equal 1.0 exactly")
-
-	# Resolver perfiles y verificar offset real
-	var w_thin: float = config.wall_thickness
-	var d: float = config.trim_overhang
-	var w_thick: float = w_thin + (d * 2.0)
-	sol_convex.resolve_profile_points(w_thick, w_thin, d)
-
-	assert(sol_convex.inner_thick == p_corner, "TEST 1 FAIL: inner_thick must match corner position")
-	var expected_outer_thick = p_corner + (sol_convex.miter_vector * w_thick)
-	assert(sol_convex.outer_thick.distance_squared_to(expected_outer_thick) < 0.0001, "TEST 1 FAIL: outer_thick offset mismatch")
-	print("  [OK] Test 1: Esquina exterior calculada con escala exacta sqrt(2) e intersección perfecta.")
+	# En giro ortogonal de 90°, el offset w_thick se desplaza (-w_thick, 0, w_thick)
+	var expected_outer_thick := p_corner + Vector3(-w_thick, 0.0, w_thick)
+	assert(pv_convex.outer_thick.distance_to(expected_outer_thick) < 0.001,
+		"TEST 1 FAIL: outer_thick offset mismatch, got %s expected %s" % [str(pv_convex.outer_thick), str(expected_outer_thick)])
+	print("  [OK] Test 1: Esquina exterior calculada con intersección de offset exacta.")
 
 	# ------------------------------------------------------------------
 	# TEST 2: Esquina interior (Concave Turn 270°)
@@ -74,13 +62,12 @@ func _init() -> void:
 	var p_concave_corner := Vector3(4.0, 0.0, 0.0)
 	var p_concave_next := Vector3(0.0, 0.0, 0.0)
 
-	var sol_concave: _WallCornerResolverScript.CornerSolution = resolver.resolve_corner(
-		p_concave_prev, p_concave_corner, p_concave_next, false, false, 102
+	var pv_concave = profile_builder.compute_profile_vertex(
+		p_concave_prev, p_concave_corner, p_concave_corner, p_concave_next,
+		w_thick, w_thin, d
 	)
-	assert(sol_concave != null, "TEST 2 FAIL: Solution must not be null")
-	assert(sol_concave.corner_type == _WallCornerResolverScript.CornerType.CONCAVE, "TEST 2 FAIL: Must be CONCAVE corner")
-	assert(absf(sol_concave.miter_scale - expected_scale) < 0.001, "TEST 2 FAIL: Miter scale must be sqrt(2)")
-	sol_concave.resolve_profile_points(w_thick, w_thin, d)
+	assert(pv_concave != null, "TEST 2 FAIL: Solution must not be null")
+	assert(pv_concave.inner_thick.distance_to(p_concave_corner) < 0.001, "TEST 2 FAIL: inner_thick must match corner position")
 
 	# Validar que genera malla válida sin triángulos degenerados
 	var comp_l := _WallComponentScript.new(20)
@@ -96,35 +83,30 @@ func _init() -> void:
 	# ------------------------------------------------------------------
 	# TEST 3: Secciones rectas divididas (Continuidad entre secciones)
 	# ------------------------------------------------------------------
-	# Simulamos un muro de (0,0) a (6,0) dividido en dos secciones en (3,0):
-	# Sec A: [(0,0), (3,0)] con end_neighbor = (6,0)
-	# Sec B: [(3,0), (6,0)] con start_neighbor = (0,0)
 	var sec_a := _WallSectionScript.new(1, 30, [Vector2i(0, 0), Vector2i(3, 0)], 1, &"normal", false)
 	sec_a.set_start_corner(300000, _WallSectionScript.INVALID_NEIGHBOR, true)
-	sec_a.set_end_corner(300001, Vector2i(6, 0), false) # Punto de corte colineal
+	sec_a.set_end_corner(300001, Vector2i(6, 0), false)
 	sec_a.has_start_cap = true
 	sec_a.has_end_cap = false
 
 	var sec_b := _WallSectionScript.new(2, 30, [Vector2i(3, 0), Vector2i(6, 0)], 1, &"normal", false)
-	sec_b.set_start_corner(300001, Vector2i(0, 0), false) # Mismo corner compartido que sec_a
+	sec_b.set_start_corner(300001, Vector2i(0, 0), false)
 	sec_b.set_end_corner(300002, _WallSectionScript.INVALID_NEIGHBOR, true)
 	sec_b.has_start_cap = false
 	sec_b.has_end_cap = true
 
-	var pg_a = _WallPathGeometryScript.from_section(sec_a, config, resolver)
-	var pg_b = _WallPathGeometryScript.from_section(sec_b, config, resolver)
+	var pg_a = _WallPathGeometryScript.from_section(sec_a, config)
+	var pg_b = _WallPathGeometryScript.from_section(sec_b, config)
 
-	# El corner final de sec_a y el inicial de sec_b deben tener perfiles 100% idénticos
-	var c_a_end: _WallCornerResolverScript.CornerSolution = pg_a.corners[pg_a.corners.size() - 1]
-	var c_b_start: _WallCornerResolverScript.CornerSolution = pg_b.corners[0]
+	var c_a_end = pg_a.profiles[pg_a.profiles.size() - 1]
+	var c_b_start = pg_b.profiles[0]
 
-	assert(c_a_end.point == c_b_start.point, "TEST 3 FAIL: Corner centerline points must be identical")
+	assert(c_a_end.inner_thick == c_b_start.inner_thick, "TEST 3 FAIL: Corner centerline points must be identical")
 	assert(c_a_end.inner_thick.distance_squared_to(c_b_start.inner_thick) < 0.00001, "TEST 3 FAIL: inner_thick mismatch at seam")
 	assert(c_a_end.inner_thin.distance_squared_to(c_b_start.inner_thin) < 0.00001, "TEST 3 FAIL: inner_thin mismatch at seam")
 	assert(c_a_end.outer_thin.distance_squared_to(c_b_start.outer_thin) < 0.00001, "TEST 3 FAIL: outer_thin mismatch at seam")
 	assert(c_a_end.outer_thick.distance_squared_to(c_b_start.outer_thick) < 0.00001, "TEST 3 FAIL: outer_thick mismatch at seam")
 
-	# Generar mallas y verificar que no hay tapas en la unión
 	assert(not pg_a.has_end_cap, "TEST 3 FAIL: Section A must not have end cap at shared seam")
 	assert(not pg_b.has_start_cap, "TEST 3 FAIL: Section B must not have start cap at shared seam")
 
@@ -142,12 +124,12 @@ func _init() -> void:
 		Vector2i(2, 0), Vector2i(4, 0), Vector2i(6, 2), Vector2i(6, 4),
 		Vector2i(4, 6), Vector2i(2, 6), Vector2i(0, 4), Vector2i(0, 2)
 	])
-	var pg_oct = _WallPathGeometryScript.from_component_loop(comp_oct.loops[0], 40, config, resolver)
-	assert(pg_oct.corners.size() == 8, "TEST 4 FAIL: Octagonal loop must have 8 corners")
+	var pg_oct = _WallPathGeometryScript.from_component_loop(comp_oct.loops[0], 40, config)
+	assert(pg_oct.profiles.size() == 8, "TEST 4 FAIL: Octagonal loop must have 8 corners")
 	for i in range(8):
-		var sol: _WallCornerResolverScript.CornerSolution = pg_oct.corners[i]
+		var sol = pg_oct.profiles[i]
 		assert(sol != null, "TEST 4 FAIL: Corner %d must have valid solution" % i)
-		assert(sol.miter_scale > 0.5 and sol.miter_scale < 3.0, "TEST 4 FAIL: Corner %d miter scale out of reasonable bounds" % i)
+		assert(sol.inner_thick.distance_to(sol.outer_thick) > 0.2, "TEST 4 FAIL: Profile %d width too small" % i)
 
 	var g_oct = builder.build_component_mesh(comp_oct, config)
 	_assert_mesh_clean(g_oct.mesh, "Test 4 Octagon")
