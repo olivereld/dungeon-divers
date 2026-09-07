@@ -3,20 +3,14 @@ extends RefCounted
 
 ## Extrusor de geometría poligonal continua para muros de mazmorra (Fase M2 & Hardening).
 ## Genera mallas limpias (ArrayMesh) a nivel de WallComponent y a nivel de WallSection discreto,
-## con uniones en inglete (miter joints) matemáticamente deterministas, calculadas una sola vez
-## mediante WallCornerResolver y compartidas por todos los perfiles a través de WallPathGeometry.
+## con intersecciones de líneas offset matemáticamente exactas calculadas por WallProfileBuilder
+## y compartidas a través de WallPathGeometry.
 
 const _GeneratedMeshScript = preload("res://src/geometry_generator/data/generated_mesh.gd")
 const _WallComponentScript = preload("res://src/geometry_generator/data/wall_component.gd")
 const _WallSectionScript = preload("res://src/geometry_generator/data/wall_section.gd")
 const _WallGeometryConfigScript = preload("res://src/geometry_generator/config/wall_geometry_config.gd")
-const _WallCornerResolverScript = preload("res://src/geometry_generator/geometry/wall_corner_resolver.gd")
 const _WallPathGeometryScript = preload("res://src/geometry_generator/geometry/wall_path_geometry.gd")
-
-var _corner_resolver: _WallCornerResolverScript
-
-func _init() -> void:
-	_corner_resolver = _WallCornerResolverScript.new()
 
 ## Construye la malla para una sección discreta (WallSection) consumiendo WallPathGeometry.
 func build_section_mesh(
@@ -29,9 +23,7 @@ func build_section_mesh(
 	if config == null:
 		config = _WallGeometryConfigScript.new()
 
-	var path_geom: _WallPathGeometryScript = _WallPathGeometryScript.from_section(
-		section, config, _corner_resolver
-	)
+	var path_geom = _WallPathGeometryScript.from_section(section, config)
 	if path_geom == null or path_geom.get_segment_count() == 0:
 		return _GeneratedMeshScript.new()
 
@@ -54,14 +46,14 @@ func build_component_mesh(
 	var path_geometries: Array = []
 	for loop in component.loops:
 		var pg = _WallPathGeometryScript.from_component_loop(
-			loop, component.id, config, _corner_resolver
+			loop, component.id, config
 		)
 		if pg != null and pg.get_segment_count() > 0:
 			path_geometries.append(pg)
 
 	for chain in component.open_chains:
 		var pg = _WallPathGeometryScript.from_component_chain(
-			chain, component.id, config, _corner_resolver
+			chain, component.id, config
 		)
 		if pg != null and pg.get_segment_count() > 0:
 			path_geometries.append(pg)
@@ -116,39 +108,39 @@ func _build_mesh_from_paths(
 			aabb = aabb.merge(path_geom.aabb)
 
 		var seg_count: int = path_geom.get_segment_count()
-		var corner_count: int = path_geom.corners.size()
+		var profile_count: int = path_geom.profiles.size()
 
 		for i in range(seg_count):
-			var next_i: int = (i + 1) % corner_count
-			var c0 = path_geom.corners[i]
-			var c1 = path_geom.corners[next_i]
+			var next_i: int = (i + 1) % profile_count
+			var pf0 = path_geom.profiles[i]
+			var pf1 = path_geom.profiles[next_i]
 
-			if c0.point.distance_squared_to(c1.point) < 0.0001:
+			if pf0.inner_thick.distance_squared_to(pf1.inner_thick) < 0.0001:
 				continue
 
 			_extrude_wall_segment(
-				st_trims, st_panel, c0, c1,
+				st_trims, st_panel, pf0, pf1,
 				total_h, panel_h,
 				bot_trim_h, top_trim_h, bot_slope_h, top_slope_h
 			)
 
 		# Tapas extremas solo para terminaciones abiertas reales
-		if path_geom.has_start_cap and corner_count >= 2:
-			var c_start = path_geom.corners[0]
+		if path_geom.has_start_cap and profile_count >= 2:
+			var pf_start = path_geom.profiles[0]
 			_add_quad(st_trims,
-				c_start.inner_thick,
-				c_start.outer_thick,
-				c_start.outer_thick + Vector3(0.0, total_h, 0.0),
-				c_start.inner_thick + Vector3(0.0, total_h, 0.0)
+				pf_start.inner_thick,
+				pf_start.outer_thick,
+				pf_start.outer_thick + Vector3(0.0, total_h, 0.0),
+				pf_start.inner_thick + Vector3(0.0, total_h, 0.0)
 			)
 
-		if path_geom.has_end_cap and corner_count >= 2:
-			var c_end = path_geom.corners[corner_count - 1]
+		if path_geom.has_end_cap and profile_count >= 2:
+			var pf_end = path_geom.profiles[profile_count - 1]
 			_add_quad(st_trims,
-				c_end.outer_thick,
-				c_end.inner_thick,
-				c_end.inner_thick + Vector3(0.0, total_h, 0.0),
-				c_end.outer_thick + Vector3(0.0, total_h, 0.0)
+				pf_end.outer_thick,
+				pf_end.inner_thick,
+				pf_end.inner_thick + Vector3(0.0, total_h, 0.0),
+				pf_end.outer_thick + Vector3(0.0, total_h, 0.0)
 			)
 
 	var mesh := ArrayMesh.new()
@@ -170,12 +162,12 @@ func _build_mesh_from_paths(
 	g_mesh.bounds = aabb
 	return g_mesh
 
-## Extruye un segmento individual de muro consumiendo los puntos de perfil resueltos de c0 y c1.
+## Extruye un segmento individual de muro consumiendo los puntos de perfil resueltos de pf0 y pf1.
 static func _extrude_wall_segment(
 	st_trims: SurfaceTool,
 	st_panel: SurfaceTool,
-	c0, # CornerSolution
-	c1, # CornerSolution
+	pf0, # ProfileVertex
+	pf1, # ProfileVertex
 	total_h: float,
 	panel_h: float,
 	bot_trim_h: float,
@@ -183,17 +175,17 @@ static func _extrude_wall_segment(
 	bot_slope_h: float,
 	top_slope_h: float
 ) -> void:
-	var p0_inner_thick: Vector3 = c0.inner_thick
-	var p1_inner_thick: Vector3 = c1.inner_thick
+	var p0_inner_thick: Vector3 = pf0.inner_thick
+	var p1_inner_thick: Vector3 = pf1.inner_thick
 
-	var p0_inner_thin: Vector3 = c0.inner_thin
-	var p1_inner_thin: Vector3 = c1.inner_thin
+	var p0_inner_thin: Vector3 = pf0.inner_thin
+	var p1_inner_thin: Vector3 = pf1.inner_thin
 
-	var p0_outer_thick: Vector3 = c0.outer_thick
-	var p1_outer_thick: Vector3 = c1.outer_thick
+	var p0_outer_thick: Vector3 = pf0.outer_thick
+	var p1_outer_thick: Vector3 = pf1.outer_thick
 
-	var p0_outer_thin: Vector3 = c0.outer_thin
-	var p1_outer_thin: Vector3 = c1.outer_thin
+	var p0_outer_thin: Vector3 = pf0.outer_thin
+	var p1_outer_thin: Vector3 = pf1.outer_thin
 
 	# --- ZÓCALO INFERIOR (TRIMS) ---
 	var y_bot_base: float = 0.0
