@@ -193,12 +193,47 @@ static func _should_have_wall(
 	if not grid.is_in_bounds(neighbor):
 		return true
 
-	# Las paredes continuas solo se generan en la frontera entre el espacio
-	# transitable (suelo) y el espacio sólido no transitable (muro/vacío).
 	if not grid.is_walkable(neighbor):
 		if opening_manifest != null and opening_manifest.has_opening(cell, side):
 			return false
 		return true
 
-	# Ambas celdas son transitables (suelo continuo): forman parte del espacio abierto sin muro divisorio
+	# Ambas celdas son transitables (walkable -> walkable):
+	# Si es frontera ROOM <-> CORRIDOR, debe generar pared divisoria a menos que
+	# exista una abertura explícita de puerta/arco registrada.
+	if _is_room_corridor_boundary(grid, cell, neighbor):
+		var opp_side := _opposite_side(side)
+		if opening_manifest != null and (opening_manifest.has_opening(cell, side) or opening_manifest.has_opening(neighbor, opp_side)):
+			return false
+		return true
+
+	# ROOM <-> ROOM o CORRIDOR <-> CORRIDOR: no crear pared
 	return false
+
+static func _is_room_corridor_boundary(grid: CellGrid, cell: Vector2i, neighbor: Vector2i) -> bool:
+	var c_room := _is_room_cell(grid, cell)
+	var n_room := _is_room_cell(grid, neighbor)
+	var c_corr := _is_corridor_cell(grid, cell)
+	var n_corr := _is_corridor_cell(grid, neighbor)
+	return (c_room and n_corr) or (c_corr and n_room)
+
+static func _is_room_cell(grid: CellGrid, pos: Vector2i) -> bool:
+	if not grid.is_walkable(pos):
+		return false
+	if grid.get_room_owner(pos) != -1:
+		return true
+	var t: int = grid.get_cell(pos)
+	return t != CellGrid.CellType.CORRIDOR and t != CellGrid.CellType.DOOR and t != CellGrid.CellType.LOCKED_DOOR
+
+static func _is_corridor_cell(grid: CellGrid, pos: Vector2i) -> bool:
+	if not grid.is_walkable(pos):
+		return false
+	return grid.get_cell(pos) == CellGrid.CellType.CORRIDOR
+
+static func _opposite_side(side: int) -> int:
+	match side:
+		_RoomEntranceScript.NORTH: return _RoomEntranceScript.SOUTH
+		_RoomEntranceScript.SOUTH: return _RoomEntranceScript.NORTH
+		_RoomEntranceScript.EAST:  return _RoomEntranceScript.WEST
+		_RoomEntranceScript.WEST:  return _RoomEntranceScript.EAST
+	return side
