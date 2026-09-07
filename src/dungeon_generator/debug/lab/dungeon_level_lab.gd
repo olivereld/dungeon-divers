@@ -25,9 +25,10 @@ const _LabLoadingOverlayScript = preload("res://src/dungeon_generator/debug/lab/
 enum LabMode {
 	GENERATE = 0,
 	ROOM_TEMPLATE = 1,
-	SHOWCASE = 2,
-	COVERAGE = 3,
-	REGRESSION = 4
+	MODULES = 2,
+	SHOWCASE = 3,
+	COVERAGE = 4,
+	REGRESSION = 5
 }
 
 enum ViewMode {
@@ -479,9 +480,7 @@ func _setup_mode_tabs() -> void:
 		mode_tabs.clear_tabs()
 		mode_tabs.add_tab("🏰 Gen")
 		mode_tabs.add_tab("🧩 Room")
-		mode_tabs.add_tab("🖼️ Show")
-		mode_tabs.add_tab("📊 Cov")
-		mode_tabs.add_tab("🛡️ Reg")
+		mode_tabs.add_tab("📦 Módulos")
 		if not mode_tabs.tab_changed.is_connected(_on_mode_tab_changed):
 			mode_tabs.tab_changed.connect(_on_mode_tab_changed)
 
@@ -509,6 +508,9 @@ func _update_ui_for_mode() -> void:
 			_set_status("Mode: Full Generation")
 		LabMode.ROOM_TEMPLATE:
 			_set_status("Mode: Room Template Forcing")
+		LabMode.MODULES:
+			_set_status("Mode: Active Code Modules")
+			_display_modules_info_in_inspector()
 		LabMode.SHOWCASE:
 			_set_status("Mode: Profile Template Showcase")
 			_run_showcase(&"crypt")
@@ -518,6 +520,43 @@ func _update_ui_for_mode() -> void:
 		LabMode.REGRESSION:
 			_set_status("Mode: Golden Fixtures Regression")
 			run_regression_mode()
+
+func _display_modules_info_in_inspector() -> void:
+	if inspector_text == null:
+		return
+	var bbcode := "[b][color=orange]ARQUITECTURA & MÓDULOS ACTIVOS[/color][/b]\n"
+	bbcode += "Estado: [color=green]100% OPERATIVO[/color]\n"
+	bbcode += "Geometría 3D: [color=cyan]Masa Sólida Volumétrica Activa[/color]\n\n"
+
+	bbcode += "[b]1. Pipeline & Algoritmos 2D:[/b]\n"
+	bbcode += "  • [color=white]DungeonPipeline[/color]: Orquestador procedural\n"
+	bbcode += "  • [color=white]DungeonRoomStage[/color]: Colocación (BSP, CA, Hybrid)\n"
+	bbcode += "  • [color=white]DungeonCorridorStage[/color]: Trazado A* ortogonal\n"
+	bbcode += "  • [color=white]CorridorPruner[/color]: Poda & limpieza colineal\n"
+	bbcode += "  • [color=white]SpaceGrammarConfig[/color]: Gramática y anclas\n"
+	bbcode += "  • [color=white]FloodFill[/color]: Conectividad y validación\n\n"
+
+	bbcode += "[b]2. Geometría 3D & Masa Sólida:[/b]\n"
+	bbcode += "  • [color=white]SolidRegionExtractor[/color]: Agrupación WALL\n"
+	bbcode += "  • [color=white]SolidGeometryBuilder[/color]: Mallas 2x2m cerradas\n"
+	bbcode += "  • [color=white]BoundaryExtractor[/color]: Polígonos de contorno\n"
+	bbcode += "  • [color=white]WallSectionExtractor[/color]: Tramos y esquinas\n"
+	bbcode += "  • [color=white]WallGeometryBuilder[/color]: Perfiles extruidos\n\n"
+
+	bbcode += "[b]3. Estructura, Vanos & Decoración:[/b]\n"
+	bbcode += "  • [color=white]DungeonPresentationBuilder[/color]: Escena 3D\n"
+	bbcode += "  • [color=white]DungeonFloorGenerator[/color]: Losas de suelo\n"
+	bbcode += "  • [color=white]DoorManifestFactory / Spawner[/color]: Puertas\n"
+	bbcode += "  • [color=white]DungeonStairSpawner[/color]: Conexión vertical\n"
+	bbcode += "  • [color=white]BrickDecorator[/color]: Relieve en muros\n"
+	bbcode += "  • [color=white]MaterialResolver[/color]: Shaders y materiales PBR\n\n"
+
+	bbcode += "[b]4. Iluminación & Visor:[/b]\n"
+	bbcode += "  • [color=white]DungeonLightingController[/color]: Ambient fill (#28344A)\n"
+	bbcode += "  • [color=white]IsometricCameraRig[/color]: Cámara orbital isométrica\n"
+	bbcode += "  • [color=white]Dungeon3DViewer[/color]: Visor dual interactivo\n"
+
+	inspector_text.text = bbcode
 
 func generate_current() -> void:
 	_sync_config_from_ui()

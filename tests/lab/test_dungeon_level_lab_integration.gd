@@ -33,6 +33,12 @@ func _init() -> void:
 	lab._on_room_selected(first_room)
 	assert(lab.inspector_text.text.find("ROOM #") != -1, "FAIL: inspector text not updated")
 
+	# 3b. Mode: MODULES
+	print("3b. Probando Modo MODULES (Módulos Activos)...")
+	lab.current_mode = lab.LabMode.MODULES
+	lab._update_ui_for_mode()
+	assert(lab.inspector_text.text.find("ARQUITECTURA & MÓDULOS ACTIVOS") != -1, "FAIL: modules text not updated")
+
 	# 4. Mode: SHOWCASE
 	print("4. Probando Modo SHOWCASE (crypt)...")
 	lab.current_mode = lab.LabMode.SHOWCASE

@@ -24,14 +24,18 @@ func apply_lighting(
 		env.background_mode = Environment.BG_COLOR
 		env.background_color = Color(0.01, 0.015, 0.02, 1.0)
 
-		# Ambient Light
+		# Ambient Light (fill light suficiente para revelar el relieve de muros y ladrillos)
 		if profile.ambient_enabled:
 			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-			env.ambient_light_color = profile.ambient_color
-			env.ambient_light_energy = profile.ambient_energy
+			var base_col: Color = profile.ambient_color
+			if base_col.v < 0.20:
+				base_col = Color(0.22, 0.26, 0.35, 1.0)
+			env.ambient_light_color = base_col
+			env.ambient_light_energy = maxf(profile.ambient_energy, 0.42)
 		else:
-			env.ambient_light_source = Environment.AMBIENT_SOURCE_DISABLED
-			env.ambient_light_energy = 0.0
+			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+			env.ambient_light_color = Color(0.22, 0.26, 0.35, 1.0)
+			env.ambient_light_energy = 0.42
 
 		# Fog
 		env.fog_enabled = profile.fog_enabled

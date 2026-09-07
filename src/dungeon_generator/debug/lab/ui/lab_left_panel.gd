@@ -20,6 +20,8 @@ const _LabColors = preload("res://src/dungeon_generator/debug/lab/ui/lab_colors.
 @onready var mode_tabs: TabBar = %ModeTabs
 @onready var gen_scroll: ScrollContainer = %GenScroll
 @onready var room_scroll: ScrollContainer = %RoomScroll
+@onready var modules_scroll: ScrollContainer = %ModulesScroll
+@onready var modules_inner: VBoxContainer = %ModulesInner
 
 @onready var seed_spin: SpinBox = %SeedSpin
 @onready var seed_edit: LineEdit = %SeedSpin.get_line_edit() if %SeedSpin != null else null
@@ -112,6 +114,10 @@ func _ensure_nodes() -> void:
 		gen_scroll = find_child("GenScroll", true, false) as ScrollContainer
 	if room_scroll == null:
 		room_scroll = find_child("RoomScroll", true, false) as ScrollContainer
+	if modules_scroll == null:
+		modules_scroll = find_child("ModulesScroll", true, false) as ScrollContainer
+	if modules_inner == null:
+		modules_inner = find_child("ModulesInner", true, false) as VBoxContainer
 	if seed_spin == null:
 		seed_spin = find_child("SeedSpin", true, false) as SpinBox
 	if seed_edit == null and seed_spin != null:
@@ -263,6 +269,7 @@ func _ready() -> void:
 	_setup_accordions()
 	_setup_composition_controls()
 	_setup_signals()
+	_build_modules_view()
 	_update_tab_visibility(0)
 
 func _style_accordion_header(btn: Button) -> void:
@@ -676,6 +683,8 @@ func _update_tab_visibility(idx: int) -> void:
 		gen_scroll.visible = (idx == 0)
 	if room_scroll != null:
 		room_scroll.visible = (idx == 1)
+	if modules_scroll != null:
+		modules_scroll.visible = (idx == 2)
 
 func update_footer_badge(floor_num: int, algo_name: String, seed_val: int) -> void:
 	if floor_badge_label != null:
@@ -683,3 +692,155 @@ func update_footer_badge(floor_num: int, algo_name: String, seed_val: int) -> vo
 
 func update_footer(floor_num: int, algo_name: String, seed_val: int) -> void:
 	update_footer_badge(floor_num, algo_name, seed_val)
+
+func _build_modules_view() -> void:
+	_ensure_nodes()
+	if modules_inner == null:
+		return
+	for c in modules_inner.get_children():
+		c.queue_free()
+
+	# Encabezado del Tab
+	var header_lbl := Label.new()
+	header_lbl.text = "SISTEMAS Y MÓDULOS ACTIVOS"
+	header_lbl.add_theme_color_override("font_color", _LabColors.AMBER)
+	header_lbl.add_theme_font_size_override("font_size", 10)
+	modules_inner.add_child(header_lbl)
+
+	var sub_lbl := Label.new()
+	sub_lbl.text = "Arquitectura modular del Dungeon Lab en ejecución (Godot 4.6)."
+	sub_lbl.add_theme_color_override("font_color", _LabColors.TEXT_MUTED)
+	sub_lbl.add_theme_font_size_override("font_size", 9)
+	sub_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	modules_inner.add_child(sub_lbl)
+
+	var sep := HSeparator.new()
+	modules_inner.add_child(sep)
+
+	var categories: Array[Dictionary] = [
+		{
+			"title": "▼ 1. PIPELINE & STAGES 2D",
+			"color": _LabColors.CYAN,
+			"modules": [
+				{"name": "DungeonPipeline", "desc": "Orquestador secuencial de etapas procedurales."},
+				{"name": "DungeonRoomStage", "desc": "Generación y empaquetado de salas (BSP, CA, Hybrid)."},
+				{"name": "DungeonCorridorStage", "desc": "Trazado A* ortogonal y conectores de puertas."},
+				{"name": "CorridorPruner", "desc": "Poda de dead-ends y reconexión colineal activa."},
+				{"name": "SpaceGrammarConfig", "desc": "Gramática espacial, anclas direccionales y progresión."},
+				{"name": "FloodFill", "desc": "Validación de accesibilidad y conectividad topológica."}
+			]
+		},
+		{
+			"title": "▼ 2. TOPOLOGÍA & GEOMETRÍA 3D",
+			"color": _LabColors.BLUE,
+			"modules": [
+				{"name": "SolidRegionExtractor", "desc": "Extracción y agrupación de celdas WALL continuas."},
+				{"name": "SolidGeometryBuilder", "desc": "Malla volumétrica cerrada 2x2m (sin zanjas internas)."},
+				{"name": "BoundaryExtractor", "desc": "Extracción vectorial de contornos y límites de sala."},
+				{"name": "ComponentExtractor", "desc": "Segmentación topológica habitación vs corredor."},
+				{"name": "WallSectionExtractor", "desc": "Detección de tramos continuos y esquinas compartidas."},
+				{"name": "WallGeometryBuilder", "desc": "Extrusión y biselado de mallas de pared."}
+			]
+		},
+		{
+			"title": "▼ 3. ARQUITECTURA & ESTRUCTURA",
+			"color": _LabColors.PURPLE,
+			"modules": [
+				{"name": "DungeonPresentationBuilder", "desc": "Ensamblador maestro de la escena y jerarquía 3D."},
+				{"name": "PresentationStructuralRenderer", "desc": "Renderizado estructural de suelos y techos."},
+				{"name": "DungeonFloorGenerator", "desc": "Generación de mallas de piso con materiales PBR."},
+				{"name": "PresentationGeometryPartition", "desc": "Partición espacial para batching y draw calls."}
+			]
+		},
+		{
+			"title": "▼ 4. APERTURAS & VERTICALES",
+			"color": _LabColors.GREEN,
+			"modules": [
+				{"name": "DoorManifestFactory", "desc": "Detección de vanos, arcos y puntos de paso."},
+				{"name": "DungeonDoorSpawner", "desc": "Instanciación y orientación cardinal de marcos 3D."},
+				{"name": "DungeonStairSpawner", "desc": "Conectividad vertical entre pisos del nivel."}
+			]
+		},
+		{
+			"title": "▼ 5. DECORACIÓN & MATERIALES",
+			"color": _LabColors.AMBER,
+			"modules": [
+				{"name": "BrickDecorator", "desc": "Ladrillos 3D instanciados con relieve sobre muros."},
+				{"name": "MaterialResolver", "desc": "Asignación PBR por arquetipo (necropolis, etc.)."},
+				{"name": "FixtureSpawner", "desc": "Colocación de antorchas y luminarias de pared."},
+				{"name": "PropSpawner", "desc": "Decoración de interiores según template de sala."}
+			]
+		},
+		{
+			"title": "▼ 6. ILUMINACIÓN & CÁMARA",
+			"color": _LabColors.CYAN,
+			"modules": [
+				{"name": "DungeonLightingController", "desc": "Luz ambiental balanceada (#28344A) y niebla."},
+				{"name": "IsometricCameraRig", "desc": "Cámara isométrica orbital, zoom y rotación 90°."},
+				{"name": "Dungeon3DViewer", "desc": "Visor dual 2D/3D con selección interactiva."}
+			]
+		},
+		{
+			"title": "▼ 7. DIAGNÓSTICO & LAB",
+			"color": _LabColors.SLATE,
+			"modules": [
+				{"name": "DungeonLabOverlay", "desc": "Capas de depuración visual 2D y 3D en vivo."},
+				{"name": "DungeonLabInspector", "desc": "Inspección de celdas, metadatos y candidatos."},
+				{"name": "DungeonLabGoldenRunner", "desc": "Suite de regresión con 20 Golden Seeds fijas."},
+				{"name": "DungeonLabCoverage", "desc": "Análisis de cobertura masiva multi-semilla."}
+			]
+		}
+	]
+
+	for cat in categories:
+		var cat_lbl := Label.new()
+		cat_lbl.text = cat["title"]
+		cat_lbl.add_theme_color_override("font_color", cat["color"])
+		cat_lbl.add_theme_font_size_override("font_size", 9)
+		modules_inner.add_child(cat_lbl)
+
+		for mod in cat["modules"]:
+			var card := PanelContainer.new()
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = _LabColors.BG_CARD
+			sb.border_color = _LabColors.BORDER
+			sb.set_border_width_all(1)
+			sb.set_corner_radius_all(3)
+			card.add_theme_stylebox_override("panel", sb)
+
+			var margin := MarginContainer.new()
+			margin.add_theme_constant_override("margin_left", 6)
+			margin.add_theme_constant_override("margin_top", 4)
+			margin.add_theme_constant_override("margin_right", 6)
+			margin.add_theme_constant_override("margin_bottom", 4)
+			card.add_child(margin)
+
+			var vb := VBoxContainer.new()
+			vb.add_theme_constant_override("separation", 2)
+			margin.add_child(vb)
+
+			var top_hb := HBoxContainer.new()
+			top_hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			vb.add_child(top_hb)
+
+			var name_lbl := Label.new()
+			name_lbl.text = "● " + mod["name"]
+			name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			name_lbl.add_theme_color_override("font_color", _LabColors.TEXT_PRIMARY)
+			name_lbl.add_theme_font_size_override("font_size", 9)
+			top_hb.add_child(name_lbl)
+
+			var badge := Label.new()
+			badge.text = "[OK]"
+			badge.add_theme_color_override("font_color", _LabColors.GREEN)
+			badge.add_theme_font_size_override("font_size", 8)
+			top_hb.add_child(badge)
+
+			var desc_lbl := Label.new()
+			desc_lbl.text = mod["desc"]
+			desc_lbl.add_theme_color_override("font_color", _LabColors.TEXT_SECONDARY)
+			desc_lbl.add_theme_font_size_override("font_size", 8)
+			desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			vb.add_child(desc_lbl)
+
+			modules_inner.add_child(card)

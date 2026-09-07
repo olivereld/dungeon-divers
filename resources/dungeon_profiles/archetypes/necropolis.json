@@ -60,8 +60,8 @@
     "lighting": {
         "ambient": {
             "enabled": true,
-            "color": "#0A111F",
-            "energy": 0.15
+            "color": "#28344A",
+            "energy": 0.45
         },
         "directional": {
             "enabled": true,

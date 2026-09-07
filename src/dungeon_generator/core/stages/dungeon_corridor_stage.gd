@@ -94,4 +94,5 @@ func execute(ctx: DungeonGenerationContext) -> bool:
 				protected_cells.append(ep.entrance_b.boundary_cell)
 
 	_CorridorPrunerScript.prune_dead_end_stubs(ctx.grid, protected_cells)
+	_CorridorPrunerScript.connect_or_prune_collinear_stubs(ctx.grid, protected_cells)
 	return true
