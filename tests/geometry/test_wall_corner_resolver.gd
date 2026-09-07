@@ -49,8 +49,8 @@ func _init() -> void:
 	assert(pv_convex != null, "TEST 1 FAIL: Solution must not be null")
 	assert(pv_convex.inner_thick.distance_to(p_corner) < 0.001, "TEST 1 FAIL: inner_thick must match corner position")
 
-	# En giro ortogonal de 90°, el offset w_thick se desplaza (-w_thick, 0, w_thick)
-	var expected_outer_thick := p_corner + Vector3(-w_thick, 0.0, w_thick)
+	# En giro ortogonal de 90°, el offset w_thick se desplaza (+w_thick, 0, -w_thick) hacia el muro
+	var expected_outer_thick := p_corner + Vector3(w_thick, 0.0, -w_thick)
 	assert(pv_convex.outer_thick.distance_to(expected_outer_thick) < 0.001,
 		"TEST 1 FAIL: outer_thick offset mismatch, got %s expected %s" % [str(pv_convex.outer_thick), str(expected_outer_thick)])
 	print("  [OK] Test 1: Esquina exterior calculada con intersección de offset exacta.")

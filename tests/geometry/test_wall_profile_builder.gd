@@ -13,29 +13,29 @@ func _init() -> void:
 	# Test 1: 90° convex corner offset intersection
 	# Segment A: (0,0,0) → (4,0,0), Segment B: (4,0,0) → (4,0,4)
 	# Offset = 0.5 to the left (interior normal side)
-	# Seg A normal (left) = (0, 0, 1), offset line: y=0, z=0.5, x ∈ [0,4]
-	# Seg B normal (left) = (-1, 0, 0), offset line: y=0, x=3.5, z ∈ [0,4]
-	# Intersection at (3.5, 0, 0.5)
+	# Seg A normal (into wall) = (0, 0, -1), offset line: y=0, z=-0.5, x ∈ [0,4]
+	# Seg B normal (into wall) = (1, 0, 0), offset line: y=0, x=4.5, z ∈ [0,4]
+	# Intersection at (4.5, 0, -0.5)
 	var p := builder.compute_offset_intersection(
 		Vector3(0, 0, 0), Vector3(4, 0, 0),  # seg A
 		Vector3(4, 0, 0), Vector3(4, 0, 4),  # seg B
 		0.5  # offset distance
 	)
-	assert(p.distance_to(Vector3(3.5, 0.0, 0.5)) < 0.001,
-		"TEST 1 FAIL: 90° offset intersection expected (3.5, 0, 0.5) got %s" % str(p))
-	print("  [OK] Test 1: 90° convex offset intersection = (3.5, 0, 0.5)")
+	assert(p.distance_to(Vector3(4.5, 0.0, -0.5)) < 0.001,
+		"TEST 1 FAIL: 90° offset intersection expected (4.5, 0, -0.5) got %s" % str(p))
+	print("  [OK] Test 1: 90° convex offset intersection = (4.5, 0, -0.5)")
 
 	# Test 2: Same corner, larger offset = 1.0
-	# Seg A offset line: z=1.0; Seg B offset line: x=3.0
-	# Intersection at (3.0, 0, 1.0)
+	# Seg A offset line: z=-1.0; Seg B offset line: x=5.0
+	# Intersection at (5.0, 0, -1.0)
 	var p2 := builder.compute_offset_intersection(
 		Vector3(0, 0, 0), Vector3(4, 0, 0),
 		Vector3(4, 0, 0), Vector3(4, 0, 4),
 		1.0
 	)
-	assert(p2.distance_to(Vector3(3.0, 0.0, 1.0)) < 0.001,
-		"TEST 2 FAIL: offset=1.0 expected (3.0, 0, 1.0) got %s" % str(p2))
-	print("  [OK] Test 2: 90° convex offset=1.0 intersection = (3.0, 0, 1.0)")
+	assert(p2.distance_to(Vector3(5.0, 0.0, -1.0)) < 0.001,
+		"TEST 2 FAIL: offset=1.0 expected (5.0, 0, -1.0) got %s" % str(p2))
+	print("  [OK] Test 2: 90° convex offset=1.0 intersection = (5.0, 0, -1.0)")
 
 	# Test 3: Collinear segments (180°) — offset intersection degenerates to simple offset
 	var p3 := builder.compute_offset_intersection(
@@ -43,8 +43,8 @@ func _init() -> void:
 		Vector3(2, 0, 0), Vector3(4, 0, 0),
 		0.5
 	)
-	assert(p3.distance_to(Vector3(2.0, 0.0, 0.5)) < 0.001,
-		"TEST 3 FAIL: collinear offset expected (2.0, 0, 0.5) got %s" % str(p3))
+	assert(p3.distance_to(Vector3(2.0, 0.0, -0.5)) < 0.001,
+		"TEST 3 FAIL: collinear offset expected (2.0, 0, -0.5) got %s" % str(p3))
 	print("  [OK] Test 3: Collinear offset intersection at midpoint")
 
 	# Test 4: Full ProfileVertex for 90° corner — all 4 offsets are independent
@@ -62,13 +62,13 @@ func _init() -> void:
 	assert(pv.inner_thick.distance_to(Vector3(4.0, 0.0, 0.0)) < 0.001,
 		"TEST 4a FAIL: inner_thick = corner point")
 	# inner_thin: offset = 0.04, intersection of offset lines
-	assert(pv.inner_thin.distance_to(Vector3(3.96, 0.0, 0.04)) < 0.001,
+	assert(pv.inner_thin.distance_to(Vector3(4.04, 0.0, -0.04)) < 0.001,
 		"TEST 4b FAIL: inner_thin at offset 0.04")
 	# outer_thin: offset = 0.50
-	assert(pv.outer_thin.distance_to(Vector3(3.50, 0.0, 0.50)) < 0.001,
+	assert(pv.outer_thin.distance_to(Vector3(4.50, 0.0, -0.50)) < 0.001,
 		"TEST 4c FAIL: outer_thin at offset 0.50")
 	# outer_thick: offset = 0.54
-	assert(pv.outer_thick.distance_to(Vector3(3.46, 0.0, 0.54)) < 0.001,
+	assert(pv.outer_thick.distance_to(Vector3(4.54, 0.0, -0.54)) < 0.001,
 		"TEST 4d FAIL: outer_thick at offset 0.54")
 	print("  [OK] Test 4: ProfileVertex 4 independent offsets at 90° corner")
 

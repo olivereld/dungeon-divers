@@ -35,14 +35,14 @@ func compute_offset_intersection(
 		if fallback_len < 0.0001:
 			return corner
 		var t2 := Vector2(fallback_dir.x, fallback_dir.z).normalized()
-		var n2 := Vector2(-t2.y, t2.x)  # left normal
+		var n2 := Vector2(t2.y, -t2.x)  # normal into wall: (t.z, 0, -t.x)
 		return corner + Vector3(n2.x * offset, 0.0, n2.y * offset)
 
-	# Normals (left of travel direction in XZ)
+	# Normals into wall: in 3D XZ (t.z, 0, -t.x), so in 2D (x, y=z) it is (t.y, -t.x)
 	var t_a := Vector2(dir_a.x, dir_a.z).normalized()
-	var n_a := Vector2(-t_a.y, t_a.x)
+	var n_a := Vector2(t_a.y, -t_a.x)
 	var t_b := Vector2(dir_b.x, dir_b.z).normalized()
-	var n_b := Vector2(-t_b.y, t_b.x)
+	var n_b := Vector2(t_b.y, -t_b.x)
 
 	# Offset lines:
 	# Line A: passes through (seg_a_start.xz + n_a * offset), direction t_a
