@@ -143,3 +143,40 @@ func build_collision_for_component(
 			var xform := Transform3D(basis, center)
 
 			g_mesh.add_collision_shape(box, xform)
+
+func build_collision_for_solid_region(
+	region, # SolidRegion
+	config: _WallGeometryConfigScript,
+	col_config: _CollisionConfigScript,
+	g_mesh: _GeneratedMeshScript
+) -> void:
+	if region == null or col_config == null or g_mesh == null or region.cells.is_empty():
+		return
+
+	if col_config.mode == _CollisionConfigScript.CollisionMode.NONE:
+		return
+
+	if config == null:
+		config = _WallGeometryConfigScript.new()
+
+	var total_h: float = config.get_total_height()
+	var tile_size: float = config.cube_size
+
+	if col_config.mode == _CollisionConfigScript.CollisionMode.CONCAVE_TRIMESH:
+		if g_mesh.mesh != null and g_mesh.mesh.get_surface_count() > 0:
+			var trimesh: ConcavePolygonShape3D = g_mesh.mesh.create_trimesh_shape()
+			if trimesh != null:
+				g_mesh.add_collision_shape(trimesh, Transform3D.IDENTITY)
+		return
+
+	# Para cada celda WALL generar BoxShape3D de (tile_size x total_h x tile_size)
+	for cell in region.cells:
+		var box := BoxShape3D.new()
+		box.size = Vector3(tile_size, total_h, tile_size)
+		var center := Vector3(
+			(float(cell.x) + 0.5) * tile_size,
+			total_h * 0.5,
+			(float(cell.y) + 0.5) * tile_size
+		)
+		var xform := Transform3D(Basis.IDENTITY, center)
+		g_mesh.add_collision_shape(box, xform)
