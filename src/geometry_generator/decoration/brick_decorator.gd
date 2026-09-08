@@ -19,15 +19,55 @@ func decorate_section(
 	dec_config: _DecorationConfigScript,
 	grid: CellGrid = null
 ) -> void:
-	if g_mesh == null or g_mesh.mesh == null or section == null or dec_config == null or section.points.size() < 2:
+	if section == null:
 		return
+	var sec_dec_configs := {section: dec_config}
+	decorate_sections(g_mesh, [section], geom_config, sec_dec_configs, grid)
 
-	if not dec_config.enabled or dec_config.style == _DecorationConfigScript.DecorationStyle.NONE:
+func decorate_sections(
+	g_mesh: _GeneratedMeshScript,
+	sections: Array,
+	geom_config: _WallGeometryConfigScript,
+	sec_dec_configs: Dictionary = {},
+	grid: CellGrid = null
+) -> void:
+	if g_mesh == null or g_mesh.mesh == null or sections.is_empty():
 		return
 
 	if geom_config == null:
 		geom_config = _WallGeometryConfigScript.new()
 
+	var st_bricks := SurfaceTool.new()
+	st_bricks.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var has_bricks: bool = false
+
+	for sec in sections:
+		var section = sec as _WallSectionScript
+		if section == null or section.points.size() < 2:
+			continue
+
+		var dec_config: _DecorationConfigScript = sec_dec_configs.get(section, null)
+		if dec_config == null or not dec_config.enabled or dec_config.style == _DecorationConfigScript.DecorationStyle.NONE:
+			continue
+
+		if _append_section_decoration(st_bricks, section, geom_config, dec_config, grid):
+			has_bricks = true
+
+	if has_bricks:
+		st_bricks.generate_normals()
+		st_bricks.index()
+		st_bricks.generate_tangents()
+		g_mesh.mesh = st_bricks.commit(g_mesh.mesh)
+		var surf_idx: int = g_mesh.mesh.get_surface_count() - 1
+		g_mesh.mesh.surface_set_name(surf_idx, "Bricks")
+
+func _append_section_decoration(
+	st_bricks: SurfaceTool,
+	section: _WallSectionScript,
+	geom_config: _WallGeometryConfigScript,
+	dec_config: _DecorationConfigScript,
+	grid: CellGrid
+) -> bool:
 	var tile_size: float = geom_config.cube_size
 	var panel_h: float = geom_config.get_wall_panel_height()
 	var bot_trim_h: float = geom_config.bottom_trim_height
@@ -42,9 +82,6 @@ func decorate_section(
 	var rng := RandomNumberGenerator.new()
 	rng.seed = dec_config.seed + section.id * 17
 
-	var st_bricks := SurfaceTool.new()
-	st_bricks.begin(Mesh.PRIMITIVE_TRIANGLES)
-
 	var bw: float = dec_config.brick_width
 	var bh: float = dec_config.brick_height
 	var sp: float = 0.022
@@ -55,6 +92,7 @@ func decorate_section(
 
 	var is_niche: bool = (section.variant_id == &"niche" or section.variant_id == &"niche_alcove")
 	var is_ornate: bool = (section.variant_id == &"ornate")
+	var is_cracked: bool = (section.variant_id == &"cracked" or section.variant_id == &"damaged")
 
 	for i in range(seg_count):
 		var pt0: Vector2i = section.points[i]
@@ -106,6 +144,7 @@ func decorate_section(
 							continue
 						var local_pos := Vector3(0.0, slot_y + jitter_y, 0.0)
 						_append_brick(st_bricks, basis, brick_pt, local_pos, size, dec_config, rng)
+						has_bricks = true
 		elif is_ornate:
 			_append_ornate_decoration(st_bricks, basis, p0, p1, tangent, normal, edge_len, bot_trim_h, panel_h, dec_config, rng)
 			has_bricks = true
@@ -136,7 +175,10 @@ func decorate_section(
 							continue
 						var local_pos := Vector3(0.0, slot_y + jitter_y, 0.0)
 
-						_append_brick(st_bricks, basis, brick_pt, local_pos, size, dec_config, rng)
+						if is_cracked and rng.randf() < 0.65:
+							_append_broken_brick(st_bricks, basis, brick_pt, local_pos, size, dec_config, rng)
+						else:
+							_append_brick(st_bricks, basis, brick_pt, local_pos, size, dec_config, rng)
 						has_bricks = true
 
 						if rng.randf() < (dec_config.brick_density * 0.5):
@@ -146,7 +188,11 @@ func decorate_section(
 							if not _is_near_corner(pair_pt, size2.x * 0.5, corner_pts, excl_dist):
 								var pair_y: float = slot_y + jitter_y - bh - sp
 								if pair_y > bot_trim_h + (bh * 0.6):
-									_append_brick(st_bricks, basis, brick_pt, Vector3(pair_jitter_x, pair_y, 0.0), size2, dec_config, rng)
+									if is_cracked and rng.randf() < 0.50:
+										_append_broken_brick(st_bricks, basis, brick_pt, Vector3(pair_jitter_x, pair_y, 0.0), size2, dec_config, rng)
+									else:
+										_append_brick(st_bricks, basis, brick_pt, Vector3(pair_jitter_x, pair_y, 0.0), size2, dec_config, rng)
+									has_bricks = true
 
 		# Decoración en cara trasera cuando está expuesta
 		if grid != null:
@@ -154,13 +200,7 @@ func decorate_section(
 			if _decorate_back_face_slots(st_bricks, p0, tangent, normal, edge_len, bot_trim_h, panel_h, bw, bh, sp, w_thick, tile_size, dec_config, noise, rng, grid, corner_pts, excl_dist):
 				has_bricks = true
 
-	if has_bricks:
-		st_bricks.generate_normals()
-		st_bricks.index()
-		st_bricks.generate_tangents()
-		g_mesh.mesh = st_bricks.commit(g_mesh.mesh)
-		var surf_idx: int = g_mesh.mesh.get_surface_count() - 1
-		g_mesh.mesh.surface_set_name(surf_idx, "Bricks")
+	return has_bricks
 
 func decorate_component(
 	g_mesh: GeneratedMesh,
@@ -355,6 +395,61 @@ func _append_brick(
 	var world_pos: Vector3 = seg_pos + (run_basis * local_pos)
 	var t := Transform3D(brick_basis, world_pos)
 	_BrickGeometryBuilderScript.append_pillowed_brick(st, size, t, config.pillowed_bevel)
+
+func _append_broken_brick(
+	st: SurfaceTool,
+	run_basis: Basis,
+	seg_pos: Vector3,
+	local_pos: Vector3,
+	size: Vector3,
+	config: DecorationConfig,
+	rng: RandomNumberGenerator
+) -> void:
+	var crack_mode: int = rng.randi() % 3
+	match crack_mode:
+		0:
+			# Partición en dos trozos con fisura/grieta visible
+			var split_ratio: float = rng.randf_range(0.40, 0.60)
+			var gap: float = 0.035
+			var w1: float = (size.x * split_ratio) - (gap * 0.5)
+			var w2: float = (size.x * (1.0 - split_ratio)) - (gap * 0.5)
+			if w1 > 0.05 and w2 > 0.05:
+				var rot1: float = rng.randf_range(-0.12, 0.05)
+				var rot2: float = rng.randf_range(-0.05, 0.12)
+				var b_basis1 := run_basis.rotated(run_basis.z, rot1)
+				var b_basis2 := run_basis.rotated(run_basis.z, rot2)
+
+				var offset_x1: float = -size.x * 0.5 + w1 * 0.5
+				var offset_x2: float = size.x * 0.5 - w2 * 0.5
+				var shift_y1: float = rng.randf_range(-0.015, 0.015)
+				var shift_y2: float = rng.randf_range(-0.02, 0.02)
+
+				var pos1: Vector3 = seg_pos + (run_basis * (local_pos + Vector3(offset_x1, shift_y1, rng.randf_range(-0.01, 0.01))))
+				var pos2: Vector3 = seg_pos + (run_basis * (local_pos + Vector3(offset_x2, shift_y2, rng.randf_range(-0.01, 0.015))))
+
+				_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(w1, size.y * rng.randf_range(0.85, 1.0), size.z), Transform3D(b_basis1, pos1), config.pillowed_bevel * 0.8)
+				_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(w2, size.y * rng.randf_range(0.85, 1.0), size.z), Transform3D(b_basis2, pos2), config.pillowed_bevel * 0.8)
+			else:
+				_append_brick(st, run_basis, seg_pos, local_pos, size, config, rng)
+		1:
+			# Ladrillo astillado: bloque principal y fragmento desprendido
+			var main_w: float = size.x * rng.randf_range(0.60, 0.75)
+			var rot_main: float = rng.randf_range(-0.10, 0.10)
+			var b_basis := run_basis.rotated(run_basis.z, rot_main)
+			var pos_main: Vector3 = seg_pos + (run_basis * (local_pos + Vector3(-size.x * 0.12, 0.0, 0.0)))
+			_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(main_w, size.y, size.z), Transform3D(b_basis, pos_main), config.pillowed_bevel)
+
+			var shard_w: float = size.x * rng.randf_range(0.18, 0.25)
+			var shard_h: float = size.y * rng.randf_range(0.40, 0.60)
+			var rot_shard: float = rng.randf_range(-0.25, 0.25)
+			var pos_shard: Vector3 = seg_pos + (run_basis * (local_pos + Vector3(size.x * 0.35, rng.randf_range(-0.03, 0.01), 0.01)))
+			_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(shard_w, shard_h, size.z * 0.8), Transform3D(run_basis.rotated(run_basis.z, rot_shard), pos_shard), config.pillowed_bevel * 0.6)
+		2:
+			# Ladrillo desalineado, descolocado y sobresaliente
+			var rot_tilt: float = rng.randf_range(-0.16, 0.16)
+			var b_basis := run_basis.rotated(run_basis.z, rot_tilt).rotated(run_basis.x, rng.randf_range(-0.08, 0.08))
+			var world_pos: Vector3 = seg_pos + (run_basis * (local_pos + Vector3(0.0, rng.randf_range(-0.02, 0.02), rng.randf_range(-0.015, 0.025))))
+			_BrickGeometryBuilderScript.append_pillowed_brick(st, Vector3(size.x * 0.90, size.y * 0.92, size.z), Transform3D(b_basis, world_pos), config.pillowed_bevel)
 
 func _append_niche_decoration(
 	st: SurfaceTool,
