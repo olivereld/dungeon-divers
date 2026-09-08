@@ -19,4 +19,4 @@ func did_hit() -> bool:
 
 
 func was_critical() -> bool:
-	return critical_outcome == CombatTypes.CriticalOutcome.CRITICAL
+	return did_hit() and critical_outcome == CombatTypes.CriticalOutcome.CRITICAL
