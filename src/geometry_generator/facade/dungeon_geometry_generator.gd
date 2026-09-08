@@ -73,19 +73,23 @@ func generate_wall_clusters(
 	# 2. Descomposición en Componentes Conexas
 	var components: Array = _component_extractor.extract_components(graph)
 
-	# 3. Descomposición en WallSections y generación
+	# 3. Generación de malla por WallComponent (geometría unificada por componente)
 	for comp in components:
-		var sections: Array = _section_extractor.extract_sections(comp, 2, 6, -1)
-		for sec in sections:
-			var g_mesh: _GeneratedMeshScript = _geometry_builder.build_section_mesh(sec, wall_config)
-			if g_mesh.mesh == null:
-				continue
+		var g_mesh: _GeneratedMeshScript = _geometry_builder.build_component_mesh(comp, wall_config)
+		if g_mesh.mesh == null:
+			continue
 
-			_decorator.decorate_section(g_mesh, sec, wall_config, dec_config, grid)
-			_material_resolver.resolve_materials_for_mesh(g_mesh, material_preset)
-			_collision_builder.build_collision_for_section(sec, wall_config, col_config, g_mesh)
+		if dec_config != null and dec_config.enabled:
+			var sections: Array = _section_extractor.extract_sections(comp, 2, 6, -1)
+			var sec_dec_configs: Dictionary = {}
+			for sec in sections:
+				sec_dec_configs[sec] = dec_config
+			_decorator.decorate_sections(g_mesh, sections, wall_config, sec_dec_configs, grid)
 
-			result.generated_meshes.append(g_mesh)
+		_material_resolver.resolve_materials_for_mesh(g_mesh, material_preset)
+		_collision_builder.build_collision_for_component(comp, wall_config, col_config, g_mesh)
+
+		result.generated_meshes.append(g_mesh)
 
 	return result
 
@@ -130,15 +134,20 @@ func generate_wall_clusters_for_partition(
 	# 2. Descomposición en Componentes Conexas
 	var components: Array = _component_extractor.extract_components(graph)
 
-	# 3. Descomposición en WallSections y generación por sala
+	# 3. Generación de malla por WallComponent y decoración según perfiles de sala
 	for comp in components:
+		var g_mesh: _GeneratedMeshScript = _geometry_builder.build_component_mesh(comp, wall_config)
+		if g_mesh.mesh == null:
+			continue
+
 		var sections: Array = _section_extractor.extract_sections(comp, 2, 6, -1)
+		var sec_dec_configs: Dictionary = {}
 		for sec in sections:
 			var r_id: int = _resolve_section_room_id(sec, partition)
 			sec.room_id = r_id
 			var prof = _get_room_profile(r_id, partition)
 
-			# 3.1 Variantes de muro profile-driven
+			# 3.1 Variantes de muro profile-driven (normal, cracked, damaged, niche, ornate)
 			var wv_policy = null
 			if prof != null:
 				if "architecture" in prof and prof.architecture != null and "wall_variants" in prof.architecture:
@@ -147,21 +156,22 @@ func generate_wall_clusters_for_partition(
 					wv_policy = prof.wall_variants
 			sec.variant_id = _variant_resolver.resolve_section_variant(sec, wv_policy, master_seed)
 
-			# 3.2 Malla estructural de la sección
-			var g_mesh: _GeneratedMeshScript = _geometry_builder.build_section_mesh(sec, wall_config)
-			if g_mesh.mesh == null:
-				continue
-
-			# 3.3 Decoración
+			# 3.2 Configuración de decoración según perfil de sala
 			var dec_cfg: _DecorationConfigScript = base_dec_config
 			if config_resolver != null and prof != null:
 				dec_cfg = config_resolver.resolve_wall_decoration_config(prof, base_dec_config)
+			sec_dec_configs[sec] = dec_cfg
 
-			_decorator.decorate_section(g_mesh, sec, wall_config, dec_cfg, grid)
-			_material_resolver.resolve_materials_for_mesh(g_mesh, material_preset)
-			_collision_builder.build_collision_for_section(sec, wall_config, col_config, g_mesh)
+		# 3.3 Decoración superficial de ladrillos y variantes
+		_decorator.decorate_sections(g_mesh, sections, wall_config, sec_dec_configs, grid)
 
-			result.generated_meshes.append(g_mesh)
+		# 3.4 Asignación de materiales PBR (Trims, WallPanel, Bricks)
+		_material_resolver.resolve_materials_for_mesh(g_mesh, material_preset)
+
+		# 3.5 Colisiones físicas desacopladas
+		_collision_builder.build_collision_for_component(comp, wall_config, col_config, g_mesh)
+
+		result.generated_meshes.append(g_mesh)
 
 	return result
 
