@@ -1,13 +1,14 @@
-[gd_resource type="Environment" format=3]
+[gd_resource type="Environment" format=3 uid="uid://31ix3k7psosp"]
 
 [resource]
 background_mode = 1
-background_color = Color(0, 0, 0, 1)
 ambient_light_source = 2
 ambient_light_color = Color(0.270588, 0.309804, 0.384314, 1)
 ambient_light_energy = 0.45
 tonemap_mode = 3
-tonemap_exposure = 1.0
+ssao_enabled = true
+ssao_radius = 1.5
+ssao_intensity = 1.8
 glow_enabled = true
 glow_normalized = true
 glow_intensity = 0.6
@@ -17,6 +18,3 @@ glow_blend_mode = 0
 fog_enabled = true
 fog_light_color = Color(0.101961, 0.192157, 0.305882, 0.509)
 fog_density = 0.005
-ssao_enabled = true
-ssao_radius = 1.5
-ssao_intensity = 1.8

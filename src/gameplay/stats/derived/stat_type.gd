@@ -1,0 +1,16 @@
+# stat_type.gd
+class_name StatType
+extends RefCounted
+
+enum Type {
+	MAX_HP,
+	MAX_MANA,
+	PHYSICAL_POWER,
+	SPELL_POWER,
+	ARMOR_CLASS,
+	DAMAGE_MITIGATION,
+	MAGIC_RESIST,
+	MAGIC_MITIGATION,
+	INITIATIVE,
+	MAX_MOVEMENT,
+}
