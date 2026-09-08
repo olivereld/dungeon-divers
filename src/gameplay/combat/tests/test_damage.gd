@@ -208,7 +208,7 @@ func test_magical_damage_basic() -> void:
 	attacker.magic_piercing = 0.0
 
 	var defender := DerivedStats.new()
-	defender.mental_resilience = 0.0
+	defender.magic_resistance = 0.0
 
 	# 15 base + 25 spell power = 40 bruto
 	var req := DamageRequest.new(attacker, defender, 15.0, DamageType.Type.MAGICAL, false)
@@ -221,7 +221,7 @@ func test_magical_damage_basic() -> void:
 
 
 func test_magical_damage_with_resistance_and_piercing() -> void:
-	_start_test("Daño Mágico con Resistencia Mental y Perforación Mágica")
+	_start_test("Daño Mágico con Resistencia Mágica y Perforación Mágica")
 	var calculator := DamageCalculator.new()
 
 	var attacker := DerivedStats.new()
@@ -229,7 +229,7 @@ func test_magical_damage_with_resistance_and_piercing() -> void:
 	attacker.magic_piercing = 0.25 # 25% perforación
 
 	var defender := DerivedStats.new()
-	defender.mental_resilience = 0.40 # 40% resistencia
+	defender.magic_resistance = 0.40 # 40% resistencia
 
 	# Daño bruto = 50 base + 50 power = 100
 	# Resistencia efectiva = 0.40 * (1.0 - 0.25) = 0.40 * 0.75 = 0.30 (30%)
@@ -252,7 +252,7 @@ func test_magical_damage_critical_with_piercing() -> void:
 	attacker.magic_piercing = 0.20 # 20%
 
 	var defender := DerivedStats.new()
-	defender.mental_resilience = 0.50 # 50%
+	defender.magic_resistance = 0.50 # 50%
 
 	# (10 base + 30 power) * 1.5 = 60 bruto
 	# Resistencia efectiva = 0.50 * (1.0 - 0.20) = 0.40 (40%)
@@ -276,7 +276,7 @@ func test_magical_damage_caps() -> void:
 	attacker.magic_piercing = 0.80 # Debe limitarse a 0.50
 
 	var defender := DerivedStats.new()
-	defender.mental_resilience = 0.90 # Debe limitarse a 0.75
+	defender.magic_resistance = 0.90 # Debe limitarse a 0.75
 
 	# Daño bruto = 20 base + 80 power = 100
 	# Resistencia clamped = 0.75
@@ -300,7 +300,7 @@ func test_magical_damage_minimum_guaranteed() -> void:
 	attacker.spell_power = 0.0
 
 	var defender := DerivedStats.new()
-	defender.mental_resilience = 0.75
+	defender.magic_resistance = 0.75
 
 	var req := DamageRequest.new(attacker, defender, 0.0, DamageType.Type.MAGICAL, false)
 	var res := calculator.calculate(req)
@@ -340,7 +340,7 @@ func showcase_damage_scenarios() -> void:
 	mage.spell_power = 33.0
 	mage.magic_piercing = 0.20
 	var golem := DerivedStats.new()
-	golem.mental_resilience = 0.40
+	golem.magic_resistance = 0.40
 	var req_mage := DamageRequest.new(mage, golem, 25.0, DamageType.Type.MAGICAL, false)
 	_print_damage_card("Mago lanza Bola de Fuego a Gólem", req_mage, calc.calculate(req_mage))
 
@@ -349,7 +349,7 @@ func showcase_damage_scenarios() -> void:
 	sorc.spell_power = 45.0
 	sorc.magic_piercing = 0.35
 	var boss := DerivedStats.new()
-	boss.mental_resilience = 0.60
+	boss.magic_resistance = 0.60
 	var req_sorc := DamageRequest.new(sorc, boss, 30.0, DamageType.Type.MAGICAL, true)
 	_print_damage_card("Hechicero lanza Rayo Desintegrador Crítico a Jefe", req_sorc, calc.calculate(req_sorc))
 
@@ -367,7 +367,7 @@ func _print_damage_card(title: String, req: DamageRequest, res: DamageResult) ->
 		print("| Defensor:   Resiliencia Física: %-5.1f%%                               |" % (req.defender_stats.physical_resilience * 100.0))
 	else:
 		print("| Atacante:   Poder Mágico: %-5.1f | Perforación Mágica: %-5.1f%%           |" % [req.attacker_stats.spell_power, req.attacker_stats.magic_piercing * 100.0])
-		print("| Defensor:   Resistencia Mental: %-5.1f%%                               |" % (req.defender_stats.mental_resilience * 100.0))
+		print("| Defensor:   Resistencia Mágica: %-5.1f%%                               |" % (req.defender_stats.magic_resistance * 100.0))
 	print("|--------------------------------------------------------------------|")
 	print("| Resultados: Daño Bruto:     %-5.1f                                      |" % res.raw_damage)
 	print("|             Daño Mitigado:  %-5.1f                                      |" % res.mitigated_damage)

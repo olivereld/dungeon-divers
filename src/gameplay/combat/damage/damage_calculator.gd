@@ -69,7 +69,7 @@ func _calculate_magical_damage(
 		damage *= DamageConstants.CRITICAL_DAMAGE_MULTIPLIER
 
 	var resistance := clampf(
-		request.defender_stats.mental_resilience,
+		request.defender_stats.magic_resistance,
 		0.0,
 		DamageConstants.MAGIC_RESISTANCE_CAP
 	)
