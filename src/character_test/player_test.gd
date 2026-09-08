@@ -109,15 +109,15 @@ func _physics_process(delta: float) -> void:
 			right.y = 0.0
 			right = right.normalized()
 
-	# Input exclusivo con flechas del teclado
+	# Input dual con WASD y flechas del teclado
 	var move_intent := Vector3.ZERO
-	if Input.is_key_pressed(KEY_UP):
+	if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W):
 		move_intent += forward
-	if Input.is_key_pressed(KEY_DOWN):
+	if Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_S):
 		move_intent -= forward
-	if Input.is_key_pressed(KEY_LEFT):
+	if Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A):
 		move_intent -= right
-	if Input.is_key_pressed(KEY_RIGHT):
+	if Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
 		move_intent += right
 
 	if move_intent != Vector3.ZERO:

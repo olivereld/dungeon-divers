@@ -13,8 +13,13 @@ signal tab_changed(tab_idx: int)
 signal overlay_toggled(key: String, enabled: bool)
 signal anchors_timing_toggled(mode: String)
 signal composition_tuning_changed(param_name: String, value: Variant)
+signal player_module_toggled(enabled: bool)
 
 const _LabColors = preload("res://src/dungeon_generator/debug/lab/ui/lab_colors.gd")
+
+var _is_player_module_active: bool = false
+var _player_toggle_btn: CheckButton = null
+var _player_badge_lbl: Label = null
 
 # Controles de Generación
 @onready var mode_tabs: TabBar = %ModeTabs
@@ -789,6 +794,17 @@ func _build_modules_view() -> void:
 				{"name": "DungeonLabGoldenRunner", "desc": "Suite de regresión con 20 Golden Seeds fijas."},
 				{"name": "DungeonLabCoverage", "desc": "Análisis de cobertura masiva multi-semilla."}
 			]
+		},
+		{
+			"title": "▼ 8. GAMEPLAY & TESTING",
+			"color": _LabColors.AMBER,
+			"modules": [
+				{
+					"name": "PlayerTest",
+					"desc": "Personaje de prueba (cápsula 3D con físicas y cámara isométrica). Permite explorar la mazmorra con WASD / Flechas.",
+					"is_toggleable": true
+				}
+			]
 		}
 	]
 
@@ -841,7 +857,10 @@ func _build_modules_view() -> void:
 
 			var badge := Label.new()
 			var s = status_map.get(mod["name"], null)
-			if s != null:
+			if mod.get("is_toggleable", false):
+				_player_badge_lbl = badge
+				_update_player_badge(badge, _is_player_module_active)
+			elif s != null:
 				if s.state == _StatusScript.State.MISSING:
 					badge.text = "File: 🔴 MISSING"
 					badge.add_theme_color_override("font_color", _LabColors.RED)
@@ -858,6 +877,19 @@ func _build_modules_view() -> void:
 			badge.add_theme_font_size_override("font_size", 8)
 			top_hb.add_child(badge)
 
+			if mod.get("is_toggleable", false):
+				var toggle_btn := CheckButton.new()
+				toggle_btn.text = "Habilitar Personaje 3D"
+				toggle_btn.button_pressed = _is_player_module_active
+				toggle_btn.add_theme_font_size_override("font_size", 9)
+				toggle_btn.toggled.connect(func(pressed: bool):
+					_is_player_module_active = pressed
+					_update_player_badge(badge, pressed)
+					player_module_toggled.emit(pressed)
+				)
+				vb.add_child(toggle_btn)
+				_player_toggle_btn = toggle_btn
+
 			var desc_lbl := Label.new()
 			desc_lbl.text = mod["desc"]
 			desc_lbl.add_theme_color_override("font_color", _LabColors.TEXT_SECONDARY)
@@ -866,3 +898,16 @@ func _build_modules_view() -> void:
 			vb.add_child(desc_lbl)
 
 			modules_inner.add_child(card)
+
+func set_player_toggle_state(enabled: bool) -> void:
+	_is_player_module_active = enabled
+	if _player_toggle_btn != null and is_instance_valid(_player_toggle_btn):
+		_player_toggle_btn.set_pressed_no_signal(enabled)
+	if _player_badge_lbl != null and is_instance_valid(_player_badge_lbl):
+		_update_player_badge(_player_badge_lbl, enabled)
+
+func _update_player_badge(lbl: Label, active: bool) -> void:
+	if lbl == null:
+		return
+	lbl.text = "[🟢 ACTIVO]" if active else "[⚪ INACTIVO]"
+	lbl.add_theme_color_override("font_color", _LabColors.GREEN if active else _LabColors.TEXT_MUTED)

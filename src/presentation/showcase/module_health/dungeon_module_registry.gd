@@ -102,5 +102,13 @@ static func get_modules() -> Array[Dictionary]:
 			"name": "MaterialResolver",
 			"path": "res://src/geometry_generator/decoration/material_resolver.gd",
 			"category": "Materials"
+		},
+
+		# --- Gameplay & Testing ---
+		{
+			"id": "player_test",
+			"name": "PlayerTest",
+			"path": "res://src/character_test/player_test.gd",
+			"category": "Gameplay"
 		}
 	]

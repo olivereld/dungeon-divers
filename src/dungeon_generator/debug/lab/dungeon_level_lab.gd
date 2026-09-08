@@ -207,6 +207,8 @@ func _setup_component_signals() -> void:
 			ui_left_panel.overlay_toggled.connect(_on_overlay_toggled)
 		if "anchors_timing_toggled" in ui_left_panel and not ui_left_panel.anchors_timing_toggled.is_connected(set_anchors_timing_mode):
 			ui_left_panel.anchors_timing_toggled.connect(set_anchors_timing_mode)
+		if "player_module_toggled" in ui_left_panel and not ui_left_panel.player_module_toggled.is_connected(_on_player_module_toggled):
+			ui_left_panel.player_module_toggled.connect(_on_player_module_toggled)
 
 	if ui_right_panel != null:
 		if not ui_right_panel.room_selected.is_connected(_on_right_panel_room_selected):
@@ -567,9 +569,24 @@ func _display_modules_info_in_inspector() -> void:
 	bbcode += "[b]4. Iluminación & Visor:[/b]\n"
 	bbcode += "  • [color=white]DungeonLightingController[/color]: Ambient fill (#28344A)\n"
 	bbcode += "  • [color=white]IsometricCameraRig[/color]: Cámara orbital isométrica\n"
-	bbcode += "  • [color=white]Dungeon3DViewer[/color]: Visor dual interactivo\n"
+	bbcode += "  • [color=white]Dungeon3DViewer[/color]: Visor dual interactivo\n\n"
+
+	bbcode += "[b]5. Gameplay & Testing (Interactivo):[/b]\n"
+	var p_active: bool = (viewer_3d != null and viewer_3d.is_test_player_enabled())
+	var p_status = "ACTIVADO (Cápsula 3D en sala inicial)" if p_active else "INACTIVO"
+	var p_col = "green" if p_active else "gray"
+	bbcode += "  • [color=white]PlayerTest[/color]: [color=%s]● %s[/color] (WASD / Flechas)\n" % [p_col, p_status]
 
 	inspector_text.text = bbcode
+
+func _on_player_module_toggled(enabled: bool) -> void:
+	if enabled and current_view_mode != ViewMode.VIEW_3D:
+		set_view_mode(ViewMode.VIEW_3D)
+	if viewer_3d != null:
+		viewer_3d.set_test_player_enabled(enabled)
+	_set_status("Módulo PlayerTest: %s" % ("ACTIVADO (Cápsula 3D en sala inicial)" if enabled else "DESACTIVADO"))
+	if current_mode == LabMode.MODULES:
+		_display_modules_info_in_inspector()
 
 func generate_current() -> void:
 	_sync_config_from_ui()

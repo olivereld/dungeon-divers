@@ -12,6 +12,7 @@ const _FramingScript = preload("res://src/dungeon_generator/debug/lab/viewer/dun
 const _FocusScript = preload("res://src/dungeon_generator/debug/lab/viewer/dungeon_camera_focus.gd")
 const _LightingControllerScript = preload("res://src/dungeon_generator/presentation/dungeon_lighting_controller.gd")
 const _ProfileLoaderScript = preload("res://src/dungeon_generator/profiles/profile_loader.gd")
+const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
 
 @export var dungeon_root: Node3D = null
 @export var focus_target: Marker3D = null
@@ -26,6 +27,9 @@ var _current_config: DungeonConfig = null
 var _current_biome: BiomeProfile = null
 var _lighting_controller: _LightingControllerScript = _LightingControllerScript.new()
 var _profile_loader: _ProfileLoaderScript = _ProfileLoaderScript.new()
+
+var _test_player: CharacterBody3D = null
+var _is_player_enabled: bool = false
 
 var _is_panning: bool = false
 var _is_orbiting: bool = false
@@ -103,6 +107,7 @@ func clear() -> void:
 		child.queue_free()
 	_current_presentation = null
 	_current_result = null
+	_test_player = null
 
 ## Renders a single floor semantic result using the PresentationBuilder.
 func load_dungeon(
@@ -144,8 +149,83 @@ func load_dungeon(
 		true
 	)
 
-	frame_dungeon(true)
+	if _is_player_enabled:
+		_spawn_test_player()
+	else:
+		frame_dungeon(true)
 	return pres_result
+
+## Toggles or sets activation of the test character in the 3D dungeon.
+func set_test_player_enabled(enabled: bool) -> void:
+	_is_player_enabled = enabled
+	_ensure_components()
+
+	if not enabled:
+		if _test_player != null:
+			if is_instance_valid(_test_player) and _test_player.get_parent() != null:
+				_test_player.get_parent().remove_child(_test_player)
+				_test_player.queue_free()
+			_test_player = null
+		if camera_rig != null:
+			camera_rig.clear_target()
+		frame_dungeon(true)
+		return
+
+	_spawn_test_player()
+
+## Returns whether the test player module is currently active.
+func is_test_player_enabled() -> bool:
+	return _is_player_enabled
+
+## Returns the active test player instance if spawned.
+func get_test_player() -> CharacterBody3D:
+	return _test_player
+
+## Spawns the PlayerTest capsule inside the starting room and binds the IsometricCameraRig.
+func _spawn_test_player() -> void:
+	if dungeon_root == null:
+		return
+
+	if _test_player != null and is_instance_valid(_test_player):
+		if _test_player.get_parent() != null:
+			_test_player.get_parent().remove_child(_test_player)
+		_test_player.queue_free()
+		_test_player = null
+
+	var spawn_pos := _compute_player_spawn_position()
+	_test_player = _PlayerTestScript.new()
+	_test_player.name = "PlayerTestInstance"
+	_test_player.position = spawn_pos
+	dungeon_root.add_child(_test_player)
+
+	if camera_rig != null:
+		camera_rig.set_target(_test_player)
+		camera_rig.set_follow_enabled(true)
+		camera_rig.set_zoom(16.0)
+		camera_rig.teleport_to_target()
+
+## Computes world-space spawn coordinates targeting the dungeon's starting room.
+func _compute_player_spawn_position(cell_size: float = 2.0) -> Vector3:
+	if _current_result != null and _current_result.rooms.size() > 0:
+		var target_room = null
+		if _current_result.start_room_id >= 0:
+			for r in _current_result.rooms:
+				if r.id == _current_result.start_room_id:
+					target_room = r
+					break
+		if target_room == null:
+			for r in _current_result.rooms:
+				if ("room_type" in r and r.room_type == &"start") or ("purpose" in r and r.purpose == "start"):
+					target_room = r
+					break
+		if target_room == null:
+			target_room = _current_result.rooms[0]
+
+		var focus_pos = _FocusScript.compute_room_focus(target_room, cell_size)
+		return Vector3(focus_pos.x, 0.1, focus_pos.z)
+
+	var bounds = get_dungeon_bounds()
+	return bounds.get("center", Vector3.ZERO) + Vector3(0, 0.1, 0)
 
 ## Re-frames the camera around the active dungeon presentation.
 func frame_dungeon(instant_teleport: bool = true) -> void:
