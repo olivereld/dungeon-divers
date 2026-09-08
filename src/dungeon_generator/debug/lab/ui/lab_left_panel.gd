@@ -792,6 +792,15 @@ func _build_modules_view() -> void:
 		}
 	]
 
+	const _InspectorScript = preload("res://src/presentation/showcase/module_health/dungeon_module_inspector.gd")
+	const _StatusScript = preload("res://src/presentation/showcase/module_health/dungeon_module_status.gd")
+	var inspector := _InspectorScript.new()
+	var statuses = inspector.inspect()
+	var status_map: Dictionary = {}
+	for s in statuses:
+		status_map[s.name] = s
+		status_map[s.id] = s
+
 	for cat in categories:
 		var cat_lbl := Label.new()
 		cat_lbl.text = cat["title"]
@@ -831,8 +840,21 @@ func _build_modules_view() -> void:
 			top_hb.add_child(name_lbl)
 
 			var badge := Label.new()
-			badge.text = "[OK]"
-			badge.add_theme_color_override("font_color", _LabColors.GREEN)
+			var s = status_map.get(mod["name"], null)
+			if s != null:
+				if s.state == _StatusScript.State.MISSING:
+					badge.text = "File: 🔴 MISSING"
+					badge.add_theme_color_override("font_color", _LabColors.RED)
+				elif s.state == _StatusScript.State.ERROR:
+					badge.text = "File: 🟡 ERROR"
+					badge.add_theme_color_override("font_color", _LabColors.AMBER)
+				else:
+					var p_txt := "🟢 USED" if s.is_used_by_pipeline else "🔴 NOT USED"
+					badge.text = "File: %s  Pipeline: %s" % [s.get_state_symbol(), p_txt]
+					badge.add_theme_color_override("font_color", _LabColors.GREEN if s.is_used_by_pipeline else _LabColors.RED)
+			else:
+				badge.text = "File: 🟢  Pipeline: 🟢 USED"
+				badge.add_theme_color_override("font_color", _LabColors.GREEN)
 			badge.add_theme_font_size_override("font_size", 8)
 			top_hb.add_child(badge)
 

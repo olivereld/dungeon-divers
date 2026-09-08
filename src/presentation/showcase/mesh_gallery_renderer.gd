@@ -62,6 +62,20 @@ const _CellGridScript = preload("res://src/dungeon_generator/core/data/cell_grid
 
 var _mesh_facade = _DungeonMeshGeneratorScript.new()
 
+const _DungeonModuleInspectorScript = preload("res://src/presentation/showcase/module_health/dungeon_module_inspector.gd")
+const _DungeonModuleStatusScript = preload("res://src/presentation/showcase/module_health/dungeon_module_status.gd")
+
+var _module_inspector := _DungeonModuleInspectorScript.new()
+var _module_statuses: Array = []
+
+func _refresh_module_health() -> void:
+	_module_statuses = _module_inspector.inspect()
+
+func get_module_statuses() -> Array:
+	if _module_statuses.is_empty():
+		_refresh_module_health()
+	return _module_statuses
+
 ## Genera el nodo 3D completo a partir de una entrada del catálogo y una semilla.
 func render_entry(entry: MeshGalleryEntry, seed: int, param_overrides: Dictionary = {}) -> Node3D:
 	if entry == null or not entry.is_valid():
