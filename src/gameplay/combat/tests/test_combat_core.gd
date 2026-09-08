@@ -77,7 +77,7 @@ func test_guaranteed_hit() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver)
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
 
 	var attacker := DerivedStats.new()
 	attacker.accuracy = 1.0
@@ -86,7 +86,8 @@ func test_guaranteed_hit() -> void:
 	var defender := DerivedStats.new()
 	defender.evasion = 0.0
 
-	var request := AttackRequest.new(attacker, defender)
+	var attack_data := AttackData.new(10.0, DamageType.Type.PHYSICAL)
+	var request := AttackRequest.new(attacker, defender, attack_data)
 
 	# Direct HitResolver check
 	var direct_outcome := hit_resolver.resolve(1.0, 0.0)
@@ -110,7 +111,7 @@ func test_guaranteed_miss() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver)
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
 
 	# Caso 1: Accuracy 0.0 vs Evasion 0.0
 	var attacker_zero := DerivedStats.new()
@@ -120,7 +121,8 @@ func test_guaranteed_miss() -> void:
 	var defender_zero := DerivedStats.new()
 	defender_zero.evasion = 0.0
 
-	var req_zero := AttackRequest.new(attacker_zero, defender_zero)
+	var attack_data := AttackData.new(10.0, DamageType.Type.PHYSICAL)
+	var req_zero := AttackRequest.new(attacker_zero, defender_zero, attack_data)
 	var res_zero := combat_resolver.resolve_attack(req_zero)
 	_assert_eq(res_zero.hit_outcome, CombatTypes.HitOutcome.MISS, "Accuracy 0.0 produce MISS")
 	_assert_true(not res_zero.did_hit(), "did_hit() retorna false")
@@ -132,7 +134,7 @@ func test_guaranteed_miss() -> void:
 	var defender_high := DerivedStats.new()
 	defender_high.evasion = 0.8
 
-	var req_evasion := AttackRequest.new(attacker_mid, defender_high)
+	var req_evasion := AttackRequest.new(attacker_mid, defender_high, attack_data)
 	var all_miss := true
 	for i in range(50):
 		var res := combat_resolver.resolve_attack(req_evasion)
@@ -150,7 +152,7 @@ func test_guaranteed_critical() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver)
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
 
 	# Direct CriticalResolver check
 	var direct_crit := critical_resolver.resolve(1.0)
@@ -164,7 +166,8 @@ func test_guaranteed_critical() -> void:
 	var defender := DerivedStats.new()
 	defender.evasion = 0.0
 
-	var request := AttackRequest.new(attacker, defender)
+	var attack_data := AttackData.new(10.0, DamageType.Type.PHYSICAL)
+	var request := AttackRequest.new(attacker, defender, attack_data)
 
 	var all_crit := true
 	for i in range(50):
@@ -183,7 +186,7 @@ func test_guaranteed_normal() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver)
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
 
 	# Direct CriticalResolver check
 	var direct_normal := critical_resolver.resolve(0.0)
@@ -197,7 +200,8 @@ func test_guaranteed_normal() -> void:
 	var defender := DerivedStats.new()
 	defender.evasion = 0.0
 
-	var request := AttackRequest.new(attacker, defender)
+	var attack_data := AttackData.new(10.0, DamageType.Type.PHYSICAL)
+	var request := AttackRequest.new(attacker, defender, attack_data)
 
 	var all_normal := true
 	for i in range(50):
@@ -216,7 +220,7 @@ func test_critical_guarantees_hit_ignoring_evasion() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver)
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
 
 	# Atacante con 0% de puntería vs Enemigo con 100% de evasión
 	# PERO con 100% de probabilidad crítica
@@ -227,7 +231,8 @@ func test_critical_guarantees_hit_ignoring_evasion() -> void:
 	var defender := DerivedStats.new()
 	defender.evasion = 1.0
 
-	var request := AttackRequest.new(attacker, defender)
+	var attack_data := AttackData.new(10.0, DamageType.Type.PHYSICAL)
+	var request := AttackRequest.new(attacker, defender, attack_data)
 	var res := combat_resolver.resolve_attack(request)
 
 	_assert_eq(res.hit_outcome, CombatTypes.HitOutcome.HIT, "El golpe crítico impacta aunque la evasión sea 100% y puntería 0%")
@@ -268,7 +273,7 @@ func test_probabilistic_distribution() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver)
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
 
 	var attacker := DerivedStats.new()
 	attacker.accuracy = 0.80
@@ -277,7 +282,8 @@ func test_probabilistic_distribution() -> void:
 	var defender := DerivedStats.new()
 	defender.evasion = 0.30 # Puntería neta = 0.80 - 0.30 = 0.50 (50%)
 
-	var request := AttackRequest.new(attacker, defender)
+	var attack_data := AttackData.new(10.0, DamageType.Type.PHYSICAL)
+	var request := AttackRequest.new(attacker, defender, attack_data)
 
 	var hits: int = 0
 	var crits: int = 0
@@ -318,7 +324,7 @@ func showcase_combat_scenarios() -> void:
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 12345
-	var combat_resolver := CombatResolver.new(HitResolver.new(rng), CriticalResolver.new(rng))
+	var combat_resolver := CombatResolver.new(HitResolver.new(rng), CriticalResolver.new(rng), DamageCalculator.new())
 
 	_simulate_and_print("Pícaro Ágil ataca a Guerrero Pesado", 0.90, 0.35, 0.25, combat_resolver)
 	_simulate_and_print("Guerrero ataca a Monstruo Fantasma (Evasión Alta)", 0.70, 0.65, 0.05, combat_resolver)
@@ -339,7 +345,8 @@ func _simulate_and_print(
 	var def := DerivedStats.new()
 	def.evasion = evasion
 
-	var req := AttackRequest.new(atk, def)
+	var attack_data := AttackData.new(10.0, DamageType.Type.PHYSICAL)
+	var req := AttackRequest.new(atk, def, attack_data)
 	var res := resolver.resolve_attack(req)
 
 	var hit_chance_pct := clampf(accuracy - evasion, 0.0, 1.0) * 100.0
