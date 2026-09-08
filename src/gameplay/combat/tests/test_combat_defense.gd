@@ -44,16 +44,11 @@ func _test_block_resolver_without_shield() -> void:
 	var defender := _create_stats()
 	defender.shield_block_value = 0.0
 
-	var result := BlockResolver.new().resolve(defender)
+	var blocked_amount := BlockResolver.new().resolve(defender)
 
 	_assert(
-		not result.blocked,
-		"Defender without block value should not block."
-	)
-
-	_assert(
-		result.blocked_amount == 0.0,
-		"Block amount should be zero."
+		blocked_amount == 0.0,
+		"Defender without block value should have zero block amount."
 	)
 
 
@@ -63,15 +58,10 @@ func _test_block_resolver_with_shield() -> void:
 	var defender := _create_stats()
 	defender.shield_block_value = 10.0
 
-	var result := BlockResolver.new().resolve(defender)
+	var blocked_amount := BlockResolver.new().resolve(defender)
 
 	_assert(
-		result.blocked,
-		"Defender with block value should block."
-	)
-
-	_assert(
-		result.blocked_amount == 10.0,
+		blocked_amount == 10.0,
 		"Block amount should equal shield block value."
 	)
 

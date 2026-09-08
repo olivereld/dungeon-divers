@@ -55,14 +55,14 @@ func resolve_attack(request: AttackRequest) -> AttackResult:
 func _resolve_critical_attack(
 	request: AttackRequest
 ) -> AttackResult:
-	var block_result := block_resolver.resolve(
+	var blocked_amount := block_resolver.resolve(
 		request.defender_stats
 	)
 
 	var damage_result := _calculate_damage(
 		request,
 		true,
-		block_result.blocked_amount
+		blocked_amount
 	)
 
 	return AttackResult.new(
@@ -75,14 +75,14 @@ func _resolve_critical_attack(
 func _resolve_normal_hit(
 	request: AttackRequest
 ) -> AttackResult:
-	var block_result := block_resolver.resolve(
+	var blocked_amount := block_resolver.resolve(
 		request.defender_stats
 	)
 
 	var damage_result := _calculate_damage(
 		request,
 		false,
-		block_result.blocked_amount
+		blocked_amount
 	)
 
 	return AttackResult.new(
