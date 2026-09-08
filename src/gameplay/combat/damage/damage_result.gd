@@ -22,6 +22,9 @@ func _init(
 	p_was_blocked: bool = false,
 	p_was_miss: bool = false
 ) -> void:
+	assert(p_raw_damage >= 0.0)
+	assert(p_mitigated_damage >= 0.0)
+	assert(p_final_damage >= 0.0)
 
 	raw_damage = p_raw_damage
 	mitigated_damage = p_mitigated_damage

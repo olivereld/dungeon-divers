@@ -1,21 +1,27 @@
 class_name CombatResolver
 extends RefCounted
 
+
 var hit_resolver: HitResolver
 var critical_resolver: CriticalResolver
+var block_resolver: BlockResolver
 var damage_calculator: DamageCalculator
+
 
 func _init(
 	p_hit_resolver: HitResolver,
 	p_critical_resolver: CriticalResolver,
+	p_block_resolver: BlockResolver,
 	p_damage_calculator: DamageCalculator
 ) -> void:
 	assert(p_hit_resolver != null)
 	assert(p_critical_resolver != null)
+	assert(p_block_resolver != null)
 	assert(p_damage_calculator != null)
 
 	hit_resolver = p_hit_resolver
 	critical_resolver = p_critical_resolver
+	block_resolver = p_block_resolver
 	damage_calculator = p_damage_calculator
 
 
@@ -31,7 +37,6 @@ func resolve_attack(request: AttackRequest) -> AttackResult:
 
 	if critical_outcome == CombatTypes.CriticalOutcome.CRITICAL:
 		return _resolve_critical_attack(request)
-
 
 	var hit_outcome := hit_resolver.resolve(
 		request.attacker_stats.accuracy,
@@ -50,9 +55,14 @@ func resolve_attack(request: AttackRequest) -> AttackResult:
 func _resolve_critical_attack(
 	request: AttackRequest
 ) -> AttackResult:
+	var block_result := block_resolver.resolve(
+		request.defender_stats
+	)
+
 	var damage_result := _calculate_damage(
 		request,
-		true
+		true,
+		block_result.blocked_amount
 	)
 
 	return AttackResult.new(
@@ -65,9 +75,14 @@ func _resolve_critical_attack(
 func _resolve_normal_hit(
 	request: AttackRequest
 ) -> AttackResult:
+	var block_result := block_resolver.resolve(
+		request.defender_stats
+	)
+
 	var damage_result := _calculate_damage(
 		request,
-		false
+		false,
+		block_result.blocked_amount
 	)
 
 	return AttackResult.new(
@@ -79,14 +94,18 @@ func _resolve_normal_hit(
 
 func _calculate_damage(
 	request: AttackRequest,
-	is_critical: bool
+	is_critical: bool,
+	blocked_amount: float
 ) -> DamageResult:
 	var damage_request := DamageRequest.new(
 		request.attacker_stats,
 		request.defender_stats,
 		request.attack_data.base_damage,
 		request.attack_data.damage_type,
-		is_critical
+		is_critical,
+		blocked_amount
 	)
 
-	return damage_calculator.calculate(damage_request)
+	return damage_calculator.calculate(
+		damage_request
+	)

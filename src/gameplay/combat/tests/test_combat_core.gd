@@ -77,7 +77,7 @@ func test_guaranteed_hit() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, BlockResolver.new(), DamageCalculator.new())
 
 	var attacker := DerivedStats.new()
 	attacker.accuracy = 1.0
@@ -111,7 +111,7 @@ func test_guaranteed_miss() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, BlockResolver.new(), DamageCalculator.new())
 
 	# Caso 1: Accuracy 0.0 vs Evasion 0.0
 	var attacker_zero := DerivedStats.new()
@@ -152,7 +152,7 @@ func test_guaranteed_critical() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, BlockResolver.new(), DamageCalculator.new())
 
 	# Direct CriticalResolver check
 	var direct_crit := critical_resolver.resolve(1.0)
@@ -186,7 +186,7 @@ func test_guaranteed_normal() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, BlockResolver.new(), DamageCalculator.new())
 
 	# Direct CriticalResolver check
 	var direct_normal := critical_resolver.resolve(0.0)
@@ -220,7 +220,7 @@ func test_critical_guarantees_hit_ignoring_evasion() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, BlockResolver.new(), DamageCalculator.new())
 
 	# Atacante con 0% de puntería vs Enemigo con 100% de evasión
 	# PERO con 100% de probabilidad crítica
@@ -273,7 +273,7 @@ func test_probabilistic_distribution() -> void:
 
 	var hit_resolver := HitResolver.new(rng)
 	var critical_resolver := CriticalResolver.new(rng)
-	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, DamageCalculator.new())
+	var combat_resolver := CombatResolver.new(hit_resolver, critical_resolver, BlockResolver.new(), DamageCalculator.new())
 
 	var attacker := DerivedStats.new()
 	attacker.accuracy = 0.80
@@ -324,7 +324,7 @@ func showcase_combat_scenarios() -> void:
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 12345
-	var combat_resolver := CombatResolver.new(HitResolver.new(rng), CriticalResolver.new(rng), DamageCalculator.new())
+	var combat_resolver := CombatResolver.new(HitResolver.new(rng), CriticalResolver.new(rng), BlockResolver.new(), DamageCalculator.new())
 
 	_simulate_and_print("Pícaro Ágil ataca a Guerrero Pesado", 0.90, 0.35, 0.25, combat_resolver)
 	_simulate_and_print("Guerrero ataca a Monstruo Fantasma (Evasión Alta)", 0.70, 0.65, 0.05, combat_resolver)

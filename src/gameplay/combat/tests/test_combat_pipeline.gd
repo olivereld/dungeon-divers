@@ -126,6 +126,7 @@ func _test_critical_attack_ignores_hit_chance() -> void:
 	var resolver := CombatResolver.new(
 		HitResolver.new(rng),
 		CriticalResolver.new(rng),
+		BlockResolver.new(),
 		DamageCalculator.new()
 	)
 
@@ -174,6 +175,7 @@ func _test_missed_attack_has_no_damage() -> void:
 	var resolver := CombatResolver.new(
 		HitResolver.new(rng),
 		CriticalResolver.new(rng),
+		BlockResolver.new(),
 		DamageCalculator.new()
 	)
 
@@ -360,6 +362,7 @@ func _create_guaranteed_resolver() -> CombatResolver:
 	return CombatResolver.new(
 		HitResolver.new(rng),
 		CriticalResolver.new(rng),
+		BlockResolver.new(),
 		DamageCalculator.new()
 	)
 
