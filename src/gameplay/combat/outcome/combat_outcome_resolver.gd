@@ -10,13 +10,14 @@ func apply_attack(
 	assert(target_health != null)
 
 	var hp_before := target_health.current_hp
+	var was_alive := target_health.is_alive()
 
 	if not attack_result.has_damage():
 		return CombatOutcome.new(
 			0.0,
 			hp_before,
 			hp_before,
-			target_health.is_dead()
+			false
 		)
 
 	var damage_result := attack_result.damage_result
@@ -30,9 +31,11 @@ func apply_attack(
 		damage_result.final_damage
 	)
 
+	var target_died := was_alive and target_health.is_dead()
+
 	return CombatOutcome.new(
 		damage_applied,
 		hp_before,
 		target_health.current_hp,
-		target_health.is_dead()
+		target_died
 	)

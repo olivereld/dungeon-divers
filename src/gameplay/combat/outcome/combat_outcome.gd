@@ -32,3 +32,7 @@ func did_damage() -> bool:
 
 func killed_target() -> bool:
 	return target_died
+
+
+func is_target_dead() -> bool:
+	return target_hp_after <= 0.0
