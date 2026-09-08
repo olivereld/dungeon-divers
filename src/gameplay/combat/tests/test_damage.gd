@@ -290,6 +290,7 @@ func test_magical_damage_caps() -> void:
 	_assert_approx(res.raw_damage, 100.0, "Daño bruto mágico (20 + 80)")
 	_assert_approx(res.mitigated_damage, 37.5, "Daño mitigado aplicando ambos caps (100 * 0.375)")
 	_assert_approx(res.final_damage, 62.5, "Daño final aplicando caps (100 - 37.5)")
+	_assert_approx(DamageConstants.MAGIC_PIERCING_CAP, 0.50, "DamageConstants.MAGIC_PIERCING_CAP está definido como 0.50")
 
 
 func test_magical_damage_minimum_guaranteed() -> void:

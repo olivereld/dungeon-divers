@@ -108,7 +108,7 @@ func _calculate_magical_damage(
 	var piercing := clampf(
 		request.attacker_stats.magic_piercing,
 		0.0,
-		0.50
+		DamageConstants.MAGIC_PIERCING_CAP
 	)
 
 	var effective_resistance := (
