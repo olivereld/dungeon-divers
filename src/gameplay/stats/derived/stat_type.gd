@@ -1,42 +1,51 @@
-# stat_type.gd
 class_name StatType
 extends RefCounted
 
 enum Type {
-	# --- Constitution ---
+	# -----------------------------------------------------------------------
+	# Constitution
+	# -----------------------------------------------------------------------
 	MAX_HP,
 	HEALTH_REGEN,
-	PHYSICAL_RESILIENCE,     # % resistencia a estados físicos (veneno, sangrado, aturdimiento)
+	PHYSICAL_RESILIENCE,
 
-	# --- Strength ---
+	# -----------------------------------------------------------------------
+	# Strength
+	# -----------------------------------------------------------------------
 	PHYSICAL_POWER,
-	EQUIP_LOAD_MAX,          # kg que puede cargar antes de penalización
-	SHIELD_BLOCK_VALUE,      # mitigación plana al bloquear con escudo
+	EQUIP_LOAD_MAX,
+	SHIELD_BLOCK_VALUE,
 
-	# --- Dexterity ---
+	# -----------------------------------------------------------------------
+	# Dexterity
+	# -----------------------------------------------------------------------
 	ARMOR_CLASS,
-	DAMAGE_MITIGATION,       # % reducción de daño físico (de Armor Class)
-	EVASION,                 # % de esquivar ataques físicos
-	ACCURACY,                # % de acertar ataques físicos
+	EVASION,
+	ACCURACY,
 	INITIATIVE,
 	MAX_MOVEMENT,
 
-	# --- Intelligence ---
+	# -----------------------------------------------------------------------
+	# Intelligence
+	# -----------------------------------------------------------------------
 	SPELL_POWER,
-	MAGIC_PIERCING,          # % de resistencia mágica enemiga ignorada
-	SKILL_CAPACITY,          # ranuras de habilidad activa
+	MAGIC_PIERCING,
+	SKILL_CAPACITY,
 
-	# --- Wisdom ---
+	# -----------------------------------------------------------------------
+	# Wisdom
+	# -----------------------------------------------------------------------
 	MAX_MANA,
 	MANA_REGEN,
 	HEALING_POWER,
-	MAGIC_RESIST,
-	MAGIC_MITIGATION,        # % reducción de daño mágico (de Magic Resist)
-	MENTAL_RESILIENCE,       # % resistencia a estados mentales (miedo, silencio, confusión)
-	ELEMENTAL_STATUS_CHANCE, # % de aplicar quemadura/congelación/etc al golpear
+	MAGIC_RESISTANCE,
+	MENTAL_RESILIENCE,
+	ELEMENTAL_STATUS_CHANCE,
 
-	# --- Charisma ---
-	VENDOR_DISCOUNT,         # % de descuento con mercaderes
-	LEADERSHIP,              # % de buff pasivo a aliados/invocaciones adyacentes
-	CRITICAL_CHANCE,         # % de golpe crítico
+	# -----------------------------------------------------------------------
+	# Charisma
+	# -----------------------------------------------------------------------
+	VENDOR_DISCOUNT,
+	LEADERSHIP,
+	CRITICAL_CHANCE,
 }

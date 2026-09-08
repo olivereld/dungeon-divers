@@ -1,7 +1,3 @@
-# attribute_type.gd
-# Los 6 atributos primarios oficiales de Dungeon Divers.
-# Nada fuera de este archivo debería inventar un séptimo atributo "informal";
-# si hace falta uno nuevo, se añade aquí y se propaga al resto del módulo.
 class_name AttributeType
 extends RefCounted
 

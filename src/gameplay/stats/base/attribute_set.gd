@@ -1,9 +1,3 @@
-# attribute_set.gd
-# Responde una única pregunta: "¿cuáles son los atributos de esta entidad?"
-# No sabe nada de HP, daño, maná ni de si esto es un jugador o un dragón.
-# Se usa tanto para atributos BASE (los del personaje sin equipo) como para
-# atributos EFECTIVOS (ya con modificadores aplicados) — misma forma, distinto
-# momento del pipeline.
 class_name AttributeSet
 extends RefCounted
 
@@ -37,8 +31,9 @@ func get_value(attribute: AttributeType.Type) -> float:
 		AttributeType.Type.INTELLIGENCE: return intelligence
 		AttributeType.Type.WISDOM: return wisdom
 		AttributeType.Type.CHARISMA: return charisma
-	push_warning("AttributeSet: atributo desconocido %s" % attribute)
-	return 0.0
+		_: 
+			push_warning("AttributeSet: atributo desconocido %s" % attribute)
+			return 0.0
 
 func set_value(attribute: AttributeType.Type, value: float) -> void:
 	match attribute:
@@ -48,7 +43,15 @@ func set_value(attribute: AttributeType.Type, value: float) -> void:
 		AttributeType.Type.INTELLIGENCE: intelligence = value
 		AttributeType.Type.WISDOM: wisdom = value
 		AttributeType.Type.CHARISMA: charisma = value
-		_: push_warning("AttributeSet: atributo desconocido %s" % attribute)
+		_:
+			push_warning("AttributeSet: atributo desconocido %s" % attribute)
 
 func duplicate_attributes() -> AttributeSet:
-	return AttributeSet.new(strength, dexterity, constitution, intelligence, wisdom, charisma)
+	return AttributeSet.new(
+		strength,
+		dexterity,
+		constitution,
+		intelligence,
+		wisdom,
+		charisma
+	)
