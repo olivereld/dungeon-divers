@@ -12,79 +12,160 @@ func extract_components(graph: WallBoundaryGraph) -> Array[WallComponent]:
 	if graph == null or graph.get_edge_count() == 0:
 		return components
 
-	# 1. Identificar componentes conexas
-	var visited_edges: Dictionary = {} # Vector4i -> bool
 	var all_edges: Array[Dictionary] = graph.get_all_edges()
 
-	# Mapa de salida dirigida: Vector2i -> Array[Vector2i]
-	var outgoing_map: Dictionary = {}
+	# Paso 1: Agrupar aristas en componentes conexas no dirigidas
+	var adj: Dictionary = {} # Vector2i -> Array[Dictionary (edges)]
 	for e in all_edges:
 		var u: Vector2i = e["start"]
 		var v: Vector2i = e["end"]
-		if not outgoing_map.has(u):
-			var arr: Array[Vector2i] = []
-			outgoing_map[u] = arr
-		(outgoing_map[u] as Array[Vector2i]).append(v)
+		if not adj.has(u):
+			adj[u] = []
+		if not adj.has(v):
+			adj[v] = []
+		adj[u].append(e)
+		adj[v].append(e)
 
-	var component_counter: int = 0
+	var visited_vertices: Dictionary = {}
+	var connected_edge_groups: Array[Array] = []
+	var visited_edges_global: Dictionary = {}
 
-	for e in all_edges:
-		var edge_k := Vector4i(e["start"].x, e["start"].y, e["end"].x, e["end"].y)
-		if visited_edges.has(edge_k):
+	for v_start in adj.keys():
+		if visited_vertices.has(v_start):
 			continue
 
-		# Rastrear ciclo cerrado o cadena a partir de este punto
-		var comp := _WallComponentScript.new(component_counter)
-		var loop_points: Array[Vector2i] = []
-		var curr_pt: Vector2i = e["start"]
-		var start_pt: Vector2i = curr_pt
+		var group_edges: Array[Dictionary] = []
+		var queue: Array[Vector2i] = [v_start]
+		visited_vertices[v_start] = true
 
-		var max_steps: int = all_edges.size() + 10
-		var step: int = 0
-		var closed: bool = false
+		while not queue.is_empty():
+			var curr: Vector2i = queue.pop_front()
+			for e in adj[curr]:
+				var edge_k := Vector4i(e["start"].x, e["start"].y, e["end"].x, e["end"].y)
+				if not visited_edges_global.has(edge_k):
+					visited_edges_global[edge_k] = true
+					group_edges.append(e)
 
-		while step < max_steps:
-			step += 1
-			loop_points.append(curr_pt)
+				var nxt: Vector2i = e["end"] if e["start"] == curr else e["start"]
+				if not visited_vertices.has(nxt):
+					visited_vertices[nxt] = true
+					queue.append(nxt)
 
-			# Buscar aristas no visitadas salientes desde curr_pt
-			var next_candidates: Array = outgoing_map.get(curr_pt, [])
-			var chosen_next: Vector2i = Vector2i(-999999, -999999)
+		if not group_edges.is_empty():
+			connected_edge_groups.append(group_edges)
 
-			for cand_item in next_candidates:
-				var cand: Vector2i = cand_item as Vector2i
-				var cand_k := Vector4i(curr_pt.x, curr_pt.y, cand.x, cand.y)
-				if not visited_edges.has(cand_k):
-					chosen_next = cand
-					visited_edges[cand_k] = true
-					break
+	# Paso 2: Dentro de cada componente conexa, reconstruir loops y open_chains completos
+	var comp_id: int = 0
+	for group in connected_edge_groups:
+		var comp := _WallComponentScript.new(comp_id)
+		_reconstruct_component_paths(group, comp)
+		if not comp.is_empty():
+			components.append(comp)
+			comp_id += 1
 
-			if chosen_next == Vector2i(-999999, -999999):
-				# No hay más aristas salientes no visitadas
+	return components
+
+static func _reconstruct_component_paths(group_edges: Array, comp: WallComponent) -> void:
+	var outgoing: Dictionary = {} # Vector2i -> Array[Vector2i]
+	var in_deg: Dictionary = {}
+	var out_deg: Dictionary = {}
+
+	for e in group_edges:
+		var u: Vector2i = e["start"]
+		var v: Vector2i = e["end"]
+		if not outgoing.has(u):
+			outgoing[u] = []
+		outgoing[u].append(v)
+		out_deg[u] = out_deg.get(u, 0) + 1
+		in_deg[v] = in_deg.get(v, 0) + 1
+
+	var visited_edges: Dictionary = {}
+
+	var get_unvisited_out = func(pt: Vector2i) -> Array[Vector2i]:
+		var res: Array[Vector2i] = []
+		for nxt in outgoing.get(pt, []):
+			var k := Vector4i(pt.x, pt.y, nxt.x, nxt.y)
+			if not visited_edges.has(k):
+				res.append(nxt)
+		return res
+
+	# 1. Extraer cadenas abiertas buscando vértices donde out_degree > in_degree
+	while true:
+		var start_pt := Vector2i(-999999, -999999)
+		for u in out_deg.keys():
+			var u_out: Array[Vector2i] = get_unvisited_out.call(u)
+			if u_out.is_empty():
+				continue
+			if out_deg.get(u, 0) > in_deg.get(u, 0):
+				start_pt = u
 				break
 
-			if chosen_next == start_pt:
-				# Se cerró el ciclo completamente
+		if start_pt == Vector2i(-999999, -999999):
+			break
+
+		var path: Array[Vector2i] = [start_pt]
+		var curr := start_pt
+		var closed := false
+
+		while true:
+			var candidates: Array[Vector2i] = get_unvisited_out.call(curr)
+			if candidates.is_empty():
+				break
+			var nxt: Vector2i = candidates[0]
+			visited_edges[Vector4i(curr.x, curr.y, nxt.x, nxt.y)] = true
+			if nxt == start_pt:
 				closed = true
 				break
+			curr = nxt
+			path.append(curr)
 
-			curr_pt = chosen_next
-
-		if loop_points.size() >= 2:
-			if closed and loop_points.size() >= 3:
-				var simplified: Array[Vector2i] = simplify_polygon(loop_points)
+		if path.size() >= 2:
+			if closed and path.size() >= 3:
+				var simplified: Array[Vector2i] = simplify_polygon(path)
 				if simplified.size() >= 3:
 					comp.add_loop(simplified)
 			else:
-				var simplified: Array[Vector2i] = simplify_chain(loop_points)
+				var simplified: Array[Vector2i] = simplify_chain(path)
 				if simplified.size() >= 2:
 					comp.add_chain(simplified)
 
-		if not comp.is_empty():
-			components.append(comp)
-			component_counter += 1
+	# 2. Extraer ciclos cerrados restantes (Eulerian circuits)
+	while true:
+		var start_pt := Vector2i(-999999, -999999)
+		for u in outgoing.keys():
+			var u_out: Array[Vector2i] = get_unvisited_out.call(u)
+			if not u_out.is_empty():
+				start_pt = u
+				break
 
-	return components
+		if start_pt == Vector2i(-999999, -999999):
+			break
+
+		var path: Array[Vector2i] = [start_pt]
+		var curr := start_pt
+		var closed := false
+
+		while true:
+			var candidates: Array[Vector2i] = get_unvisited_out.call(curr)
+			if candidates.is_empty():
+				break
+			var nxt: Vector2i = candidates[0]
+			visited_edges[Vector4i(curr.x, curr.y, nxt.x, nxt.y)] = true
+			if nxt == start_pt:
+				closed = true
+				break
+			curr = nxt
+			path.append(curr)
+
+		if path.size() >= 2:
+			if closed and path.size() >= 3:
+				var simplified: Array[Vector2i] = simplify_polygon(path)
+				if simplified.size() >= 3:
+					comp.add_loop(simplified)
+			else:
+				var simplified: Array[Vector2i] = simplify_chain(path)
+				if simplified.size() >= 2:
+					comp.add_chain(simplified)
 
 ## Simplifica vértices colineales consecutivos en un polígono cerrado ortogonal.
 static func simplify_polygon(pts: Array[Vector2i]) -> Array[Vector2i]:
