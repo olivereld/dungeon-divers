@@ -528,6 +528,13 @@ func _display_modules_info_in_inspector() -> void:
 	bbcode += "Estado: [color=green]100% OPERATIVO[/color]\n"
 	bbcode += "Geometría 3D: [color=cyan]Masa Sólida Volumétrica Activa[/color]\n\n"
 
+	const _InspectorScript = preload("res://src/presentation/showcase/module_health/dungeon_module_inspector.gd")
+	var inspector_inst := _InspectorScript.new()
+	var statuses = inspector_inst.inspect()
+	var health_map: Dictionary = {}
+	for s in statuses:
+		health_map[s.name] = s
+
 	bbcode += "[b]1. Pipeline & Algoritmos 2D:[/b]\n"
 	bbcode += "  • [color=white]DungeonPipeline[/color]: Orquestador procedural\n"
 	bbcode += "  • [color=white]DungeonRoomStage[/color]: Colocación (BSP, CA, Hybrid)\n"
@@ -536,20 +543,26 @@ func _display_modules_info_in_inspector() -> void:
 	bbcode += "  • [color=white]SpaceGrammarConfig[/color]: Gramática y anclas\n"
 	bbcode += "  • [color=white]FloodFill[/color]: Conectividad y validación\n\n"
 
-	bbcode += "[b]2. Geometría 3D & Masa Sólida:[/b]\n"
-	bbcode += "  • [color=white]SolidRegionExtractor[/color]: Agrupación WALL\n"
-	bbcode += "  • [color=white]SolidGeometryBuilder[/color]: Mallas 2x2m cerradas\n"
-	bbcode += "  • [color=white]BoundaryExtractor[/color]: Polígonos de contorno\n"
-	bbcode += "  • [color=white]WallSectionExtractor[/color]: Tramos y esquinas\n"
-	bbcode += "  • [color=white]WallGeometryBuilder[/color]: Perfiles extruidos\n\n"
+	bbcode += "[b]2. Geometría 3D & Masa Sólida (Module Health):[/b]\n"
+	for mod_name in ["SolidRegionExtractor", "SolidGeometryBuilder", "BoundaryExtractor", "ComponentExtractor", "WallSectionExtractor", "WallGeometryBuilder", "WallProfileBuilder"]:
+		if health_map.has(mod_name):
+			var s = health_map[mod_name]
+			var pipe_str = "[color=green]● USED[/color]" if s.is_used_by_pipeline else "[color=coral]○ NOT USED[/color]"
+			bbcode += "  • [color=white]%s[/color] File: %s | Pipeline: %s\n" % [mod_name, s.get_state_symbol(), pipe_str]
+		else:
+			bbcode += "  • [color=white]%s[/color]\n" % mod_name
+	bbcode += "\n"
 
 	bbcode += "[b]3. Estructura, Vanos & Decoración:[/b]\n"
+	for mod_name in ["BrickDecorator", "MaterialResolver", "ArchGeometryBuilder", "DoorGeometryBuilder", "StairGeometryBuilder"]:
+		if health_map.has(mod_name):
+			var s = health_map[mod_name]
+			var pipe_str = "[color=green]● USED[/color]" if s.is_used_by_pipeline else "[color=coral]○ NOT USED[/color]"
+			bbcode += "  • [color=white]%s[/color] File: %s | Pipeline: %s\n" % [mod_name, s.get_state_symbol(), pipe_str]
 	bbcode += "  • [color=white]DungeonPresentationBuilder[/color]: Escena 3D\n"
 	bbcode += "  • [color=white]DungeonFloorGenerator[/color]: Losas de suelo\n"
 	bbcode += "  • [color=white]DoorManifestFactory / Spawner[/color]: Puertas\n"
-	bbcode += "  • [color=white]DungeonStairSpawner[/color]: Conexión vertical\n"
-	bbcode += "  • [color=white]BrickDecorator[/color]: Relieve en muros\n"
-	bbcode += "  • [color=white]MaterialResolver[/color]: Shaders y materiales PBR\n\n"
+	bbcode += "  • [color=white]DungeonStairSpawner[/color]: Conexión vertical\n\n"
 
 	bbcode += "[b]4. Iluminación & Visor:[/b]\n"
 	bbcode += "  • [color=white]DungeonLightingController[/color]: Ambient fill (#28344A)\n"
