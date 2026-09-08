@@ -33,8 +33,8 @@ func run() -> void:
 	_test_miss_does_not_apply_damage()
 	_test_attack_without_damage_does_not_change_hp()
 	_test_death_is_reported()
-	_test_attack_on_already_dead_target_does_not_report_killed()
-	_test_miss_on_dead_target_does_not_report_killed()
+	_test_dead_target_attack_is_rejected()
+	_test_dead_target_miss_is_rejected()
 
 
 func _create_damage_result(
@@ -227,7 +227,7 @@ func _test_death_is_reported() -> void:
 	)
 
 
-func _test_attack_on_already_dead_target_does_not_report_killed() -> void:
+func _test_dead_target_attack_is_rejected() -> void:
 	_test_count += 1
 	var health := Health.new(100.0)
 	health.apply_damage(100.0)
@@ -247,22 +247,12 @@ func _test_attack_on_already_dead_target_does_not_report_killed() -> void:
 	)
 
 	_assert(
-		outcome.damage_applied == 0.0,
-		"No damage applied because target had 0 HP remaining."
-	)
-
-	_assert(
-		not outcome.killed_target(),
-		"Target was already dead, so this attack did not cause the death."
-	)
-
-	_assert(
-		outcome.is_target_dead(),
-		"Target is currently dead after the attack."
+		outcome == null,
+		"CombatOutcomeResolver must reject applying attack to an already dead target."
 	)
 
 
-func _test_miss_on_dead_target_does_not_report_killed() -> void:
+func _test_dead_target_miss_is_rejected() -> void:
 	_test_count += 1
 	var health := Health.new(100.0)
 	health.apply_damage(100.0)
@@ -280,18 +270,8 @@ func _test_miss_on_dead_target_does_not_report_killed() -> void:
 	)
 
 	_assert(
-		outcome.damage_applied == 0.0,
-		"Miss applies 0 damage."
-	)
-
-	_assert(
-		not outcome.killed_target(),
-		"Miss on already dead target must not report killed_target = true."
-	)
-
-	_assert(
-		outcome.is_target_dead(),
-		"Target is dead."
+		outcome == null,
+		"CombatOutcomeResolver must reject applying miss to an already dead target."
 	)
 
 

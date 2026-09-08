@@ -9,6 +9,11 @@ func apply_attack(
 	assert(attack_result != null)
 	assert(target_health != null)
 
+	assert(
+		target_health.is_alive(),
+		"Cannot apply an attack to a dead target."
+	)
+
 	var hp_before := target_health.current_hp
 	var was_alive := target_health.is_alive()
 
