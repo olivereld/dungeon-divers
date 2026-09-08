@@ -53,7 +53,7 @@ var elemental_status_chance: float = 0.0
 var vendor_discount: float = 0.0
 var leadership: float = 0.0
 var critical_chance: float = 0.0
-
+var loot_luck: float = 1.0
 # ---------------------------------------------------------------------------
 # Attribute modifiers
 # ---------------------------------------------------------------------------
@@ -96,6 +96,7 @@ func get_value(stat: StatType.Type) -> float:
 		StatType.Type.VENDOR_DISCOUNT: return vendor_discount
 		StatType.Type.LEADERSHIP: return leadership
 		StatType.Type.CRITICAL_CHANCE: return critical_chance
+		StatType.Type.LOOT_LUCK: return loot_luck
 
 		_:
 			push_warning("DerivedStats: stat desconocido %s" % stat)

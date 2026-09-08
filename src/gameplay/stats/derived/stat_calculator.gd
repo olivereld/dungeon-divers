@@ -14,7 +14,8 @@ const ELEMENTAL_STATUS_CHANCE_CAP := 0.75
 const VENDOR_DISCOUNT_CAP := 0.30
 const LEADERSHIP_CAP := 0.50
 const CRITICAL_CHANCE_CAP := 0.50
-
+const LOOT_LUCK_MIN := 1.0
+const LOOT_LUCK_CAP := 2.0
 # ---------------------------------------------------------------------------
 # Utility
 # ---------------------------------------------------------------------------
@@ -498,6 +499,21 @@ static func calculate_derived_stats(
 		),
 		0.0,
 		CRITICAL_CHANCE_CAP
+	)
+
+	var raw_loot_luck: float = (
+		1.0
+		+ floor(effective_attributes.charisma / 10.0) * 0.05
+	)
+
+	derived.loot_luck = clamp(
+		_apply_modifiers(
+			raw_loot_luck,
+			StatType.Type.LOOT_LUCK,
+			stat_modifiers
+		),
+		LOOT_LUCK_MIN,
+		LOOT_LUCK_CAP
 	)
 
 	return derived

@@ -25,6 +25,7 @@ func _init() -> void:
 	test_initiative_uses_dexterity_and_level()
 	test_strength_controls_equipment_load()
 	test_charisma_controls_critical_chance()
+	test_charisma_controls_loot_luck()
 	test_attribute_modifiers()
 	test_stat_modifiers()
 	test_full_pipeline_calculate()
@@ -116,6 +117,7 @@ func test_nivel_1_derived_stats() -> void:
 	_assert_eq(derived.health_regen, 1.0, "Regeneración de Salud (floor(CON 10 / 8))")
 	_assert_eq(derived.shield_block_value, 2.0, "Bloqueo con Escudo (floor(STR 10 / 4))")
 	_assert_eq(derived.armor_class, 10.0, "Clase de Armadura base (10 + DEX mod 0)")
+	_assert_approx(derived.loot_luck, 1.05, "Suerte de Botín (1.0 + floor(CHA 10 / 10) * 0.05)")
 
 
 func test_nivel_30_tanque() -> void:
@@ -176,6 +178,7 @@ func test_all_percentage_caps() -> void:
 	_assert_approx(derived.vendor_discount, StatCalculator.VENDOR_DISCOUNT_CAP, "Descuento en Tienda capped a 30%")
 	_assert_approx(derived.leadership, StatCalculator.LEADERSHIP_CAP, "Liderazgo capped a 50%")
 	_assert_approx(derived.critical_chance, StatCalculator.CRITICAL_CHANCE_CAP, "Probabilidad Crítica capped a 50%")
+	_assert_approx(derived.loot_luck, StatCalculator.LOOT_LUCK_CAP, "Suerte de Botín capped a 2.0x")
 
 
 func test_initiative_uses_dexterity_and_level() -> void:
@@ -204,6 +207,35 @@ func test_charisma_controls_critical_chance() -> void:
 
 	# 0.05 base + floor(40 / 8) / 100 = 0.05 + 0.05 = 0.10 (10%)
 	_assert_approx(derived.critical_chance, 0.10, "Crítico con CHA 40 (5% base + 5%)")
+
+
+func test_charisma_controls_loot_luck() -> void:
+	_start_test("Carisma escala Suerte de Botín (Loot Luck)")
+	var base_cha8 := AttributeSet.new(10, 10, 10, 10, 10, 8)
+	var base_cha20 := AttributeSet.new(10, 10, 10, 10, 10, 20)
+	var base_cha40 := AttributeSet.new(10, 10, 10, 10, 10, 40)
+	var base_extreme := AttributeSet.new(10, 10, 10, 10, 10, 300)
+
+	var derived_cha8 := StatCalculator.calculate_derived_stats(1, base_cha8, {})
+	var derived_cha20 := StatCalculator.calculate_derived_stats(1, base_cha20, {})
+	var derived_cha40 := StatCalculator.calculate_derived_stats(1, base_cha40, {})
+	var derived_extreme := StatCalculator.calculate_derived_stats(1, base_extreme, {})
+
+	# CHA 8: 1.0 + floor(8/10)*0.05 = 1.00x
+	_assert_approx(derived_cha8.loot_luck, 1.00, "CHA 8 da 1.00x (mínimo base)")
+	# CHA 20: 1.0 + floor(20/10)*0.05 = 1.10x
+	_assert_approx(derived_cha20.loot_luck, 1.10, "CHA 20 da 1.10x (+10% suerte)")
+	# CHA 40: 1.0 + floor(40/10)*0.05 = 1.20x
+	_assert_approx(derived_cha40.loot_luck, 1.20, "CHA 40 da 1.20x (+20% suerte)")
+	# CHA 300: clamp a LOOT_LUCK_CAP = 2.0x
+	_assert_approx(derived_extreme.loot_luck, StatCalculator.LOOT_LUCK_CAP, "CHA extrema se limita a LOOT_LUCK_CAP (2.0x)")
+
+	# Modificadores directos a LOOT_LUCK
+	var luck_mod := StatModifier.new(StatModifierType.Type.ADD, 0.15, StatModifierSource.Source.EQUIPMENT, "lucky_charm")
+	var derived_mod := StatCalculator.calculate_derived_stats(1, base_cha20, {
+		StatType.Type.LOOT_LUCK: [luck_mod]
+	})
+	_assert_approx(derived_mod.loot_luck, 1.25, "Modificador ADD +0.15 a Loot Luck (1.10 + 0.15 = 1.25x)")
 
 
 func test_attribute_modifiers() -> void:
@@ -330,5 +362,5 @@ func _print_archetype_card(title: String, level: int, base: AttributeSet, d: Der
 	print("|--------------------------------------------------------------------|")
 	print("| Utilidad:   Carga Maxima:       %-5.1fkg | Regeneracion HP:    %-4.1f/t |" % [d.equip_load_max, d.health_regen])
 	print("|             Regeneracion Mana:  %-4.1f/t  | Descuento Tienda:   %-4.1f%%  |" % [d.mana_regen, d.vendor_discount * 100.0])
-	print("|             Liderazgo:          %-4.1f%%                                  |" % [d.leadership * 100.0])
+	print("|             Liderazgo:          %-4.1f%%  | Suerte Botin:       %-4.2fx |" % [d.leadership * 100.0, d.loot_luck])
 	print("+--------------------------------------------------------------------+")
