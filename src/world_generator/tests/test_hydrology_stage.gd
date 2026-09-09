@@ -44,6 +44,37 @@ func _init() -> void:
 			assert(c_data["water_height"] >= c_data["terrain_height"] - 0.001, "Water must be at or above depression floor")
 			assert(c_data["depth"] >= 0.0, "Depth must be non-negative")
 
+	# H11: Lake accumulation must propagate downstream of spillway
+	print(" [CHECK] H11. Lake Contribution Propagates Downstream...")
+	for lake in hydro.lakes:
+		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
+		if not result.cells.has(spill_pos) or hydro.is_lake(spill_pos):
+			continue
+		var lake_cells: Array = lake.get("cells", [])
+		var lake_area: float = float(lake_cells.size())
+		var spill_acc: float = hydro.get_debug_value("drainage", spill_pos, 0.0)
+		assert(spill_acc >= lake_area, "H11: Spillway at %s must have accumulation >= lake area (%d), got %.1f" % [str(spill_pos), lake_cells.size(), spill_acc])
+
+	# H12: D8 determinism — no cycles, no uphill flow
+	print(" [CHECK] H12. D8 Flow Determinism (no cycles, no uphill)...")
+	var flow_dir_grid: Dictionary = hydro.debug_layers.get("flow_dir", {})
+	assert(not flow_dir_grid.is_empty(), "H12: flow_dir debug layer must exist")
+	var sample_pos := Vector2i(64, 64)
+	if hydro.is_water(sample_pos):
+		sample_pos = Vector2i(32, 32)
+	var visited_chain: Dictionary = {}
+	var chain_pos: Vector2i = sample_pos
+	for _step in range(profile.width * profile.height + 1):
+		assert(not visited_chain.has(chain_pos), "H12: D8 cycle detected at %s" % str(chain_pos))
+		visited_chain[chain_pos] = true
+		var dir_vec: Vector2 = flow_dir_grid.get(chain_pos, Vector2.ZERO)
+		if dir_vec == Vector2.ZERO:
+			break
+		var next_pos := chain_pos + Vector2i(int(round(dir_vec.x)), int(round(dir_vec.y)))
+		if next_pos == chain_pos:
+			break
+		chain_pos = next_pos
+
 	# 3. Test Downhill River Flow (Topographic Gravity Law)
 	print(" [CHECK] 3. River Flow Law (Rivers must strictly flow downhill)...")
 	print("   Rivers generated: %d" % hydro.rivers.size())

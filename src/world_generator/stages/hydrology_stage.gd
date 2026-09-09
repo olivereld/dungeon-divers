@@ -156,12 +156,24 @@ func execute(context: WorldGenerationContext) -> void:
 	# -------------------------------------------------------------------------
 	# 3. DEPRESSION-FILLED HEIGHT FIELD (Barnes et al. 2014 Priority-Flood)
 	# -------------------------------------------------------------------------
-	var filled_height: Dictionary = _build_filled_height_field(cells, hydro, width, height)
+	var flood_data := _build_filled_height_field(cells, hydro, width, height)
+	var filled_height: Dictionary = flood_data["filled"]
+	var flood_rank: Dictionary = flood_data["flood_rank"]
 
 	# -------------------------------------------------------------------------
 	# 4. D8 FLOW DIRECTION
 	# -------------------------------------------------------------------------
 	var flow_to: Dictionary = {}
+
+	# Precompute lake cell sets for spillways so spillways don't flow backward into their own lakes
+	var spillway_lake_cells: Dictionary = {}
+	for lake in hydro.lakes:
+		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
+		var lake_cells: Array = lake.get("cells", [])
+		var set_dict: Dictionary = {}
+		for lc in lake_cells:
+			set_dict[lc] = true
+		spillway_lake_cells[spill_pos] = set_dict
 
 	for y in range(height):
 		for x in range(width):
@@ -181,7 +193,9 @@ func execute(context: WorldGenerationContext) -> void:
 				cells,
 				width,
 				height,
-				profile
+				profile,
+				flood_rank,
+				spillway_lake_cells
 			)
 			flow_to[pos] = next_pos
 
@@ -199,6 +213,16 @@ func execute(context: WorldGenerationContext) -> void:
 	for y in range(height):
 		for x in range(width):
 			accumulation[Vector2i(x, y)] = 1.0
+
+	# H11: Inject lake contribution into spillways BEFORE propagation
+	for lake in hydro.lakes:
+		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
+		var lake_cells: Array = lake.get("cells", [])
+		if cells.has(spill_pos) and not hydro.is_lake(spill_pos):
+			var lake_acc: float = 0.0
+			for lpos in lake_cells:
+				lake_acc += float(accumulation.get(lpos, 1.0))
+			accumulation[spill_pos] = float(accumulation.get(spill_pos, 1.0)) + lake_acc
 
 	# Sort cells from highest to lowest filled elevation.
 	var sorted_cells: Array[Vector2i] = []
@@ -222,16 +246,6 @@ func execute(context: WorldGenerationContext) -> void:
 			accumulation[downstream] = 1.0
 
 		accumulation[downstream] += accumulation.get(pos, 1.0)
-
-	# Incorporate lake basin drainage into their spillways (Phase H3)
-	for lake in hydro.lakes:
-		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
-		var lake_cells: Array = lake.get("cells", [])
-		var lake_acc: float = 0.0
-		for lpos in lake_cells:
-			lake_acc += float(accumulation.get(lpos, 1.0))
-		if cells.has(spill_pos):
-			accumulation[spill_pos] = float(accumulation.get(spill_pos, 1.0)) + lake_acc
 
 	# -------------------------------------------------------------------------
 	# 6. RIVER POTENTIAL & CHANNEL MASK (Phase H2)
@@ -575,7 +589,9 @@ func _build_filled_height_field(
 ) -> Dictionary:
 	var filled: Dictionary = {}
 	var visited: Dictionary = {}
+	var flood_rank: Dictionary = {}
 	var pq := PriorityQueue.new()
+	var rank_counter: int = 0
 
 	# 1. Boundary cells are natural open outlets
 	for x in range(width):
@@ -606,20 +622,22 @@ func _build_filled_height_field(
 			filled[p_right] = c.height
 			pq.push(p_right, c.height)
 
-	# 2. Lakes are also natural internal sinks/outlets
+	# 2. Lakes are filled to their spillway height
 	for lake in hydro.lakes:
 		var lake_cells: Array = lake.cells if lake is Dictionary and lake.has("cells") else lake.get("cells", [])
+		var spill_h: float = float(lake.get("spillway_height", 0.0))
 		for pos in lake_cells:
 			if cells.has(pos) and not visited.has(pos):
 				visited[pos] = true
-				var c: WorldCell = cells[pos]
-				filled[pos] = c.height
-				pq.push(pos, c.height)
+				filled[pos] = spill_h
+				pq.push(pos, spill_h)
 
 	# 3. Priority Flood main loop
 	while not pq.is_empty():
 		var item: Dictionary = pq.pop()
 		var current_pos: Vector2i = item["pos"]
+		flood_rank[current_pos] = rank_counter
+		rank_counter += 1
 		var current_filled: float = float(filled[current_pos])
 
 		for offset in D8_OFFSETS:
@@ -639,7 +657,10 @@ func _build_filled_height_field(
 			filled[neighbor] = resolved_height
 			pq.push(neighbor, resolved_height)
 
-	return filled
+	return {
+		"filled": filled,
+		"flood_rank": flood_rank
+	}
 
 
 # =============================================================================
@@ -652,13 +673,18 @@ func _find_downstream_cell(
 	cells: Dictionary,
 	width: int,
 	height: int,
-	profile: WorldProfile
+	_profile: WorldProfile,
+	flood_rank: Dictionary = {},
+	spillway_lake_cells: Dictionary = {}
 ) -> Vector2i:
-	var raw_current: float = cells[pos].height
-	var current_filled: float = float(filled_height.get(pos, raw_current))
+	var current_filled: float = float(filled_height.get(pos, cells[pos].height))
+	var current_rank: int = flood_rank.get(pos, 999999999)
 
 	var best_pos: Vector2i = pos
 	var best_drop: float = 0.0
+	var best_rank: int = current_rank
+
+	var forbidden_cells: Dictionary = spillway_lake_cells.get(pos, {})
 
 	for offset in D8_OFFSETS:
 		var neighbor: Vector2i = pos + offset
@@ -666,59 +692,31 @@ func _find_downstream_cell(
 			continue
 		if not cells.has(neighbor):
 			continue
-
-		var neighbor_raw: float = cells[neighbor].height
-		# Physical terrain constraint: rivers and gravity flow strictly downhill
-		if neighbor_raw > raw_current + 0.0001:
+		if forbidden_cells.has(neighbor):
 			continue
 
-		var neighbor_filled: float = float(filled_height.get(neighbor, neighbor_raw))
-		var distance: float = (1.41421356 if offset.x != 0 and offset.y != 0 else 1.0) * profile.cell_size
+		var neighbor_filled: float = float(filled_height.get(neighbor, cells[neighbor].height))
+		var distance: float = (1.41421356 if offset.x != 0 and offset.y != 0 else 1.0)
 
-		# Drop prioritized by filled surface gradient to guide drainage basins
 		var drop: float = (current_filled - neighbor_filled) / maxf(distance, 0.001)
+		var neighbor_rank: int = flood_rank.get(neighbor, 999999999)
 
-		# If filled surface is flat locally, fall back to raw terrain drop
-		if drop <= 0.0001:
-			drop = (raw_current - neighbor_raw) / maxf(distance, 0.001)
-
-		if drop > best_drop:
+		if drop > best_drop + 0.00001:
 			best_drop = drop
 			best_pos = neighbor
+			best_rank = neighbor_rank
+		elif absf(drop - best_drop) <= 0.00001 and drop > 0.0:
+			# Tie-break among downhill neighbors: prefer cell resolved earlier in Priority-Flood
+			if neighbor_rank < best_rank:
+				best_pos = neighbor
+				best_rank = neighbor_rank
+		elif best_drop <= 0.00001 and absf(drop) <= 0.00001:
+			# Flat plateau: drain toward lower flood rank (closer to outlet/spillway)
+			if neighbor_rank < best_rank:
+				best_pos = neighbor
+				best_rank = neighbor_rank
 
-	if best_pos != pos:
-		return best_pos
-
-	# If no strictly lower neighbor exists, check if there's a flat neighbor that drains toward boundary
-	var boundary_distance: float = minf(
-		minf(float(pos.x), float(width - 1 - pos.x)),
-		minf(float(pos.y), float(height - 1 - pos.y))
-	)
-
-	var best_boundary_score: float = boundary_distance
-	var boundary_pos: Vector2i = pos
-
-	for offset in D8_OFFSETS:
-		var neighbor: Vector2i = pos + offset
-		if neighbor.x < 0 or neighbor.x >= width or neighbor.y < 0 or neighbor.y >= height:
-			continue
-		if not cells.has(neighbor):
-			continue
-
-		var neighbor_raw: float = cells[neighbor].height
-		if neighbor_raw > raw_current + 0.0001:
-			continue
-
-		var neighbor_boundary_distance: float = minf(
-			minf(float(neighbor.x), float(width - 1 - neighbor.x)),
-			minf(float(neighbor.y), float(height - 1 - neighbor.y))
-		)
-
-		if neighbor_boundary_distance < best_boundary_score:
-			best_boundary_score = neighbor_boundary_distance
-			boundary_pos = neighbor
-
-	return boundary_pos
+	return best_pos
 
 
 # =============================================================================
