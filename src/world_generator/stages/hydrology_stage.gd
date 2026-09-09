@@ -374,15 +374,24 @@ func execute(context: WorldGenerationContext) -> void:
 
 		networks_selected += 1
 
+	# Compute per-network max accumulation (H17)
+	var network_max_acc: Dictionary = {}  # network_id -> float
+	for item in validated_paths:
+		var net_id: int = item.get("network_id", 0)
+		for pos in item["path"]:
+			var acc: float = float(accumulation.get(pos, 1.0))
+			network_max_acc[net_id] = maxf(network_max_acc.get(net_id, 1.0), acc)
+
 	# -------------------------------------------------------------------------
 	# 10. CARVE RIVER CHANNELS INTO TERRAIN (Phase H6 & H7)
 	# -------------------------------------------------------------------------
-	_carve_river_channels(cells, validated_paths, accumulation, width, height, profile, hydro)
+	_carve_river_channels(cells, validated_paths, accumulation, width, height, profile, hydro, network_max_acc)
 
 	# -------------------------------------------------------------------------
 	# 11. BUILD FINAL RIVER GEOMETRY DATA (Phase H4 & H5)
 	# -------------------------------------------------------------------------
 	for item in validated_paths:
+		var net_id: int = item.get("network_id", 0)
 		var river_data := _build_river_data(
 			item["id"],
 			item["path"],
@@ -390,7 +399,8 @@ func execute(context: WorldGenerationContext) -> void:
 			cells,
 			profile,
 			hydro,
-			hydro_noise
+			hydro_noise,
+			network_max_acc.get(net_id, max_accumulation)
 		)
 		hydro.rivers.append(river_data)
 
@@ -794,7 +804,8 @@ func _carve_river_channels(
 	width: int,
 	height: int,
 	profile: WorldProfile,
-	hydro: RefCounted
+	hydro: RefCounted,
+	network_max_acc: Dictionary = {}
 ) -> void:
 	if validated_paths.is_empty():
 		return
@@ -807,6 +818,8 @@ func _carve_river_channels(
 	var carve_depth: Dictionary = {}
 
 	for item in validated_paths:
+		var net_id: int = item.get("network_id", 0)
+		var net_max: float = network_max_acc.get(net_id, max_acc)
 		var path: Array[Vector2i] = item["path"]
 		var n_pts: int = path.size()
 		for i in range(n_pts):
@@ -815,8 +828,8 @@ func _carve_river_channels(
 				continue
 
 			var acc: float = float(accumulation.get(pos, 1.0))
-			var acc_ratio: float = clampf((acc - 1.0) / maxf(max_acc - 1.0, 1.0), 0.0, 1.0)
-			var acc_factor: float = pow(acc_ratio, 0.42)
+			var acc_ratio: float = clampf((acc - 1.0) / maxf(net_max - 1.0, 1.0), 0.0, 1.0)
+			var acc_factor: float = pow(acc_ratio, profile.river_depth_response)
 
 			# Channel width and depth driven by profile parameters (Phase H6)
 			var channel_depth: float = lerpf(profile.river_channel_depth * 0.5, profile.river_channel_depth, acc_factor)
@@ -871,6 +884,21 @@ func _carve_river_channels(
 		cell.moisture = clampf(cell.moisture + 0.35 * (dep / maxf(profile.river_channel_depth, 0.01)), 0.0, 1.0)
 		modified_cells[pos] = true
 
+	# Ensure channel bed descends monotonically along every river path
+	for item in validated_paths:
+		var path: Array[Vector2i] = item["path"]
+		for i in range(1, path.size()):
+			var cur_pos: Vector2i = path[i]
+			var prev_pos: Vector2i = path[i - 1]
+			if hydro.is_lake(cur_pos):
+				continue
+			var cur_cell: WorldCell = cells.get(cur_pos)
+			var prev_cell: WorldCell = cells.get(prev_pos)
+			if cur_cell != null and prev_cell != null:
+				if cur_cell.height > prev_cell.height:
+					cur_cell.height = prev_cell.height
+					modified_cells[cur_pos] = true
+
 	# Update slope for modified cells to ensure consistent terrain mesh normals and walkability
 	for pos in modified_cells:
 		var cell: WorldCell = cells[pos]
@@ -896,36 +924,40 @@ func _build_river_data(
 	cells: Dictionary,
 	profile: WorldProfile,
 	hydro: RefCounted,
-	hydro_noise: FastNoiseLite
+	hydro_noise: FastNoiseLite,
+	network_max_acc: float = 1.0
 ) -> Dictionary:
 	var points: Array[Vector3] = []
 	var widths: Array[float] = []
-
-	var max_acc: float = 1.0
-	for pos in path:
-		max_acc = maxf(max_acc, float(accumulation.get(pos, 1.0)))
+	var depths: Array[float] = []
 
 	for i in range(path.size()):
 		var pos: Vector2i = path[i]
 		var cell: WorldCell = cells[pos]
 
 		var acc: float = float(accumulation.get(pos, 1.0))
-		var acc_ratio: float = clampf((acc - 1.0) / maxf(max_acc - 1.0, 1.0), 0.0, 1.0)
-		var acc_factor: float = pow(acc_ratio, 0.42)
+		var acc_ratio: float = clampf((acc - 1.0) / maxf(network_max_acc - 1.0, 1.0), 0.0, 1.0)
 
-		# Non-linear accumulation-based width progression (Phase H4)
-		var width: float = lerpf(profile.river_min_width, profile.river_max_width, acc_factor)
+		# H17: Width from network-normalized accumulation
+		var width_factor: float = pow(acc_ratio, profile.river_width_response)
+		var width: float = lerpf(profile.river_min_width, profile.river_max_width, width_factor)
 
-		# Taper at headwater source spring
+		# H18: Depth from same normalization
+		var depth_factor: float = pow(acc_ratio, profile.river_depth_response)
+		var depth: float = lerpf(profile.river_min_depth, profile.river_max_depth, depth_factor)
+
+		# Source taper (H21: reduces at headwater)
 		var length_progress: float = float(i) / float(maxi(path.size() - 1, 1))
 		var source_taper: float = clampf(length_progress / 0.12, 0.40, 1.0)
 		width = maxf(width * source_taper, profile.river_min_width * 0.80)
 
-		# Expansion at lake estuary / mouth
+		# Lake estuary expansion (H22)
 		if i >= path.size() - 2 and hydro.is_lake(path[-1]):
 			width *= 1.25
+			depth *= 1.15
 
 		widths.append(width)
+		depths.append(depth)
 
 		var flow_dir := Vector2.ZERO
 		if i < path.size() - 1:
@@ -939,16 +971,19 @@ func _build_river_data(
 		var world_x: float = float(pos.x)
 		var world_z: float = float(pos.y)
 
-		# Controlled meander strictly LATERAL to flow direction (Phase H5)
+		# Controlled meander strictly LATERAL to flow direction (H21)
 		var meander_offset := Vector2.ZERO
 		if profile.hydrology_noise_enabled and hydro_noise != null:
 			var sample_x: float = float(pos.x) * profile.cell_size
 			var sample_z: float = float(pos.y) * profile.cell_size
 			var noise_val: float = hydro_noise.get_noise_2d(sample_x, sample_z)
 			var perp_dir := Vector2(-flow_dir.y, flow_dir.x)
-			var meander_taper: float = clampf(length_progress / 0.15, 0.0, 1.0)
-			if i >= path.size() - 2:
-				meander_taper *= 0.3
+
+			# H21: Taper to zero at both headwater and outlet
+			var source_taper_meander: float = clampf(length_progress / 0.08, 0.0, 1.0)
+			var outlet_taper_meander: float = clampf((1.0 - length_progress) / 0.08, 0.0, 1.0)
+			var meander_taper: float = source_taper_meander * outlet_taper_meander
+
 			meander_offset = perp_dir * (noise_val * profile.river_meander_strength * width * 0.25 * meander_taper)
 
 		var target_y: float
@@ -956,10 +991,14 @@ func _build_river_data(
 			var l_data: Dictionary = hydro.get_cell_data(pos)
 			target_y = float(l_data.get("water_height", cell.height))
 		else:
-			target_y = cell.height + 0.025
+			target_y = maxf(cell.height + 0.025, cell.height)
 
+		# Monotonic descent
 		if i > 0 and target_y > points[i - 1].y:
 			target_y = points[i - 1].y
+
+		# H20 invariant: water never below terrain
+		target_y = maxf(target_y, cell.height + 0.005)
 
 		var world_point := Vector3(
 			world_x + meander_offset.x,
@@ -973,7 +1012,7 @@ func _build_river_data(
 				"type": "river",
 				"water_height": target_y,
 				"terrain_height": cell.height,
-				"depth": maxf(0.12, target_y - cell.height),
+				"depth": maxf(depth, target_y - cell.height),
 				"river_index": river_index,
 				"flow_dir": flow_dir
 			}
@@ -982,6 +1021,7 @@ func _build_river_data(
 		"index": river_index,
 		"points": points,
 		"widths": widths,
+		"depths": depths,
 		"cells": path
 	}
 

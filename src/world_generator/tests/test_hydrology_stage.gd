@@ -92,16 +92,51 @@ func _init() -> void:
 			rendered_edges[edge_key] = true
 	assert(duplicate_count == 0, "H15: Found %d duplicate edges across river paths" % duplicate_count)
 
+	# H17: Width must correlate with network-wide accumulation
+	print(" [CHECK] H17. Network-Normalized Width Correlation...")
+	for river in hydro.rivers:
+		var widths: Array = river.get("widths", [])
+		if widths.size() < 3:
+			continue
+		var first_quarter: float = float(widths[widths.size() / 4])
+		var last_quarter: float = float(widths[3 * widths.size() / 4])
+		if widths.size() > 10:
+			assert(last_quarter >= first_quarter * 0.8, "H17: River width should generally increase downstream")
+
+	# H20: Water elevation invariant
+	print(" [CHECK] H20. Water Elevation >= Terrain Elevation...")
+	for pos in hydro.water_cells:
+		var data: Dictionary = hydro.water_cells[pos]
+		var water_h: float = float(data.get("water_height", 0.0))
+		var terrain_h: float = float(data.get("terrain_height", 0.0))
+		assert(water_h >= terrain_h - 0.01, "H20: Water at %s (%.3f) below terrain (%.3f)" % [str(pos), water_h, terrain_h])
+
+	# H21: Meander displacement zero at source and outlet
+	print(" [CHECK] H21. Meander Taper at Endpoints...")
+	for river in hydro.rivers:
+		var pts: Array = river.get("points", [])
+		var river_cells: Array = river.get("cells", [])
+		if pts.size() < 4 or river_cells.size() < 4:
+			continue
+		var first_grid := Vector2(float(river_cells[0].x), float(river_cells[0].y))
+		var first_world := Vector2(pts[0].x, pts[0].z)
+		var first_offset: float = first_world.distance_to(first_grid)
+		assert(first_offset < 0.01, "H21: First river point must have zero meander offset, got %.4f" % first_offset)
+		var last_grid := Vector2(float(river_cells[-1].x), float(river_cells[-1].y))
+		var last_world := Vector2(pts[-1].x, pts[-1].z)
+		var last_offset: float = last_world.distance_to(last_grid)
+		assert(last_offset < 0.01, "H21: Last river point must have zero meander offset, got %.4f" % last_offset)
+
 	# 3. Test Downhill River Flow (Topographic Gravity Law)
 	print(" [CHECK] 3. River Flow Law (Rivers must strictly flow downhill)...")
 	print("   Rivers generated: %d" % hydro.rivers.size())
 	for river in hydro.rivers:
 		var pts: Array = river.points
+		var r_cells: Array = river.cells
 		assert(pts.size() >= 5, "River must contain points")
 		for i in range(pts.size() - 1):
 			var cur_pt: Vector3 = pts[i]
 			var next_pt: Vector3 = pts[i + 1]
-			# Topography downhill descent: next_pt.y must be <= cur_pt.y (with minimal epsilon for floating point)
 			assert(next_pt.y <= cur_pt.y + 0.001, "River point %d (Y=%.2f) flows uphill to point %d (Y=%.2f)!" % [i, cur_pt.y, i + 1, next_pt.y])
 
 	# 4. Test Vegetation Water Avoidance
