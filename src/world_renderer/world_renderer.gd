@@ -41,11 +41,16 @@ func _spawn_vegetation_multimeshes(parent: Node3D, result: WorldResult) -> void:
 			WorldVegetationItem.Type.SHRUB: shrubs.append(item)
 			WorldVegetationItem.Type.ROCK: rocks.append(item)
 
-	_create_multimesh(parent, "Conifers", _create_conifer_mesh(), conifers)
-	_create_multimesh(parent, "Shrubs", _create_shrub_mesh(), shrubs)
-	_create_multimesh(parent, "Rocks", _create_rock_mesh(), rocks)
+	# base_y_offset lifts primitive mesh center so its base is firmly grounded:
+	# - Conifers (CylinderMesh H=4.5): half-height is 2.25m. Lift by 1.95m so the bottom is 0.30m
+	#   embedded in the soil, showing 4.2m of pine above ground with no gap on slopes.
+	# - Shrubs (SphereMesh H=0.8): half-height is 0.40m. Lift by 0.30m to sit 10cm in the soil.
+	# - Rocks (BoxMesh H=0.8): half-height is 0.40m. Lift by 0.20m to keep ~25% buried naturally.
+	_create_multimesh(parent, "Conifers", _create_conifer_mesh(), conifers, 1.95)
+	_create_multimesh(parent, "Shrubs", _create_shrub_mesh(), shrubs, 0.30)
+	_create_multimesh(parent, "Rocks", _create_rock_mesh(), rocks, 0.20)
 
-func _create_multimesh(parent: Node3D, name_id: String, base_mesh: Mesh, items: Array[WorldVegetationItem]) -> void:
+func _create_multimesh(parent: Node3D, name_id: String, base_mesh: Mesh, items: Array[WorldVegetationItem], base_y_offset: float = 0.0) -> void:
 	if items.is_empty():
 		return
 
@@ -61,7 +66,7 @@ func _create_multimesh(parent: Node3D, name_id: String, base_mesh: Mesh, items: 
 		var t := Transform3D()
 		t = t.scaled(Vector3.ONE * item.scale)
 		t = t.rotated(Vector3.UP, item.rotation_y)
-		t.origin = item.position
+		t.origin = item.position + Vector3(0.0, base_y_offset * item.scale, 0.0)
 		mm.set_instance_transform(i, t)
 
 	mmi.multimesh = mm
