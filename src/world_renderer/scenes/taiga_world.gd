@@ -110,99 +110,139 @@ var tex_rect_composite: TextureRect = null
 
 # Color Palette Widgets
 var gradient_preview_rect: TextureRect = null
+var water_gradient_preview_rect: TextureRect = null
 var color_pickers: Dictionary = {}
 var color_hex_labels: Dictionary = {}
 
 const COLOR_DEFS: Array[Dictionary] = [
-	{ "key": "color_deep_water", "label": "Agua Profunda", "sublabel": "Fondo oceánico",    "range": "0 – 27%"   },
-	{ "key": "color_water",      "label": "Agua",          "sublabel": "Zonas costeras",    "range": "27 – 35%"  },
-	{ "key": "color_sand",       "label": "Arena",         "sublabel": "Playas y dunas",    "range": "35 – 41%"  },
-	{ "key": "color_ground",     "label": "Tierra",        "sublabel": "Suelo desnudo",     "range": "41 – 50%"  },
-	{ "key": "color_grass",      "label": "Pasto",         "sublabel": "Claros y praderas", "range": "50 – 67%"  },
-	{ "key": "color_forest",     "label": "Bosque",        "sublabel": "Zona forestal",     "range": "67 – 77%"  },
-	{ "key": "color_rock",       "label": "Roca",          "sublabel": "Picos rocosos",     "range": "77 – 88%"  },
-	{ "key": "color_snow",       "label": "Nieve",         "sublabel": "Cimas nevadas",     "range": "88 – 100%" },
+	# Bioma Taiga (Terreno)
+	{ "key": "terrain_loam_color",   "label": "Turba / Humus",       "sublabel": "Valles y zonas bajas",       "range": "0 – 20% cota",  "category": "terrain" },
+	{ "key": "terrain_moss_color",   "label": "Musgo Boreal",        "sublabel": "Claros y turberas húmedas",  "range": "20 – 50% cota", "category": "terrain" },
+	{ "key": "terrain_grass_color",  "label": "Pasto Taiga",         "sublabel": "Llanuras y colinas",         "range": "50 – 75% cota", "category": "terrain" },
+	{ "key": "forest_floor_color",   "label": "Mantillo Bosque",     "sublabel": "Suelo bajo coníferas",       "range": "Canopia densa", "category": "terrain" },
+	{ "key": "terrain_rock_color",   "label": "Granito / Roca",      "sublabel": "Laderas y escarpes",         "range": "75 – 88% cota", "category": "terrain" },
+	{ "key": "terrain_snow_color",   "label": "Nieve / Cumbres",     "sublabel": "Picos y escarcha",           "range": "88 – 100% cota","category": "terrain" },
+
+	# Hidrología (Agua)
+	{ "key": "water_color_shallow",  "label": "Agua Somera",         "sublabel": "Orillas lacustres y vados",  "range": "0.0 – 0.5m",    "category": "water"   },
+	{ "key": "water_color_medium",   "label": "Agua Media",          "sublabel": "Aguas intermedias",          "range": "0.5 – 1.5m",    "category": "water"   },
+	{ "key": "water_color_lake",     "label": "Agua de Lago",        "sublabel": "Fondo lacustre profundo",    "range": "> 1.5m prof.",  "category": "water"   },
+	{ "key": "water_color_river",    "label": "Agua de Río",         "sublabel": "Cauces y corriente fluvial", "range": "Flujo activo",  "category": "water"   },
 ]
 
 const COLOR_PRESETS: Dictionary = {
-	"Taiga Clásica": {
-		"color_deep_water": Color("#1a3a5c"), "color_water": Color("#2456a4"), "color_sand": Color("#c8a96e"),
-		"color_ground": Color("#7a6548"), "color_grass": Color("#4a8c3f"), "color_forest": Color("#2d5a27"),
-		"color_rock": Color("#5a5a5a"), "color_snow": Color("#dce8f0")
+	"Taiga Canónica": {
+		"terrain_loam_color": Color("#3e3830"), "terrain_moss_color": Color("#4a5338"),
+		"terrain_grass_color": Color("#3f4f34"), "forest_floor_color": Color("#25311e"),
+		"terrain_rock_color": Color("#464648"), "terrain_snow_color": Color("#d8e2eb"),
+		"water_color_shallow": Color("#2a68a8"), "water_color_medium": Color("#1e4e82"),
+		"water_color_lake": Color("#193e68"), "water_color_river": Color("#246094"),
+		"color_deep_water": Color("#193e68"), "color_water": Color("#2a68a8"), "color_sand": Color("#4a5338"),
+		"color_ground": Color("#3e3830"), "color_grass": Color("#3f4f34"), "color_forest": Color("#25311e"),
+		"color_rock": Color("#464648"), "color_snow": Color("#d8e2eb")
 	},
-	"Desierto Árido": {
-		"color_deep_water": Color("#1a4a6a"), "color_water": Color("#1a6080"), "color_sand": Color("#e8c87a"),
-		"color_ground": Color("#c4914a"), "color_grass": Color("#b8a04a"), "color_forest": Color("#8a6a20"),
-		"color_rock": Color("#7a5a3a"), "color_snow": Color("#f0e8d0")
+	"Taiga Otoñal": {
+		"terrain_loam_color": Color("#422b1e"), "terrain_moss_color": Color("#736835"),
+		"terrain_grass_color": Color("#5a5428"), "forest_floor_color": Color("#3d2817"),
+		"terrain_rock_color": Color("#4e4844"), "terrain_snow_color": Color("#e0dcd4"),
+		"water_color_shallow": Color("#355568"), "water_color_medium": Color("#22384a"),
+		"water_color_lake": Color("#182836"), "water_color_river": Color("#2c4c5e"),
+		"color_deep_water": Color("#182836"), "color_water": Color("#355568"), "color_sand": Color("#736835"),
+		"color_ground": Color("#422b1e"), "color_grass": Color("#5a5428"), "color_forest": Color("#3d2817"),
+		"color_rock": Color("#4e4844"), "color_snow": Color("#e0dcd4")
+	},
+	"Tundra Glaciar": {
+		"terrain_loam_color": Color("#2c3338"), "terrain_moss_color": Color("#404d4a"),
+		"terrain_grass_color": Color("#465452"), "forest_floor_color": Color("#1e2a28"),
+		"terrain_rock_color": Color("#4a525c"), "terrain_snow_color": Color("#e8f2fa"),
+		"water_color_shallow": Color("#3282a8"), "water_color_medium": Color("#1c5c82"),
+		"water_color_lake": Color("#103d5c"), "water_color_river": Color("#2a7599"),
+		"color_deep_water": Color("#103d5c"), "color_water": Color("#3282a8"), "color_sand": Color("#404d4a"),
+		"color_ground": Color("#2c3338"), "color_grass": Color("#465452"), "color_forest": Color("#1e2a28"),
+		"color_rock": Color("#4a525c"), "color_snow": Color("#e8f2fa")
 	},
 	"Mundo Alien": {
+		"terrain_loam_color": Color("#3a183a"), "terrain_moss_color": Color("#2a5840"),
+		"terrain_grass_color": Color("#204d30"), "forest_floor_color": Color("#122a18"),
+		"terrain_rock_color": Color("#403050"), "terrain_snow_color": Color("#d0b0f0"),
+		"water_color_shallow": Color("#6a248a"), "water_color_medium": Color("#441066"),
+		"water_color_lake": Color("#220838"), "water_color_river": Color("#581e78"),
 		"color_deep_water": Color("#1a0a3a"), "color_water": Color("#3a0a6a"), "color_sand": Color("#8a4a8a"),
 		"color_ground": Color("#5a2a5a"), "color_grass": Color("#2a6a4a"), "color_forest": Color("#0a4a2a"),
 		"color_rock": Color("#3a3a5a"), "color_snow": Color("#c0a0e0")
-	},
-	"Tundra Nevada": {
-		"color_deep_water": Color("#0a1a2a"), "color_water": Color("#1a3060"), "color_sand": Color("#a0a8b0"),
-		"color_ground": Color("#808890"), "color_grass": Color("#607080"), "color_forest": Color("#304858"),
-		"color_rock": Color("#505860"), "color_snow": Color("#e8eef8")
 	}
 }
 
 const PRESETS: Dictionary = {
 	0: {
 		"name": "Taiga Canónica (Equilibrada)",
-		"macro_strength": 14.0, "macro_frequency": 0.012, "relief_exponent": 1.1,
-		"base_height": 1.5, "height_scale": 1.0,
-		"warp_strength": 18.0, "warp_frequency": 0.018, "warp_octaves": 2,
-		"clearing_threshold": 0.45, "forest_frequency": 0.025,
-		"tree_density": 0.70, "min_tree_spacing": 2.0, "shrub_density": 0.45, "rock_density": 0.20
+		"macro_wavelength": 140.0, "macro_amplitude": 14.0, "medium_wavelength": 45.0, "medium_amplitude": 4.5,
+		"detail_wavelength": 10.0, "detail_amplitude": 0.6, "relief_exponent": 1.1,
+		"base_height": 2.0, "height_scale": 1.0,
+		"warp_wavelength": 90.0, "warp_amplitude": 18.0, "warp_octaves": 2,
+		"forest_wavelength": 65.0, "clearing_wavelength": 30.0, "clearing_threshold": 0.45,
+		"tree_density": 0.70, "min_tree_spacing": 2.0, "shrub_density": 0.45, "rock_density": 0.20,
+		"cell_size": 1.0, "lake_threshold": 0.22, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0
 	},
 	1: {
 		"name": "Valle Glaciar Amplio (Bajo Relieve)",
-		"macro_strength": 16.0, "macro_frequency": 0.010, "relief_exponent": 1.6,
-		"base_height": 1.2, "height_scale": 0.9,
-		"warp_strength": 16.0, "warp_frequency": 0.015, "warp_octaves": 2,
-		"clearing_threshold": 0.52, "forest_frequency": 0.020,
-		"tree_density": 0.55, "min_tree_spacing": 2.4, "shrub_density": 0.50, "rock_density": 0.12
+		"macro_wavelength": 180.0, "macro_amplitude": 16.0, "medium_wavelength": 60.0, "medium_amplitude": 3.0,
+		"detail_wavelength": 12.0, "detail_amplitude": 0.4, "relief_exponent": 1.6,
+		"base_height": 1.5, "height_scale": 0.9,
+		"warp_wavelength": 120.0, "warp_amplitude": 14.0, "warp_octaves": 2,
+		"forest_wavelength": 80.0, "clearing_wavelength": 40.0, "clearing_threshold": 0.52,
+		"tree_density": 0.55, "min_tree_spacing": 2.4, "shrub_density": 0.50, "rock_density": 0.12,
+		"cell_size": 1.0, "lake_threshold": 0.26, "lake_minimum_area": 6, "hydrology_noise_wavelength": 95.0
 	},
 	2: {
 		"name": "Tierras Altas Escarpadas (Fiordos)",
-		"macro_strength": 22.0, "macro_frequency": 0.018, "relief_exponent": 0.95,
-		"base_height": 2.0, "height_scale": 1.3,
-		"warp_strength": 22.0, "warp_frequency": 0.022, "warp_octaves": 3,
-		"clearing_threshold": 0.42, "forest_frequency": 0.030,
-		"tree_density": 0.50, "min_tree_spacing": 2.2, "shrub_density": 0.35, "rock_density": 0.35
+		"macro_wavelength": 110.0, "macro_amplitude": 22.0, "medium_wavelength": 35.0, "medium_amplitude": 6.0,
+		"detail_wavelength": 8.0, "detail_amplitude": 0.9, "relief_exponent": 0.95,
+		"base_height": 2.5, "height_scale": 1.3,
+		"warp_wavelength": 75.0, "warp_amplitude": 24.0, "warp_octaves": 3,
+		"forest_wavelength": 50.0, "clearing_wavelength": 25.0, "clearing_threshold": 0.40,
+		"tree_density": 0.50, "min_tree_spacing": 2.2, "shrub_density": 0.35, "rock_density": 0.35,
+		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 3, "hydrology_noise_wavelength": 70.0
 	},
 	3: {
 		"name": "Bosque Boreal Cerrado (Old-Growth)",
-		"macro_strength": 12.0, "macro_frequency": 0.014, "relief_exponent": 1.05,
-		"base_height": 1.5, "height_scale": 1.0,
-		"warp_strength": 15.0, "warp_frequency": 0.018, "warp_octaves": 2,
-		"clearing_threshold": 0.32, "forest_frequency": 0.025,
-		"tree_density": 0.85, "min_tree_spacing": 1.7, "shrub_density": 0.60, "rock_density": 0.15
+		"macro_wavelength": 130.0, "macro_amplitude": 11.0, "medium_wavelength": 40.0, "medium_amplitude": 3.5,
+		"detail_wavelength": 10.0, "detail_amplitude": 0.5, "relief_exponent": 1.05,
+		"base_height": 1.8, "height_scale": 1.0,
+		"warp_wavelength": 85.0, "warp_amplitude": 15.0, "warp_octaves": 2,
+		"forest_wavelength": 90.0, "clearing_wavelength": 20.0, "clearing_threshold": 0.30,
+		"tree_density": 0.85, "min_tree_spacing": 1.7, "shrub_density": 0.60, "rock_density": 0.15,
+		"cell_size": 1.0, "lake_threshold": 0.20, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0
 	},
 	4: {
 		"name": "Turberas y Claros Abiertos",
-		"macro_strength": 9.0, "macro_frequency": 0.012, "relief_exponent": 1.3,
-		"base_height": 1.0, "height_scale": 0.85,
-		"warp_strength": 12.0, "warp_frequency": 0.015, "warp_octaves": 2,
-		"clearing_threshold": 0.62, "forest_frequency": 0.018,
-		"tree_density": 0.30, "min_tree_spacing": 2.0, "shrub_density": 0.65, "rock_density": 0.10
+		"macro_wavelength": 160.0, "macro_amplitude": 8.5, "medium_wavelength": 50.0, "medium_amplitude": 2.5,
+		"detail_wavelength": 12.0, "detail_amplitude": 0.4, "relief_exponent": 1.35,
+		"base_height": 1.2, "height_scale": 0.85,
+		"warp_wavelength": 100.0, "warp_amplitude": 12.0, "warp_octaves": 2,
+		"forest_wavelength": 45.0, "clearing_wavelength": 55.0, "clearing_threshold": 0.65,
+		"tree_density": 0.28, "min_tree_spacing": 2.2, "shrub_density": 0.65, "rock_density": 0.10,
+		"cell_size": 1.0, "lake_threshold": 0.30, "lake_minimum_area": 6, "hydrology_noise_wavelength": 90.0
 	},
 	5: {
 		"name": "Archipiélago (Islas y Fiordos)",
-		"macro_strength": 15.0, "macro_frequency": 0.020, "relief_exponent": 1.8,
-		"base_height": 0.5, "height_scale": 1.1,
-		"warp_strength": 22.0, "warp_frequency": 0.025, "warp_octaves": 2,
-		"clearing_threshold": 0.55, "forest_frequency": 0.022,
-		"tree_density": 0.40, "min_tree_spacing": 2.2, "shrub_density": 0.45, "rock_density": 0.30
+		"macro_wavelength": 100.0, "macro_amplitude": 16.0, "medium_wavelength": 32.0, "medium_amplitude": 4.5,
+		"detail_wavelength": 8.0, "detail_amplitude": 0.6, "relief_exponent": 1.5,
+		"base_height": 0.8, "height_scale": 1.1,
+		"warp_wavelength": 70.0, "warp_amplitude": 22.0, "warp_octaves": 2,
+		"forest_wavelength": 55.0, "clearing_wavelength": 28.0, "clearing_threshold": 0.50,
+		"tree_density": 0.42, "min_tree_spacing": 2.2, "shrub_density": 0.45, "rock_density": 0.30,
+		"cell_size": 1.0, "lake_threshold": 0.28, "lake_minimum_area": 3, "hydrology_noise_wavelength": 65.0
 	},
 	6: {
 		"name": "Tundra Nevada (Cimas Rocosas)",
-		"macro_strength": 18.0, "macro_frequency": 0.010, "relief_exponent": 1.2,
-		"base_height": 2.5, "height_scale": 1.4,
-		"warp_strength": 8.0, "warp_frequency": 0.015, "warp_octaves": 2,
-		"clearing_threshold": 0.70, "forest_frequency": 0.015,
-		"tree_density": 0.15, "min_tree_spacing": 3.0, "shrub_density": 0.25, "rock_density": 0.45
+		"macro_wavelength": 150.0, "macro_amplitude": 20.0, "medium_wavelength": 45.0, "medium_amplitude": 5.5,
+		"detail_wavelength": 9.0, "detail_amplitude": 0.8, "relief_exponent": 1.15,
+		"base_height": 3.0, "height_scale": 1.4,
+		"warp_wavelength": 80.0, "warp_amplitude": 10.0, "warp_octaves": 2,
+		"forest_wavelength": 40.0, "clearing_wavelength": 40.0, "clearing_threshold": 0.72,
+		"tree_density": 0.15, "min_tree_spacing": 3.2, "shrub_density": 0.25, "rock_density": 0.45,
+		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 4, "hydrology_noise_wavelength": 75.0
 	}
 }
 
@@ -289,8 +329,8 @@ func _process(delta: float) -> void:
 		if move_dir.length_squared() > 0.001:
 			var pan_speed: float = camera_rig.get_zoom() * 1.5 * delta
 			focus_target.global_position += move_dir.normalized() * pan_speed
-			var max_w := float(profile.width) * profile.cell_size
-			var max_h := float(profile.height) * profile.cell_size
+			var max_w := float(profile.width)
+			var max_h := float(profile.height)
 			focus_target.global_position.x = clampf(focus_target.global_position.x, 0.0, max_w)
 			focus_target.global_position.z = clampf(focus_target.global_position.z, 0.0, max_h)
 
@@ -331,8 +371,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				forward.y = 0.0
 				forward = forward.normalized()
 				focus_target.global_position -= (right * mm.relative.x + forward * -mm.relative.y) * pan_factor
-				var max_w := float(profile.width) * profile.cell_size
-				var max_h := float(profile.height) * profile.cell_size
+				var max_w := float(profile.width)
+				var max_h := float(profile.height)
 				focus_target.global_position.x = clampf(focus_target.global_position.x, 0.0, max_w)
 				focus_target.global_position.z = clampf(focus_target.global_position.z, 0.0, max_h)
 
@@ -687,34 +727,44 @@ func _update_noise_textures() -> void:
 					terrain_debug_legend.text = "Altura normalizada [0.0 - 1.0] sobre la envolvente topográfica."
 
 func _update_gradient_preview() -> void:
-	if gradient_preview_rect == null or profile == null:
+	if profile == null:
 		return
 
-	var img := Image.create(128, 16, false, Image.FORMAT_RGBA8)
-	for x in range(128):
-		var nh: float = float(x) / 127.0
-		var col: Color
-		if nh < 0.27:
-			col = profile.color_deep_water.lerp(profile.color_water, nh / 0.27)
-		elif nh < 0.35:
-			col = profile.color_water.lerp(profile.color_sand, (nh - 0.27) / 0.08)
-		elif nh < 0.41:
-			col = profile.color_sand.lerp(profile.color_ground, (nh - 0.35) / 0.06)
-		elif nh < 0.50:
-			col = profile.color_ground.lerp(profile.color_grass, (nh - 0.41) / 0.09)
-		elif nh < 0.67:
-			col = profile.color_grass.lerp(profile.color_forest, (nh - 0.50) / 0.17)
-		elif nh < 0.77:
-			col = profile.color_forest.lerp(profile.color_rock, (nh - 0.67) / 0.10)
-		elif nh < 0.88:
-			col = profile.color_rock.lerp(profile.color_snow, (nh - 0.77) / 0.11)
-		else:
-			col = profile.color_snow
+	if gradient_preview_rect != null:
+		var img := Image.create(128, 16, false, Image.FORMAT_RGBA8)
+		for x in range(128):
+			var nh: float = float(x) / 127.0
+			var col: Color
+			if nh < 0.20:
+				col = profile.terrain_loam_color.lerp(profile.terrain_moss_color, nh / 0.20)
+			elif nh < 0.50:
+				col = profile.terrain_moss_color.lerp(profile.terrain_grass_color, (nh - 0.20) / 0.30)
+			elif nh < 0.80:
+				col = profile.terrain_grass_color.lerp(profile.terrain_rock_color, (nh - 0.50) / 0.30)
+			else:
+				col = profile.terrain_rock_color.lerp(profile.terrain_snow_color, (nh - 0.80) / 0.20)
 
-		for y in range(16):
-			img.set_pixel(x, y, col)
+			for y in range(16):
+				img.set_pixel(x, y, col)
 
-	gradient_preview_rect.texture = ImageTexture.create_from_image(img)
+		gradient_preview_rect.texture = ImageTexture.create_from_image(img)
+
+	if water_gradient_preview_rect != null:
+		var w_img := Image.create(128, 16, false, Image.FORMAT_RGBA8)
+		for x in range(128):
+			var t: float = float(x) / 127.0
+			var w_col: Color
+			if t < 0.33:
+				w_col = profile.water_color_shallow.lerp(profile.water_color_medium, t / 0.33)
+			elif t < 0.66:
+				w_col = profile.water_color_medium.lerp(profile.water_color_lake, (t - 0.33) / 0.33)
+			else:
+				w_col = profile.water_color_lake.lerp(profile.water_color_river, (t - 0.66) / 0.34)
+
+			for y in range(16):
+				w_img.set_pixel(x, y, w_col)
+
+		water_gradient_preview_rect.texture = ImageTexture.create_from_image(w_img)
 
 # ==============================================================================
 # 3. Construcción y Arquitectura de la Interfaz
@@ -1503,20 +1553,20 @@ func _build_colors_tab(parent: Control) -> void:
 	panel_colors.add_theme_constant_override("separation", 12)
 	panel_colors.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	# 1. Gradient Bar Preview
+	# 1. Gradient Bar Preview (Terrain & Water)
 	var grad_box := VBoxContainer.new()
 	grad_box.add_theme_constant_override("separation", 4)
-	_add_sub_header(grad_box, "GRADIENTE DE TERRENO", Color("#64748b"))
+	_add_sub_header(grad_box, "GRADIENTE DE TERRENO (ALTÍMETRO)", Color("#64748b"))
 
 	gradient_preview_rect = TextureRect.new()
-	gradient_preview_rect.custom_minimum_size = Vector2(0, 18)
+	gradient_preview_rect.custom_minimum_size = Vector2(0, 16)
 	gradient_preview_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	gradient_preview_rect.stretch_mode = TextureRect.STRETCH_SCALE
 	grad_box.add_child(gradient_preview_rect)
 
 	var range_box := HBoxContainer.new()
 	var r_min := Label.new()
-	r_min.text = "0m"
+	r_min.text = "Turba (0m)"
 	r_min.add_theme_color_override("font_color", Color("#4a5d78"))
 	r_min.add_theme_font_size_override("font_size", 8)
 	range_box.add_child(r_min)
@@ -1526,23 +1576,61 @@ func _build_colors_tab(parent: Control) -> void:
 	range_box.add_child(sp)
 
 	var r_max := Label.new()
-	r_max.text = "100%"
+	r_max.text = "Cumbres (100%)"
 	r_max.add_theme_color_override("font_color", Color("#4a5d78"))
 	r_max.add_theme_font_size_override("font_size", 8)
 	range_box.add_child(r_max)
 	grad_box.add_child(range_box)
+
+	# Water Gradient Preview
+	_add_sub_header(grad_box, "GRADIENTE DE AGUA (PROFUNDIDAD)", Color("#38bdf8"))
+	water_gradient_preview_rect = TextureRect.new()
+	water_gradient_preview_rect.custom_minimum_size = Vector2(0, 14)
+	water_gradient_preview_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	water_gradient_preview_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	grad_box.add_child(water_gradient_preview_rect)
+
+	var w_range_box := HBoxContainer.new()
+	var wr_min := Label.new()
+	wr_min.text = "Somera (Orilla)"
+	wr_min.add_theme_color_override("font_color", Color("#4a5d78"))
+	wr_min.add_theme_font_size_override("font_size", 8)
+	w_range_box.add_child(wr_min)
+
+	var wsp := Control.new()
+	wsp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	w_range_box.add_child(wsp)
+
+	var wr_max := Label.new()
+	wr_max.text = "Lago Profundo / Río"
+	wr_max.add_theme_color_override("font_color", Color("#4a5d78"))
+	wr_max.add_theme_font_size_override("font_size", 8)
+	w_range_box.add_child(wr_max)
+	grad_box.add_child(w_range_box)
+
 	panel_colors.add_child(grad_box)
 
-	# 2. Zone Color Pickers
-	var zones_box := VBoxContainer.new()
-	zones_box.add_theme_constant_override("separation", 6)
-	_add_sub_header(zones_box, "ZONAS DE COLOR", Color("#14b8a6"))
+	# 2. Zone Color Pickers - Taiga Terrain
+	var terrain_box := VBoxContainer.new()
+	terrain_box.add_theme_constant_override("separation", 6)
+	_add_sub_header(terrain_box, "◈ PALETA BIOMA TAIGA (TERRENO)", Color("#22c55e"))
 
 	for def in COLOR_DEFS:
-		_create_color_row(zones_box, def["key"], def["label"], def["sublabel"], def["range"])
-	panel_colors.add_child(zones_box)
+		if def.get("category", "") == "terrain":
+			_create_color_row(terrain_box, def["key"], def["label"], def["sublabel"], def["range"])
+	panel_colors.add_child(terrain_box)
 
-	# 3. Presets
+	# 3. Zone Color Pickers - Hydrology Water
+	var water_box := VBoxContainer.new()
+	water_box.add_theme_constant_override("separation", 6)
+	_add_sub_header(water_box, "💧 PALETA DE AGUA (HIDROLOGÍA)", Color("#38bdf8"))
+
+	for def in COLOR_DEFS:
+		if def.get("category", "") == "water":
+			_create_color_row(water_box, def["key"], def["label"], def["sublabel"], def["range"])
+	panel_colors.add_child(water_box)
+
+	# 4. Presets
 	var pre_box := VBoxContainer.new()
 	pre_box.add_theme_constant_override("separation", 6)
 	_add_sub_header(pre_box, "PALETAS PREDEFINIDAS", Color("#64748b"))
@@ -1563,13 +1651,13 @@ func _build_colors_tab(parent: Control) -> void:
 	pre_box.add_child(pre_grid)
 	panel_colors.add_child(pre_box)
 
-	# 4. Reset Button
+	# 5. Reset Button
 	var reset_btn := Button.new()
-	reset_btn.text = "Restablecer Colores"
+	reset_btn.text = "Restablecer Colores Canónicos"
 	reset_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#070b14"), Color("#1f293d"), 4, 1))
 	reset_btn.add_theme_color_override("font_color", Color("#64748b"))
 	reset_btn.add_theme_font_size_override("font_size", 9)
-	reset_btn.pressed.connect(func(): _apply_color_preset("Taiga Clásica"))
+	reset_btn.pressed.connect(func(): _apply_color_preset("Taiga Canónica"))
 	panel_colors.add_child(reset_btn)
 
 	parent.add_child(panel_colors)
@@ -1878,30 +1966,27 @@ func _on_preset_selected(index: int) -> void:
 		var val: float = float(p[k])
 		profile.set(k, val)
 
-		# Synchronize physical wavelengths & amplitudes
-		if k == "macro_strength":
-			profile.macro_amplitude = val
-			if _sliders.has("macro_amplitude"):
-				_update_slider_visual("macro_amplitude", val)
-		elif k == "macro_frequency":
-			var w_val: float = 1.0 / maxf(val, 0.001)
-			profile.macro_wavelength = w_val
-			if _sliders.has("macro_wavelength"):
-				_update_slider_visual("macro_wavelength", w_val)
-		elif k == "warp_strength":
-			profile.warp_amplitude = val
-			if _sliders.has("warp_amplitude"):
-				_update_slider_visual("warp_amplitude", val)
-		elif k == "warp_frequency":
-			var w_val: float = 1.0 / maxf(val, 0.001)
-			profile.warp_wavelength = w_val
-			if _sliders.has("warp_wavelength"):
-				_update_slider_visual("warp_wavelength", w_val)
-		elif k == "forest_frequency":
-			var w_val: float = 1.0 / maxf(val, 0.001)
-			profile.forest_wavelength = w_val
-			if _sliders.has("forest_wavelength"):
-				_update_slider_visual("forest_wavelength", w_val)
+		# Synchronize reciprocal frequencies and strengths
+		if k == "macro_wavelength":
+			profile.macro_frequency = 1.0 / maxf(val, 1.0)
+		elif k == "macro_amplitude":
+			profile.macro_strength = val
+		elif k == "medium_wavelength":
+			profile.medium_frequency = 1.0 / maxf(val, 1.0)
+		elif k == "medium_amplitude":
+			profile.medium_strength = val
+		elif k == "detail_wavelength":
+			profile.detail_frequency = 1.0 / maxf(val, 1.0)
+		elif k == "detail_amplitude":
+			profile.detail_strength = val
+		elif k == "warp_wavelength":
+			profile.warp_frequency = 1.0 / maxf(val, 1.0)
+		elif k == "warp_amplitude":
+			profile.warp_strength = val
+		elif k == "forest_wavelength":
+			profile.forest_frequency = 1.0 / maxf(val, 1.0)
+		elif k == "hydrology_noise_wavelength":
+			profile.hydrology_noise_frequency = 1.0 / maxf(val, 1.0)
 
 		if _sliders.has(k):
 			_update_slider_visual(k, val)
@@ -1924,11 +2009,11 @@ func _focus_spawn() -> void:
 
 func _frame_entire_world() -> void:
 	if focus_target != null and camera_rig != null:
-		var center_x := float(profile.width) * profile.cell_size * 0.5
-		var center_z := float(profile.height) * profile.cell_size * 0.5
+		var center_x := float(profile.width) * 0.5
+		var center_z := float(profile.height) * 0.5
 		focus_target.global_position = Vector3(center_x, 10.0, center_z)
 		camera_rig.teleport_to_target()
-		var max_dim := maxf(float(profile.width), float(profile.height)) * profile.cell_size
+		var max_dim := maxf(float(profile.width), float(profile.height))
 		camera_rig.set_zoom(max_dim * 0.65)
 		camera_rig.yaw_degrees = 45.0
 		camera_rig.pitch_degrees = 35.264

@@ -53,7 +53,7 @@ func execute(context: WorldGenerationContext) -> void:
 
 	if best_spawn_pos != Vector2i(-1, -1):
 		var spawn_cell := context.result.get_cell(best_spawn_pos)
-		context.result.spawn_position = Vector3(float(best_spawn_pos.x) * profile.cell_size, spawn_cell.height, float(best_spawn_pos.y) * profile.cell_size)
+		context.result.spawn_position = Vector3(float(best_spawn_pos.x), spawn_cell.height, float(best_spawn_pos.y))
 
 	context.result.metadata["walkable_ratio"] = float(walkable_count) / float(total_cells)
 	context.result.metadata["walkable_cells"] = walkable_count

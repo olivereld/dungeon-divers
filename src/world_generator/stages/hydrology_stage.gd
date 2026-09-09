@@ -268,7 +268,7 @@ func execute(context: WorldGenerationContext) -> void:
 				var rpos: Vector2i = river_path[p_idx]
 				var rcell: WorldCell = cells.get(rpos)
 				var p_progress: float = float(p_idx) / float(maxi(river_path.size() - 1, 1))
-				var w: float = lerpf(profile.river_min_width, profile.river_max_width, p_progress) * profile.cell_size
+				var w: float = lerpf(profile.river_min_width, profile.river_max_width, p_progress)
 				widths.append(w)
 
 				var flow_dir := Vector2.ZERO
@@ -283,9 +283,9 @@ func execute(context: WorldGenerationContext) -> void:
 				debug_drainage[rpos] = float(p_idx + 1) * 2.0
 
 				var world_pt := Vector3(
-					rpos.x * profile.cell_size,
+					float(rpos.x),
 					rcell.height + 0.05,
-					rpos.y * profile.cell_size
+					float(rpos.y)
 				)
 				points_3d.append(world_pt)
 

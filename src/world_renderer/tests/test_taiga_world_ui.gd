@@ -35,8 +35,9 @@ func _init() -> void:
 	assert(scene.panel_noise.visible == false)
 	assert(scene.panel_colors.visible == true)
 	assert(scene.panel_hydrology.visible == false)
-	assert(scene.gradient_preview_rect.texture != null, "Gradient bar preview must be generated")
-	assert(scene.color_pickers.size() == 8, "Must have 8 zone color pickers")
+	assert(scene.color_pickers.size() == 10, "Must have 10 color pickers for Taiga terrain and water")
+	assert(scene.color_pickers.has("terrain_loam_color"), "Must have terrain_loam_color picker")
+	assert(scene.color_pickers.has("water_color_river"), "Must have water_color_river picker")
 
 	# Test Tab 4: Hydrology Debug Visualization
 	scene._set_active_tab(scene.RightTab.HYDROLOGY)

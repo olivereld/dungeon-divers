@@ -21,7 +21,7 @@ static func build_hydrology_node(result: WorldResult, profile: WorldProfile = nu
 
 	# 1. Build Lakes Mesh
 	if not hydro.lakes.is_empty():
-		var lake_mesh := _build_lakes_mesh(hydro, profile, cell_size)
+		var lake_mesh := _build_lakes_mesh(hydro, profile, cell_size, result)
 		if lake_mesh != null and lake_mesh.get_surface_count() > 0:
 			var lake_mi := MeshInstance3D.new()
 			lake_mi.name = "LakesMesh"
@@ -31,7 +31,7 @@ static func build_hydrology_node(result: WorldResult, profile: WorldProfile = nu
 
 	# 2. Build Rivers Mesh
 	if not hydro.rivers.is_empty():
-		var river_mesh := _build_rivers_mesh(hydro, profile)
+		var river_mesh := _build_rivers_mesh(hydro, profile, result)
 		if river_mesh != null and river_mesh.get_surface_count() > 0:
 			var river_mi := MeshInstance3D.new()
 			river_mi.name = "RiversMesh"
@@ -52,7 +52,10 @@ static func _create_water_material(profile: WorldProfile) -> StandardMaterial3D:
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return mat
 
-static func _build_lakes_mesh(hydro: RefCounted, profile: WorldProfile, cell_size: float) -> ArrayMesh:
+## Builds continuous, smooth planar water meshes for lakes using Marching Squares isocontours.
+## Shoreline vertices interpolate along cell edges directly to where terrain elevation meets the water plane,
+## preventing blocky "Minecraft staircases" and ensuring organic shorelines at any cell_size.
+static func _build_lakes_mesh(hydro: RefCounted, profile: WorldProfile, cell_size: float, result: WorldResult = null) -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
@@ -63,53 +66,110 @@ static func _build_lakes_mesh(hydro: RefCounted, profile: WorldProfile, cell_siz
 	var med_col: Color = profile.water_color_medium
 	var lake_col: Color = profile.water_color_lake
 
+	var w: int = result.dimensions.x if result != null else 128
+	var h: int = result.dimensions.y if result != null else 128
+	var total_world_w: float = float(w)
+	var total_world_h: float = float(h)
+
 	for lake in hydro.lakes:
 		var water_y: float = lake.water_height
 		var lake_cells: Array = lake.cells
+		if lake_cells.is_empty():
+			continue
 
-		for cell_pos in lake_cells:
-			var c_pos: Vector2i = cell_pos
-			var c_data: Dictionary = hydro.get_cell_data(c_pos)
-			var depth: float = c_data.get("depth", 0.5)
-			var depth_factor: float = clampf(depth / 2.5, 0.0, 1.0)
+		var lake_set: Dictionary = {}
+		for c in lake_cells:
+			lake_set[c] = true
 
-			var cell_color: Color
-			if depth_factor < 0.5:
-				cell_color = shallow_col.lerp(med_col, depth_factor * 2.0)
-			else:
-				cell_color = med_col.lerp(lake_col, (depth_factor - 0.5) * 2.0)
-			cell_color.a = clampf(0.65 + depth_factor * 0.30, 0.0, 0.98)
+		# Gather all grid quads touching this lake
+		var quads_to_check: Dictionary = {}
+		for c_pos in lake_cells:
+			var cp: Vector2i = c_pos
+			for dx in range(-1, 2):
+				for dy in range(-1, 2):
+					var qx: int = cp.x + dx
+					var qy: int = cp.y + dy
+					if qx >= 0 and qx < w - 1 and qy >= 0 and qy < h - 1:
+						quads_to_check[Vector2i(qx, qy)] = true
 
-			var x0: float = float(c_pos.x) * cell_size
-			var z0: float = float(c_pos.y) * cell_size
-			var x1: float = x0 + cell_size
-			var z1: float = z0 + cell_size
+		for q in quads_to_check.keys():
+			var qpos: Vector2i = q
+			var c0 := qpos
+			var c1 := qpos + Vector2i(1, 0)
+			var c2 := qpos + Vector2i(1, 1)
+			var c3 := qpos + Vector2i(0, 1)
 
-			var base_idx: int = vertices.size()
+			var h0: float = result.get_cell(c0).height if result != null else water_y - 1.0
+			var h1: float = result.get_cell(c1).height if result != null else water_y - 1.0
+			var h2: float = result.get_cell(c2).height if result != null else water_y - 1.0
+			var h3: float = result.get_cell(c3).height if result != null else water_y - 1.0
 
-			# 4 quad corners at planar lake water height
-			vertices.append(Vector3(x0, water_y, z0))
-			vertices.append(Vector3(x1, water_y, z0))
-			vertices.append(Vector3(x0, water_y, z1))
-			vertices.append(Vector3(x1, water_y, z1))
+			var in_basin := lake_set.has(c0) or lake_set.has(c1) or lake_set.has(c2) or lake_set.has(c3)
+			var s0: bool = in_basin and h0 < water_y
+			var s1: bool = in_basin and h1 < water_y
+			var s2: bool = in_basin and h2 < water_y
+			var s3: bool = in_basin and h3 < water_y
 
-			for i in range(4):
+			var mask: int = (1 if s0 else 0) | (2 if s1 else 0) | (4 if s2 else 0) | (8 if s3 else 0)
+			if mask == 0:
+				continue
+
+			# World positions at water height (Fixed 1.0 unit per cell for 128x128 bounds)
+			var p0 := Vector3(float(c0.x), water_y, float(c0.y))
+			var p1 := Vector3(float(c1.x), water_y, float(c1.y))
+			var p2 := Vector3(float(c2.x), water_y, float(c2.y))
+			var p3 := Vector3(float(c3.x), water_y, float(c3.y))
+
+			# Interpolated edge positions (where terrain hits water level)
+			var t01: float = clampf((water_y - h0) / maxf(absf(h1 - h0), 0.0001), 0.0, 1.0)
+			var e01: Vector3 = p0.lerp(p1, t01)
+
+			var t12: float = clampf((water_y - h1) / maxf(absf(h2 - h1), 0.0001), 0.0, 1.0)
+			var e12: Vector3 = p1.lerp(p2, t12)
+
+			var t23: float = clampf((water_y - h2) / maxf(absf(h3 - h2), 0.0001), 0.0, 1.0)
+			var e23: Vector3 = p2.lerp(p3, t23)
+
+			var t30: float = clampf((water_y - h3) / maxf(absf(h0 - h3), 0.0001), 0.0, 1.0)
+			var e30: Vector3 = p3.lerp(p0, t30)
+
+			# Depths at corners
+			var d0: float = maxf(0.0, water_y - h0)
+			var d1: float = maxf(0.0, water_y - h1)
+			var d2: float = maxf(0.0, water_y - h2)
+			var d3: float = maxf(0.0, water_y - h3)
+
+			# Shoreline edge points have depth = 0.0
+			var pt_dict: Dictionary = {
+				"C0": { "pos": p0, "depth": d0 },
+				"C1": { "pos": p1, "depth": d1 },
+				"C2": { "pos": p2, "depth": d2 },
+				"C3": { "pos": p3, "depth": d3 },
+				"E01": { "pos": e01, "depth": 0.0 },
+				"E12": { "pos": e12, "depth": 0.0 },
+				"E23": { "pos": e23, "depth": 0.0 },
+				"E30": { "pos": e30, "depth": 0.0 }
+			}
+
+			var poly_tri_tokens: Array = _get_ms_triangles_for_mask(mask)
+			for tok in poly_tri_tokens:
+				var p_info: Dictionary = pt_dict[tok]
+				var pos: Vector3 = p_info["pos"]
+				var depth: float = p_info["depth"]
+
+				indices.append(vertices.size())
+				vertices.append(pos)
 				normals.append(Vector3.UP)
+				uvs.append(Vector2(pos.x / maxf(total_world_w, 1.0), pos.z / maxf(total_world_h, 1.0)))
+
+				var depth_factor: float = clampf(depth / 2.5, 0.0, 1.0)
+				var cell_color: Color
+				if depth_factor < 0.5:
+					cell_color = shallow_col.lerp(med_col, depth_factor * 2.0)
+				else:
+					cell_color = med_col.lerp(lake_col, (depth_factor - 0.5) * 2.0)
+				cell_color.a = clampf(0.60 + depth_factor * 0.35, 0.0, 0.98)
 				colors.append(cell_color)
-
-			uvs.append(Vector2(0.0, 0.0))
-			uvs.append(Vector2(1.0, 0.0))
-			uvs.append(Vector2(0.0, 1.0))
-			uvs.append(Vector2(1.0, 1.0))
-
-			# 2 triangles per quad
-			indices.append(base_idx + 0)
-			indices.append(base_idx + 1)
-			indices.append(base_idx + 2)
-
-			indices.append(base_idx + 1)
-			indices.append(base_idx + 3)
-			indices.append(base_idx + 2)
 
 	if vertices.is_empty():
 		return null
@@ -126,48 +186,125 @@ static func _build_lakes_mesh(hydro: RefCounted, profile: WorldProfile, cell_siz
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
 
-static func _build_rivers_mesh(hydro: RefCounted, profile: WorldProfile) -> ArrayMesh:
+## Lookup table for 16 Marching Squares sub-polygon triangulations
+static func _get_ms_triangles_for_mask(mask: int) -> Array:
+	match mask:
+		15: # Full quad
+			return ["C0", "C3", "C2", "C0", "C2", "C1"]
+		1:  # Only C0
+			return ["C0", "E30", "E01"]
+		2:  # Only C1
+			return ["C1", "E01", "E12"]
+		4:  # Only C2
+			return ["C2", "E12", "E23"]
+		8:  # Only C3
+			return ["C3", "E23", "E30"]
+		3:  # C0 and C1 (Top)
+			return ["C0", "E30", "E12", "C0", "E12", "C1"]
+		6:  # C1 and C2 (Right)
+			return ["C1", "E01", "E23", "C1", "E23", "C2"]
+		12: # C2 and C3 (Bottom)
+			return ["C2", "E12", "E30", "C2", "E30", "C3"]
+		9:  # C3 and C0 (Left)
+			return ["C3", "E23", "E01", "C3", "E01", "C0"]
+		7:  # C0, C1, C2 (All except C3)
+			return ["C0", "E30", "E23", "C0", "E23", "C2", "C0", "C2", "C1"]
+		11: # C0, C1, C3 (All except C2)
+			return ["C0", "C3", "E23", "C0", "E23", "E12", "C0", "E12", "C1"]
+		13: # C0, C2, C3 (All except C1)
+			return ["C0", "C3", "C2", "C0", "C2", "E12", "C0", "E12", "E01"]
+		14: # C1, C2, C3 (All except C0)
+			return ["E01", "E30", "C3", "E01", "C3", "C2", "E01", "C2", "C1"]
+		5:  # Diagonal C0, C2
+			return ["C0", "E30", "E01", "C2", "E12", "E23"]
+		10: # Diagonal C1, C3
+			return ["C1", "E01", "E12", "C3", "E23", "E30"]
+		_:
+			return []
+
+## Builds smooth, continuous river ribbons with Catmull-Rom spline interpolation,
+## bilateral bank terrain draping, and authentic water palette gradients.
+static func _build_rivers_mesh(hydro: RefCounted, profile: WorldProfile, result: WorldResult = null) -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
 
+	var shallow_col: Color = profile.water_color_shallow
 	var river_col: Color = profile.water_color_river
 	var med_col: Color = profile.water_color_medium
+	var lake_col: Color = profile.water_color_lake
 
 	for river in hydro.rivers:
-		var pts: Array = river.points
-		var widths: Array = river.widths
-		if pts.size() < 2:
+		var raw_pts: Array = river.get("points", []) if river is Dictionary else river.points
+		if raw_pts.size() < 2:
+			continue
+
+		# 1. Generate smooth spline centerline (4 sub-steps per segment)
+		var smooth_pts := _generate_catmull_rom_centerline(raw_pts, 4)
+		var total_pts: int = smooth_pts.size()
+		if total_pts < 2:
 			continue
 
 		var river_start_idx: int = vertices.size()
 
-		for i in range(pts.size()):
-			var p: Vector3 = pts[i]
-			var w: float = widths[i] if i < widths.size() else 1.0
+		# 2. Build continuous draped ribbon
+		for j in range(total_pts):
+			var p: Vector3 = smooth_pts[j]
+			var prog: float = float(j) / float(maxi(total_pts - 1, 1))
 
-			# Tangent calculation
+			# Tangent along smoothed spline
 			var tangent: Vector3
-			if i == 0:
-				tangent = (pts[1] - pts[0]).normalized()
-			elif i == pts.size() - 1:
-				tangent = (pts[i] - pts[i - 1]).normalized()
+			if j == 0:
+				tangent = (smooth_pts[1] - smooth_pts[0]).normalized()
+			elif j == total_pts - 1:
+				tangent = (smooth_pts[j] - smooth_pts[j - 1]).normalized()
 			else:
-				tangent = (pts[i + 1] - pts[i - 1]).normalized()
+				tangent = (smooth_pts[j + 1] - smooth_pts[j - 1]).normalized()
+			tangent.y = 0.0
+			if tangent.length_squared() < 0.0001:
+				tangent = Vector3(0.0, 0.0, 1.0)
+			else:
+				tangent = tangent.normalized()
 
 			# Perpendicular in XZ plane
 			var perp := Vector3(-tangent.z, 0.0, tangent.x).normalized()
-			var left_pt := p + perp * (w * 0.5)
-			var right_pt := p - perp * (w * 0.5)
 
-			var progress: float = float(i) / float(maxi(pts.size() - 1, 1))
-			var col: Color = river_col.lerp(med_col, progress * 0.6)
-			col.a = 0.85
+			# Natural width profile:
+			# - Source spring taper: smoothly begins at 0.12m
+			# - Midstream: gently widens from 0.35m to 0.70m
+			# - River mouth: widens into 0.95m as it meets the lake basin
+			var w: float
+			if prog < 0.08:
+				w = lerpf(0.12, 0.35, prog / 0.08)
+			elif prog > 0.85:
+				w = lerpf(0.70, 0.95, (prog - 0.85) / 0.15)
+			else:
+				w = lerpf(0.35, 0.70, (prog - 0.08) / 0.77)
 
-			vertices.append(left_pt)
-			vertices.append(right_pt)
+			var lx: float = p.x + perp.x * (w * 0.5)
+			var lz: float = p.z + perp.z * (w * 0.5)
+			var rx: float = p.x - perp.x * (w * 0.5)
+			var rz: float = p.z - perp.z * (w * 0.5)
+
+			# Draping: sample exact triangulated ground elevation at each bank
+			var ly: float = _sample_terrain_elevation(result, lx, lz) + 0.025
+			var ry: float = _sample_terrain_elevation(result, rx, rz) + 0.025
+
+			# Cohesive water color along stream:
+			# - Headwaters: shallow sparkling tint
+			# - Midstream: active river color
+			# - Mouth: deepens towards lake color
+			var col: Color
+			if prog < 0.40:
+				col = shallow_col.lerp(river_col, prog / 0.40)
+			else:
+				col = river_col.lerp(lake_col, (prog - 0.40) / 0.60)
+			col.a = clampf(0.75 + prog * 0.15, 0.0, 0.95)
+
+			vertices.append(Vector3(lx, ly, lz))
+			vertices.append(Vector3(rx, ry, rz))
 
 			normals.append(Vector3.UP)
 			normals.append(Vector3.UP)
@@ -175,12 +312,12 @@ static func _build_rivers_mesh(hydro: RefCounted, profile: WorldProfile) -> Arra
 			colors.append(col)
 			colors.append(col)
 
-			uvs.append(Vector2(0.0, progress))
-			uvs.append(Vector2(1.0, progress))
+			uvs.append(Vector2(0.0, prog))
+			uvs.append(Vector2(1.0, prog))
 
-		# Connect adjacent segments
-		for i in range(pts.size() - 1):
-			var v0: int = river_start_idx + (i * 2)
+		# 3. Connect adjacent smooth segments
+		for j in range(total_pts - 1):
+			var v0: int = river_start_idx + (j * 2)
 			var v1: int = v0 + 1
 			var v2: int = v0 + 2
 			var v3: int = v0 + 3
@@ -207,3 +344,66 @@ static func _build_rivers_mesh(hydro: RefCounted, profile: WorldProfile) -> Arra
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
+
+## Interpolates river centerline through a Catmull-Rom spline to eliminate jagged 45°/90° grid corners
+static func _generate_catmull_rom_centerline(raw_pts: Array, sub_divisions: int) -> Array[Vector3]:
+	var res: Array[Vector3] = []
+	var n: int = raw_pts.size()
+	if n < 2:
+		for p in raw_pts:
+			res.append(p as Vector3)
+		return res
+
+	for i in range(n - 1):
+		var p0: Vector3 = raw_pts[maxi(i - 1, 0)]
+		var p1: Vector3 = raw_pts[i]
+		var p2: Vector3 = raw_pts[i + 1]
+		var p3: Vector3 = raw_pts[mini(i + 2, n - 1)]
+
+		for step in range(sub_divisions):
+			var t := float(step) / float(sub_divisions)
+			var t2 := t * t
+			var t3 := t2 * t
+
+			var pt := 0.5 * (
+				(2.0 * p1) +
+				(-p0 + p2) * t +
+				(2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 +
+				(-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3
+			)
+			res.append(pt)
+
+	res.append(raw_pts[n - 1] as Vector3)
+	return res
+
+## Evaluates exact elevation on the triangulated mesh surface for bank ground draping
+static func _sample_terrain_elevation(result: WorldResult, world_x: float, world_z: float) -> float:
+	if result == null:
+		return 0.0
+	var w: int = result.dimensions.x
+	var h: int = result.dimensions.y
+
+	var x0: int = clampi(int(floor(world_x)), 0, w - 2)
+	var z0: int = clampi(int(floor(world_z)), 0, h - 2)
+	var x1: int = x0 + 1
+	var z1: int = z0 + 1
+
+	var u: float = clampf(world_x - float(x0), 0.0, 1.0)
+	var v: float = clampf(world_z - float(z0), 0.0, 1.0)
+
+	var c00 := result.get_cell(Vector2i(x0, z0))
+	var c10 := result.get_cell(Vector2i(x1, z0))
+	var c01 := result.get_cell(Vector2i(x0, z1))
+	var c11 := result.get_cell(Vector2i(x1, z1))
+
+	var h00: float = c00.height if c00 != null else 0.0
+	var h10: float = c10.height if c10 != null else 0.0
+	var h01: float = c01.height if c01 != null else 0.0
+	var h11: float = c11.height if c11 != null else 0.0
+
+	# Triangulated plane interpolation matching TerrainMeshBuilder
+	if u + v <= 1.0:
+		return h00 + u * (h10 - h00) + v * (h01 - h00)
+	else:
+		return h11 + (1.0 - u) * (h01 - h11) + (1.0 - v) * (h10 - h11)
+

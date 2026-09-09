@@ -33,13 +33,13 @@ func execute(context: WorldGenerationContext) -> void:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = cell_hash
 
-			var jitter_x := (rng.randf() - 0.5) * 0.7 * profile.cell_size
-			var jitter_z := (rng.randf() - 0.5) * 0.7 * profile.cell_size
-			var world_x := float(x) * profile.cell_size + jitter_x
-			var world_z := float(y) * profile.cell_size + jitter_z
+			var jitter_x := (rng.randf() - 0.5) * 0.7
+			var jitter_z := (rng.randf() - 0.5) * 0.7
+			var world_x := float(x) + jitter_x
+			var world_z := float(y) + jitter_z
 
-			# Sample exact triangulated surface height and slope matching TerrainMeshBuilder
-			var surface := _sample_surface(context.result, world_x, world_z, profile.cell_size)
+			# Sample exact triangulated surface height and slope matching TerrainMeshBuilder (fixed 1.0 spacing)
+			var surface := _sample_surface(context.result, world_x, world_z, 1.0)
 			var world_y: float = surface["height"]
 			var local_slope: float = surface["slope"]
 

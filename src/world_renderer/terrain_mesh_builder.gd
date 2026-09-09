@@ -13,11 +13,11 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
 
-	# Grid vertices
+	# Grid vertices (Fixed 1.0 unit per cell for 128x128 level bounds)
 	for y in range(h):
 		for x in range(w):
 			var cell := result.get_cell(Vector2i(x, y))
-			var pos := Vector3(float(x) * cell_size, cell.height, float(y) * cell_size)
+			var pos := Vector3(float(x), cell.height, float(y))
 			vertices.append(pos)
 			uvs.append(Vector2(float(x) / float(w), float(y) / float(h)))
 
