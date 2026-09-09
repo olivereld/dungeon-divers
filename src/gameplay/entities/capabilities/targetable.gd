@@ -6,15 +6,25 @@
 class_name Targetable
 extends RefCounted
 
+enum Category {
+	ANY,
+	LIVING,
+	OBJECT,
+	DESTRUCTIBLE,
+}
+
 var _can_be_targeted: bool
-var _target_category: String
+var _category: Category
 
-func _init(p_can_be_targeted: bool = true, p_target_category: String = "") -> void:
+func _init(p_can_be_targeted: bool = true, p_category: Category = Category.ANY) -> void:
 	_can_be_targeted = p_can_be_targeted
-	_target_category = p_target_category
+	_category = p_category
 
-var target_category: String:
-	get: return _target_category
+var category: Category:
+	get: return _category
+
+var target_category: Category:
+	get: return _category
 
 func is_targetable() -> bool:
 	return _can_be_targeted

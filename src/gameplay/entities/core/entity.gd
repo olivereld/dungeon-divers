@@ -11,6 +11,13 @@
 class_name Entity
 extends RefCounted
 
+const CAPABILITY_FACTION := "faction"
+const CAPABILITY_SPECIES := "species"
+const CAPABILITY_TARGETABLE := "targetable"
+const CAPABILITY_DESTRUCTIBLE := "destructible"
+const CAPABILITY_AUTOMATED := "automated"
+const CAPABILITY_TRIGGERABLE := "triggerable"
+
 var _identity: EntityIdentity
 var _capabilities: Dictionary = {}  # String (nombre de capacidad) -> capacidad
 
@@ -30,6 +37,13 @@ var entity_id: String:
 func add_capability(capability_name: String, capability) -> void:
 	assert(capability_name != null and capability_name != "", "Entity: capability_name no puede estar vacío")
 	assert(capability != null, "Entity: capability no puede ser null")
+	assert(not has_capability(capability_name), "Entity: la capacidad '%s' ya existe en %s. Usa replace_capability si deseas sobrescribirla." % [capability_name, entity_id])
+	_capabilities[capability_name] = capability
+
+func replace_capability(capability_name: String, capability) -> void:
+	assert(capability_name != null and capability_name != "", "Entity: capability_name no puede estar vacío")
+	assert(capability != null, "Entity: capability no puede ser null")
+	assert(has_capability(capability_name), "Entity: no existe la capacidad '%s' para reemplazar en %s" % [capability_name, entity_id])
 	_capabilities[capability_name] = capability
 
 func has_capability(capability_name: String) -> bool:

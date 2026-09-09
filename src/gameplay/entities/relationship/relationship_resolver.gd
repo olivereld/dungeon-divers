@@ -25,8 +25,9 @@ func set_faction_relationship(source_faction: FactionId.Type, target_faction: Fa
 	_faction_relationships[key] = disposition
 
 # source/target: Entity (LivingEntity u ObjectEntity). Si tienen adjunta la
-# capacidad "faction" (Entity.add_capability("faction", Faction.new(...))),
-# se usa para la resolución por facción.
+# capacidad "faction" (Entity.CAPABILITY_FACTION), se usa para la resolución por facción.
+# Si source == target (auto-relación), devuelve neutral salvo regla explícita A|A.
+# Si alguna de las entidades no tiene facción, cae a _default_disposition.
 func resolve(source: Entity, target: Entity) -> Disposition:
 	assert(source != null, "RelationshipResolver: source no puede ser null")
 	assert(target != null, "RelationshipResolver: target no puede ser null")
@@ -35,8 +36,11 @@ func resolve(source: Entity, target: Entity) -> Disposition:
 	if _entity_relationships.has(entity_key):
 		return _entity_relationships[entity_key].disposition
 
-	var source_faction: Faction = source.try_get_capability("faction")
-	var target_faction: Faction = target.try_get_capability("faction")
+	if source == target or source.entity_id == target.entity_id:
+		return Disposition.neutral()
+
+	var source_faction: Faction = source.try_get_capability(Entity.CAPABILITY_FACTION)
+	var target_faction: Faction = target.try_get_capability(Entity.CAPABILITY_FACTION)
 	if source_faction != null and target_faction != null:
 		var faction_key := _faction_key(source_faction.id, target_faction.id)
 		if _faction_relationships.has(faction_key):
