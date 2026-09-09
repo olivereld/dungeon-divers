@@ -1,7 +1,9 @@
 class_name TerrainMeshBuilder
 extends RefCounted
 
-static func build_mesh(result: WorldResult, cell_size: float = 1.0) -> ArrayMesh:
+const _TerrainColorResolverScript = preload("res://src/world_generator/presentation/terrain_color_resolver.gd")
+
+static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: WorldProfile = null) -> ArrayMesh:
 	var w := result.dimensions.x
 	var h := result.dimensions.y
 
@@ -19,11 +21,9 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0) -> ArrayMesh
 			vertices.append(pos)
 			uvs.append(Vector2(float(x) / float(w), float(y) / float(h)))
 
-			# Vertex color encodes slope / vegetation blend:
-			# R = slope intensity (rock), G = forest/grass, B = clearing/dirt
-			var rock_factor := clampf(cell.slope / 45.0, 0.0, 1.0)
-			var grass_factor := cell.forest_density
-			colors.append(Color(rock_factor, grass_factor, cell.clearing_density, 1.0))
+			# Resolve procedural terrain albedo color from profile and cell ecology/topography
+			var col: Color = _TerrainColorResolverScript.resolve_vertex_color(cell, profile)
+			colors.append(col)
 
 	# Compute indices
 	for y in range(h - 1):

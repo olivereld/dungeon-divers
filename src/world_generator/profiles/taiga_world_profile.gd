@@ -33,3 +33,21 @@ func _init() -> void:
 	rock_density = 0.20
 	min_tree_spacing = 2.0
 	max_walkable_slope = 35.0
+
+	# Atmospheric Taiga Palette: mossy wetlands, temperate pine needle beds, granite rocks
+	terrain_low_color = Color(0.20, 0.27, 0.16)
+	terrain_mid_color = Color(0.27, 0.35, 0.21)
+	terrain_high_color = Color(0.40, 0.42, 0.35)
+	terrain_slope_color = Color(0.36, 0.35, 0.33)
+	clearing_color = Color(0.36, 0.38, 0.20)
+	forest_color = Color(0.15, 0.22, 0.13)
+
+	color_deep_water = Color("#1a3a5c")
+	color_water = Color("#2456a4")
+	color_sand = Color("#c8a96e")
+	color_ground = Color("#7a6548")
+	color_grass = Color("#4a8c3f")
+	color_forest = Color("#2d5a27")
+	color_rock = Color("#5a5a5a")
+	color_snow = Color("#dce8f0")
+

@@ -1,20 +1,27 @@
 class_name WorldRenderer
 extends Node3D
 
-func render_world(result: WorldResult, cell_size: float = 1.0) -> Node3D:
+const _TerrainMaterialScript = preload("res://src/world_generator/presentation/terrain_material.gd")
+
+func render_world(result: WorldResult, profile_or_cell_size: Variant = 1.0) -> Node3D:
+	var profile: WorldProfile = null
+	var cell_size: float = 1.0
+
+	if profile_or_cell_size is WorldProfile:
+		profile = profile_or_cell_size as WorldProfile
+		cell_size = profile.cell_size
+	elif profile_or_cell_size is float or profile_or_cell_size is int:
+		cell_size = float(profile_or_cell_size)
+
 	var root := Node3D.new()
 	root.name = "RenderedWorld"
 
 	# 1. Terrain Mesh & Collision
-	var mesh := TerrainMeshBuilder.build_mesh(result, cell_size)
+	var mesh := TerrainMeshBuilder.build_mesh(result, cell_size, profile)
 	var terrain_mi := MeshInstance3D.new()
 	terrain_mi.name = "TerrainMesh"
 	terrain_mi.mesh = mesh
-
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.85
-	terrain_mi.set_surface_override_material(0, mat)
+	terrain_mi.set_surface_override_material(0, _TerrainMaterialScript.create_material())
 	root.add_child(terrain_mi)
 
 	# Static collision
