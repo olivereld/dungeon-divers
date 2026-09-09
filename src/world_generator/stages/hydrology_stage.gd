@@ -276,157 +276,103 @@ func execute(context: WorldGenerationContext) -> void:
 			debug_drainage[pos] = acc
 
 	# -------------------------------------------------------------------------
-	# 7. CHANNEL THRESHOLDS & MASK
+	# 7. CHANNEL THRESHOLDS, REVERSE GRAPH & MASK (H13)
 	# -------------------------------------------------------------------------
 	var total_cells: int = width * height
 	var tributary_threshold: float = maxf(4.0, float(total_cells) * 0.0008)
 	var main_channel_threshold: float = maxf(8.0, float(total_cells) * 0.0020)
 
+	# Build upstream reverse graph (H13)
+	var upstream: Dictionary = {}  # Vector2i -> Array[Vector2i]
+	for pos in flow_to:
+		var downstream: Vector2i = flow_to[pos]
+		if downstream == pos:
+			continue
+		if not upstream.has(downstream):
+			upstream[downstream] = []
+		upstream[downstream].append(pos)
+
+	# Channel mask excludes lake cells (H13)
 	var channel_mask: Dictionary = {}
 	for pos in accumulation:
-		if float(accumulation[pos]) >= tributary_threshold:
+		if float(accumulation[pos]) >= tributary_threshold and not hydro.is_lake(pos):
 			channel_mask[pos] = true
 
 	# -------------------------------------------------------------------------
-	# 8. SELECT HEADWATERS & LAKE OUTFLOWS (Phase H2 & H3)
+	# 8. FIND CONNECTED HYDROGRAPHIC NETWORKS (H13/H14)
 	# -------------------------------------------------------------------------
-	var headwaters: Array[Vector2i] = []
+	# Find all outlets (boundary cells, lakes, or terminal cells that collect flow)
+	var outlets: Array[Vector2i] = []
+	for pos in flow_to:
+		if flow_to[pos] == pos:
+			if _is_boundary(pos, width, height) or hydro.is_lake(pos):
+				if float(accumulation.get(pos, 1.0)) >= main_channel_threshold:
+					outlets.append(pos)
 
-	# Also consider lake spillways as natural river outlets (rivers leaving lakes)
-	for lake in hydro.lakes:
-		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
-		if spill_pos.x >= 1 and spill_pos.x < width - 1 and spill_pos.y >= 1 and spill_pos.y < height - 1:
-			if not hydro.is_lake(spill_pos) and cells.has(spill_pos):
-				headwaters.push_front(spill_pos)
+	# If no boundary/lake outlets meet main_channel_threshold, include any terminal cell meeting threshold
+	if outlets.is_empty():
+		for pos in flow_to:
+			if flow_to[pos] == pos and float(accumulation.get(pos, 1.0)) >= main_channel_threshold:
+				outlets.append(pos)
 
-	for y in range(2, height - 2):
-		for x in range(2, width - 2):
-			var pos := Vector2i(x, y)
-			if hydro.is_lake(pos):
-				continue
-
-			var cell: WorldCell = cells.get(pos)
-			if cell == null:
-				continue
-
-			var acc: float = float(accumulation.get(pos, 1.0))
-			if (
-				cell.normalized_height >= profile.river_source_min_height
-				and cell.slope >= profile.river_source_min_slope
-				and acc <= main_channel_threshold
-				and acc >= 2.0
-			):
-				headwaters.append(pos)
-
-	# Sort headwaters by elevation descending.
-	headwaters.sort_custom(
-		func(a: Vector2i, b: Vector2i) -> bool:
-			var ca: WorldCell = cells[a]
-			var cb: WorldCell = cells[b]
-			return ca.height > cb.height
-	)
-
-	# -------------------------------------------------------------------------
-	# 9. EXTRACT MAIN RIVERS & TRIBUTARIES PATHS
-	# -------------------------------------------------------------------------
-	var validated_paths: Array[Dictionary] = []
-	var river_id: int = 0
-	var selected_headwaters: Array[Vector2i] = []
-
-	for source in headwaters:
-		if selected_headwaters.size() >= profile.max_rivers:
-			break
-
-		var too_close: bool = false
-		for selected in selected_headwaters:
-			var distance_cells: float = Vector2(
-				float(source.x - selected.x),
-				float(source.y - selected.y)
-			).length()
-
-			if distance_cells < profile.min_river_length * 0.75:
-				too_close = true
-				break
-
-		if too_close:
-			continue
-
-		var path := _trace_river(
-			source,
-			flow_to,
-			accumulation,
-			hydro,
-			cells,
-			width,
-			height,
-			profile,
-			tributary_threshold
-		)
-
-		if path.size() < 2:
-			continue
-
-		var length_m: float = _calculate_path_length(path, 1.0)
-		if length_m < profile.min_river_length:
-			continue
-
-		validated_paths.append({ "id": river_id, "path": path, "is_tributary": false })
-		selected_headwaters.append(source)
-		river_id += 1
-
-	# Extract tributaries directly from D8 branching points (Phase H2)
-	var tributary_sources: Array[Vector2i] = []
-	for y in range(1, height - 1):
-		for x in range(1, width - 1):
-			var pos := Vector2i(x, y)
-			if hydro.is_lake(pos) or not channel_mask.has(pos):
-				continue
-
-			var downstream: Vector2i = flow_to.get(pos, pos)
-			if downstream == pos:
-				continue
-
-			var upstream_count: int = 0
-			for offset in D8_OFFSETS:
-				var neighbor: Vector2i = pos + offset
-				if flow_to.get(neighbor, neighbor) == pos:
-					upstream_count += 1
-
-			# Branching point = natural confluence
-			if upstream_count >= 2:
-				tributary_sources.append(pos)
-
-	tributary_sources.sort_custom(
+	# Sort outlets by accumulation descending (most important first)
+	outlets.sort_custom(
 		func(a: Vector2i, b: Vector2i) -> bool:
 			return float(accumulation.get(a, 0.0)) > float(accumulation.get(b, 0.0))
 	)
 
-	var tributary_id: int = river_id
-	for source in tributary_sources:
-		if tributary_id >= profile.max_rivers * 3:
+	# -------------------------------------------------------------------------
+	# 9. EXTRACT RIVER PATHS WITH EDGE OWNERSHIP (H14/H15)
+	# -------------------------------------------------------------------------
+	var validated_paths: Array[Dictionary] = []
+	var rendered_edges: Dictionary = {}  # "x,y->x,y" -> true
+	var river_id: int = 0
+	var networks_selected: int = 0
+
+	for outlet in outlets:
+		if networks_selected >= profile.max_rivers:
 			break
 
-		var path := _trace_river(
-			source,
-			flow_to,
-			accumulation,
-			hydro,
-			cells,
-			width,
-			height,
-			profile,
-			tributary_threshold
+		# Trace main stem: walk upstream from outlet following highest accumulation
+		var main_path: Array[Vector2i] = _trace_main_stem_upstream(
+			outlet, upstream, accumulation, channel_mask, hydro
 		)
+		main_path.reverse()  # Now headwater -> outlet
 
-		if path.size() < 2:
+		if main_path.size() < 2:
+			continue
+		var length_m: float = _calculate_path_length(main_path, 1.0)
+		if length_m < profile.min_river_length:
 			continue
 
-		var length_m: float = _calculate_path_length(path, 1.0)
-		if length_m < profile.min_river_length * 0.5:
-			continue
+		# Register main stem edges
+		var main_edges_ok: bool = _register_path_edges(main_path, rendered_edges)
+		if not main_edges_ok:
+			continue  # Overlaps with already-selected network
 
-		validated_paths.append({ "id": tributary_id, "path": path, "is_tributary": true })
-		tributary_id += 1
+		validated_paths.append({
+			"id": river_id,
+			"path": main_path,
+			"is_tributary": false,
+			"network_id": networks_selected
+		})
+		river_id += 1
+
+		# Extract tributaries that join this main stem
+		var tributary_paths: Array[Array] = _extract_tributaries(
+			main_path, upstream, accumulation, channel_mask,
+			rendered_edges, hydro, profile
+		)
+		for trib_path in tributary_paths:
+			validated_paths.append({
+				"id": river_id,
+				"path": trib_path,
+				"is_tributary": true,
+				"network_id": networks_selected
+			})
+			river_id += 1
+
+		networks_selected += 1
 
 	# -------------------------------------------------------------------------
 	# 10. CARVE RIVER CHANNELS INTO TERRAIN (Phase H6 & H7)
@@ -456,6 +402,7 @@ func execute(context: WorldGenerationContext) -> void:
 	hydro.set_debug_grid("river_potential", debug_river_potential)
 	hydro.set_debug_grid("drainage", debug_drainage)
 	hydro.set_debug_grid("flow_dir", debug_flow_dir)
+	hydro.set_debug_grid("flow_to", flow_to)
 
 
 # =============================================================================
@@ -720,54 +667,120 @@ func _find_downstream_cell(
 
 
 # =============================================================================
-# RIVER TRACE (Phase H2 & H3)
+# RIVER EXTRACTION & GRAPH TRACING (H13, H14, H15)
 # =============================================================================
 
-func _trace_river(
-	source: Vector2i,
-	flow_to: Dictionary,
+func _trace_main_stem_upstream(
+	start: Vector2i,
+	upstream_graph: Dictionary,
 	accumulation: Dictionary,
-	hydro: RefCounted,
-	cells: Dictionary,
-	width: int,
-	height: int,
-	profile: WorldProfile,
-	channel_threshold: float
+	channel_mask: Dictionary,
+	hydro: RefCounted
 ) -> Array[Vector2i]:
-	var path: Array[Vector2i] = []
-	var visited: Dictionary = {}
-	var current: Vector2i = source
+	var path: Array[Vector2i] = [start]
+	var current: Vector2i = start
+	var visited: Dictionary = { start: true }
 
-	for step in range(profile.river_max_steps):
-		if current.x < 0 or current.x >= width or current.y < 0 or current.y >= height:
-			break
-		if visited.has(current):
-			break
-
-		visited[current] = true
-		path.append(current)
-
-		if hydro.is_lake(current):
-			# Step 1 additional cell into the lake body so the river mesh merges seamlessly
-			var lake_downstream: Vector2i = flow_to.get(current, current)
-			if lake_downstream != current and hydro.is_lake(lake_downstream) and not visited.has(lake_downstream):
-				path.append(lake_downstream)
+	for _step in range(5000):
+		var up_list: Array = upstream_graph.get(current, [])
+		if up_list.is_empty():
 			break
 
-		if path.size() > 1 and hydro.is_river(current):
+		var best_up: Vector2i = Vector2i(-1, -1)
+		var best_acc: float = -1.0
+		for candidate in up_list:
+			if not channel_mask.has(candidate) and not hydro.is_lake(candidate):
+				continue
+			var c_acc: float = float(accumulation.get(candidate, 0.0))
+			if c_acc > best_acc:
+				best_acc = c_acc
+				best_up = candidate
+
+		if best_up == Vector2i(-1, -1) or visited.has(best_up):
+			break
+		if hydro.is_lake(best_up):
+			path.append(best_up)
 			break
 
-		var next_pos: Vector2i = flow_to.get(current, current)
-		if next_pos == current:
-			break
-
-		# Topographic Gravity Law: water cannot flow uphill
-		if cells[next_pos].height > cells[current].height + 0.0001:
-			break
-
-		current = next_pos
+		visited[best_up] = true
+		path.append(best_up)
+		current = best_up
 
 	return path
+
+
+func _register_path_edges(path: Array[Vector2i], rendered_edges: Dictionary) -> bool:
+	for i in range(path.size() - 1):
+		var key: String = "%d,%d->%d,%d" % [path[i].x, path[i].y, path[i + 1].x, path[i + 1].y]
+		if rendered_edges.has(key):
+			return false
+	for i in range(path.size() - 1):
+		var key: String = "%d,%d->%d,%d" % [path[i].x, path[i].y, path[i + 1].x, path[i + 1].y]
+		rendered_edges[key] = true
+	return true
+
+
+func _extract_tributaries(
+	main_path: Array[Vector2i],
+	upstream_graph: Dictionary,
+	accumulation: Dictionary,
+	channel_mask: Dictionary,
+	rendered_edges: Dictionary,
+	hydro: RefCounted,
+	profile: WorldProfile
+) -> Array[Array]:
+	var tributaries: Array[Array] = []
+	var main_set: Dictionary = {}
+	for p in main_path:
+		main_set[p] = true
+
+	# Find confluence points (cells on main stem with >= 2 upstream cells in channel)
+	for confluence in main_path:
+		var up_list: Array = upstream_graph.get(confluence, [])
+		for up_cell in up_list:
+			if main_set.has(up_cell) or hydro.is_lake(up_cell):
+				continue
+			if not channel_mask.has(up_cell):
+				continue
+
+			# Trace this branch upstream
+			var trib_path: Array[Vector2i] = [confluence]
+			var current: Vector2i = up_cell
+			var visited: Dictionary = { confluence: true }
+			for _step in range(2000):
+				if visited.has(current) or hydro.is_lake(current):
+					break
+				visited[current] = true
+				trib_path.append(current)
+				var next_up: Array = upstream_graph.get(current, [])
+				if next_up.is_empty():
+					break
+				var best: Vector2i = Vector2i(-1, -1)
+				var best_acc: float = -1.0
+				for c in next_up:
+					if channel_mask.has(c) and float(accumulation.get(c, 0.0)) > best_acc:
+						best_acc = float(accumulation.get(c, 0.0))
+						best = c
+				if best == Vector2i(-1, -1):
+					break
+				current = best
+
+			trib_path.reverse()  # headwater -> confluence
+
+			if trib_path.size() < 3:
+				continue
+			var length_m: float = _calculate_path_length(trib_path, 1.0)
+			if length_m < profile.min_river_length * 0.5:
+				continue
+
+			if _register_path_edges(trib_path, rendered_edges):
+				tributaries.append(trib_path)
+
+	return tributaries
+
+
+func _is_boundary(pos: Vector2i, w: int, h: int) -> bool:
+	return pos.x <= 0 or pos.x >= w - 1 or pos.y <= 0 or pos.y >= h - 1
 
 
 # =============================================================================

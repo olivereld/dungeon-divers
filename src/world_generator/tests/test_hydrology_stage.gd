@@ -75,6 +75,23 @@ func _init() -> void:
 			break
 		chain_pos = next_pos
 
+	# H13: Upstream reverse graph must be consistent with flow_to
+	print(" [CHECK] H13. Upstream Reverse Graph Consistency...")
+	assert(hydro.has_debug_layer("flow_to"), "H13: flow_to must be exposed as debug layer")
+
+	# H15: No duplicate edges across rendered river paths
+	print(" [CHECK] H15. No Duplicate River Edges...")
+	var rendered_edges: Dictionary = {}
+	var duplicate_count: int = 0
+	for river in hydro.rivers:
+		var river_cells: Array = river.get("cells", [])
+		for i in range(river_cells.size() - 1):
+			var edge_key: String = "%d,%d->%d,%d" % [river_cells[i].x, river_cells[i].y, river_cells[i + 1].x, river_cells[i + 1].y]
+			if rendered_edges.has(edge_key):
+				duplicate_count += 1
+			rendered_edges[edge_key] = true
+	assert(duplicate_count == 0, "H15: Found %d duplicate edges across river paths" % duplicate_count)
+
 	# 3. Test Downhill River Flow (Topographic Gravity Law)
 	print(" [CHECK] 3. River Flow Law (Rivers must strictly flow downhill)...")
 	print("   Rivers generated: %d" % hydro.rivers.size())
