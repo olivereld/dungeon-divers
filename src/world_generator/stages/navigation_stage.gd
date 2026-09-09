@@ -30,16 +30,26 @@ func execute(context: WorldGenerationContext) -> void:
 			else:
 				cell.slope_category = SlopeCategory.CLIFF
 
-			cell.is_walkable = (cell.slope <= profile.max_walkable_slope)
+			var is_walkable := (cell.slope <= profile.max_walkable_slope)
+			var pos := Vector2i(x, y)
+			var hydro = context.result.hydrology
+			var in_water := false
+			if hydro != null and hydro.has_method("is_water") and hydro.is_water(pos):
+				in_water = true
+				if hydro.has_method("get_water_depth") and hydro.get_water_depth(pos) > 0.4:
+					is_walkable = false
+
+			cell.is_walkable = is_walkable
 			if cell.is_walkable:
 				walkable_count += 1
 
-				# Prefer spawn near center with lowest slope
-				var dist_to_center := Vector2(float(x), float(y)).distance_to(center)
-				var score := cell.slope + (dist_to_center * 0.2)
-				if score < min_spawn_slope:
-					min_spawn_slope = score
-					best_spawn_pos = Vector2i(x, y)
+				# Prefer spawn near center with lowest slope on dry land
+				if not in_water:
+					var dist_to_center := Vector2(float(x), float(y)).distance_to(center)
+					var score := cell.slope + (dist_to_center * 0.2)
+					if score < min_spawn_slope:
+						min_spawn_slope = score
+						best_spawn_pos = pos
 
 	if best_spawn_pos != Vector2i(-1, -1):
 		var spawn_cell := context.result.get_cell(best_spawn_pos)

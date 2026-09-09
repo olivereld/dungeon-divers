@@ -1,6 +1,8 @@
 class_name WorldPipeline
 extends RefCounted
 
+const _HydrologyStageScript = preload("res://src/world_generator/stages/hydrology_stage.gd")
+
 static func generate(seed_val: int, profile: WorldProfile = null) -> WorldResult:
 	if profile == null:
 		profile = TaigaWorldProfile.new()
@@ -9,8 +11,9 @@ static func generate(seed_val: int, profile: WorldProfile = null) -> WorldResult
 
 	var stages: Array[WorldStage] = [
 		TerrainStage.new(),
-		NavigationStage.new(),
+		_HydrologyStageScript.new(),
 		EcologyStage.new(),
+		NavigationStage.new(),
 		VegetationStage.new(),
 	]
 

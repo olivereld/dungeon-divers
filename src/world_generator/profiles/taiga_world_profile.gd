@@ -34,20 +34,28 @@ func _init() -> void:
 	min_tree_spacing = 2.0
 	max_walkable_slope = 35.0
 
-	# Atmospheric Taiga Palette: mossy wetlands, temperate pine needle beds, granite rocks
-	terrain_low_color = Color(0.20, 0.27, 0.16)
-	terrain_mid_color = Color(0.27, 0.35, 0.21)
-	terrain_high_color = Color(0.40, 0.42, 0.35)
-	terrain_slope_color = Color(0.36, 0.35, 0.33)
-	clearing_color = Color(0.36, 0.38, 0.20)
-	forest_color = Color(0.15, 0.22, 0.13)
+	# Pure Boreal Land Palette (Zero Blue in Terrain Mesh)
+	terrain_loam_color = Color("#3e3830")   # Humus orgánico / turba
+	terrain_moss_color = Color("#4a5338")   # Musgo y sotobosque
+	terrain_grass_color = Color("#3f4f34")  # Hierba boreal desaturada
+	forest_floor_color = Color("#25311e")   # Mantillo de acículas umbrío
+	terrain_rock_color = Color("#464648")   # Granito frío
+	terrain_snow_color = Color("#d8e2eb")   # Escarcha y cumbres
 
-	color_deep_water = Color("#1a3a5c")
-	color_water = Color("#2456a4")
-	color_sand = Color("#c8a96e")
-	color_ground = Color("#7a6548")
-	color_grass = Color("#4a8c3f")
-	color_forest = Color("#2d5a27")
-	color_rock = Color("#5a5a5a")
-	color_snow = Color("#dce8f0")
+	terrain_low_color = terrain_loam_color
+	terrain_mid_color = terrain_grass_color
+	terrain_high_color = terrain_snow_color
+	terrain_slope_color = terrain_rock_color
+	clearing_color = terrain_moss_color
+	forest_color = forest_floor_color
+
+	# Hydrology Defaults
+	hydrology_enabled = true
+	lake_threshold = 0.22
+	max_rivers = 3
+	min_river_length = 12.0
+	water_color_shallow = Color("#2a68a8")
+	water_color_deep = Color("#163558")
+	water_roughness = 0.08
+
 

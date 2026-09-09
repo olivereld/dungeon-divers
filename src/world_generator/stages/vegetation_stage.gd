@@ -21,6 +21,11 @@ func execute(context: WorldGenerationContext) -> void:
 			if x <= 0 or x >= profile.width - 1 or y <= 0 or y >= profile.height - 1:
 				continue
 
+			# Skip submerged cells (lakes and rivers)
+			var hydro = context.result.hydrology
+			if hydro != null and hydro.has_method("is_water") and hydro.is_water(Vector2i(x, y)):
+				continue
+
 			var cell := context.result.get_cell(Vector2i(x, y))
 
 			# Hash deterministic sub-seed for cell

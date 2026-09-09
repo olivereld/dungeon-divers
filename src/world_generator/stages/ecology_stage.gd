@@ -44,4 +44,12 @@ func execute(context: WorldGenerationContext) -> void:
 				else:
 					cell.canopy_zone = WorldCell.CanopyZone.SPARSE_FOREST
 
-			cell.moisture = clampf(raw_moisture, 0.0, 1.0)
+			var pos := Vector2i(x, y)
+			var base_moisture: float = raw_moisture
+
+			# Riparian boost near lakes and rivers
+			var hydro = context.result.hydrology
+			if hydro != null and hydro.has_method("is_water") and hydro.is_water(pos):
+				base_moisture = clampf(base_moisture + 0.35, 0.0, 1.0)
+
+			cell.moisture = clampf(base_moisture, 0.0, 1.0)

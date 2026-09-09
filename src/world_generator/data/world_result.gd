@@ -6,6 +6,7 @@ var master_seed: int = 0
 var cells: Dictionary = {}  # Vector2i -> WorldCell
 var vegetation: Array = []  # Array[WorldVegetationItem]
 var spawn_position: Vector3 = Vector3.ZERO
+var hydrology: RefCounted = null  # HydrologyResult
 var metadata: Dictionary = {}
 
 func get_cell(pos: Vector2i) -> WorldCell:

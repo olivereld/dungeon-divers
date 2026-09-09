@@ -28,22 +28,26 @@ func _init() -> void:
 		assert(col.g >= 0.0 and col.g <= 1.0)
 		assert(col.b >= 0.0 and col.b <= 1.0)
 
+	# Check for HydrologyRoot presence
+	if result.hydrology != null and (not result.hydrology.lakes.is_empty() or not result.hydrology.rivers.is_empty()):
+		assert(node.has_node("HydrologyRoot"), "HydrologyRoot node must be generated when water exists")
+
 	node.free()
 	renderer.free()
 
-	# 2. TerrainColorResolver isolated checks
+	# 2. TerrainColorResolver isolated checks (Pure Land: Loam and Rock)
 	var flat_cell := WorldCell.new(Vector2i(0, 0))
 	flat_cell.slope = 0.0
 	flat_cell.normalized_height = 0.0
 	flat_cell.moisture = 0.5
 	var low_col: Color = _TerrainColorResolverScript.resolve_vertex_color(flat_cell, profile)
-	assert(low_col.is_equal_approx(profile.color_deep_water))
+	assert(low_col.is_equal_approx(profile.terrain_loam_color), "Low elevation ground must be organic loam, NOT water!")
 
 	var cliff_cell := WorldCell.new(Vector2i(1, 1))
 	cliff_cell.slope = 45.0
 	cliff_cell.moisture = 0.5
 	var cliff_col: Color = _TerrainColorResolverScript.resolve_vertex_color(cliff_cell, profile)
-	assert(cliff_col.is_equal_approx(profile.color_rock))
+	assert(cliff_col.is_equal_approx(profile.terrain_rock_color), "Steep cliff faces must be exposed granite rock!")
 
 	# 3. PresentationWorldRenderer alias check
 	var pres_renderer = _PresentationWorldRendererScript.new()

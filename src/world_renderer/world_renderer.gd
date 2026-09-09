@@ -2,6 +2,7 @@ class_name WorldRenderer
 extends Node3D
 
 const _TerrainMaterialScript = preload("res://src/world_generator/presentation/terrain_material.gd")
+const _HydrologyRendererScript = preload("res://src/world_renderer/hydrology_renderer.gd")
 
 func render_world(result: WorldResult, profile_or_cell_size: Variant = 1.0) -> Node3D:
 	var profile: WorldProfile = null
@@ -32,7 +33,13 @@ func render_world(result: WorldResult, profile_or_cell_size: Variant = 1.0) -> N
 	static_body.add_child(col_shape)
 	root.add_child(static_body)
 
-	# 2. Vegetation MultiMeshes
+	# 2. Hydrology Mesh (Lakes & Rivers Overlay)
+	if result.hydrology != null:
+		var hydro_node: Node3D = _HydrologyRendererScript.build_hydrology_node(result, profile)
+		if hydro_node != null:
+			root.add_child(hydro_node)
+
+	# 3. Vegetation MultiMeshes
 	_spawn_vegetation_multimeshes(root, result)
 
 	return root
