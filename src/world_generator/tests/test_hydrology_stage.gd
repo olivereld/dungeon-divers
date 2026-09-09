@@ -139,6 +139,18 @@ func _init() -> void:
 			var next_pt: Vector3 = pts[i + 1]
 			assert(next_pt.y <= cur_pt.y + 0.001, "River point %d (Y=%.2f) flows uphill to point %d (Y=%.2f)!" % [i, cur_pt.y, i + 1, next_pt.y])
 
+	# H24: Navigation uses post-carving slope
+	print(" [CHECK] H24. Navigation Reflects Post-Carving Terrain...")
+	for river in hydro.rivers:
+		for pos in river.get("cells", []):
+			if hydro.is_lake(pos):
+				continue
+			var cell: WorldCell = result.get_cell(pos)
+			if cell == null:
+				continue
+			if cell.slope < 10.0:
+				assert(cell.slope_category == NavigationStage.SlopeCategory.FLAT, "H24: Post-carve slope category mismatch at %s" % str(pos))
+
 	# 4. Test Vegetation Water Avoidance
 	print(" [CHECK] 4. Vegetation Submersion Exclusion...")
 	for item in result.vegetation:

@@ -8,15 +8,17 @@ extends WorldStage
 ##   1. Hydrology noise sampling
 ##   2. Lake detection and clustering
 ##   3. Priority-Flood depression filling (O(N log N) min-heap)
-##   4. D8 flow direction calculation
-##   5. Flow accumulation network
-##   6. River potential and drainage maps
-##   7. Headwaters selection and main river tracing
-##   8. Natural tributary branching
-##   9. River geometry, width, depth, and controlled meanders
+##   4. D8 flow direction calculation (purely topological)
+##   5. Flow accumulation network (with lake contribution)
+##   6. Upstream reverse graph and channel mask
+##   7. Network-based river selection with edge ownership
+##   8. River geometry, width, depth, and controlled meanders
+##   9. Channel carving (hydrogeomorphological terrain modification)
 ##
-## Hydrology never modifies WorldCell terrain elevation.
-## Water is stored exclusively in HydrologyResult.
+## Hydrology is the only stage authorized to apply post-terrain elevation
+## modifications for channel carving and bank shaping. All water geometry
+## is stored in HydrologyResult. Terrain elevation is modified locally
+## and explicitly for channel excavation only.
 
 const _HydrologyResultScript = preload("res://src/world_generator/hydrology/hydrology_result.gd")
 
