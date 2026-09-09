@@ -290,10 +290,18 @@ func execute(context: WorldGenerationContext) -> void:
 	)
 
 	# -------------------------------------------------------------------------
-	# 9. BUILD MAIN RIVERS
+	# 9. EXTRACT MAIN RIVERS & TRIBUTARIES PATHS
 	# -------------------------------------------------------------------------
+	var validated_paths: Array[Dictionary] = []
 	var river_id: int = 0
 	var selected_headwaters: Array[Vector2i] = []
+
+	# Also consider lake spillways as natural river outlets (rivers leaving lakes)
+	for lake in hydro.lakes:
+		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
+		if spill_pos.x >= 1 and spill_pos.x < width - 1 and spill_pos.y >= 1 and spill_pos.y < height - 1:
+			if not hydro.is_lake(spill_pos) and cells.has(spill_pos):
+				headwaters.push_front(spill_pos)
 
 	for source in headwaters:
 		if selected_headwaters.size() >= profile.max_rivers:
@@ -332,23 +340,11 @@ func execute(context: WorldGenerationContext) -> void:
 		if length_m < profile.min_river_length:
 			continue
 
-		var river_data := _build_river_data(
-			river_id,
-			path,
-			accumulation,
-			cells,
-			profile,
-			hydro,
-			hydro_noise
-		)
-
-		hydro.rivers.append(river_data)
+		validated_paths.append({ "id": river_id, "path": path, "is_tributary": false })
 		selected_headwaters.append(source)
 		river_id += 1
 
-	# -------------------------------------------------------------------------
-	# 10. ADD TRIBUTARIES
-	# -------------------------------------------------------------------------
+	# Extract tributaries
 	var tributary_sources: Array[Vector2i] = []
 	for y in range(1, height - 1):
 		for x in range(1, width - 1):
@@ -403,21 +399,31 @@ func execute(context: WorldGenerationContext) -> void:
 		if length_m < profile.min_river_length * 0.5:
 			continue
 
+		validated_paths.append({ "id": tributary_id, "path": path, "is_tributary": true })
+		tributary_id += 1
+
+	# -------------------------------------------------------------------------
+	# 10. CARVE RIVER CHANNELS INTO TERRAIN
+	# -------------------------------------------------------------------------
+	_carve_river_channels(cells, validated_paths, accumulation, width, height, profile, hydro)
+
+	# -------------------------------------------------------------------------
+	# 11. BUILD FINAL RIVER GEOMETRY DATA
+	# -------------------------------------------------------------------------
+	for item in validated_paths:
 		var river_data := _build_river_data(
-			tributary_id,
-			path,
+			item["id"],
+			item["path"],
 			accumulation,
 			cells,
 			profile,
 			hydro,
 			hydro_noise
 		)
-
 		hydro.rivers.append(river_data)
-		tributary_id += 1
 
 	# -------------------------------------------------------------------------
-	# 11. DEBUG DATA
+	# 12. DEBUG DATA
 	# -------------------------------------------------------------------------
 	hydro.set_debug_grid("noise", debug_noise)
 	hydro.set_debug_grid("lake_potential", debug_lake_potential)
@@ -731,6 +737,10 @@ func _trace_river(
 		path.append(current)
 
 		if hydro.is_lake(current):
+			# Step 1 additional cell into the lake body so the river mesh merges seamlessly
+			var lake_downstream: Vector2i = flow_to.get(current, current)
+			if lake_downstream != current and hydro.is_lake(lake_downstream) and not visited.has(lake_downstream):
+				path.append(lake_downstream)
 			break
 
 		if path.size() > 1 and hydro.is_river(current):
@@ -747,6 +757,109 @@ func _trace_river(
 		current = next_pos
 
 	return path
+
+
+# =============================================================================
+# RIVER CHANNEL CARVING (Terrain Depression & Berms)
+# =============================================================================
+
+func _carve_river_channels(
+	cells: Dictionary,
+	validated_paths: Array[Dictionary],
+	accumulation: Dictionary,
+	width: int,
+	height: int,
+	profile: WorldProfile,
+	hydro: RefCounted
+) -> void:
+	if validated_paths.is_empty():
+		return
+
+	var max_acc: float = 1.0
+	for item in validated_paths:
+		for pos in item["path"]:
+			max_acc = maxf(max_acc, float(accumulation.get(pos, 1.0)))
+
+	var carve_depth: Dictionary = {}
+
+	for item in validated_paths:
+		var path: Array[Vector2i] = item["path"]
+		var n_pts: int = path.size()
+		for i in range(n_pts):
+			var pos: Vector2i = path[i]
+			if hydro.is_lake(pos):
+				continue
+
+			var acc: float = float(accumulation.get(pos, 1.0))
+			var acc_ratio: float = clampf((acc - 1.0) / maxf(max_acc - 1.0, 1.0), 0.0, 1.0)
+			var acc_factor: float = pow(acc_ratio, 0.45)
+
+			# Channel width and depth in the terrain: smooth swale depression
+			var w: float = lerpf(profile.river_min_width, profile.river_max_width, acc_factor)
+			var channel_depth: float = lerpf(0.12, 0.24, acc_factor)
+			var influence_radius: float = maxf(w * 1.25, 1.8)
+			var ir_ceil: int = int(ceil(influence_radius))
+
+			# Inspect grid neighborhood
+			for dy in range(-ir_ceil, ir_ceil + 1):
+				for dx in range(-ir_ceil, ir_ceil + 1):
+					var cx: int = pos.x + dx
+					var cy: int = pos.y + dy
+					if cx < 0 or cx >= width or cy < 0 or cy >= height:
+						continue
+
+					var c_pos := Vector2i(cx, cy)
+					if hydro.is_lake(c_pos) or not cells.has(c_pos):
+						continue
+
+					# Distance to segment
+					var dist: float = Vector2(float(dx), float(dy)).length()
+					if i < n_pts - 1:
+						var next_pos: Vector2i = path[i + 1]
+						var seg_start := Vector2(float(pos.x), float(pos.y))
+						var seg_end := Vector2(float(next_pos.x), float(next_pos.y))
+						var pt := Vector2(float(cx), float(cy))
+						var ab := seg_end - seg_start
+						var len_sq := ab.length_squared()
+						if len_sq > 0.001:
+							var t := clampf((pt - seg_start).dot(ab) / len_sq, 0.0, 1.0)
+							var proj := seg_start + ab * t
+							dist = (pt - proj).length()
+
+					if dist >= influence_radius:
+						continue
+
+					var u: float = dist / influence_radius
+					# Smooth bell-curve swale (no sharp cliff edges)
+					var falloff: float = (1.0 - u * u) * (1.0 - u * u)
+					var d_carve: float = channel_depth * falloff
+					carve_depth[c_pos] = maxf(carve_depth.get(c_pos, 0.0), d_carve)
+
+	# Apply height adjustments & soil moisture
+	var modified_cells: Dictionary = {}
+	for pos in carve_depth:
+		var cell: WorldCell = cells.get(pos)
+		if cell == null or hydro.is_lake(pos):
+			continue
+
+		var dep: float = carve_depth[pos]
+		cell.height -= dep
+		# Enrich soil moisture under and around the stream so it darkens into peat/loam
+		cell.moisture = clampf(cell.moisture + 0.35 * (dep / 0.24), 0.0, 1.0)
+		modified_cells[pos] = true
+
+	# Update slope for modified cells to ensure consistent terrain mesh normals and walkability
+	for pos in modified_cells:
+		var cell: WorldCell = cells[pos]
+		var x: int = pos.x
+		var y: int = pos.y
+		var h_l: float = cells[Vector2i(maxi(x - 1, 0), y)].height
+		var h_r: float = cells[Vector2i(mini(x + 1, width - 1), y)].height
+		var h_u: float = cells[Vector2i(x, maxi(y - 1, 0))].height
+		var h_d: float = cells[Vector2i(x, mini(y + 1, height - 1))].height
+		var dx: float = (h_r - h_l) * 0.5
+		var dy: float = (h_d - h_u) * 0.5
+		cell.slope = rad_to_deg(atan(sqrt(dx * dx + dy * dy)))
 
 
 # =============================================================================
@@ -774,11 +887,21 @@ func _build_river_data(
 		var cell: WorldCell = cells[pos]
 
 		var acc: float = float(accumulation.get(pos, 1.0))
-		var acc_factor: float = clampf(log(acc + 1.0) / maxf(log(max_acc + 1.0), 0.001), 0.0, 1.0)
+		var acc_ratio: float = clampf((acc - 1.0) / maxf(max_acc - 1.0, 1.0), 0.0, 1.0)
+		var acc_factor: float = pow(acc_ratio, 0.45)
 
-		# Accumulation controls river width naturally
+		# Non-linear accumulation-based width progression
 		var width: float = lerpf(profile.river_min_width, profile.river_max_width, acc_factor)
-		width = maxf(width, profile.river_min_width * 0.85)
+
+		# Taper at headwater source spring
+		var length_progress: float = float(i) / float(maxi(path.size() - 1, 1))
+		var source_taper: float = clampf(length_progress / 0.12, 0.40, 1.0)
+		width = maxf(width * source_taper, profile.river_min_width * 0.80)
+
+		# Expansion at lake estuary / mouth
+		if i >= path.size() - 2 and hydro.is_lake(path[-1]):
+			width *= 1.25
+
 		widths.append(width)
 
 		var flow_dir := Vector2.ZERO
@@ -793,16 +916,21 @@ func _build_river_data(
 		var world_x: float = float(pos.x)
 		var world_z: float = float(pos.y)
 
-		# Controlled meander guided by continuous hydrology noise in physical metric space
+		# Controlled meander strictly LATERAL to flow direction
 		var meander_offset := Vector2.ZERO
 		if profile.hydrology_noise_enabled and hydro_noise != null:
 			var sample_x: float = float(pos.x) * profile.cell_size
 			var sample_z: float = float(pos.y) * profile.cell_size
 			var noise_val: float = hydro_noise.get_noise_2d(sample_x, sample_z)
-			var angle: float = (noise_val + 1.0) * 0.5 * TAU
-			meander_offset = Vector2(cos(angle), sin(angle)) * profile.river_meander_strength * width
+			var perp_dir := Vector2(-flow_dir.y, flow_dir.x)
+			meander_offset = perp_dir * (noise_val * profile.river_meander_strength * width * 0.30)
 
-		var target_y: float = cell.height + 0.05
+		var target_y: float
+		if hydro.is_lake(pos):
+			target_y = hydro.water_cells[pos]["water_height"]
+		else:
+			target_y = cell.height + 0.025
+
 		if i > 0 and target_y > points[i - 1].y:
 			target_y = points[i - 1].y
 
@@ -813,14 +941,12 @@ func _build_river_data(
 		)
 		points.append(world_point)
 
-		var depth: float = lerpf(0.15, 0.65, acc_factor)
-
 		if not hydro.is_lake(pos):
 			hydro.water_cells[pos] = {
 				"type": "river",
 				"water_height": target_y,
 				"terrain_height": cell.height,
-				"depth": depth,
+				"depth": maxf(0.12, target_y - cell.height),
 				"river_index": river_index,
 				"flow_dir": flow_dir
 			}

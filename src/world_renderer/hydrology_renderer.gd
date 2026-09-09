@@ -241,8 +241,16 @@ static func _build_rivers_mesh(hydro: RefCounted, profile: WorldProfile, result:
 		if raw_pts.size() < 2:
 			continue
 
-		# 1. Generate smooth spline centerline (4 sub-steps per segment)
-		var smooth_pts := _generate_catmull_rom_centerline(raw_pts, 4)
+		var raw_widths: Array = river.get("widths", []) if river is Dictionary else river.widths
+		if raw_widths.size() != raw_pts.size():
+			raw_widths = []
+			for p_idx in range(raw_pts.size()):
+				raw_widths.append(profile.river_min_width)
+
+		# 1. Generate smooth spline centerline and smoothly interpolated widths
+		var spline_data := _generate_catmull_rom_with_widths(raw_pts, raw_widths, 4)
+		var smooth_pts: Array[Vector3] = spline_data["points"]
+		var smooth_widths: Array[float] = spline_data["widths"]
 		var total_pts: int = smooth_pts.size()
 		if total_pts < 2:
 			continue
@@ -271,37 +279,43 @@ static func _build_rivers_mesh(hydro: RefCounted, profile: WorldProfile, result:
 			# Perpendicular in XZ plane
 			var perp := Vector3(-tangent.z, 0.0, tangent.x).normalized()
 
-			# Natural width profile:
-			# - Source spring taper: smoothly begins at 0.12m
-			# - Midstream: gently widens from 0.35m to 0.70m
-			# - River mouth: widens into 0.95m as it meets the lake basin
-			var w: float
-			if prog < 0.08:
-				w = lerpf(0.12, 0.35, prog / 0.08)
-			elif prog > 0.85:
-				w = lerpf(0.70, 0.95, (prog - 0.85) / 0.15)
-			else:
-				w = lerpf(0.35, 0.70, (prog - 0.08) / 0.77)
+			# Width directly from the hydrological accumulation network
+			var w: float = smooth_widths[j]
 
 			var lx: float = p.x + perp.x * (w * 0.5)
 			var lz: float = p.z + perp.z * (w * 0.5)
 			var rx: float = p.x - perp.x * (w * 0.5)
 			var rz: float = p.z - perp.z * (w * 0.5)
 
-			# Draping: sample exact triangulated ground elevation at each bank
-			var ly: float = _sample_terrain_elevation(result, lx, lz) + 0.025
-			var ry: float = _sample_terrain_elevation(result, rx, rz) + 0.025
+			# Continuous bilateral ground draping: every vertex hugs the terrain elevation
+			# with +0.025m clearance, guaranteeing 100% continuous flow with zero clipping
+			var ground_l: float = _sample_terrain_elevation(result, lx, lz)
+			var ground_r: float = _sample_terrain_elevation(result, rx, rz)
+			var ly: float = ground_l + 0.025
+			var ry: float = ground_r + 0.025
+
+			# If in a lake basin, level up to the lake water surface
+			var grid_l := Vector2i(clampi(int(round(lx)), 0, profile.width - 1), clampi(int(round(lz)), 0, profile.height - 1))
+			var grid_r := Vector2i(clampi(int(round(rx)), 0, profile.width - 1), clampi(int(round(rz)), 0, profile.height - 1))
+			if hydro.is_lake(grid_l):
+				var lake_data = hydro.get_cell_data(grid_l)
+				if lake_data.has("water_height"):
+					ly = maxf(ly, float(lake_data["water_height"]))
+			if hydro.is_lake(grid_r):
+				var lake_data = hydro.get_cell_data(grid_r)
+				if lake_data.has("water_height"):
+					ry = maxf(ry, float(lake_data["water_height"]))
 
 			# Cohesive water color along stream:
 			# - Headwaters: shallow sparkling tint
 			# - Midstream: active river color
-			# - Mouth: deepens towards lake color
+			# - Mouth / Lake estuary: deepens into lake color
 			var col: Color
-			if prog < 0.40:
-				col = shallow_col.lerp(river_col, prog / 0.40)
+			if prog < 0.35:
+				col = shallow_col.lerp(river_col, prog / 0.35)
 			else:
-				col = river_col.lerp(lake_col, (prog - 0.40) / 0.60)
-			col.a = clampf(0.75 + prog * 0.15, 0.0, 0.95)
+				col = river_col.lerp(lake_col, (prog - 0.35) / 0.65)
+			col.a = clampf(0.80 + prog * 0.12, 0.0, 0.95)
 
 			vertices.append(Vector3(lx, ly, lz))
 			vertices.append(Vector3(rx, ry, rz))
@@ -345,20 +359,27 @@ static func _build_rivers_mesh(hydro: RefCounted, profile: WorldProfile, result:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
 
-## Interpolates river centerline through a Catmull-Rom spline to eliminate jagged 45°/90° grid corners
-static func _generate_catmull_rom_centerline(raw_pts: Array, sub_divisions: int) -> Array[Vector3]:
-	var res: Array[Vector3] = []
+## Interpolates smooth 3D spline centerline points alongside accumulation-driven river widths
+static func _generate_catmull_rom_with_widths(raw_pts: Array, raw_widths: Array, sub_divisions: int = 4) -> Dictionary:
+	var pts_res: Array[Vector3] = []
+	var widths_res: Array[float] = []
 	var n: int = raw_pts.size()
 	if n < 2:
-		for p in raw_pts:
-			res.append(p as Vector3)
-		return res
+		for i in range(n):
+			pts_res.append(raw_pts[i] as Vector3)
+			widths_res.append(float(raw_widths[i]) if i < raw_widths.size() else 0.5)
+		return { "points": pts_res, "widths": widths_res }
 
 	for i in range(n - 1):
 		var p0: Vector3 = raw_pts[maxi(i - 1, 0)]
 		var p1: Vector3 = raw_pts[i]
 		var p2: Vector3 = raw_pts[i + 1]
 		var p3: Vector3 = raw_pts[mini(i + 2, n - 1)]
+
+		var w0: float = float(raw_widths[maxi(i - 1, 0)]) if maxi(i - 1, 0) < raw_widths.size() else 0.5
+		var w1: float = float(raw_widths[i]) if i < raw_widths.size() else 0.5
+		var w2: float = float(raw_widths[i + 1]) if i + 1 < raw_widths.size() else 0.5
+		var w3: float = float(raw_widths[mini(i + 2, n - 1)]) if mini(i + 2, n - 1) < raw_widths.size() else 0.5
 
 		for step in range(sub_divisions):
 			var t := float(step) / float(sub_divisions)
@@ -371,10 +392,18 @@ static func _generate_catmull_rom_centerline(raw_pts: Array, sub_divisions: int)
 				(2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 +
 				(-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3
 			)
-			res.append(pt)
+			var w := 0.5 * (
+				(2.0 * w1) +
+				(-w0 + w2) * t +
+				(2.0 * w0 - 5.0 * w1 + 4.0 * w2 - w3) * t2 +
+				(-w0 + 3.0 * w1 - 3.0 * w2 + w3) * t3
+			)
+			pts_res.append(pt)
+			widths_res.append(maxf(w, 0.12))
 
-	res.append(raw_pts[n - 1] as Vector3)
-	return res
+	pts_res.append(raw_pts[n - 1] as Vector3)
+	widths_res.append(maxf(float(raw_widths[n - 1]) if n - 1 < raw_widths.size() else 0.5, 0.12))
+	return { "points": pts_res, "widths": widths_res }
 
 ## Evaluates exact elevation on the triangulated mesh surface for bank ground draping
 static func _sample_terrain_elevation(result: WorldResult, world_x: float, world_z: float) -> float:

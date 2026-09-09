@@ -74,7 +74,7 @@ func _init() -> void:
 	max_river_length = 180.0
 	river_max_steps = 250
 	river_min_width = 0.35
-	river_max_width = 0.85
+	river_max_width = 1.85
 	river_meander_strength = 0.18
 	hydrology_noise_enabled = true
 	hydrology_noise_wavelength = 80.0
@@ -82,12 +82,12 @@ func _init() -> void:
 	hydrology_noise_strength = 0.25
 	hydrology_noise_octaves = 2
 	hydrology_noise_seed_offset = 707
-	water_color_shallow = Color("#2a68a8")
-	water_color_medium = Color("#1e4e82")
-	water_color_deep = Color("#143254")
-	water_color_river = Color("#246094")
-	water_color_lake = Color("#193e68")
+	water_color_shallow = Color("#205485")
+	water_color_medium = Color("#143c64")
+	water_color_deep = Color("#0e253e")
+	water_color_river = Color("#184674")
+	water_color_lake = Color("#102e4d")
 	water_roughness = 0.08
-	water_transparency = 0.85
+	water_transparency = 0.90
 
 
