@@ -76,6 +76,9 @@ func _init() -> void:
 	river_min_width = 0.35
 	river_max_width = 1.85
 	river_meander_strength = 0.18
+	river_channel_depth = 0.22
+	river_bank_width = 2.4
+	river_bank_falloff = 1.6
 	hydrology_noise_enabled = true
 	hydrology_noise_wavelength = 80.0
 	hydrology_noise_frequency = 1.0 / hydrology_noise_wavelength

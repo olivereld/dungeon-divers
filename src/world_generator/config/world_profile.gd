@@ -140,6 +140,9 @@ func get_hydrology_noise_frequency() -> float:
 @export_range(0.3, 3.0, 0.1) var river_min_width: float = 0.8
 @export_range(0.8, 6.0, 0.1) var river_max_width: float = 2.4
 @export_range(0.0, 1.0, 0.02) var river_meander_strength: float = 0.18
+@export_range(0.05, 0.80, 0.02) var river_channel_depth: float = 0.20
+@export_range(0.8, 6.0, 0.1) var river_bank_width: float = 2.4
+@export_range(0.5, 4.0, 0.1) var river_bank_falloff: float = 1.6
 
 # Hydrology - Noise Field (Channel Preference & Meanders)
 @export_group("Hydrology - Noise Field")

@@ -106,7 +106,22 @@ func _init() -> void:
 	assert(dry_hydro.rivers.is_empty(), "When max_rivers=0, no rivers should form")
 	assert(dry_hydro.lakes.size() <= hydro.lakes.size(), "Low lake_threshold must produce fewer or equal lakes")
 
+	# 8. Phase H10 Invariants: Width Growth & Physical Channel Carving
+	print(" [CHECK] 8. Phase H10 Invariants (Width Growth, Outlet Validity, Channel Carving)...")
+	for river in hydro.rivers:
+		var widths: Array = river.widths
+		var pts: Array = river.points
+		assert(widths.size() == pts.size(), "Width array must match point count")
+		assert(widths[0] >= profile.river_min_width * 0.35, "Headwater width must be >= min threshold")
+		assert(widths[widths.size() - 1] <= profile.river_max_width * 1.35, "Outlet width must be <= max threshold")
+
+		# River endpoint must be at lake, confluence, or near boundary
+		var last_pos: Vector2i = river.cells[river.cells.size() - 1]
+		var is_near_boundary: bool = (last_pos.x <= 2 or last_pos.x >= profile.width - 3 or last_pos.y <= 2 or last_pos.y >= profile.height - 3)
+		var is_at_water: bool = hydro.is_lake(last_pos) or hydro.is_river(last_pos)
+		assert(is_near_boundary or is_at_water, "River %d must terminate at lake, confluence, or boundary!" % river.index)
+
 	print("==================================================")
 	print(" ALL HYDROLOGY & SEPARATION TESTS PASSED!")
 	print("==================================================")
-	quit()
+	quit(0)
