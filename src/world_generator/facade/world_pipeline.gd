@@ -9,9 +9,9 @@ static func generate(seed_val: int, profile: WorldProfile = null) -> WorldResult
 
 	var stages: Array[WorldStage] = [
 		TerrainStage.new(),
+		NavigationStage.new(),
 		EcologyStage.new(),
 		VegetationStage.new(),
-		NavigationStage.new(),
 	]
 
 	for stage in stages:

@@ -26,10 +26,16 @@ func execute(context: WorldGenerationContext) -> void:
 		warp_noise_x.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 		warp_noise_x.seed = terrain_seed + 303
 		warp_noise_x.frequency = profile.warp_frequency
+		warp_noise_x.fractal_octaves = profile.warp_octaves
 
 		warp_noise_y.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 		warp_noise_y.seed = terrain_seed + 404
 		warp_noise_y.frequency = profile.warp_frequency
+		warp_noise_y.fractal_octaves = profile.warp_octaves
+
+	var total_noise_weight := profile.macro_strength + profile.medium_strength + profile.detail_strength
+	if total_noise_weight <= 0.0:
+		total_noise_weight = 1.0
 
 	var min_h := INF
 	var max_h := -INF
@@ -46,11 +52,18 @@ func execute(context: WorldGenerationContext) -> void:
 				sample_x += wx
 				sample_y += wy
 
-			var macro_val := (macro_noise.get_noise_2d(sample_x, sample_y) + 1.0) * 0.5 * profile.macro_strength
-			var med_val := medium_noise.get_noise_2d(sample_x, sample_y) * profile.medium_strength
-			var det_val := detail_noise.get_noise_2d(sample_x, sample_y) * profile.detail_strength
+			var n_macro := macro_noise.get_noise_2d(sample_x, sample_y)
+			var n_med := medium_noise.get_noise_2d(sample_x, sample_y)
+			var n_det := detail_noise.get_noise_2d(sample_x, sample_y)
 
-			var h: float = (profile.base_height + macro_val + med_val + det_val) * profile.height_scale
+			# Weighted symmetric composition in [-1.0, 1.0]
+			var composite := (n_macro * profile.macro_strength + n_med * profile.medium_strength + n_det * profile.detail_strength) / total_noise_weight
+			# Map to normalized [0.0, 1.0] space
+			var norm_val := clampf((composite + 1.0) * 0.5, 0.0, 1.0)
+			# Non-linear relief shaping
+			var shaped := pow(norm_val, profile.relief_exponent)
+
+			var h: float = profile.base_height + (shaped * total_noise_weight * profile.height_scale)
 			if h < min_h: min_h = h
 			if h > max_h: max_h = h
 

@@ -24,6 +24,7 @@ func _init() -> void:
 	var val_report := WorldValidator.validate(result)
 	assert(val_report["valid"], "Validation failed: %s" % str(val_report["errors"]))
 	assert(val_report["walkable_ratio"] >= 0.60, "Walkable ratio must be >= 60%")
+	assert(val_report["reachable_walkable_ratio"] >= 0.70, "Connected walkable ratio from spawn must be >= 70%")
 	assert(result.vegetation.size() > 100, "Should place abundant vegetation in taiga")
 
 	# 4. Strict Determinism Check
@@ -42,7 +43,7 @@ func _init() -> void:
 
 	print(" [PASS] 1. Seed Derivation & Domain Isolation")
 	print(" [PASS] 2. Pipeline Execution (128x128 Grid)")
-	print(" [PASS] 3. Data Integrity & Headless Validation (Walkable: %.1f%%, Veg: %d)" % [val_report["walkable_ratio"] * 100.0, result.vegetation.size()])
+	print(" [PASS] 3. Data Integrity & Headless Validation (Walkable: %.1f%%, Reachable: %.1f%%, Veg: %d)" % [val_report["walkable_ratio"] * 100.0, val_report["reachable_walkable_ratio"] * 100.0, result.vegetation.size()])
 	print(" [PASS] 4. Strict Deterministic Reproducibility")
 	print(" [PASS] 5. WorldRenderer 3D Mesh & MultiMesh Generation")
 	print("==================================================")

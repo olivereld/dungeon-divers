@@ -15,10 +15,12 @@ func _init() -> void:
 	detail_strength = 1.0
 	base_height = 1.5
 	height_scale = 1.0
+	relief_exponent = 1.1
 
 	warp_enabled = true
 	warp_frequency = 0.018
 	warp_strength = 18.0
+	warp_octaves = 2
 
 	# Ecology: dense boreal evergreen forests broken by open peat/moss clearings
 	forest_frequency = 0.025

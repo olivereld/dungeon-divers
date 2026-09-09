@@ -4,6 +4,7 @@ func _init() -> void:
 	var profile := TaigaWorldProfile.new()
 	var context := WorldGenerationContext.new(777, profile)
 	TerrainStage.new().execute(context)
+	NavigationStage.new().execute(context)
 	EcologyStage.new().execute(context)
 	VegetationStage.new().execute(context)
 
@@ -15,6 +16,7 @@ func _init() -> void:
 	# Test determinism
 	var context2 := WorldGenerationContext.new(777, profile)
 	TerrainStage.new().execute(context2)
+	NavigationStage.new().execute(context2)
 	EcologyStage.new().execute(context2)
 	VegetationStage.new().execute(context2)
 	assert(context.result.vegetation.size() == context2.result.vegetation.size(), "Vegetation count must match")
