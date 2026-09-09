@@ -889,6 +889,22 @@ func _carve_river_channels(
 	# Ensure channel bed descends monotonically along every river path
 	for item in validated_paths:
 		var path: Array[Vector2i] = item["path"]
+		if path.is_empty():
+			continue
+
+		var base_lake_h: float = -INF
+		if hydro.is_lake(path[-1]):
+			var l_data: Dictionary = hydro.get_cell_data(path[-1])
+			base_lake_h = float(l_data.get("water_height", cells[path[-1]].height))
+
+		for p in path:
+			if not hydro.is_lake(p):
+				var c: WorldCell = cells.get(p)
+				if c != null and base_lake_h > -INF:
+					if c.height < base_lake_h:
+						c.height = base_lake_h
+						modified_cells[p] = true
+
 		for i in range(1, path.size()):
 			var cur_pos: Vector2i = path[i]
 			var prev_pos: Vector2i = path[i - 1]
@@ -993,14 +1009,18 @@ func _build_river_data(
 			var l_data: Dictionary = hydro.get_cell_data(pos)
 			target_y = float(l_data.get("water_height", cell.height))
 		else:
-			target_y = maxf(cell.height + 0.025, cell.height)
+			target_y = cell.height + 0.025
+			if hydro.is_lake(path[-1]):
+				var l_end: Dictionary = hydro.get_cell_data(path[-1])
+				target_y = maxf(target_y, float(l_end.get("water_height", cell.height)))
 
-		# Monotonic descent
+		# Strict monotonic descent
 		if i > 0 and target_y > points[i - 1].y:
 			target_y = points[i - 1].y
 
-		# H20 invariant: water never below terrain
-		target_y = maxf(target_y, cell.height + 0.005)
+		# H20 invariant: ensure terrain is at or below target_y
+		if not hydro.is_lake(pos) and cell.height >= target_y:
+			cell.height = target_y - 0.005
 
 		var world_point := Vector3(
 			world_x + meander_offset.x,

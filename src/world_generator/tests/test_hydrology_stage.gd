@@ -216,7 +216,98 @@ func _init() -> void:
 		var is_at_water: bool = hydro.is_lake(last_pos) or hydro.is_river(last_pos)
 		assert(is_near_boundary or is_at_water, "River %d must terminate at lake, confluence, or boundary!" % river.index)
 
+	# H25: Comprehensive Hydrology Contract Test
+	print(" [CHECK] H25. Comprehensive Hydrology Contract...")
+	validate_hydrology_contract(result, profile)
+
+	# H26: Multi-seed validation (30 seeds)
+	print(" [CHECK] H26. Multi-Seed Invariant Validation (30 seeds)...")
+	var test_seeds: Array[int] = [
+		1001, 1111, 1234, 1337, 1500, 1776, 2000, 2020, 2112, 2222,
+		2345, 2500, 2718, 2828, 3000, 3141, 3333, 3500, 3700, 3900,
+		4000, 4100, 4200, 4300, 4400, 4500, 4600, 4700, 4800, 5005
+	]
+
+	var total_rivers: int = 0
+	var total_lakes: int = 0
+	var seeds_with_rivers: int = 0
+	var seeds_with_lakes: int = 0
+
+	for test_seed in test_seeds:
+		var test_result := WorldPipeline.generate(test_seed, profile)
+		validate_hydrology_contract(test_result, profile)
+
+		var test_hydro = test_result.hydrology
+		total_rivers += test_hydro.rivers.size()
+		total_lakes += test_hydro.lakes.size()
+		if not test_hydro.rivers.is_empty():
+			seeds_with_rivers += 1
+		if not test_hydro.lakes.is_empty():
+			seeds_with_lakes += 1
+
+	print("   30-seed summary:")
+	print("     Rivers: %d total, %d/%d seeds" % [total_rivers, seeds_with_rivers, test_seeds.size()])
+	print("     Lakes:  %d total, %d/%d seeds" % [total_lakes, seeds_with_lakes, test_seeds.size()])
+
 	print("==================================================")
 	print(" ALL HYDROLOGY & SEPARATION TESTS PASSED!")
 	print("==================================================")
 	quit(0)
+
+
+static func validate_hydrology_contract(result: WorldResult, profile: WorldProfile) -> void:
+	var hydro = result.hydrology
+	assert(hydro != null, "HydrologyResult must exist")
+
+	# --- FLOW ---
+	for river in hydro.rivers:
+		var pts: Array = river.get("points", [])
+		for i in range(pts.size() - 1):
+			assert(pts[i + 1].y <= pts[i].y + 0.001, "Flow must not ascend: %f -> %f" % [pts[i].y, pts[i + 1].y])
+
+	# --- ACCUMULATION ---
+	var drainage: Dictionary = hydro.debug_layers.get("drainage", {})
+	for pos in drainage:
+		assert(float(drainage[pos]) >= 0.0, "Accumulation must be >= 0")
+
+	# --- RIVERS ---
+	var rendered_edges: Dictionary = {}
+	for river in hydro.rivers:
+		var cells_arr: Array = river.get("cells", [])
+		var widths_arr: Array = river.get("widths", [])
+		var pts_arr: Array = river.get("points", [])
+
+		assert(widths_arr.size() == pts_arr.size(), "Width/point count mismatch")
+
+		for w in widths_arr:
+			assert(float(w) > 0.0, "Width must be positive")
+
+		for i in range(cells_arr.size() - 1):
+			var key: String = "%d,%d->%d,%d" % [cells_arr[i].x, cells_arr[i].y, cells_arr[i + 1].x, cells_arr[i + 1].y]
+			assert(not rendered_edges.has(key), "Duplicate edge: %s" % key)
+			rendered_edges[key] = true
+
+		var last_pos: Vector2i = cells_arr[-1]
+		var is_near_boundary: bool = (last_pos.x <= 2 or last_pos.x >= profile.width - 3 or last_pos.y <= 2 or last_pos.y >= profile.height - 3)
+		var is_at_water: bool = hydro.is_lake(last_pos) or hydro.is_river(last_pos)
+		assert(is_near_boundary or is_at_water, "River must terminate at lake, confluence, or boundary")
+
+	# --- LAKES ---
+	for lake in hydro.lakes:
+		var lake_h: float = float(lake.get("water_height", 0.0))
+		var lake_cells: Array = lake.get("cells", [])
+		for c_pos in lake_cells:
+			var c_data: Dictionary = hydro.get_cell_data(c_pos)
+			assert(c_data.get("type", "") == "lake", "Lake cell must be type 'lake'")
+			assert(is_equal_approx(float(c_data.get("water_height", 0.0)), lake_h), "Lake cells must share water height")
+
+		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
+		if result.cells.has(spill_pos):
+			assert(not hydro.is_lake(spill_pos), "Spillway must be outside lake body")
+
+	# --- GEOMETRY ---
+	for pos in hydro.water_cells:
+		var data: Dictionary = hydro.water_cells[pos]
+		var water_h: float = float(data.get("water_height", 0.0))
+		var terrain_h: float = float(data.get("terrain_height", 0.0))
+		assert(water_h >= terrain_h - 0.01, "Water must be at or above terrain")
