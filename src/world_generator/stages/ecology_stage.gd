@@ -18,8 +18,10 @@ func execute(context: WorldGenerationContext) -> void:
 	for y in range(profile.height):
 		for x in range(profile.width):
 			var cell := context.result.get_cell(Vector2i(x, y))
-			var raw_forest := (forest_noise.get_noise_2d(float(x), float(y)) + 1.0) * 0.5
-			var raw_moisture := (moisture_noise.get_noise_2d(float(x), float(y)) + 1.0) * 0.5
+			var sample_x: float = float(x) * profile.cell_size
+			var sample_y: float = float(y) * profile.cell_size
+			var raw_forest := (forest_noise.get_noise_2d(sample_x, sample_y) + 1.0) * 0.5
+			var raw_moisture := (moisture_noise.get_noise_2d(sample_x, sample_y) + 1.0) * 0.5
 
 			var edge_width: float = 0.08
 			var low_bound := maxf(profile.clearing_threshold - edge_width, 0.01)

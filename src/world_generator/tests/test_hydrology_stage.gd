@@ -89,6 +89,13 @@ func _init() -> void:
 	var noise_val = hydro.get_debug_value("noise", test_cell_pos)
 	assert(noise_val >= 0.0 and noise_val <= 1.0, "Hydrology noise must be normalized in [0.0, 1.0]")
 
+	# Verify that cell_size (world scale) affects hydrology noise sampling coordinates
+	var scaled_profile := TaigaWorldProfile.new()
+	scaled_profile.cell_size = 2.0
+	var scaled_result := WorldPipeline.generate(1234, scaled_profile)
+	var scaled_noise_val = scaled_result.hydrology.get_debug_value("noise", test_cell_pos)
+	assert(absf(float(scaled_noise_val) - float(noise_val)) > 0.001, "Hydrology noise must be affected by world scale (cell_size)")
+
 	# 7. Test Parameter Configurability
 	print(" [CHECK] 7. Dynamic Hydrology Configurability...")
 	var dry_profile := TaigaWorldProfile.new()

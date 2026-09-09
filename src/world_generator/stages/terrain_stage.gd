@@ -43,8 +43,8 @@ func execute(context: WorldGenerationContext) -> void:
 	# 1. Height computation
 	for y in range(profile.height):
 		for x in range(profile.width):
-			var sample_x: float = float(x)
-			var sample_y: float = float(y)
+			var sample_x: float = float(x) * profile.cell_size
+			var sample_y: float = float(y) * profile.cell_size
 
 			if profile.warp_enabled:
 				var wx := warp_noise_x.get_noise_2d(sample_x, sample_y) * profile.warp_strength

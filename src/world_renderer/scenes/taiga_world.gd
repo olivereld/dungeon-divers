@@ -280,8 +280,10 @@ func _process(delta: float) -> void:
 		if move_dir.length_squared() > 0.001:
 			var pan_speed: float = camera_rig.get_zoom() * 1.5 * delta
 			focus_target.global_position += move_dir.normalized() * pan_speed
-			focus_target.global_position.x = clampf(focus_target.global_position.x, 0.0, 128.0)
-			focus_target.global_position.z = clampf(focus_target.global_position.z, 0.0, 128.0)
+			var max_w := float(profile.width) * profile.cell_size
+			var max_h := float(profile.height) * profile.cell_size
+			focus_target.global_position.x = clampf(focus_target.global_position.x, 0.0, max_w)
+			focus_target.global_position.z = clampf(focus_target.global_position.z, 0.0, max_h)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if camera_rig == null or focus_target == null:
@@ -320,8 +322,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				forward.y = 0.0
 				forward = forward.normalized()
 				focus_target.global_position -= (right * mm.relative.x + forward * -mm.relative.y) * pan_factor
-				focus_target.global_position.x = clampf(focus_target.global_position.x, 0.0, 128.0)
-				focus_target.global_position.z = clampf(focus_target.global_position.z, 0.0, 128.0)
+				var max_w := float(profile.width) * profile.cell_size
+				var max_h := float(profile.height) * profile.cell_size
+				focus_target.global_position.x = clampf(focus_target.global_position.x, 0.0, max_w)
+				focus_target.global_position.z = clampf(focus_target.global_position.z, 0.0, max_h)
 
 	elif event is InputEventKey and event.is_pressed() and not event.is_echo():
 		var ke: InputEventKey = event as InputEventKey
@@ -519,6 +523,20 @@ func _update_noise_textures() -> void:
 	var img_eco := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	var img_composite := Image.create(w, h, false, Image.FORMAT_RGBA8)
 
+	var warp_noise_x := FastNoiseLite.new()
+	var warp_noise_y := FastNoiseLite.new()
+	if profile.warp_enabled:
+		var terrain_seed: int = WorldSeedSystem.derive_seed(world_seed, WorldSeedSystem.DOMAIN_TERRAIN)
+		warp_noise_x.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		warp_noise_x.seed = terrain_seed + 303
+		warp_noise_x.frequency = profile.warp_frequency
+		warp_noise_x.fractal_octaves = profile.warp_octaves
+
+		warp_noise_y.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		warp_noise_y.seed = terrain_seed + 404
+		warp_noise_y.frequency = profile.warp_frequency
+		warp_noise_y.fractal_octaves = profile.warp_octaves
+
 	for y in range(h):
 		for x in range(w):
 			var cell := current_result.get_cell(Vector2i(x, y))
@@ -530,9 +548,14 @@ func _update_noise_textures() -> void:
 			var val: float = nh * contour
 			img_height.set_pixel(x, y, Color(val, val, val, 1.0))
 
-			# 2. Domain Warp vector distortion
-			var warp_r := clampf(float(x) / float(w) + sin(float(y) * 0.12) * 0.25, 0.0, 1.0)
-			var warp_g := clampf(float(y) / float(h) + cos(float(x) * 0.12) * 0.25, 0.0, 1.0)
+			# 2. Domain Warp vector distortion in metric world space
+			var warp_r := 0.5
+			var warp_g := 0.5
+			if profile.warp_enabled:
+				var sx: float = float(x) * profile.cell_size
+				var sy: float = float(y) * profile.cell_size
+				warp_r = clampf((warp_noise_x.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0)
+				warp_g = clampf((warp_noise_y.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0)
 			img_warp.set_pixel(x, y, Color(warp_r, warp_g, 1.0 - warp_r * 0.5, 1.0))
 
 			# 3. Ecology Mask
@@ -1683,9 +1706,12 @@ func _focus_spawn() -> void:
 
 func _frame_entire_world() -> void:
 	if focus_target != null and camera_rig != null:
-		focus_target.global_position = Vector3(64.0, 10.0, 64.0)
+		var center_x := float(profile.width) * profile.cell_size * 0.5
+		var center_z := float(profile.height) * profile.cell_size * 0.5
+		focus_target.global_position = Vector3(center_x, 10.0, center_z)
 		camera_rig.teleport_to_target()
-		camera_rig.set_zoom(80.0)
+		var max_dim := maxf(float(profile.width), float(profile.height)) * profile.cell_size
+		camera_rig.set_zoom(max_dim * 0.65)
 		camera_rig.yaw_degrees = 45.0
 		camera_rig.pitch_degrees = 35.264
 
