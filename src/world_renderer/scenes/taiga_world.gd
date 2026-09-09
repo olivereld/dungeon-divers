@@ -70,6 +70,15 @@ var panel_noise: VBoxContainer = null
 var panel_colors: VBoxContainer = null
 var panel_hydrology: VBoxContainer = null
 
+# Terrain Debug Visualizer Widgets
+enum TerrainDebugMode { OVERVIEW_2X2, MACRO, MEDIUM, DETAIL, WARP, COMBINED, ELEVATION, SLOPE, NORMALIZED_HEIGHT }
+var current_terrain_debug_mode: TerrainDebugMode = TerrainDebugMode.OVERVIEW_2X2
+var terrain_debug_option: OptionButton = null
+var terrain_debug_rect: TextureRect = null
+var terrain_debug_legend: Label = null
+var terrain_overview_grid: GridContainer = null
+var terrain_single_box: VBoxContainer = null
+
 # Hydrology Debug Visualizer Widgets
 enum HydroDebugMode { OFF, NOISE, LAKE_POTENTIAL, RIVER_POTENTIAL, DRAINAGE, FLOW_DIR, DEPTH, BODIES }
 var current_hydro_debug_mode: HydroDebugMode = HydroDebugMode.BODIES
@@ -518,59 +527,164 @@ func _update_noise_textures() -> void:
 	var w: int = current_result.dimensions.x
 	var h: int = current_result.dimensions.y
 
-	var img_height := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	var img_warp := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	var img_eco := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	var img_composite := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var terrain_seed: int = WorldSeedSystem.derive_seed(world_seed, WorldSeedSystem.DOMAIN_TERRAIN)
+
+	var macro_noise := FastNoiseLite.new()
+	macro_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	macro_noise.seed = terrain_seed
+	macro_noise.frequency = profile.get_macro_frequency()
+
+	var medium_noise := FastNoiseLite.new()
+	medium_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	medium_noise.seed = terrain_seed + 101
+	medium_noise.frequency = profile.get_medium_frequency()
+
+	var detail_noise := FastNoiseLite.new()
+	detail_noise.noise_type = FastNoiseLite.TYPE_PERLIN
+	detail_noise.seed = terrain_seed + 202
+	detail_noise.frequency = profile.get_detail_frequency()
 
 	var warp_noise_x := FastNoiseLite.new()
 	var warp_noise_y := FastNoiseLite.new()
 	if profile.warp_enabled:
-		var terrain_seed: int = WorldSeedSystem.derive_seed(world_seed, WorldSeedSystem.DOMAIN_TERRAIN)
 		warp_noise_x.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 		warp_noise_x.seed = terrain_seed + 303
-		warp_noise_x.frequency = profile.warp_frequency
+		warp_noise_x.frequency = profile.get_warp_frequency()
 		warp_noise_x.fractal_octaves = profile.warp_octaves
 
 		warp_noise_y.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 		warp_noise_y.seed = terrain_seed + 404
-		warp_noise_y.frequency = profile.warp_frequency
+		warp_noise_y.frequency = profile.get_warp_frequency()
 		warp_noise_y.fractal_octaves = profile.warp_octaves
 
-	for y in range(h):
-		for x in range(w):
-			var cell := current_result.get_cell(Vector2i(x, y))
-			if cell == null: continue
+	var a_macro: float = profile.get_macro_amplitude()
+	var a_med: float = profile.get_medium_amplitude()
+	var a_det: float = profile.get_detail_amplitude()
+	var total_amplitude: float = a_macro + a_med + a_det
+	if total_amplitude <= 0.0:
+		total_amplitude = 1.0
 
-			# 1. Height map with subtle contours
-			var nh := clampf(cell.normalized_height, 0.0, 1.0)
-			var contour: float = 0.75 if sin(nh * PI * 14.0) > 0.85 else 1.0
-			var val: float = nh * contour
-			img_height.set_pixel(x, y, Color(val, val, val, 1.0))
+	if current_terrain_debug_mode == TerrainDebugMode.OVERVIEW_2X2:
+		if terrain_overview_grid != null: terrain_overview_grid.visible = true
+		if terrain_single_box != null: terrain_single_box.visible = false
 
-			# 2. Domain Warp vector distortion in metric world space
-			var warp_r := 0.5
-			var warp_g := 0.5
-			if profile.warp_enabled:
+		var img_height := Image.create(w, h, false, Image.FORMAT_RGBA8)
+		var img_warp := Image.create(w, h, false, Image.FORMAT_RGBA8)
+		var img_eco := Image.create(w, h, false, Image.FORMAT_RGBA8)
+		var img_composite := Image.create(w, h, false, Image.FORMAT_RGBA8)
+
+		for y in range(h):
+			for x in range(w):
+				var cell := current_result.get_cell(Vector2i(x, y))
+				if cell == null: continue
+
+				# 1. Height map with subtle contours
+				var nh := clampf(cell.normalized_height, 0.0, 1.0)
+				var contour: float = 0.75 if sin(nh * PI * 14.0) > 0.85 else 1.0
+				var val: float = nh * contour
+				img_height.set_pixel(x, y, Color(val, val, val, 1.0))
+
+				# 2. Domain Warp vector distortion in metric world space
+				var warp_r := 0.5
+				var warp_g := 0.5
+				if profile.warp_enabled:
+					var sx: float = float(x) * profile.cell_size
+					var sy: float = float(y) * profile.cell_size
+					warp_r = clampf((warp_noise_x.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0)
+					warp_g = clampf((warp_noise_y.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0)
+				img_warp.set_pixel(x, y, Color(warp_r, warp_g, 1.0 - warp_r * 0.5, 1.0))
+
+				# 3. Ecology Mask
+				var is_forest := cell.forest_density > profile.clearing_threshold
+				var eco_col := Color("#22c55e") if is_forest else Color("#c8a96e")
+				img_eco.set_pixel(x, y, eco_col)
+
+				# 4. Composite Color
+				var comp_col: Color = _TerrainColorResolverScript.resolve_vertex_color(cell, profile)
+				img_composite.set_pixel(x, y, comp_col)
+
+		tex_rect_height.texture = ImageTexture.create_from_image(img_height)
+		tex_rect_warp.texture = ImageTexture.create_from_image(img_warp)
+		tex_rect_eco.texture = ImageTexture.create_from_image(img_eco)
+		tex_rect_composite.texture = ImageTexture.create_from_image(img_composite)
+	else:
+		if terrain_overview_grid != null: terrain_overview_grid.visible = false
+		if terrain_single_box != null: terrain_single_box.visible = true
+
+		var img_diag := Image.create(w, h, false, Image.FORMAT_RGBA8)
+
+		for y in range(h):
+			for x in range(w):
+				var cell := current_result.get_cell(Vector2i(x, y))
 				var sx: float = float(x) * profile.cell_size
 				var sy: float = float(y) * profile.cell_size
-				warp_r = clampf((warp_noise_x.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0)
-				warp_g = clampf((warp_noise_y.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0)
-			img_warp.set_pixel(x, y, Color(warp_r, warp_g, 1.0 - warp_r * 0.5, 1.0))
+				var col := Color.BLACK
 
-			# 3. Ecology Mask
-			var is_forest := cell.forest_density > profile.clearing_threshold
-			var eco_col := Color("#22c55e") if is_forest else Color("#c8a96e")
-			img_eco.set_pixel(x, y, eco_col)
+				match current_terrain_debug_mode:
+					TerrainDebugMode.MACRO:
+						var n_m := clampf((macro_noise.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0)
+						col = Color(n_m, n_m, n_m, 1.0)
+					TerrainDebugMode.MEDIUM:
+						var n_md := clampf((medium_noise.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0)
+						col = Color(n_md, n_md, n_md, 1.0)
+					TerrainDebugMode.DETAIL:
+						var n_d := clampf((detail_noise.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0)
+						col = Color(n_d, n_d, n_d, 1.0)
+					TerrainDebugMode.WARP:
+						var wx := clampf((warp_noise_x.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0) if profile.warp_enabled else 0.5
+						var wy := clampf((warp_noise_y.get_noise_2d(sx, sy) + 1.0) * 0.5, 0.0, 1.0) if profile.warp_enabled else 0.5
+						col = Color(wx, wy, 1.0 - wx * 0.5, 1.0)
+					TerrainDebugMode.COMBINED:
+						var n1 := macro_noise.get_noise_2d(sx, sy)
+						var n2 := medium_noise.get_noise_2d(sx, sy)
+						var n3 := detail_noise.get_noise_2d(sx, sy)
+						var c_raw := (n1 * a_macro + n2 * a_med + n3 * a_det) / total_amplitude
+						var c_norm := clampf((c_raw + 1.0) * 0.5, 0.0, 1.0)
+						col = Color(c_norm, c_norm, c_norm, 1.0)
+					TerrainDebugMode.ELEVATION:
+						if cell != null:
+							var h_val: float = cell.height
+							var c_band: float = 0.75 if fmod(h_val, 2.0) < 0.25 else 1.0
+							var norm_h := clampf((h_val - profile.base_height) / maxf(total_amplitude * profile.height_scale, 1.0), 0.0, 1.0) * c_band
+							col = Color(norm_h * 0.85 + 0.1, norm_h * 0.75 + 0.15, norm_h * 0.65 + 0.15, 1.0)
+					TerrainDebugMode.SLOPE:
+						if cell != null:
+							var sl: float = cell.slope
+							if sl < 10.0:
+								col = Color("#22c55e") # Flat <10°
+							elif sl < 25.0:
+								col = Color("#38bdf8") # Gentle <25°
+							elif sl < 35.0:
+								col = Color("#f59e0b") # Steep <35°
+							else:
+								col = Color("#ef4444") # Cliff >=35°
+					TerrainDebugMode.NORMALIZED_HEIGHT:
+						if cell != null:
+							var nh_v: float = clampf(cell.normalized_height, 0.0, 1.0)
+							col = Color(nh_v, nh_v, nh_v, 1.0)
 
-			# 4. Composite Color
-			var comp_col: Color = _TerrainColorResolverScript.resolve_vertex_color(cell, profile)
-			img_composite.set_pixel(x, y, comp_col)
+				img_diag.set_pixel(x, y, col)
 
-	tex_rect_height.texture = ImageTexture.create_from_image(img_height)
-	tex_rect_warp.texture = ImageTexture.create_from_image(img_warp)
-	tex_rect_eco.texture = ImageTexture.create_from_image(img_eco)
-	tex_rect_composite.texture = ImageTexture.create_from_image(img_composite)
+		terrain_debug_rect.texture = ImageTexture.create_from_image(img_diag)
+
+		if terrain_debug_legend != null:
+			match current_terrain_debug_mode:
+				TerrainDebugMode.MACRO:
+					terrain_debug_legend.text = "Capa Macro pura (λ = %.1fm, A = %.1fm). Define valles amplios y cordilleras." % [profile.macro_wavelength, profile.macro_amplitude]
+				TerrainDebugMode.MEDIUM:
+					terrain_debug_legend.text = "Capa Media pura (λ = %.1fm, A = %.1fm). Modela colinas secundarias y terrazas." % [profile.medium_wavelength, profile.medium_amplitude]
+				TerrainDebugMode.DETAIL:
+					terrain_debug_legend.text = "Capa Detalle pura (λ = %.1fm, A = %.1fm). Rugosidad del terreno sin picos artificiales." % [profile.detail_wavelength, profile.detail_amplitude]
+				TerrainDebugMode.WARP:
+					terrain_debug_legend.text = "Distorsión Domain Warp (λ = %.1fm, A = %.1fm). Deformación natural de fallas geológicas." % [profile.warp_wavelength, profile.warp_amplitude]
+				TerrainDebugMode.COMBINED:
+					terrain_debug_legend.text = "Suma compuesta ponderada Macro + Medio + Detalle antes de moldeado no lineal."
+				TerrainDebugMode.ELEVATION:
+					terrain_debug_legend.text = "Elevación física en metros con isolíneas cada 2.0 metros de desnivel."
+				TerrainDebugMode.SLOPE:
+					terrain_debug_legend.text = "Zonas de Pendiente: Plano <10° (verde), Suave <25° (azul), Escarpado <35° (naranja), Risco >=35° (rojo)."
+				TerrainDebugMode.NORMALIZED_HEIGHT:
+					terrain_debug_legend.text = "Altura normalizada [0.0 - 1.0] sobre la envolvente topográfica."
 
 func _update_gradient_preview() -> void:
 	if gradient_preview_rect == null or profile == null:
@@ -820,24 +934,29 @@ func _build_left_panel() -> void:
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(vbox)
 
-	# 1. TERRENO Y RELIEVE
+	# 1. TERRENO Y RELIEVE (Metros)
 	_add_left_section(vbox, "TERRENO Y RELIEVE", "⬡", Color("#f59e0b"))
-	_add_slider(vbox, "macro_strength", "Fuerza Macro", profile.macro_strength, 1.0, 25.0, 0.5, Color("#f59e0b"))
-	_add_slider(vbox, "macro_frequency", "Frecuencia Macro", profile.macro_frequency, 0.001, 0.05, 0.001, Color("#f59e0b"))
-	_add_slider(vbox, "relief_exponent", "Moldeado (Exp)", profile.relief_exponent, 0.1, 5.0, 0.05, Color("#f59e0b"))
+	_add_slider(vbox, "macro_wavelength", "Long. Onda Macro (m)", profile.macro_wavelength, 20.0, 400.0, 5.0, Color("#f59e0b"))
+	_add_slider(vbox, "macro_amplitude", "Amplitud Macro (m)", profile.macro_amplitude, 0.0, 25.0, 0.5, Color("#f59e0b"))
+	_add_slider(vbox, "medium_wavelength", "Long. Onda Media (m)", profile.medium_wavelength, 10.0, 150.0, 2.0, Color("#f59e0b"))
+	_add_slider(vbox, "medium_amplitude", "Amplitud Media (m)", profile.medium_amplitude, 0.0, 10.0, 0.2, Color("#f59e0b"))
+	_add_slider(vbox, "detail_wavelength", "Long. Onda Detalle (m)", profile.detail_wavelength, 2.0, 30.0, 0.5, Color("#f59e0b"))
+	_add_slider(vbox, "detail_amplitude", "Amplitud Detalle (m)", profile.detail_amplitude, 0.0, 2.0, 0.05, Color("#f59e0b"))
 	_add_slider(vbox, "base_height", "Altura Base (m)", profile.base_height, 0.0, 5.0, 0.05, Color("#f59e0b"))
-	_add_slider(vbox, "height_scale", "Escala Vertical", profile.height_scale, 0.1, 3.0, 0.05, Color("#f59e0b"))
+	_add_slider(vbox, "height_scale", "Multiplicador Vertical", profile.height_scale, 0.1, 3.0, 0.05, Color("#f59e0b"))
+	_add_slider(vbox, "relief_exponent", "Moldeado (Exp)", profile.relief_exponent, 0.1, 5.0, 0.05, Color("#f59e0b"))
 
-	# 2. DOMAIN WARP
+	# 2. DOMAIN WARP (Metros)
 	_add_left_section(vbox, "DOMAIN WARP", "◈", Color("#a855f7"))
-	_add_slider(vbox, "warp_strength", "Fuerza de Warp", profile.warp_strength, 0.0, 30.0, 0.5, Color("#a855f7"))
-	_add_slider(vbox, "warp_frequency", "Frecuencia Warp", profile.warp_frequency, 0.001, 0.05, 0.001, Color("#a855f7"))
-	_add_slider(vbox, "warp_octaves", "Octavas de Warp", profile.warp_octaves, 1.0, 6.0, 1.0, Color("#a855f7"))
+	_add_slider(vbox, "warp_wavelength", "Long. Onda Warp (m)", profile.warp_wavelength, 20.0, 250.0, 5.0, Color("#a855f7"))
+	_add_slider(vbox, "warp_amplitude", "Amplitud Warp (m)", profile.warp_amplitude, 0.0, 40.0, 0.5, Color("#a855f7"))
+	_add_slider(vbox, "warp_octaves", "Octavas Warp", float(profile.warp_octaves), 1.0, 4.0, 1.0, Color("#a855f7"))
 
 	# 3. ECOLOGÍA & CLAROS
 	_add_left_section(vbox, "ECOLOGÍA & CLAROS", "☵", Color("#22c55e"))
+	_add_slider(vbox, "forest_wavelength", "Long. Onda Bosque (m)", profile.forest_wavelength, 20.0, 200.0, 5.0, Color("#22c55e"))
+	_add_slider(vbox, "clearing_wavelength", "Long. Onda Claros (m)", profile.clearing_wavelength, 10.0, 100.0, 2.0, Color("#22c55e"))
 	_add_slider(vbox, "clearing_threshold", "Umbral de Claros", profile.clearing_threshold, 0.1, 0.95, 0.01, Color("#22c55e"))
-	_add_slider(vbox, "forest_frequency", "Frecuencia Bosque", profile.forest_frequency, 0.001, 0.05, 0.001, Color("#22c55e"))
 
 	# 4. VEGETACIÓN
 	_add_left_section(vbox, "VEGETACIÓN", "⚃", Color("#14b8a6"))
@@ -857,8 +976,8 @@ func _build_left_panel() -> void:
 	_add_slider(vbox, "max_rivers", "Cant. Ríos", float(profile.max_rivers), 0.0, 8.0, 1.0, Color("#38bdf8"))
 	_add_slider(vbox, "river_source_min_height", "Altura Cabecera", profile.river_source_min_height, 0.3, 0.95, 0.05, Color("#38bdf8"))
 	_add_slider(vbox, "river_meander_strength", "Meandros / Jitter", profile.river_meander_strength, 0.0, 0.5, 0.02, Color("#38bdf8"))
+	_add_slider(vbox, "hydrology_noise_wavelength", "Long. Onda Ruido Cauce (m)", profile.hydrology_noise_wavelength, 20.0, 200.0, 5.0, Color("#38bdf8"))
 	_add_slider(vbox, "hydrology_noise_strength", "Fuerza Ruido Cauce", profile.hydrology_noise_strength, 0.0, 0.8, 0.05, Color("#38bdf8"))
-	_add_slider(vbox, "hydrology_noise_frequency", "Frec. Ruido Cauce", profile.hydrology_noise_frequency, 0.005, 0.06, 0.002, Color("#38bdf8"))
 
 	ui_root.add_child(left_panel)
 
@@ -909,6 +1028,29 @@ func _add_slider(parent: Control, prop_name: String, label_text: String, default
 	slider.value_changed.connect(func(new_val: float):
 		val_lbl.text = "%.3f" % new_val if step < 0.01 else ("%.2f" % new_val if step < 1.0 else "%d" % int(new_val))
 		profile.set(prop_name, new_val)
+		if prop_name == "macro_wavelength":
+			profile.macro_frequency = 1.0 / maxf(new_val, 1.0)
+		elif prop_name == "macro_amplitude":
+			profile.macro_strength = new_val
+		elif prop_name == "medium_wavelength":
+			profile.medium_frequency = 1.0 / maxf(new_val, 1.0)
+		elif prop_name == "medium_amplitude":
+			profile.medium_strength = new_val
+		elif prop_name == "detail_wavelength":
+			profile.detail_frequency = 1.0 / maxf(new_val, 1.0)
+		elif prop_name == "detail_amplitude":
+			profile.detail_strength = new_val
+		elif prop_name == "warp_wavelength":
+			profile.warp_frequency = 1.0 / maxf(new_val, 1.0)
+		elif prop_name == "warp_amplitude":
+			profile.warp_strength = new_val
+		elif prop_name == "forest_wavelength":
+			profile.forest_frequency = 1.0 / maxf(new_val, 1.0)
+		elif prop_name == "moisture_wavelength":
+			profile.moisture_frequency = 1.0 / maxf(new_val, 1.0)
+		elif prop_name == "hydrology_noise_wavelength":
+			profile.hydrology_noise_frequency = 1.0 / maxf(new_val, 1.0)
+
 		if is_auto_gen:
 			generate_world(false)
 	)
@@ -1246,19 +1388,65 @@ func _build_noise_tab(parent: Control) -> void:
 	desc_lbl.add_theme_font_size_override("font_size", 9)
 	panel_noise.add_child(desc_lbl)
 
-	# 2x2 Texture Grid
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 10)
+	# 1. Mode Selector (Phase 16 Terrain Debug Visualizer)
+	var mode_box := VBoxContainer.new()
+	mode_box.add_theme_constant_override("separation", 4)
+	_add_sub_header(mode_box, "CAPA DE DEPURACIÓN DE TERRENO", Color("#a855f7"))
 
-	tex_rect_height = _create_noise_card(grid, "Mapa de Altura", "FBM + Warp", Color("#f59e0b"))
-	tex_rect_warp = _create_noise_card(grid, "Domain Warp", "Vectores R/G", Color("#a855f7"))
-	tex_rect_eco = _create_noise_card(grid, "Máscara Ecológica", "Bosque / claros", Color("#22c55e"))
-	tex_rect_composite = _create_noise_card(grid, "Vista Satélite", "Color resuelto", Color("#14b8a6"))
-	panel_noise.add_child(grid)
+	terrain_debug_option = OptionButton.new()
+	terrain_debug_option.add_item("[Cuadrícula 2x2] Vista General", TerrainDebugMode.OVERVIEW_2X2)
+	terrain_debug_option.add_item("[Macro] Longitud de Onda 140m", TerrainDebugMode.MACRO)
+	terrain_debug_option.add_item("[Medio] Colinas y Terrazas 45m", TerrainDebugMode.MEDIUM)
+	terrain_debug_option.add_item("[Detalle] Micro-rugosidad 10m", TerrainDebugMode.DETAIL)
+	terrain_debug_option.add_item("[Domain Warp] Distorsión Vectorial", TerrainDebugMode.WARP)
+	terrain_debug_option.add_item("[Combinado] Suma Ponderada", TerrainDebugMode.COMBINED)
+	terrain_debug_option.add_item("[Elevación Real] Cotas Métricas (m)", TerrainDebugMode.ELEVATION)
+	terrain_debug_option.add_item("[Pendiente] Zonas de Transitabilidad", TerrainDebugMode.SLOPE)
+	terrain_debug_option.add_item("[Altura Normalizada] Altimetría [0-1]", TerrainDebugMode.NORMALIZED_HEIGHT)
+	terrain_debug_option.select(TerrainDebugMode.OVERVIEW_2X2)
+	terrain_debug_option.item_selected.connect(func(idx: int):
+		current_terrain_debug_mode = idx as TerrainDebugMode
+		_update_noise_textures()
+	)
+	mode_box.add_child(terrain_debug_option)
+	panel_noise.add_child(mode_box)
 
-	# Legend
+	# 2. 2x2 Texture Grid (Visible when in OVERVIEW_2X2)
+	terrain_overview_grid = GridContainer.new()
+	terrain_overview_grid.columns = 2
+	terrain_overview_grid.add_theme_constant_override("h_separation", 10)
+	terrain_overview_grid.add_theme_constant_override("v_separation", 10)
+
+	tex_rect_height = _create_noise_card(terrain_overview_grid, "Mapa de Altura", "FBM + Warp", Color("#f59e0b"))
+	tex_rect_warp = _create_noise_card(terrain_overview_grid, "Domain Warp", "Vectores R/G", Color("#a855f7"))
+	tex_rect_eco = _create_noise_card(terrain_overview_grid, "Máscara Ecológica", "Bosque / claros", Color("#22c55e"))
+	tex_rect_composite = _create_noise_card(terrain_overview_grid, "Vista Satélite", "Color resuelto", Color("#14b8a6"))
+	panel_noise.add_child(terrain_overview_grid)
+
+	# 3. Single High-Res Diagnostic View (Visible when specific mode selected)
+	terrain_single_box = VBoxContainer.new()
+	terrain_single_box.add_theme_constant_override("separation", 4)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _LabColors.create_panel_stylebox(Color("#050811"), Color("#151f33"), 4, 1))
+
+	terrain_debug_rect = TextureRect.new()
+	terrain_debug_rect.custom_minimum_size = Vector2(250, 250)
+	terrain_debug_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	terrain_debug_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	terrain_debug_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	panel.add_child(terrain_debug_rect)
+	terrain_single_box.add_child(panel)
+
+	terrain_debug_legend = Label.new()
+	terrain_debug_legend.text = "Capa de depuración de terreno activa"
+	terrain_debug_legend.add_theme_color_override("font_color", Color("#64748b"))
+	terrain_debug_legend.add_theme_font_size_override("font_size", 9)
+	terrain_debug_legend.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	terrain_single_box.add_child(terrain_debug_legend)
+	terrain_single_box.visible = false
+	panel_noise.add_child(terrain_single_box)
+
+	# 4. Legend
 	var leg_box := VBoxContainer.new()
 	leg_box.add_theme_constant_override("separation", 4)
 	_add_sub_header(leg_box, "LEYENDA DE LECTURA", Color("#64748b"))
@@ -1687,16 +1875,46 @@ func _on_preset_selected(index: int) -> void:
 	var p: Dictionary = PRESETS[index]
 	for k in p.keys():
 		if k == "name": continue
+		var val: float = float(p[k])
+		profile.set(k, val)
+
+		# Synchronize physical wavelengths & amplitudes
+		if k == "macro_strength":
+			profile.macro_amplitude = val
+			if _sliders.has("macro_amplitude"):
+				_update_slider_visual("macro_amplitude", val)
+		elif k == "macro_frequency":
+			var w_val: float = 1.0 / maxf(val, 0.001)
+			profile.macro_wavelength = w_val
+			if _sliders.has("macro_wavelength"):
+				_update_slider_visual("macro_wavelength", w_val)
+		elif k == "warp_strength":
+			profile.warp_amplitude = val
+			if _sliders.has("warp_amplitude"):
+				_update_slider_visual("warp_amplitude", val)
+		elif k == "warp_frequency":
+			var w_val: float = 1.0 / maxf(val, 0.001)
+			profile.warp_wavelength = w_val
+			if _sliders.has("warp_wavelength"):
+				_update_slider_visual("warp_wavelength", w_val)
+		elif k == "forest_frequency":
+			var w_val: float = 1.0 / maxf(val, 0.001)
+			profile.forest_wavelength = w_val
+			if _sliders.has("forest_wavelength"):
+				_update_slider_visual("forest_wavelength", w_val)
+
 		if _sliders.has(k):
-			var val: float = float(p[k])
-			var sl: HSlider = _sliders[k]["slider"]
-			var lbl: Label = _sliders[k]["label"]
-			var step: float = _sliders[k]["step"]
-			sl.value = val
-			lbl.text = "%.3f" % val if step < 0.01 else ("%.2f" % val if step < 1.0 else "%d" % int(val))
-			profile.set(k, val)
+			_update_slider_visual(k, val)
 
 	generate_world(false)
+
+func _update_slider_visual(k: String, val: float) -> void:
+	if _sliders.has(k):
+		var sl: HSlider = _sliders[k]["slider"]
+		var lbl: Label = _sliders[k]["label"]
+		var step: float = _sliders[k]["step"]
+		sl.value = val
+		lbl.text = "%.3f" % val if step < 0.01 else ("%.2f" % val if step < 1.0 else "%d" % int(val))
 
 func _focus_spawn() -> void:
 	if current_result != null and focus_target != null and camera_rig != null:

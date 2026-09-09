@@ -6,26 +6,40 @@ func _init() -> void:
 	height = 128
 	cell_size = 1.0
 
-	# Taiga terrain: rolling hills, wide valleys, moderate vertical relief
-	macro_frequency = 0.012
-	macro_strength = 14.0
-	medium_frequency = 0.035
-	medium_strength = 5.0
-	detail_frequency = 0.10
-	detail_strength = 1.0
-	base_height = 1.5
+	# Taiga Physical Terrain Scale (Hierarchy: Macro 140m, Medium 45m, Detail 10m)
+	macro_wavelength = 140.0
+	macro_amplitude = 14.0
+	medium_wavelength = 45.0
+	medium_amplitude = 4.5
+	detail_wavelength = 10.0
+	detail_amplitude = 0.6
+	base_height = 2.0
 	height_scale = 1.0
 	relief_exponent = 1.1
 
-	warp_enabled = true
-	warp_frequency = 0.018
-	warp_strength = 18.0
-	warp_octaves = 2
+	# Legacy parameters synchronized
+	macro_frequency = 1.0 / macro_wavelength
+	macro_strength = macro_amplitude
+	medium_frequency = 1.0 / medium_wavelength
+	medium_strength = medium_amplitude
+	detail_frequency = 1.0 / detail_wavelength
+	detail_strength = detail_amplitude
 
-	# Ecology: dense boreal evergreen forests broken by open peat/moss clearings
-	forest_frequency = 0.025
+	# Domain Warp Physical Scale
+	warp_enabled = true
+	warp_wavelength = 90.0
+	warp_amplitude = 18.0
+	warp_octaves = 2
+	warp_frequency = 1.0 / warp_wavelength
+	warp_strength = warp_amplitude
+
+	# Ecology Physical Scale: vast boreal forest stands broken by peat clearings
+	forest_wavelength = 65.0
+	clearing_wavelength = 30.0
+	moisture_wavelength = 85.0
+	forest_frequency = 1.0 / forest_wavelength
+	moisture_frequency = 1.0 / moisture_wavelength
 	clearing_threshold = 0.45
-	moisture_frequency = 0.02
 
 	# Vegetation: high conifer presence, dispersed shrubs and granite rocks
 	tree_density = 0.70
@@ -63,7 +77,8 @@ func _init() -> void:
 	river_max_width = 2.4
 	river_meander_strength = 0.18
 	hydrology_noise_enabled = true
-	hydrology_noise_frequency = 0.02
+	hydrology_noise_wavelength = 80.0
+	hydrology_noise_frequency = 1.0 / hydrology_noise_wavelength
 	hydrology_noise_strength = 0.25
 	hydrology_noise_octaves = 2
 	hydrology_noise_seed_offset = 707

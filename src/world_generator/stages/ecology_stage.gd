@@ -8,12 +8,12 @@ func execute(context: WorldGenerationContext) -> void:
 	var forest_noise := FastNoiseLite.new()
 	forest_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	forest_noise.seed = eco_seed
-	forest_noise.frequency = profile.forest_frequency
+	forest_noise.frequency = profile.get_forest_frequency()
 
 	var moisture_noise := FastNoiseLite.new()
 	moisture_noise.noise_type = FastNoiseLite.TYPE_PERLIN
 	moisture_noise.seed = eco_seed + 101
-	moisture_noise.frequency = profile.moisture_frequency
+	moisture_noise.frequency = profile.get_moisture_frequency()
 
 	for y in range(profile.height):
 		for x in range(profile.width):

@@ -1,35 +1,48 @@
 class_name WorldProfile
 extends Resource
 
-# Dimensions
-@export_group("Dimensions")
+# Dimensions & Spatial Scale Contract (1 Godot unit = 1 meter)
+@export_group("Dimensions & Spatial Scale")
 @export var width: int = 128
 @export var height: int = 128
 @export_range(0.1, 10.0, 0.1) var cell_size: float = 1.0
 
-# Terrain Noise
-@export_group("Terrain Noise")
+# Terrain Physical Wavelengths & Amplitudes (meters)
+@export_group("Terrain Physical Scale")
+@export_range(20.0, 500.0, 5.0) var macro_wavelength: float = 140.0   # Horizontal span of large valleys/ridges (m)
+@export_range(0.0, 40.0, 0.5) var macro_amplitude: float = 14.0       # Vertical elevation relief (m)
+@export_range(10.0, 150.0, 2.0) var medium_wavelength: float = 45.0   # Horizontal span of hills/terraces (m)
+@export_range(0.0, 20.0, 0.2) var medium_amplitude: float = 4.5       # Vertical elevation relief (m)
+@export_range(2.0, 30.0, 0.5) var detail_wavelength: float = 10.0     # Horizontal span of ground ripples/roughness (m)
+@export_range(0.0, 5.0, 0.05) var detail_amplitude: float = 0.6       # Vertical micro-relief (m)
+@export var base_height: float = 2.0
+@export_range(0.1, 5.0, 0.1) var height_scale: float = 1.0
+@export_range(0.5, 3.0, 0.05) var relief_exponent: float = 1.1
+
+# Legacy Frequency & Strength parameters for backwards compatibility
 @export_range(0.001, 0.1, 0.001) var macro_frequency: float = 0.015
 @export_range(0.0, 50.0, 0.5) var macro_strength: float = 12.0
 @export_range(0.001, 0.2, 0.001) var medium_frequency: float = 0.045
 @export_range(0.0, 20.0, 0.5) var medium_strength: float = 4.0
 @export_range(0.01, 0.5, 0.01) var detail_frequency: float = 0.12
 @export_range(0.0, 10.0, 0.1) var detail_strength: float = 1.2
-@export var base_height: float = 2.0
-@export_range(0.1, 5.0, 0.1) var height_scale: float = 1.0
-@export_range(0.5, 3.0, 0.05) var relief_exponent: float = 1.1
 
-# Domain Warp
-@export_group("Domain Warp")
+# Domain Warp Physical Scale
+@export_group("Domain Warp Physical Scale")
 @export var warp_enabled: bool = true
+@export_range(20.0, 300.0, 5.0) var warp_wavelength: float = 90.0    # Deformation wavelength in meters
+@export_range(0.0, 50.0, 0.5) var warp_amplitude: float = 18.0       # Spatial coordinate displacement (m)
+@export_range(1, 4, 1) var warp_octaves: int = 2
 @export_range(0.001, 0.1, 0.001) var warp_frequency: float = 0.02
 @export_range(0.0, 50.0, 0.5) var warp_strength: float = 15.0
-@export_range(1, 4, 1) var warp_octaves: int = 2
 
-# Ecology
-@export_group("Ecology")
-@export_range(0.001, 0.1, 0.001) var forest_frequency: float = 0.03
+# Ecology Physical Scale
+@export_group("Ecology Physical Scale")
+@export_range(20.0, 300.0, 5.0) var forest_wavelength: float = 65.0   # Forest stand spatial scale (m)
+@export_range(10.0, 150.0, 2.0) var clearing_wavelength: float = 30.0 # Meadow / glade spatial scale (m)
+@export_range(20.0, 300.0, 5.0) var moisture_wavelength: float = 85.0 # Moisture gradient scale (m)
 @export_range(0.0, 1.0, 0.01) var clearing_threshold: float = 0.42
+@export_range(0.001, 0.1, 0.001) var forest_frequency: float = 0.03
 @export_range(0.001, 0.1, 0.001) var moisture_frequency: float = 0.025
 
 # Vegetation
@@ -42,6 +55,43 @@ extends Resource
 # Navigation
 @export_group("Navigation")
 @export_range(5.0, 60.0, 1.0) var max_walkable_slope: float = 35.0  # degrees
+
+# --- Helper Methods for Physical Scale & Wavelength Conversions ---
+func get_world_extent() -> Vector2:
+	return Vector2(float(width) * cell_size, float(height) * cell_size)
+
+func get_macro_frequency() -> float:
+	return 1.0 / maxf(macro_wavelength, 1.0) if macro_wavelength > 0.0 else macro_frequency
+
+func get_macro_amplitude() -> float:
+	return macro_amplitude if macro_amplitude > 0.0 else macro_strength
+
+func get_medium_frequency() -> float:
+	return 1.0 / maxf(medium_wavelength, 1.0) if medium_wavelength > 0.0 else medium_frequency
+
+func get_medium_amplitude() -> float:
+	return medium_amplitude if medium_amplitude > 0.0 else medium_strength
+
+func get_detail_frequency() -> float:
+	return 1.0 / maxf(detail_wavelength, 1.0) if detail_wavelength > 0.0 else detail_frequency
+
+func get_detail_amplitude() -> float:
+	return detail_amplitude if detail_amplitude > 0.0 else detail_strength
+
+func get_warp_frequency() -> float:
+	return 1.0 / maxf(warp_wavelength, 1.0) if warp_wavelength > 0.0 else warp_frequency
+
+func get_warp_amplitude() -> float:
+	return warp_amplitude if warp_amplitude > 0.0 else warp_strength
+
+func get_forest_frequency() -> float:
+	return 1.0 / maxf(forest_wavelength, 1.0) if forest_wavelength > 0.0 else forest_frequency
+
+func get_moisture_frequency() -> float:
+	return 1.0 / maxf(moisture_wavelength, 1.0) if moisture_wavelength > 0.0 else moisture_frequency
+
+func get_hydrology_noise_frequency() -> float:
+	return 1.0 / maxf(hydrology_noise_wavelength, 1.0) if hydrology_noise_wavelength > 0.0 else hydrology_noise_frequency
 
 # Palette & Visuals (Pure Land Substrates - Zero Blue in Terrain Mesh)
 @export_group("Palette & Visuals")
@@ -94,6 +144,7 @@ extends Resource
 # Hydrology - Noise Field (Channel Preference & Meanders)
 @export_group("Hydrology - Noise Field")
 @export var hydrology_noise_enabled: bool = true
+@export_range(20.0, 300.0, 5.0) var hydrology_noise_wavelength: float = 80.0  # Meander preference wavelength (m)
 @export_range(0.001, 0.1, 0.001) var hydrology_noise_frequency: float = 0.02
 @export_range(0.0, 1.0, 0.05) var hydrology_noise_strength: float = 0.25
 @export_range(1, 4, 1) var hydrology_noise_octaves: int = 2

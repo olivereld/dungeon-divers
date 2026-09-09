@@ -26,7 +26,7 @@ func execute(context: WorldGenerationContext) -> void:
 	if profile.hydrology_noise_enabled:
 		hydro_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 		hydro_noise.seed = hydro_seed
-		hydro_noise.frequency = profile.hydrology_noise_frequency
+		hydro_noise.frequency = profile.get_hydrology_noise_frequency()
 		hydro_noise.fractal_octaves = profile.hydrology_noise_octaves
 
 	var debug_noise: Dictionary = {}
