@@ -45,7 +45,7 @@ static func _create_water_material(profile: WorldProfile) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.vertex_color_use_as_albedo = true
-	mat.albedo_color = Color(1.0, 1.0, 1.0, 0.88)
+	mat.albedo_color = Color(1.0, 1.0, 1.0, profile.water_transparency)
 	mat.roughness = profile.water_roughness
 	mat.metallic = 0.15
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -60,7 +60,8 @@ static func _build_lakes_mesh(hydro: RefCounted, profile: WorldProfile, cell_siz
 	var indices := PackedInt32Array()
 
 	var shallow_col: Color = profile.water_color_shallow
-	var deep_col: Color = profile.water_color_deep
+	var med_col: Color = profile.water_color_medium
+	var lake_col: Color = profile.water_color_lake
 
 	for lake in hydro.lakes:
 		var water_y: float = lake.water_height
@@ -71,8 +72,13 @@ static func _build_lakes_mesh(hydro: RefCounted, profile: WorldProfile, cell_siz
 			var c_data: Dictionary = hydro.get_cell_data(c_pos)
 			var depth: float = c_data.get("depth", 0.5)
 			var depth_factor: float = clampf(depth / 2.5, 0.0, 1.0)
-			var cell_color: Color = shallow_col.lerp(deep_col, depth_factor)
-			cell_color.a = clampf(0.70 + depth_factor * 0.25, 0.0, 0.95)
+
+			var cell_color: Color
+			if depth_factor < 0.5:
+				cell_color = shallow_col.lerp(med_col, depth_factor * 2.0)
+			else:
+				cell_color = med_col.lerp(lake_col, (depth_factor - 0.5) * 2.0)
+			cell_color.a = clampf(0.65 + depth_factor * 0.30, 0.0, 0.98)
 
 			var x0: float = float(c_pos.x) * cell_size
 			var z0: float = float(c_pos.y) * cell_size
@@ -127,8 +133,8 @@ static func _build_rivers_mesh(hydro: RefCounted, profile: WorldProfile) -> Arra
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
 
-	var shallow_col: Color = profile.water_color_shallow
-	var deep_col: Color = profile.water_color_deep
+	var river_col: Color = profile.water_color_river
+	var med_col: Color = profile.water_color_medium
 
 	for river in hydro.rivers:
 		var pts: Array = river.points
@@ -157,8 +163,8 @@ static func _build_rivers_mesh(hydro: RefCounted, profile: WorldProfile) -> Arra
 			var right_pt := p - perp * (w * 0.5)
 
 			var progress: float = float(i) / float(maxi(pts.size() - 1, 1))
-			var col: Color = shallow_col.lerp(deep_col, progress * 0.5)
-			col.a = 0.82
+			var col: Color = river_col.lerp(med_col, progress * 0.6)
+			col.a = 0.85
 
 			vertices.append(left_pt)
 			vertices.append(right_pt)

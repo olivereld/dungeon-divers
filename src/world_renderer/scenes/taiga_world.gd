@@ -12,6 +12,7 @@ const _TaigaWorldProfileScript = preload("res://src/world_generator/profiles/tai
 const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometric_camera_rig.gd")
 const _TerrainColorResolverScript = preload("res://src/world_generator/presentation/terrain_color_resolver.gd")
 const _LabColors = preload("res://src/dungeon_generator/debug/lab/ui/lab_colors.gd")
+const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
 
 @export var world_seed: int = 12345
 
@@ -20,6 +21,11 @@ var world_container: Node3D = null
 var current_world_node: Node3D = null
 var current_result: WorldResult = null
 var profile: TaigaWorldProfile = null
+
+# Testing Player for Scale Comparison & Ground Navigation
+var test_player: CharacterBody3D = null
+var is_player_active: bool = true
+var player_toggle_btn: Button = null
 
 # Camera & Navigation
 var camera_rig: IsometricCameraRig = null
@@ -49,18 +55,31 @@ var gen_btn: Button = null
 var _sliders: Dictionary = {}
 
 # RightPanel Tabs & Containers
-enum RightTab { TELEMETRY, NOISE, COLORS }
+enum RightTab { TELEMETRY, NOISE, COLORS, HYDROLOGY }
 var active_tab: RightTab = RightTab.TELEMETRY
 
 var tab_btn_telemetry: Button = null
 var tab_btn_noise: Button = null
 var tab_btn_colors: Button = null
+var tab_btn_hydrology: Button = null
 var tab_title_icon: Label = null
 var tab_title_lbl: Label = null
 
 var panel_telemetry: VBoxContainer = null
 var panel_noise: VBoxContainer = null
 var panel_colors: VBoxContainer = null
+var panel_hydrology: VBoxContainer = null
+
+# Hydrology Debug Visualizer Widgets
+enum HydroDebugMode { OFF, NOISE, LAKE_POTENTIAL, RIVER_POTENTIAL, DRAINAGE, FLOW_DIR, DEPTH, BODIES }
+var current_hydro_debug_mode: HydroDebugMode = HydroDebugMode.BODIES
+var hydro_debug_option: OptionButton = null
+var hydro_debug_rect: TextureRect = null
+var hydro_debug_legend: Label = null
+var hydro_stat_lakes_lbl: Label = null
+var hydro_stat_rivers_lbl: Label = null
+var hydro_stat_depth_lbl: Label = null
+var hydro_stat_area_lbl: Label = null
 
 # Telemetry Widgets
 var stat_time_lbl: Label = null
@@ -187,6 +206,9 @@ func _ready() -> void:
 	generate_world(true)
 
 func _setup_3d_environment() -> void:
+	if world_container != null:
+		return
+
 	world_container = Node3D.new()
 	world_container.name = "WorldContainer"
 	add_child(world_container)
@@ -234,6 +256,10 @@ func _setup_3d_environment() -> void:
 
 func _process(delta: float) -> void:
 	if camera_rig == null or focus_target == null:
+		return
+
+	# When the test player is active, WASD moves the character and camera follows the player automatically
+	if is_player_active and test_player != null and is_instance_valid(test_player):
 		return
 
 	var move_dir := Vector3.ZERO
@@ -303,12 +329,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			camera_rig.yaw_degrees -= 45.0
 		elif ke.keycode == KEY_E:
 			camera_rig.yaw_degrees += 45.0
+		elif ke.keycode == KEY_P:
+			_toggle_player()
 		elif ke.keycode == KEY_F11:
 			_toggle_fullscreen()
 		elif ke.keycode == KEY_TAB or ke.keycode == KEY_H:
 			_toggle_ui_visibility()
 		elif ke.keycode == KEY_SPACE:
-			_focus_spawn()
+			if is_player_active and test_player != null and is_instance_valid(test_player):
+				test_player.global_position = current_result.spawn_position + Vector3(0.0, 0.3, 0.0)
+				test_player.velocity = Vector3.ZERO
+				camera_rig.teleport_to_target()
+			else:
+				_focus_spawn()
 		elif ke.keycode == KEY_ENTER:
 			_frame_entire_world()
 
@@ -334,17 +367,81 @@ func generate_world(reset_camera: bool = false) -> void:
 	var duration_ms: float = float(Time.get_ticks_usec() - start_usec) / 1000.0
 
 	if current_result != null:
+		if is_player_active:
+			_spawn_test_player()
+		else:
+			if test_player != null and is_instance_valid(test_player):
+				test_player.queue_free()
+				test_player = null
+
 		if reset_camera:
-			if focus_target.is_inside_tree():
-				focus_target.global_position = current_result.spawn_position
+			if is_player_active and test_player != null:
+				camera_rig.set_target(test_player)
+				camera_rig.set_zoom(18.0)
+				camera_rig.teleport_to_target()
 			else:
-				focus_target.position = current_result.spawn_position
-			camera_rig.teleport_to_target()
-			camera_rig.set_zoom(48.0)
+				if focus_target.is_inside_tree():
+					focus_target.global_position = current_result.spawn_position
+				else:
+					focus_target.position = current_result.spawn_position
+				camera_rig.set_target(focus_target)
+				camera_rig.teleport_to_target()
+				camera_rig.set_zoom(48.0)
 
 		_update_telemetry(current_result, duration_ms)
 		_update_noise_textures()
 		_update_gradient_preview()
+		if active_tab == RightTab.HYDROLOGY or panel_hydrology != null:
+			_update_hydrology_debug_view()
+
+func _spawn_test_player() -> void:
+	if test_player != null and is_instance_valid(test_player):
+		if test_player.get_parent() != null:
+			test_player.get_parent().remove_child(test_player)
+		test_player.queue_free()
+		test_player = null
+
+	if current_result == null or world_container == null:
+		return
+
+	test_player = _PlayerTestScript.new()
+	test_player.name = "PlayerTestInstance"
+	test_player.position = current_result.spawn_position + Vector3(0.0, 0.4, 0.0)
+	world_container.add_child(test_player)
+
+	if is_player_active and camera_rig != null:
+		camera_rig.set_target(test_player)
+		camera_rig.set_follow_enabled(true)
+		camera_rig.set_zoom(18.0)
+		camera_rig.teleport_to_target()
+
+func _toggle_player() -> void:
+	is_player_active = not is_player_active
+	_update_player_button_style()
+
+	if is_player_active:
+		if test_player == null or not is_instance_valid(test_player):
+			_spawn_test_player()
+		else:
+			test_player.visible = true
+			test_player.set_physics_process(true)
+			if camera_rig != null:
+				camera_rig.set_target(test_player)
+				camera_rig.set_follow_enabled(true)
+				camera_rig.set_zoom(18.0)
+				camera_rig.teleport_to_target()
+	else:
+		if test_player != null and is_instance_valid(test_player):
+			test_player.visible = false
+			test_player.set_physics_process(false)
+			if focus_target != null:
+				if is_inside_tree() and test_player.is_inside_tree():
+					focus_target.global_position = test_player.global_position
+				else:
+					focus_target.position = test_player.position
+		if camera_rig != null and focus_target != null:
+			camera_rig.set_target(focus_target)
+			camera_rig.set_follow_enabled(true)
 
 func _update_telemetry(result: WorldResult, duration_ms: float) -> void:
 	if result == null or stat_time_lbl == null:
@@ -486,6 +583,9 @@ func _update_gradient_preview() -> void:
 # 3. Construcción y Arquitectura de la Interfaz
 # ==============================================================================
 func _setup_ui() -> void:
+	if canvas_layer != null:
+		return
+
 	canvas_layer = CanvasLayer.new()
 	canvas_layer.name = "LabCanvas"
 	add_child(canvas_layer)
@@ -628,6 +728,14 @@ func _build_top_bar() -> void:
 	btn_fs.pressed.connect(_toggle_fullscreen)
 	hbox.add_child(btn_fs)
 
+	# Player Testing Toggle Button (Scale comparison & ground navigation)
+	player_toggle_btn = Button.new()
+	player_toggle_btn.text = "👤 Jugador: ACTIVO" if is_player_active else "👤 Jugador: OFF"
+	player_toggle_btn.add_theme_font_size_override("font_size", 11)
+	_update_player_button_style()
+	player_toggle_btn.pressed.connect(_toggle_player)
+	hbox.add_child(player_toggle_btn)
+
 	# Generate Button
 	gen_btn = Button.new()
 	gen_btn.text = "⚡ GENERAR MUNDO"
@@ -638,6 +746,18 @@ func _build_top_bar() -> void:
 	hbox.add_child(gen_btn)
 
 	ui_root.add_child(top_bar)
+
+func _update_player_button_style() -> void:
+	if player_toggle_btn == null:
+		return
+	if is_player_active:
+		player_toggle_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.1, 0.75, 0.95, 0.18), Color(0.1, 0.75, 0.95, 0.8), 4, 1))
+		player_toggle_btn.add_theme_color_override("font_color", Color("#38bdf8"))
+		player_toggle_btn.text = "👤 Jugador: ACTIVO"
+	else:
+		player_toggle_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
+		player_toggle_btn.add_theme_color_override("font_color", Color("#64748b"))
+		player_toggle_btn.text = "👤 Jugador: OFF"
 
 func _update_auto_gen_button_style() -> void:
 	if is_auto_gen:
@@ -702,6 +822,20 @@ func _build_left_panel() -> void:
 	_add_slider(vbox, "min_tree_spacing", "Espaciado Mínimo", profile.min_tree_spacing, 0.5, 8.0, 0.1, Color("#14b8a6"))
 	_add_slider(vbox, "shrub_density", "Densidad Arbustos", profile.shrub_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
 	_add_slider(vbox, "rock_density", "Densidad Rocas", profile.rock_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
+
+	# 5. ESCALA DEL MUNDO (1 Godot unit = 1 metro)
+	_add_left_section(vbox, "ESCALA DEL MUNDO", "⛶", Color("#38bdf8"))
+	_add_slider(vbox, "cell_size", "Escala del Mundo (m/celda)", profile.cell_size, 0.5, 3.0, 0.1, Color("#38bdf8"))
+
+	# 6. HIDROLOGÍA & CUENCAS
+	_add_left_section(vbox, "HIDROLOGÍA & CUENCAS", "💧", Color("#38bdf8"))
+	_add_slider(vbox, "lake_threshold", "Umbral Lagos", profile.lake_threshold, 0.05, 0.50, 0.01, Color("#38bdf8"))
+	_add_slider(vbox, "lake_minimum_area", "Área Mín. Lagos", float(profile.lake_minimum_area), 1.0, 20.0, 1.0, Color("#38bdf8"))
+	_add_slider(vbox, "max_rivers", "Cant. Ríos", float(profile.max_rivers), 0.0, 8.0, 1.0, Color("#38bdf8"))
+	_add_slider(vbox, "river_source_min_height", "Altura Cabecera", profile.river_source_min_height, 0.3, 0.95, 0.05, Color("#38bdf8"))
+	_add_slider(vbox, "river_meander_strength", "Meandros / Jitter", profile.river_meander_strength, 0.0, 0.5, 0.02, Color("#38bdf8"))
+	_add_slider(vbox, "hydrology_noise_strength", "Fuerza Ruido Cauce", profile.hydrology_noise_strength, 0.0, 0.8, 0.05, Color("#38bdf8"))
+	_add_slider(vbox, "hydrology_noise_frequency", "Frec. Ruido Cauce", profile.hydrology_noise_frequency, 0.005, 0.06, 0.002, Color("#38bdf8"))
 
 	ui_root.add_child(left_panel)
 
@@ -794,6 +928,10 @@ func _build_right_panel() -> void:
 	tab_btn_colors.pressed.connect(func(): _set_active_tab(RightTab.COLORS))
 	tab_bar.add_child(tab_btn_colors)
 
+	tab_btn_hydrology = _create_tab_button("💧", "HIDRO", Color("#38bdf8"))
+	tab_btn_hydrology.pressed.connect(func(): _set_active_tab(RightTab.HYDROLOGY))
+	tab_bar.add_child(tab_btn_hydrology)
+
 	main_box.add_child(tab_bar)
 
 	# 2. Tab Title Header
@@ -841,6 +979,7 @@ func _build_right_panel() -> void:
 	_build_telemetry_tab(tabs_holder)
 	_build_noise_tab(tabs_holder)
 	_build_colors_tab(tabs_holder)
+	_build_hydrology_tab(tabs_holder)
 
 	ui_root.add_child(right_panel)
 
@@ -859,6 +998,8 @@ func _set_active_tab(tab: RightTab) -> void:
 	panel_telemetry.visible = (tab == RightTab.TELEMETRY)
 	panel_noise.visible = (tab == RightTab.NOISE)
 	panel_colors.visible = (tab == RightTab.COLORS)
+	if panel_hydrology != null:
+		panel_hydrology.visible = (tab == RightTab.HYDROLOGY)
 
 	var active_col: Color = Color("#f59e0b")
 	var active_title := "TELEMETRÍA EN TIEMPO REAL"
@@ -872,6 +1013,10 @@ func _set_active_tab(tab: RightTab) -> void:
 		active_col = Color("#14b8a6")
 		active_title = "PALETA DE TERRENO"
 		active_icon = "●"
+	elif tab == RightTab.HYDROLOGY:
+		active_col = Color("#38bdf8")
+		active_title = "HIDROLOGÍA & CUENCAS"
+		active_icon = "💧"
 
 	tab_title_icon.text = active_icon
 	tab_title_icon.add_theme_color_override("font_color", active_col)
@@ -882,11 +1027,15 @@ func _set_active_tab(tab: RightTab) -> void:
 	tab_btn_telemetry.add_theme_color_override("font_color", Color("#f59e0b") if tab == RightTab.TELEMETRY else Color("#4a5d78"))
 	tab_btn_noise.add_theme_color_override("font_color", Color("#a855f7") if tab == RightTab.NOISE else Color("#4a5d78"))
 	tab_btn_colors.add_theme_color_override("font_color", Color("#14b8a6") if tab == RightTab.COLORS else Color("#4a5d78"))
+	if tab_btn_hydrology != null:
+		tab_btn_hydrology.add_theme_color_override("font_color", Color("#38bdf8") if tab == RightTab.HYDROLOGY else Color("#4a5d78"))
 
 	if tab == RightTab.NOISE:
 		_update_noise_textures()
 	elif tab == RightTab.COLORS:
 		_update_gradient_preview()
+	elif tab == RightTab.HYDROLOGY:
+		_update_hydrology_debug_view()
 
 # --- Tab 1: Telemetría ---
 func _build_telemetry_tab(parent: Control) -> void:
@@ -1285,6 +1434,175 @@ func _apply_color_preset(p_name: String) -> void:
 	_update_gradient_preview()
 	generate_world(false)
 
+# --- Tab 4: Hidrología & Depuración ---
+func _build_hydrology_tab(parent: Control) -> void:
+	panel_hydrology = VBoxContainer.new()
+	panel_hydrology.add_theme_constant_override("separation", 12)
+	panel_hydrology.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	# 1. Mode Selector
+	var mode_box := VBoxContainer.new()
+	mode_box.add_theme_constant_override("separation", 4)
+	_add_sub_header(mode_box, "CAPA DE DEPURACIÓN HIDROLÓGICA", Color("#38bdf8"))
+
+	hydro_debug_option = OptionButton.new()
+	hydro_debug_option.add_item("[OFF] Vista Normal", HydroDebugMode.OFF)
+	hydro_debug_option.add_item("[Ruido] Campo de Preferencia", HydroDebugMode.NOISE)
+	hydro_debug_option.add_item("[Potencial] Cuencas de Lago", HydroDebugMode.LAKE_POTENTIAL)
+	hydro_debug_option.add_item("[Potencial] Cauces de Río", HydroDebugMode.RIVER_POTENTIAL)
+	hydro_debug_option.add_item("[Drenaje] Flujo Acumulado", HydroDebugMode.DRAINAGE)
+	hydro_debug_option.add_item("[Dirección] Vectores de Flujo", HydroDebugMode.FLOW_DIR)
+	hydro_debug_option.add_item("[Profundidad] Niveles de Agua", HydroDebugMode.DEPTH)
+	hydro_debug_option.add_item("[Cuerpos] Lagos y Ríos Registrados", HydroDebugMode.BODIES)
+	hydro_debug_option.select(HydroDebugMode.BODIES)
+	hydro_debug_option.item_selected.connect(func(idx: int):
+		current_hydro_debug_mode = idx as HydroDebugMode
+		_update_hydrology_debug_view()
+	)
+	mode_box.add_child(hydro_debug_option)
+	panel_hydrology.add_child(mode_box)
+
+	# 2. Debug Texture Map
+	var preview_box := VBoxContainer.new()
+	preview_box.add_theme_constant_override("separation", 4)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _LabColors.create_panel_stylebox(Color("#050811"), Color("#151f33"), 4, 1))
+
+	hydro_debug_rect = TextureRect.new()
+	hydro_debug_rect.custom_minimum_size = Vector2(250, 250)
+	hydro_debug_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	hydro_debug_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	hydro_debug_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	panel.add_child(hydro_debug_rect)
+	preview_box.add_child(panel)
+
+	hydro_debug_legend = Label.new()
+	hydro_debug_legend.text = "Cuerpos de agua identificados en el terreno"
+	hydro_debug_legend.add_theme_color_override("font_color", Color("#64748b"))
+	hydro_debug_legend.add_theme_font_size_override("font_size", 9)
+	hydro_debug_legend.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	preview_box.add_child(hydro_debug_legend)
+	panel_hydrology.add_child(preview_box)
+
+	# 3. Telemetry Cards
+	var stats_box := VBoxContainer.new()
+	stats_box.add_theme_constant_override("separation", 6)
+	_add_sub_header(stats_box, "TELEMETRÍA HIDROLÓGICA", Color("#38bdf8"))
+
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+
+	hydro_stat_lakes_lbl = _create_entity_card(grid, "🏞 Lagos", Color("#38bdf8"))
+	hydro_stat_rivers_lbl = _create_entity_card(grid, "🌊 Ríos", Color("#22c55e"))
+	hydro_stat_depth_lbl = _create_entity_card(grid, "↕ Prof. Máx", Color("#f59e0b"))
+	hydro_stat_area_lbl = _create_entity_card(grid, "💧 % Agua", Color("#a855f7"))
+	stats_box.add_child(grid)
+	panel_hydrology.add_child(stats_box)
+
+	parent.add_child(panel_hydrology)
+
+func _update_hydrology_debug_view() -> void:
+	if current_result == null or hydro_debug_rect == null:
+		return
+
+	var hydro = current_result.hydrology
+	if hydro == null:
+		return
+
+	var w: int = current_result.dimensions.x
+	var h: int = current_result.dimensions.y
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+
+	var max_depth: float = 0.0
+	var water_cells_count: int = hydro.water_cells.size()
+
+	for c_data in hydro.water_cells.values():
+		var d: float = c_data.get("depth", 0.0)
+		if d > max_depth:
+			max_depth = d
+
+	for y in range(h):
+		for x in range(w):
+			var pos := Vector2i(x, y)
+			var cell: WorldCell = current_result.get_cell(pos)
+			var col := Color.BLACK
+
+			match current_hydro_debug_mode:
+				HydroDebugMode.OFF:
+					if cell != null:
+						col = _TerrainColorResolverScript.resolve_vertex_color(cell, profile)
+				HydroDebugMode.NOISE:
+					var n_val: float = float(hydro.get_debug_value("noise", pos, 0.5))
+					col = Color(n_val, n_val, n_val, 1.0)
+				HydroDebugMode.LAKE_POTENTIAL:
+					var pot: float = float(hydro.get_debug_value("lake_potential", pos, 0.0))
+					col = Color(0.05, 0.2 + pot * 0.6, 0.4 + pot * 0.6, 1.0) if pot > 0.0 else Color(0.08, 0.1, 0.15, 1.0)
+				HydroDebugMode.RIVER_POTENTIAL:
+					var r_pot: float = float(hydro.get_debug_value("river_potential", pos, 0.0))
+					col = Color(r_pot, r_pot * 0.75, 0.1, 1.0)
+				HydroDebugMode.DRAINAGE:
+					var drain: float = float(hydro.get_debug_value("drainage", pos, 0.0))
+					var intensity: float = clampf(drain / 20.0, 0.0, 1.0)
+					col = Color(0.05, 0.3 + intensity * 0.7, 0.6 + intensity * 0.4, 1.0) if drain > 0.0 else Color(0.06, 0.08, 0.12, 1.0)
+				HydroDebugMode.FLOW_DIR:
+					var dir: Vector2 = hydro.get_debug_value("flow_dir", pos, Vector2.ZERO)
+					if dir != Vector2.ZERO:
+						col = Color(dir.x * 0.5 + 0.5, dir.y * 0.5 + 0.5, 0.8, 1.0)
+					else:
+						col = Color(0.1, 0.12, 0.16, 1.0)
+				HydroDebugMode.DEPTH:
+					var depth: float = hydro.get_water_depth(pos)
+					if depth > 0.0:
+						var depth_norm: float = clampf(depth / 3.0, 0.0, 1.0)
+						col = Color(0.1, 0.4 + depth_norm * 0.5, 0.8 + depth_norm * 0.2, 1.0)
+					else:
+						col = Color(0.06, 0.08, 0.12, 1.0)
+				HydroDebugMode.BODIES:
+					if hydro.is_lake(pos):
+						col = profile.water_color_lake
+					elif hydro.is_river(pos):
+						col = profile.water_color_river
+					else:
+						var nh: float = cell.normalized_height if cell != null else 0.5
+						col = Color(nh * 0.25 + 0.05, nh * 0.28 + 0.08, nh * 0.20 + 0.05, 1.0)
+
+			img.set_pixel(x, y, col)
+
+	hydro_debug_rect.texture = ImageTexture.create_from_image(img)
+
+	# Update legend
+	if hydro_debug_legend != null:
+		match current_hydro_debug_mode:
+			HydroDebugMode.OFF:
+				hydro_debug_legend.text = "Modo depuración apagado. Vista albedo estándar."
+			HydroDebugMode.NOISE:
+				hydro_debug_legend.text = "Ruido continuo de hidrología [0.0 - 1.0]. Orienta meandros y sesgos de cuenca."
+			HydroDebugMode.LAKE_POTENTIAL:
+				hydro_debug_legend.text = "Proximidad al umbral de depresión para formación de lagos planos."
+			HydroDebugMode.RIVER_POTENTIAL:
+				hydro_debug_legend.text = "Potencial de cabecera: pendiente topográfica + altitud + ruido favorable."
+			HydroDebugMode.DRAINAGE:
+				hydro_debug_legend.text = "Acumulación de flujo gravitacional / longitud acumulada del cauce."
+			HydroDebugMode.FLOW_DIR:
+				hydro_debug_legend.text = "Vector bidimensional del gradiente de flujo por celda (dirección de caída)."
+			HydroDebugMode.DEPTH:
+				hydro_debug_legend.text = "Profundidad vertical de columna de agua (m)."
+			HydroDebugMode.BODIES:
+				hydro_debug_legend.text = "Cuerpos de agua clasificados: Lagos (azul) y Ríos (cian)."
+
+	# Update telemetry readouts
+	if hydro_stat_lakes_lbl != null:
+		hydro_stat_lakes_lbl.text = "%d" % hydro.lakes.size()
+	if hydro_stat_rivers_lbl != null:
+		hydro_stat_rivers_lbl.text = "%d" % hydro.rivers.size()
+	if hydro_stat_depth_lbl != null:
+		hydro_stat_depth_lbl.text = "%.2f m" % max_depth
+	if hydro_stat_area_lbl != null:
+		var total_cells: float = float(w * h)
+		hydro_stat_area_lbl.text = "%.1f%%" % ((float(water_cells_count) / maxf(total_cells, 1.0)) * 100.0)
+
 func _build_bottom_bar() -> void:
 	bottom_bar = PanelContainer.new()
 	bottom_bar.name = "BottomBar"
@@ -1313,7 +1631,9 @@ func _build_bottom_bar() -> void:
 	hbox.add_child(tag)
 
 	var controls := [
-		"WASD · Panorámica",
+		"WASD / Flechas · Mover Jugador",
+		"P · Alternar Jugador",
+		"Espacio · Respawn",
 		"Rueda · Zoom",
 		"Click Der + Drag · Desplazar",
 		"Q/E · Rotar 45°",

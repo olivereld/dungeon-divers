@@ -4,6 +4,7 @@ extends WorldStage
 ## Generates hydrological features (planar depression lakes and downhill gravity-driven rivers).
 ## Strict separation: Hydrology operates upon the established terrain elevation and stores
 ## results into HydrologyResult without modifying WorldCell elevation or colors.
+## Uses an independent continuous hydrology noise field to guide meanders and channel preference.
 
 const _HydrologyResultScript = preload("res://src/world_generator/hydrology/hydrology_result.gd")
 
@@ -18,6 +19,50 @@ func execute(context: WorldGenerationContext) -> void:
 	var width: int = profile.width
 	var height: int = profile.height
 	var cells: Dictionary = context.result.cells
+
+	# --- 0. HYDROLOGY NOISE & DEBUG INITIALIZATION ---
+	var hydro_seed: int = WorldSeedSystem.derive_seed(context.master_seed, WorldSeedSystem.DOMAIN_HYDROLOGY, profile.hydrology_noise_seed_offset)
+	var hydro_noise := FastNoiseLite.new()
+	if profile.hydrology_noise_enabled:
+		hydro_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		hydro_noise.seed = hydro_seed
+		hydro_noise.frequency = profile.hydrology_noise_frequency
+		hydro_noise.fractal_octaves = profile.hydrology_noise_octaves
+
+	var debug_noise: Dictionary = {}
+	var debug_lake_pot: Dictionary = {}
+	var debug_river_pot: Dictionary = {}
+	var debug_drainage: Dictionary = {}
+	var debug_flow_dir: Dictionary = {}
+
+	# Precompute terrain gradient, hydrology noise, and base potential per cell
+	for y in range(height):
+		for x in range(width):
+			var pos := Vector2i(x, y)
+			var cell: WorldCell = cells.get(pos)
+			if cell == null:
+				continue
+
+			var sample_x: float = float(x) * profile.cell_size
+			var sample_y: float = float(y) * profile.cell_size
+			var h_noise_raw: float = hydro_noise.get_noise_2d(sample_x, sample_y) if profile.hydrology_noise_enabled else 0.0
+			var h_noise_norm: float = clampf((h_noise_raw + 1.0) * 0.5, 0.0, 1.0)
+			debug_noise[pos] = h_noise_norm
+
+			# Lake potential: proximity to depression threshold
+			var lake_pot: float = 0.0
+			if cell.normalized_height < profile.lake_threshold:
+				lake_pot = 1.0 - (cell.normalized_height / maxf(profile.lake_threshold, 0.01))
+			debug_lake_pot[pos] = clampf(lake_pot, 0.0, 1.0)
+
+			# River potential: high slope + high elevation + favorable noise
+			var slope_norm: float = clampf(cell.slope / 35.0, 0.0, 1.0)
+			var river_pot: float = (slope_norm * 0.45) + (cell.normalized_height * 0.35) + (h_noise_norm * 0.20)
+			debug_river_pot[pos] = clampf(river_pot, 0.0, 1.0)
+
+			# Default flow accumulation and direction initialized
+			debug_drainage[pos] = 0.0
+			debug_flow_dir[pos] = Vector2.ZERO
 
 	# --- 1. PLANAR LAKE BASINS (Depression Sinks) ---
 	var lake_visited: Dictionary = {}
@@ -61,8 +106,8 @@ func execute(context: WorldGenerationContext) -> void:
 						lake_visited[npos] = true
 						queue.append(npos)
 
-			# Discard tiny single-tile puddles
-			if cluster_cells.size() < 4:
+			# Discard bodies smaller than configurable minimum area
+			if cluster_cells.size() < profile.lake_minimum_area:
 				continue
 
 			# Find spillway height (lowest terrain height on the perimeter rim)
@@ -105,6 +150,7 @@ func execute(context: WorldGenerationContext) -> void:
 					"lake_id": lake_id,
 					"flow_dir": Vector2.ZERO
 				}
+				debug_drainage[c_pos] = maxf(debug_drainage.get(c_pos, 0.0), 10.0 + depth * 5.0)
 
 			hydro.lakes.append({
 				"id": lake_id,
@@ -116,8 +162,7 @@ func execute(context: WorldGenerationContext) -> void:
 				"max_pos": max_p
 			})
 
-	# --- 2. DOWNHILL RIVERS (Gravity & Steepest Descent) ---
-	var hydro_seed: int = WorldSeedSystem.derive_seed(context.master_seed, WorldSeedSystem.DOMAIN_HYDROLOGY)
+	# --- 2. DOWNHILL RIVERS (Gravity & Hydrology Noise Channel Guidance) ---
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hydro_seed
 
@@ -129,7 +174,7 @@ func execute(context: WorldGenerationContext) -> void:
 			if hydro.is_lake(pos):
 				continue
 			var cell: WorldCell = cells.get(pos)
-			if cell != null and cell.normalized_height > 0.65 and cell.slope > 4.0:
+			if cell != null and cell.normalized_height >= profile.river_source_min_height and cell.slope >= profile.river_source_min_slope:
 				high_cells.append(pos)
 
 	# Shuffle candidate headwater sources deterministically
@@ -157,12 +202,13 @@ func execute(context: WorldGenerationContext) -> void:
 		var current: Vector2i = start_pos
 		var visited_river_cells: Dictionary = { start_pos: true }
 
-		for step in range(250):
+		for step in range(profile.river_max_steps):
 			var cur_cell: WorldCell = cells.get(current)
-			var lowest_neighbor: Vector2i = current
+			var best_neighbor: Vector2i = current
+			var best_score: float = -INF
 			var lowest_height: float = cur_cell.height
 
-			# Find steepest descent among neighbors
+			# Find downhill descent among neighbors with hydrology noise channel bias
 			for offset in neighbor_offsets:
 				var npos: Vector2i = current + offset
 				if npos.x < 0 or npos.x >= width or npos.y < 0 or npos.y >= height:
@@ -174,22 +220,30 @@ func execute(context: WorldGenerationContext) -> void:
 				if ncell == null:
 					continue
 
-				# Must be strictly lower elevation (gravity downhill law)
+				# Must be strictly lower elevation (gravity downhill law: delta_h > 0)
 				if ncell.height < cur_cell.height:
-					var dist: float = 1.4142 if (offset.x != 0 and offset.y != 0) else 1.0
+					var dist: float = (1.4142 if (offset.x != 0 and offset.y != 0) else 1.0) * profile.cell_size
 					var slope_down: float = (cur_cell.height - ncell.height) / dist
-					var jitter: float = (rng.randf() - 0.5) * 0.15 * profile.cell_size
-					var effective_score: float = slope_down + jitter
 
-					if effective_score > 0.0 and ncell.height < lowest_height:
+					# Hydrology noise guides channel preference and meanders in world metric space
+					var sample_nx: float = float(npos.x) * profile.cell_size
+					var sample_ny: float = float(npos.y) * profile.cell_size
+					var h_noise_val: float = hydro_noise.get_noise_2d(sample_nx, sample_ny) if profile.hydrology_noise_enabled else 0.0
+					var noise_bias: float = h_noise_val * profile.hydrology_noise_strength
+					var meander_jitter: float = (rng.randf() - 0.5) * profile.river_meander_strength * profile.cell_size
+
+					var score: float = slope_down + noise_bias + meander_jitter
+
+					if score > best_score:
+						best_score = score
+						best_neighbor = npos
 						lowest_height = ncell.height
-						lowest_neighbor = npos
 
 			# If no downhill neighbor exists, we reached a local pit or sink; terminate
-			if lowest_neighbor == current or lowest_height >= cur_cell.height:
+			if best_neighbor == current or lowest_height >= cur_cell.height:
 				break
 
-			current = lowest_neighbor
+			current = best_neighbor
 			visited_river_cells[current] = true
 			river_path.append(current)
 
@@ -202,6 +256,11 @@ func execute(context: WorldGenerationContext) -> void:
 			var river_index: int = rivers_formed
 			rivers_formed += 1
 
+			# Clamp path if it exceeds max_river_length
+			var max_cells: int = int(profile.max_river_length / profile.cell_size)
+			if river_path.size() > max_cells:
+				river_path = river_path.slice(0, max_cells)
+
 			var points_3d: Array[Vector3] = []
 			var widths: Array[float] = []
 
@@ -209,7 +268,7 @@ func execute(context: WorldGenerationContext) -> void:
 				var rpos: Vector2i = river_path[p_idx]
 				var rcell: WorldCell = cells.get(rpos)
 				var p_progress: float = float(p_idx) / float(maxi(river_path.size() - 1, 1))
-				var w: float = lerpf(0.8, 2.0, p_progress) * profile.cell_size
+				var w: float = lerpf(profile.river_min_width, profile.river_max_width, p_progress) * profile.cell_size
 				widths.append(w)
 
 				var flow_dir := Vector2.ZERO
@@ -219,6 +278,9 @@ func execute(context: WorldGenerationContext) -> void:
 				elif p_idx > 0:
 					var diff: Vector2i = rpos - river_path[p_idx - 1]
 					flow_dir = Vector2(diff.x, diff.y).normalized()
+
+				debug_flow_dir[rpos] = flow_dir
+				debug_drainage[rpos] = float(p_idx + 1) * 2.0
 
 				var world_pt := Vector3(
 					rpos.x * profile.cell_size,
@@ -243,3 +305,10 @@ func execute(context: WorldGenerationContext) -> void:
 				"widths": widths,
 				"cells": river_path
 			})
+
+	# Store debug maps into hydro result
+	hydro.set_debug_grid("noise", debug_noise)
+	hydro.set_debug_grid("lake_potential", debug_lake_pot)
+	hydro.set_debug_grid("river_potential", debug_river_pot)
+	hydro.set_debug_grid("drainage", debug_drainage)
+	hydro.set_debug_grid("flow_dir", debug_flow_dir)

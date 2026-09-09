@@ -37,6 +37,10 @@ var rivers: Array = []
 ## }
 var lakes: Array = []
 
+## Debug maps (Vector2i -> float or Vector2) for visual analysis:
+## "noise", "lake_potential", "river_potential", "drainage", "flow_dir"
+var debug_layers: Dictionary = {}
+
 func is_water(pos: Vector2i) -> bool:
 	return water_cells.has(pos)
 
@@ -62,3 +66,15 @@ func get_water_depth(pos: Vector2i) -> float:
 
 func get_cell_data(pos: Vector2i) -> Dictionary:
 	return water_cells.get(pos, {})
+
+func set_debug_grid(layer_name: String, grid: Dictionary) -> void:
+	debug_layers[layer_name] = grid
+
+func get_debug_value(layer_name: String, pos: Vector2i, default_val: Variant = 0.0) -> Variant:
+	if debug_layers.has(layer_name):
+		return debug_layers[layer_name].get(pos, default_val)
+	return default_val
+
+func has_debug_layer(layer_name: String) -> bool:
+	return debug_layers.has(layer_name)
+

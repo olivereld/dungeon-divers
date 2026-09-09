@@ -52,10 +52,27 @@ func _init() -> void:
 	# Hydrology Defaults
 	hydrology_enabled = true
 	lake_threshold = 0.22
+	lake_minimum_area = 4
 	max_rivers = 3
+	river_source_min_height = 0.65
+	river_source_min_slope = 4.0
 	min_river_length = 12.0
+	max_river_length = 180.0
+	river_max_steps = 250
+	river_min_width = 0.8
+	river_max_width = 2.4
+	river_meander_strength = 0.18
+	hydrology_noise_enabled = true
+	hydrology_noise_frequency = 0.02
+	hydrology_noise_strength = 0.25
+	hydrology_noise_octaves = 2
+	hydrology_noise_seed_offset = 707
 	water_color_shallow = Color("#2a68a8")
-	water_color_deep = Color("#163558")
+	water_color_medium = Color("#1e4e82")
+	water_color_deep = Color("#143254")
+	water_color_river = Color("#2d74b8")
+	water_color_lake = Color("#193e68")
 	water_roughness = 0.08
+	water_transparency = 0.85
 
 

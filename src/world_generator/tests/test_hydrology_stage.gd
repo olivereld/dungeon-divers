@@ -77,6 +77,28 @@ func _init() -> void:
 
 	hydro_node.free()
 
+	# 6. Test Debug Layers Populated in HydrologyResult
+	print(" [CHECK] 6. Debug Layers Integrity (Noise, Potentials, Drainage, Flow Dir)...")
+	assert(hydro.has_debug_layer("noise"), "Must contain 'noise' debug layer")
+	assert(hydro.has_debug_layer("lake_potential"), "Must contain 'lake_potential' debug layer")
+	assert(hydro.has_debug_layer("river_potential"), "Must contain 'river_potential' debug layer")
+	assert(hydro.has_debug_layer("drainage"), "Must contain 'drainage' debug layer")
+	assert(hydro.has_debug_layer("flow_dir"), "Must contain 'flow_dir' debug layer")
+
+	var test_cell_pos := Vector2i(64, 64)
+	var noise_val = hydro.get_debug_value("noise", test_cell_pos)
+	assert(noise_val >= 0.0 and noise_val <= 1.0, "Hydrology noise must be normalized in [0.0, 1.0]")
+
+	# 7. Test Parameter Configurability
+	print(" [CHECK] 7. Dynamic Hydrology Configurability...")
+	var dry_profile := TaigaWorldProfile.new()
+	dry_profile.lake_threshold = 0.02
+	dry_profile.max_rivers = 0
+	var dry_result := WorldPipeline.generate(4242, dry_profile)
+	var dry_hydro = dry_result.hydrology
+	assert(dry_hydro.rivers.is_empty(), "When max_rivers=0, no rivers should form")
+	assert(dry_hydro.lakes.size() <= hydro.lakes.size(), "Low lake_threshold must produce fewer or equal lakes")
+
 	print("==================================================")
 	print(" ALL HYDROLOGY & SEPARATION TESTS PASSED!")
 	print("==================================================")
