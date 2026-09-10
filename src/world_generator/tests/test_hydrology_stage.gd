@@ -270,6 +270,16 @@ static func validate_hydrology_contract(result: WorldResult, profile: WorldProfi
 	for pos in drainage:
 		assert(float(drainage[pos]) >= 0.0, "Accumulation must be >= 0")
 
+	# H12b: acumulación debe ser monótona no decreciente a lo largo de cualquier cadena flow_to
+	var flow_to_dbg: Dictionary = hydro.debug_layers.get("flow_to", {})
+	for pos in flow_to_dbg:
+		var next_pos: Vector2i = flow_to_dbg[pos]
+		if next_pos == pos:
+			continue
+		var acc_here: float = float(drainage.get(pos, 1.0))
+		var acc_next: float = float(drainage.get(next_pos, 1.0))
+		assert(acc_next >= acc_here, "H12b: acumulación debe crecer aguas abajo: pos %s (acc %f) -> next %s (acc %f)" % [str(pos), acc_here, str(next_pos), acc_next])
+
 	# --- RIVERS ---
 	var rendered_edges: Dictionary = {}
 	for river in hydro.rivers:
@@ -304,6 +314,9 @@ static func validate_hydrology_contract(result: WorldResult, profile: WorldProfi
 		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
 		if result.cells.has(spill_pos):
 			assert(not hydro.is_lake(spill_pos), "Spillway must be outside lake body")
+			# H6: Toda celda de lago debe drenar hacia su spillway
+			for lc in lake_cells:
+				assert(flow_to_dbg.get(lc, lc) == spill_pos, "H6: celda de lago debe apuntar a su spillway")
 
 	# --- GEOMETRY ---
 	for pos in hydro.water_cells:

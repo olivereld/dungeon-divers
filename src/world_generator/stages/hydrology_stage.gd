@@ -167,14 +167,16 @@ func execute(context: WorldGenerationContext) -> void:
 	# -------------------------------------------------------------------------
 	var flow_to: Dictionary = {}
 
-	# Precompute lake cell sets for spillways so spillways don't flow backward into their own lakes
+	# Precompute lake cell sets for spillways and lake-to-spillway flow
 	var spillway_lake_cells: Dictionary = {}
+	var lake_cell_to_spillway: Dictionary = {}
 	for lake in hydro.lakes:
 		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
 		var lake_cells: Array = lake.get("cells", [])
 		var set_dict: Dictionary = {}
 		for lc in lake_cells:
 			set_dict[lc] = true
+			lake_cell_to_spillway[lc] = spill_pos
 		spillway_lake_cells[spill_pos] = set_dict
 
 	for y in range(height):
@@ -183,9 +185,10 @@ func execute(context: WorldGenerationContext) -> void:
 			if not cells.has(pos):
 				continue
 
-			# Lake cells are terminal drainage sinks/outlets.
+			# FIX 2: Lake cells flow directly toward their spillway
 			if hydro.is_lake(pos):
-				flow_to[pos] = pos
+				var spill: Vector2i = lake_cell_to_spillway.get(pos, pos)
+				flow_to[pos] = spill
 				debug_flow_dir[pos] = Vector2.ZERO
 				continue
 
@@ -197,7 +200,8 @@ func execute(context: WorldGenerationContext) -> void:
 				height,
 				profile,
 				flood_rank,
-				spillway_lake_cells
+				spillway_lake_cells,
+				lake_cell_to_spillway
 			)
 			flow_to[pos] = next_pos
 
@@ -216,28 +220,39 @@ func execute(context: WorldGenerationContext) -> void:
 		for x in range(width):
 			accumulation[Vector2i(x, y)] = 1.0
 
-	# H11: Inject lake contribution into spillways BEFORE propagation
-	for lake in hydro.lakes:
-		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
-		var lake_cells: Array = lake.get("cells", [])
-		if cells.has(spill_pos) and not hydro.is_lake(spill_pos):
-			var lake_acc: float = 0.0
-			for lpos in lake_cells:
-				lake_acc += float(accumulation.get(lpos, 1.0))
-			accumulation[spill_pos] = float(accumulation.get(spill_pos, 1.0)) + lake_acc
-
-	# Sort cells from highest to lowest filled elevation.
-	var sorted_cells: Array[Vector2i] = []
+	# Topological sort of the D8 flow graph (Kahn's algorithm)
+	var in_degree: Dictionary = {}
 	for y in range(height):
 		for x in range(width):
 			var pos := Vector2i(x, y)
 			if cells.has(pos):
-				sorted_cells.append(pos)
+				in_degree[pos] = 0
 
-	sorted_cells.sort_custom(
-		func(a: Vector2i, b: Vector2i) -> bool:
-			return float(filled_height.get(a, 0.0)) > float(filled_height.get(b, 0.0))
-	)
+	for pos in flow_to:
+		var downstream: Vector2i = flow_to[pos]
+		if downstream != pos and in_degree.has(downstream):
+			in_degree[downstream] = in_degree[downstream] + 1
+
+	var queue: Array[Vector2i] = []
+	for pos in in_degree:
+		if in_degree[pos] == 0:
+			queue.append(pos)
+
+	var sorted_cells: Array[Vector2i] = []
+	while not queue.is_empty():
+		var pos: Vector2i = queue.pop_back()
+		sorted_cells.append(pos)
+		var downstream: Vector2i = flow_to.get(pos, pos)
+		if downstream != pos and in_degree.has(downstream):
+			in_degree[downstream] -= 1
+			if in_degree[downstream] == 0:
+				queue.append(downstream)
+
+	# Fallback for any unvisited nodes (e.g., in case of cyclic components)
+	if sorted_cells.size() < in_degree.size():
+		for pos in in_degree:
+			if in_degree[pos] > 0:
+				sorted_cells.append(pos)
 
 	for pos in sorted_cells:
 		var downstream: Vector2i = flow_to.get(pos, pos)
@@ -634,7 +649,8 @@ func _find_downstream_cell(
 	height: int,
 	_profile: WorldProfile,
 	flood_rank: Dictionary = {},
-	spillway_lake_cells: Dictionary = {}
+	spillway_lake_cells: Dictionary = {},
+	lake_cell_to_spillway: Dictionary = {}
 ) -> Vector2i:
 	var current_filled: float = float(filled_height.get(pos, cells[pos].height))
 	var current_rank: int = flood_rank.get(pos, 999999999)
@@ -671,6 +687,9 @@ func _find_downstream_cell(
 				best_rank = neighbor_rank
 		elif best_drop <= 0.00001 and absf(drop) <= 0.00001:
 			# Flat plateau: drain toward lower flood rank (closer to outlet/spillway)
+			# Do not drain into a flat lake on a plateau (only downhill slopes drain into lakes)
+			if lake_cell_to_spillway.has(neighbor):
+				continue
 			if neighbor_rank < best_rank:
 				best_pos = neighbor
 				best_rank = neighbor_rank
