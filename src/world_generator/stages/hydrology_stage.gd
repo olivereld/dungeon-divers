@@ -201,7 +201,8 @@ func execute(context: WorldGenerationContext) -> void:
 				profile,
 				flood_rank,
 				spillway_lake_cells,
-				lake_cell_to_spillway
+				lake_cell_to_spillway,
+				flow_to
 			)
 			flow_to[pos] = next_pos
 
@@ -430,6 +431,7 @@ func execute(context: WorldGenerationContext) -> void:
 	hydro.set_debug_grid("drainage", debug_drainage)
 	hydro.set_debug_grid("flow_dir", debug_flow_dir)
 	hydro.set_debug_grid("flow_to", flow_to)
+	hydro.set_debug_grid("upstream", upstream)
 
 
 # =============================================================================
@@ -641,6 +643,20 @@ func _build_filled_height_field(
 # FLOW DIRECTION (Phase H1)
 # =============================================================================
 
+static func _is_downstream_of(start: Vector2i, target: Vector2i, flow_to: Dictionary, max_hops: int = 50) -> bool:
+	if start == target:
+		return true
+	var curr: Vector2i = start
+	for _hop in range(max_hops):
+		var nxt: Vector2i = flow_to.get(curr, curr)
+		if nxt == curr:
+			break
+		if nxt == target:
+			return true
+		curr = nxt
+	return false
+
+
 func _find_downstream_cell(
 	pos: Vector2i,
 	filled_height: Dictionary,
@@ -650,7 +666,8 @@ func _find_downstream_cell(
 	_profile: WorldProfile,
 	flood_rank: Dictionary = {},
 	spillway_lake_cells: Dictionary = {},
-	lake_cell_to_spillway: Dictionary = {}
+	lake_cell_to_spillway: Dictionary = {},
+	current_flow_to: Dictionary = {}
 ) -> Vector2i:
 	var current_filled: float = float(filled_height.get(pos, cells[pos].height))
 	var current_rank: int = flood_rank.get(pos, 999999999)
@@ -670,6 +687,27 @@ func _find_downstream_cell(
 		if forbidden_cells.has(neighbor):
 			continue
 
+		# Spillway cannot drain into a neighbor that leads back into its own lake
+		if not forbidden_cells.is_empty():
+			var cur_c: Vector2i = neighbor
+			var drains_to_forbidden: bool = false
+			for _hop in range(30):
+				if forbidden_cells.has(cur_c):
+					drains_to_forbidden = true
+					break
+				var next_c: Vector2i = current_flow_to.get(cur_c, cur_c)
+				if next_c == cur_c:
+					break
+				cur_c = next_c
+			if drains_to_forbidden:
+				continue
+
+		# Prevent closing a cycle with a lake whose spillway drains into pos
+		var lake_spill: Vector2i = lake_cell_to_spillway.get(neighbor, Vector2i(-1, -1))
+		if lake_spill != Vector2i(-1, -1):
+			if _is_downstream_of(lake_spill, pos, current_flow_to):
+				continue
+
 		var neighbor_filled: float = float(filled_height.get(neighbor, cells[neighbor].height))
 		var distance: float = (1.41421356 if offset.x != 0 and offset.y != 0 else 1.0)
 
@@ -687,9 +725,6 @@ func _find_downstream_cell(
 				best_rank = neighbor_rank
 		elif best_drop <= 0.00001 and absf(drop) <= 0.00001:
 			# Flat plateau: drain toward lower flood rank (closer to outlet/spillway)
-			# Do not drain into a flat lake on a plateau (only downhill slopes drain into lakes)
-			if lake_cell_to_spillway.has(neighbor):
-				continue
 			if neighbor_rank < best_rank:
 				best_pos = neighbor
 				best_rank = neighbor_rank
@@ -720,7 +755,7 @@ func _trace_main_stem_upstream(
 		var best_up: Vector2i = Vector2i(-1, -1)
 		var best_acc: float = -1.0
 		for candidate in up_list:
-			if not channel_mask.has(candidate) and not hydro.is_lake(candidate):
+			if hydro.is_lake(candidate) or not channel_mask.has(candidate):
 				continue
 			var c_acc: float = float(accumulation.get(candidate, 0.0))
 			if c_acc > best_acc:
@@ -728,9 +763,6 @@ func _trace_main_stem_upstream(
 				best_up = candidate
 
 		if best_up == Vector2i(-1, -1) or visited.has(best_up):
-			break
-		if hydro.is_lake(best_up):
-			path.append(best_up)
 			break
 
 		visited[best_up] = true
