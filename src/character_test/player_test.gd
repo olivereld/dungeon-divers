@@ -7,8 +7,8 @@ extends CharacterBody3D
 @export var speed: float = 7.0
 @export var acceleration: float = 25.0
 @export var gravity: float = 20.0
-@export var capsule_radius: float = 0.35
-@export var capsule_height: float = 1.4
+@export var capsule_radius: float = 0.38
+@export var capsule_height: float = 1.75
 
 var _visual_root: Node3D = null
 

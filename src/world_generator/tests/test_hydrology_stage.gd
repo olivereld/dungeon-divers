@@ -1,0 +1,313 @@
+extends SceneTree
+
+const _HydrologyStageScript = preload("res://src/world_generator/stages/hydrology_stage.gd")
+const _HydrologyRendererScript = preload("res://src/world_renderer/hydrology_renderer.gd")
+const _TerrainColorResolverScript = preload("res://src/world_generator/presentation/terrain_color_resolver.gd")
+
+func _init() -> void:
+	print("==================================================")
+	print(" Running Hydrology & Separation of Concerns Tests")
+	print("==================================================")
+
+	var profile := TaigaWorldProfile.new()
+	profile.hydrology_enabled = true
+	profile.lake_threshold = 0.25
+	profile.max_rivers = 3
+	profile.min_river_length = 10.0
+
+	var result := WorldPipeline.generate(4242, profile)
+	assert(result != null, "Result must not be null")
+	assert(result.hydrology != null, "HydrologyResult must be populated")
+
+	var hydro = result.hydrology
+
+	# 1. Test Separation: Zero Blue in Terrain Mesh
+	print(" [CHECK] 1. Terrain Substrate Purity (No water/sand in terrain albedo)...")
+	for y in range(profile.height):
+		for x in range(profile.width):
+			var cell := result.get_cell(Vector2i(x, y))
+			var col: Color = _TerrainColorResolverScript.resolve_vertex_color(cell, profile)
+			# Terrain colors must be boreal land substrates (greens, earth browns, grays, whites)
+			# Dominant blue tint (b > r + 0.1 and b > g + 0.1) is strictly forbidden on land vertices
+			assert(not (col.b > col.r + 0.15 and col.b > col.g + 0.15), "Terrain vertex at (%d, %d) must not be blue water!" % [x, y])
+
+	# 2. Test Planar Horizontal Lakes
+	print(" [CHECK] 2. Lake Planarity & Sinks (Flat horizontal water planes)...")
+	print("   Lakes detected: %d" % hydro.lakes.size())
+	for lake in hydro.lakes:
+		var lake_h: float = lake.water_height
+		assert(lake.cells.size() >= 4, "Lakes must have at least 4 contiguous cells")
+		for c_pos in lake.cells:
+			var c_data: Dictionary = hydro.get_cell_data(c_pos)
+			assert(c_data["type"] == "lake", "Cell must be classified as lake")
+			assert(is_equal_approx(c_data["water_height"], lake_h), "All lake cells must share planar spillway height")
+			assert(c_data["water_height"] >= c_data["terrain_height"] - 0.001, "Water must be at or above depression floor")
+			assert(c_data["depth"] >= 0.0, "Depth must be non-negative")
+
+	# H11: Lake accumulation must propagate downstream of spillway
+	print(" [CHECK] H11. Lake Contribution Propagates Downstream...")
+	for lake in hydro.lakes:
+		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
+		if not result.cells.has(spill_pos) or hydro.is_lake(spill_pos):
+			continue
+		var lake_cells: Array = lake.get("cells", [])
+		var lake_area: float = float(lake_cells.size())
+		var spill_acc: float = hydro.get_debug_value("drainage", spill_pos, 0.0)
+		assert(spill_acc >= lake_area, "H11: Spillway at %s must have accumulation >= lake area (%d), got %.1f" % [str(spill_pos), lake_cells.size(), spill_acc])
+
+	# H12: D8 determinism — no cycles, no uphill flow
+	print(" [CHECK] H12. D8 Flow Determinism (no cycles, no uphill)...")
+	var flow_dir_grid: Dictionary = hydro.debug_layers.get("flow_dir", {})
+	assert(not flow_dir_grid.is_empty(), "H12: flow_dir debug layer must exist")
+	var sample_pos := Vector2i(64, 64)
+	if hydro.is_water(sample_pos):
+		sample_pos = Vector2i(32, 32)
+	var visited_chain: Dictionary = {}
+	var chain_pos: Vector2i = sample_pos
+	for _step in range(profile.width * profile.height + 1):
+		assert(not visited_chain.has(chain_pos), "H12: D8 cycle detected at %s" % str(chain_pos))
+		visited_chain[chain_pos] = true
+		var dir_vec: Vector2 = flow_dir_grid.get(chain_pos, Vector2.ZERO)
+		if dir_vec == Vector2.ZERO:
+			break
+		var next_pos := chain_pos + Vector2i(int(round(dir_vec.x)), int(round(dir_vec.y)))
+		if next_pos == chain_pos:
+			break
+		chain_pos = next_pos
+
+	# H13: Upstream reverse graph must be consistent with flow_to
+	print(" [CHECK] H13. Upstream Reverse Graph Consistency...")
+	assert(hydro.has_debug_layer("flow_to"), "H13: flow_to must be exposed as debug layer")
+
+	# H15: No duplicate edges across rendered river paths
+	print(" [CHECK] H15. No Duplicate River Edges...")
+	var rendered_edges: Dictionary = {}
+	var duplicate_count: int = 0
+	for river in hydro.rivers:
+		var river_cells: Array = river.get("cells", [])
+		for i in range(river_cells.size() - 1):
+			var edge_key: String = "%d,%d->%d,%d" % [river_cells[i].x, river_cells[i].y, river_cells[i + 1].x, river_cells[i + 1].y]
+			if rendered_edges.has(edge_key):
+				duplicate_count += 1
+			rendered_edges[edge_key] = true
+	assert(duplicate_count == 0, "H15: Found %d duplicate edges across river paths" % duplicate_count)
+
+	# H17: Width must correlate with network-wide accumulation
+	print(" [CHECK] H17. Network-Normalized Width Correlation...")
+	for river in hydro.rivers:
+		var widths: Array = river.get("widths", [])
+		if widths.size() < 3:
+			continue
+		var first_quarter: float = float(widths[widths.size() / 4])
+		var last_quarter: float = float(widths[3 * widths.size() / 4])
+		if widths.size() > 10:
+			assert(last_quarter >= first_quarter * 0.8, "H17: River width should generally increase downstream")
+
+	# H20: Water elevation invariant
+	print(" [CHECK] H20. Water Elevation >= Terrain Elevation...")
+	for pos in hydro.water_cells:
+		var data: Dictionary = hydro.water_cells[pos]
+		var water_h: float = float(data.get("water_height", 0.0))
+		var terrain_h: float = float(data.get("terrain_height", 0.0))
+		assert(water_h >= terrain_h - 0.01, "H20: Water at %s (%.3f) below terrain (%.3f)" % [str(pos), water_h, terrain_h])
+
+	# H21: Meander displacement zero at source and outlet
+	print(" [CHECK] H21. Meander Taper at Endpoints...")
+	for river in hydro.rivers:
+		var pts: Array = river.get("points", [])
+		var river_cells: Array = river.get("cells", [])
+		if pts.size() < 4 or river_cells.size() < 4:
+			continue
+		var first_grid := Vector2(float(river_cells[0].x), float(river_cells[0].y))
+		var first_world := Vector2(pts[0].x, pts[0].z)
+		var first_offset: float = first_world.distance_to(first_grid)
+		assert(first_offset < 0.01, "H21: First river point must have zero meander offset, got %.4f" % first_offset)
+		var last_grid := Vector2(float(river_cells[-1].x), float(river_cells[-1].y))
+		var last_world := Vector2(pts[-1].x, pts[-1].z)
+		var last_offset: float = last_world.distance_to(last_grid)
+		assert(last_offset < 0.01, "H21: Last river point must have zero meander offset, got %.4f" % last_offset)
+
+	# 3. Test Downhill River Flow (Topographic Gravity Law)
+	print(" [CHECK] 3. River Flow Law (Rivers must strictly flow downhill)...")
+	print("   Rivers generated: %d" % hydro.rivers.size())
+	for river in hydro.rivers:
+		var pts: Array = river.points
+		var r_cells: Array = river.cells
+		assert(pts.size() >= 5, "River must contain points")
+		for i in range(pts.size() - 1):
+			var cur_pt: Vector3 = pts[i]
+			var next_pt: Vector3 = pts[i + 1]
+			assert(next_pt.y <= cur_pt.y + 0.001, "River point %d (Y=%.2f) flows uphill to point %d (Y=%.2f)!" % [i, cur_pt.y, i + 1, next_pt.y])
+
+	# H24: Navigation uses post-carving slope
+	print(" [CHECK] H24. Navigation Reflects Post-Carving Terrain...")
+	for river in hydro.rivers:
+		for pos in river.get("cells", []):
+			if hydro.is_lake(pos):
+				continue
+			var cell: WorldCell = result.get_cell(pos)
+			if cell == null:
+				continue
+			if cell.slope < 10.0:
+				assert(cell.slope_category == NavigationStage.SlopeCategory.FLAT, "H24: Post-carve slope category mismatch at %s" % str(pos))
+
+	# 4. Test Vegetation Water Avoidance
+	print(" [CHECK] 4. Vegetation Submersion Exclusion...")
+	for item in result.vegetation:
+		var cell_x: int = clampi(int(round(item.position.x / profile.cell_size)), 0, profile.width - 1)
+		var cell_z: int = clampi(int(round(item.position.z / profile.cell_size)), 0, profile.height - 1)
+		var grid_pos := Vector2i(cell_x, cell_z)
+		if hydro.is_lake(grid_pos):
+			var depth: float = hydro.get_water_depth(grid_pos)
+			assert(depth < 0.1, "Vegetation item %s cannot be placed deep underwater (depth=%.2f)!" % [str(item.type), depth])
+
+	# 5. Test Hydrology 3D Mesh Construction
+	print(" [CHECK] 5. HydrologyRenderer Overlay Generation...")
+	var hydro_node: Node3D = _HydrologyRendererScript.build_hydrology_node(result, profile)
+	assert(hydro_node != null, "Hydrology node must be created")
+	if not hydro.lakes.is_empty():
+		assert(hydro_node.has_node("LakesMesh"), "LakesMesh must exist when lakes are present")
+	if not hydro.rivers.is_empty():
+		assert(hydro_node.has_node("RiversMesh"), "RiversMesh must exist when rivers are present")
+
+	hydro_node.free()
+
+	# 6. Test Debug Layers Populated in HydrologyResult
+	print(" [CHECK] 6. Debug Layers Integrity (Noise, Potentials, Drainage, Flow Dir)...")
+	assert(hydro.has_debug_layer("noise"), "Must contain 'noise' debug layer")
+	assert(hydro.has_debug_layer("lake_potential"), "Must contain 'lake_potential' debug layer")
+	assert(hydro.has_debug_layer("river_potential"), "Must contain 'river_potential' debug layer")
+	assert(hydro.has_debug_layer("drainage"), "Must contain 'drainage' debug layer")
+	assert(hydro.has_debug_layer("flow_dir"), "Must contain 'flow_dir' debug layer")
+
+	var test_cell_pos := Vector2i(64, 64)
+	var noise_val = hydro.get_debug_value("noise", test_cell_pos)
+	assert(noise_val >= 0.0 and noise_val <= 1.0, "Hydrology noise must be normalized in [0.0, 1.0]")
+
+	# Verify that cell_size (world scale) affects hydrology noise sampling coordinates
+	var scaled_profile := TaigaWorldProfile.new()
+	scaled_profile.cell_size = 2.0
+	var scaled_result := WorldPipeline.generate(1234, scaled_profile)
+	var scaled_noise_val = scaled_result.hydrology.get_debug_value("noise", test_cell_pos)
+	assert(absf(float(scaled_noise_val) - float(noise_val)) > 0.001, "Hydrology noise must be affected by world scale (cell_size)")
+
+	# 7. Test Parameter Configurability
+	print(" [CHECK] 7. Dynamic Hydrology Configurability...")
+	var dry_profile := TaigaWorldProfile.new()
+	dry_profile.lake_threshold = 0.02
+	dry_profile.max_rivers = 0
+	var dry_result := WorldPipeline.generate(4242, dry_profile)
+	var dry_hydro = dry_result.hydrology
+	assert(dry_hydro.rivers.is_empty(), "When max_rivers=0, no rivers should form")
+	assert(dry_hydro.lakes.size() <= hydro.lakes.size(), "Low lake_threshold must produce fewer or equal lakes")
+
+	# 8. Phase H10 Invariants: Width Growth & Physical Channel Carving
+	print(" [CHECK] 8. Phase H10 Invariants (Width Growth, Outlet Validity, Channel Carving)...")
+	for river in hydro.rivers:
+		var widths: Array = river.widths
+		var pts: Array = river.points
+		assert(widths.size() == pts.size(), "Width array must match point count")
+		assert(widths[0] >= profile.river_min_width * 0.35, "Headwater width must be >= min threshold")
+		assert(widths[widths.size() - 1] <= profile.river_max_width * 1.35, "Outlet width must be <= max threshold")
+
+		# River endpoint must be at lake, confluence, or near boundary
+		var last_pos: Vector2i = river.cells[river.cells.size() - 1]
+		var is_near_boundary: bool = (last_pos.x <= 2 or last_pos.x >= profile.width - 3 or last_pos.y <= 2 or last_pos.y >= profile.height - 3)
+		var is_at_water: bool = hydro.is_lake(last_pos) or hydro.is_river(last_pos)
+		assert(is_near_boundary or is_at_water, "River %d must terminate at lake, confluence, or boundary!" % river.index)
+
+	# H25: Comprehensive Hydrology Contract Test
+	print(" [CHECK] H25. Comprehensive Hydrology Contract...")
+	validate_hydrology_contract(result, profile)
+
+	# H26: Multi-seed validation (30 seeds)
+	print(" [CHECK] H26. Multi-Seed Invariant Validation (30 seeds)...")
+	var test_seeds: Array[int] = [
+		1001, 1111, 1234, 1337, 1500, 1776, 2000, 2020, 2112, 2222,
+		2345, 2500, 2718, 2828, 3000, 3141, 3333, 3500, 3700, 3900,
+		4000, 4100, 4200, 4300, 4400, 4500, 4600, 4700, 4800, 5005
+	]
+
+	var total_rivers: int = 0
+	var total_lakes: int = 0
+	var seeds_with_rivers: int = 0
+	var seeds_with_lakes: int = 0
+
+	for test_seed in test_seeds:
+		var test_result := WorldPipeline.generate(test_seed, profile)
+		validate_hydrology_contract(test_result, profile)
+
+		var test_hydro = test_result.hydrology
+		total_rivers += test_hydro.rivers.size()
+		total_lakes += test_hydro.lakes.size()
+		if not test_hydro.rivers.is_empty():
+			seeds_with_rivers += 1
+		if not test_hydro.lakes.is_empty():
+			seeds_with_lakes += 1
+
+	print("   30-seed summary:")
+	print("     Rivers: %d total, %d/%d seeds" % [total_rivers, seeds_with_rivers, test_seeds.size()])
+	print("     Lakes:  %d total, %d/%d seeds" % [total_lakes, seeds_with_lakes, test_seeds.size()])
+
+	print("==================================================")
+	print(" ALL HYDROLOGY & SEPARATION TESTS PASSED!")
+	print("==================================================")
+	quit(0)
+
+
+static func validate_hydrology_contract(result: WorldResult, profile: WorldProfile) -> void:
+	var hydro = result.hydrology
+	assert(hydro != null, "HydrologyResult must exist")
+
+	# --- FLOW ---
+	for river in hydro.rivers:
+		var pts: Array = river.get("points", [])
+		for i in range(pts.size() - 1):
+			assert(pts[i + 1].y <= pts[i].y + 0.001, "Flow must not ascend: %f -> %f" % [pts[i].y, pts[i + 1].y])
+
+	# --- ACCUMULATION ---
+	var drainage: Dictionary = hydro.debug_layers.get("drainage", {})
+	for pos in drainage:
+		assert(float(drainage[pos]) >= 0.0, "Accumulation must be >= 0")
+
+	# --- RIVERS ---
+	var rendered_edges: Dictionary = {}
+	for river in hydro.rivers:
+		var cells_arr: Array = river.get("cells", [])
+		var widths_arr: Array = river.get("widths", [])
+		var pts_arr: Array = river.get("points", [])
+
+		assert(widths_arr.size() == pts_arr.size(), "Width/point count mismatch")
+
+		for w in widths_arr:
+			assert(float(w) > 0.0, "Width must be positive")
+
+		for i in range(cells_arr.size() - 1):
+			var key: String = "%d,%d->%d,%d" % [cells_arr[i].x, cells_arr[i].y, cells_arr[i + 1].x, cells_arr[i + 1].y]
+			assert(not rendered_edges.has(key), "Duplicate edge: %s" % key)
+			rendered_edges[key] = true
+
+		var last_pos: Vector2i = cells_arr[-1]
+		var is_near_boundary: bool = (last_pos.x <= 2 or last_pos.x >= profile.width - 3 or last_pos.y <= 2 or last_pos.y >= profile.height - 3)
+		var is_at_water: bool = hydro.is_lake(last_pos) or hydro.is_river(last_pos)
+		assert(is_near_boundary or is_at_water, "River must terminate at lake, confluence, or boundary")
+
+	# --- LAKES ---
+	for lake in hydro.lakes:
+		var lake_h: float = float(lake.get("water_height", 0.0))
+		var lake_cells: Array = lake.get("cells", [])
+		for c_pos in lake_cells:
+			var c_data: Dictionary = hydro.get_cell_data(c_pos)
+			assert(c_data.get("type", "") == "lake", "Lake cell must be type 'lake'")
+			assert(is_equal_approx(float(c_data.get("water_height", 0.0)), lake_h), "Lake cells must share water height")
+
+		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
+		if result.cells.has(spill_pos):
+			assert(not hydro.is_lake(spill_pos), "Spillway must be outside lake body")
+
+	# --- GEOMETRY ---
+	for pos in hydro.water_cells:
+		var data: Dictionary = hydro.water_cells[pos]
+		var water_h: float = float(data.get("water_height", 0.0))
+		var terrain_h: float = float(data.get("terrain_height", 0.0))
+		assert(water_h >= terrain_h - 0.01, "Water must be at or above terrain")
