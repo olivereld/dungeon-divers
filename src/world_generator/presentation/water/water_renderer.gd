@@ -26,7 +26,7 @@ static func build_water_node(result: WorldResult, profile: WorldProfile = null) 
 		rivers = network.rivers
 
 	for r in rivers:
-		var r_surf = _RiverMeshBuilderScript.build_river_surface(r, result, profile)
+		var r_surf = _RiverMeshBuilderScript.build_river_surface(r, result, profile, network)
 		if r_surf != null:
 			combined_surf.append_surface(r_surf)
 

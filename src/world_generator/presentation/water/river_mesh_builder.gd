@@ -15,25 +15,57 @@ const _RiverScript = preload("res://src/world_generator/hydrology/river.gd")
 static func build_river_surface(
 	river: Variant,
 	result: WorldResult,
-	profile: WorldProfile
+	profile: WorldProfile,
+	network: Variant = null
 ) -> RefCounted:
 	var raw_pts: Array = []
 	var raw_widths: Array = []
 	var raw_depths: Array = []
 
 	if river is River:
-		raw_pts = river.points
-		raw_widths = river.widths
-		raw_depths = river.depths
+		raw_pts = river.points.duplicate()
+		raw_widths = river.widths.duplicate()
+		raw_depths = river.depths.duplicate()
 	elif river is Dictionary:
-		raw_pts = river.get("points", [])
-		raw_widths = river.get("widths", [])
-		raw_depths = river.get("depths", [])
+		raw_pts = river.get("points", []).duplicate()
+		raw_widths = river.get("widths", []).duplicate()
+		raw_depths = river.get("depths", []).duplicate()
 	else:
 		return null
 
 	if raw_pts.size() < 2:
 		return null
+
+	# ------------------------------------------------------------------
+	# BLOQUE 2 — Ownership y recorte de ribbons
+	# El ribbon cede el espacio de la zona de confluencia a la junction.
+	# ------------------------------------------------------------------
+	var has_downstream: bool = false
+	var has_upstream: bool = false
+	if river is River:
+		has_downstream = (river.downstream_river != -1)
+		has_upstream = not river.upstream_rivers.is_empty()
+	elif river is Dictionary:
+		has_downstream = (river.get("downstream_river", -1) != -1)
+		has_upstream = not river.get("upstream_rivers", []).is_empty()
+
+	if raw_pts.size() >= 3:
+		var trim_len: float = 0.75
+		if has_downstream:
+			var p_last: Vector3 = raw_pts[-1]
+			var p_prev: Vector3 = raw_pts[-2]
+			var seg_d: float = p_last.distance_to(p_prev)
+			if seg_d > trim_len * 1.5:
+				var t_trim: float = clampf(1.0 - (trim_len / seg_d), 0.5, 0.95)
+				raw_pts[-1] = p_prev.lerp(p_last, t_trim)
+
+		if has_upstream:
+			var p_first: Vector3 = raw_pts[0]
+			var p_next: Vector3 = raw_pts[1]
+			var seg_d: float = p_first.distance_to(p_next)
+			if seg_d > trim_len * 1.5:
+				var t_trim: float = clampf(trim_len / seg_d, 0.05, 0.5)
+				raw_pts[0] = p_first.lerp(p_next, t_trim)
 
 	# ------------------------------------------------------------------
 	# BLOQUE 1 — Limpiar y remuestrear la línea central por distancia acumulada.
@@ -604,6 +636,7 @@ static func build_confluence_surface(
 
 	# ------------------------------------------------------------------
 	# Matriz de estaciones longitudinales: grid_left[branch][step], grid_right[branch][step]
+	# BLOQUE 1 — Ancho como magnitud explícita de verdad
 	# ------------------------------------------------------------------
 	var grid_left: Array = []   # Array[Array[int]]
 	var grid_right: Array = []  # Array[Array[int]]
@@ -617,29 +650,50 @@ static func build_confluence_surface(
 		grid_right[k].resize(m_steps + 1)
 
 		var u: Dictionary = up_stations[k]
-		var t_k_down_left: float = float(k) / float(n_branches)
-		var t_k_down_right: float = float(k + 1) / float(n_branches)
+		var t_k_left: float = float(k) / float(n_branches)
+		var t_k_right: float = float(k + 1) / float(n_branches)
 
-		var target_down_left: Vector3 = down_st.left.lerp(down_st.right, t_k_down_left)
-		var target_down_right: Vector3 = down_st.left.lerp(down_st.right, t_k_down_right)
+		var width_start: float = u.width
+		var width_end: float = down_st.width / float(n_branches)
+
+		var target_down_l: Vector3 = down_st.left.lerp(down_st.right, t_k_left)
+		var target_down_r: Vector3 = down_st.left.lerp(down_st.right, t_k_right)
+		var target_center: Vector3 = (target_down_l + target_down_r) * 0.5
+		var target_dir: Vector3 = down_st.dir
 
 		for m in range(m_steps + 1):
 			var tm: float = float(m) / float(m_steps)
-			# Interpolación progresiva de posición, dirección y cota
-			var p_l: Vector3 = u.left.lerp(target_down_left, tm)
-			var p_r: Vector3 = u.right.lerp(target_down_right, tm)
 
-			var dir_blend: Vector3 = u.dir.lerp(down_st.dir, tm)
+			# 1.1 y 1.2: Ancho interpolado explícito
+			var width: float = lerpf(width_start, width_end, tm)
+			var half_w: float = width * 0.5
+
+			# Centro y dirección interpolados
+			var center: Vector3 = u.center.lerp(target_center, tm)
+			var dir_blend: Vector3 = u.dir.lerp(target_dir, tm)
 			if dir_blend.length_squared() < 0.0001:
-				dir_blend = down_st.dir
+				dir_blend = target_dir
 			dir_blend.y = 0.0
 			dir_blend = dir_blend.normalized()
-			var flow_vec := Vector2(dir_blend.x, dir_blend.z)
+			var norm: Vector3 = Vector3(-dir_blend.z, 0.0, dir_blend.x).normalized()
 
-			# Alturas interpoladas y clampadas al terreno
+			# 1.3: Derivar left/right estrictamente de center +- norm * half_w
+			var p_l: Vector3
+			var p_r: Vector3
+
+			if m == 0:
+				p_l = u.left
+				p_r = u.right
+			elif m == m_steps:
+				p_l = target_down_l
+				p_r = target_down_r
+			else:
+				p_l = center + norm * half_w
+				p_r = center - norm * half_w
+
+			# Cota de agua interpolada y clampada al terreno
 			var bed_l: float = _sample_terrain(result, p_l.x, p_l.z)
 			var bed_r: float = _sample_terrain(result, p_r.x, p_r.z)
-			var norm: Vector3 = Vector3(-dir_blend.z, 0.0, dir_blend.x).normalized()
 			var bank_l: float = _sample_terrain(result, p_l.x + norm.x * 0.5, p_l.z + norm.z * 0.5)
 			var bank_r: float = _sample_terrain(result, p_r.x - norm.x * 0.5, p_r.z - norm.z * 0.5)
 
@@ -647,6 +701,7 @@ static func build_confluence_surface(
 			p_l.y = clampf(target_y, bed_l + 0.015, bank_l + 0.02)
 			p_r.y = clampf(target_y, bed_r + 0.015, bank_r + 0.02)
 
+			var flow_vec := Vector2(dir_blend.x, dir_blend.z)
 			var uv_l := Vector2(0.0, tm)
 			var uv_r := Vector2(1.0, tm)
 
@@ -695,21 +750,113 @@ static func build_confluence_surface(
 
 	return surf
 
-static func build_confluence_surface_multistation(
-	conf: Dictionary,
-	result: WorldResult,
-	profile: WorldProfile,
-	network: Variant = null,
-	longitudinal_steps: int = 3
-) -> RefCounted:
-	return build_confluence_surface(conf, result, profile, network, longitudinal_steps)
-
 static func build_confluence_patch(
 	conf: Dictionary,
 	result: WorldResult,
 	profile: WorldProfile
 ) -> RefCounted:
 	return build_confluence_surface(conf, result, profile, null, 3)
+
+static func _generate_explicit_junction_stations(
+	conf: Dictionary,
+	network: Variant,
+	result: WorldResult,
+	profile: WorldProfile,
+	longitudinal_steps: int = 3
+) -> Array:
+	var down_id: int = conf.get("downstream_river", -1)
+	var up_ids: Array = conf.get("upstream_rivers", [])
+
+	if down_id == -1 or up_ids.is_empty():
+		return []
+
+	var down_river = network.get_river(down_id) if network != null else null
+	if down_river == null:
+		return []
+
+	var cell_size: float = maxf(profile.cell_size, 0.01)
+	var down_st: Dictionary = _get_river_boundary_station(down_river, true, cell_size, result)
+	if down_st.is_empty():
+		return []
+
+	var up_stations: Array[Dictionary] = []
+	for uid in up_ids:
+		var u_river = network.get_river(uid) if network != null else null
+		if u_river != null:
+			var u_st = _get_river_boundary_station(u_river, false, cell_size, result)
+			if not u_st.is_empty():
+				up_stations.append(u_st)
+
+	if up_stations.is_empty():
+		return []
+
+	var down_angle: float = atan2(down_st.dir.x, down_st.dir.z)
+	up_stations.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var dir_a: Vector3 = -a.dir
+		var dir_b: Vector3 = -b.dir
+		var angle_a: float = wrapf(atan2(dir_a.x, dir_a.z) - down_angle, -PI, PI)
+		var angle_b: float = wrapf(atan2(dir_b.x, dir_b.z) - down_angle, -PI, PI)
+		return angle_a < angle_b
+	)
+
+	var n_branches: int = up_stations.size()
+	var m_steps: int = maxi(longitudinal_steps, 2)
+	var grid: Array = []
+	grid.resize(n_branches)
+
+	for k in range(n_branches):
+		grid[k] = []
+		grid[k].resize(m_steps + 1)
+		var u: Dictionary = up_stations[k]
+		var t_k_left: float = float(k) / float(n_branches)
+		var t_k_right: float = float(k + 1) / float(n_branches)
+
+		var width_start: float = u.width
+		var width_end: float = down_st.width / float(n_branches)
+
+		var target_down_l: Vector3 = down_st.left.lerp(down_st.right, t_k_left)
+		var target_down_r: Vector3 = down_st.left.lerp(down_st.right, t_k_right)
+		var target_center: Vector3 = (target_down_l + target_down_r) * 0.5
+		var target_dir: Vector3 = down_st.dir
+
+		for m in range(m_steps + 1):
+			var tm: float = float(m) / float(m_steps)
+			var width: float = lerpf(width_start, width_end, tm)
+			var half_w: float = width * 0.5
+
+			var center: Vector3 = u.center.lerp(target_center, tm)
+			var dir_blend: Vector3 = u.dir.lerp(target_dir, tm)
+			if dir_blend.length_squared() < 0.0001:
+				dir_blend = target_dir
+			dir_blend.y = 0.0
+			dir_blend = dir_blend.normalized()
+			var norm: Vector3 = Vector3(-dir_blend.z, 0.0, dir_blend.x).normalized()
+
+			var p_l: Vector3
+			var p_r: Vector3
+			if m == 0:
+				p_l = u.left
+				p_r = u.right
+			elif m == m_steps:
+				p_l = target_down_l
+				p_r = target_down_r
+			else:
+				p_l = center + norm * half_w
+				p_r = center - norm * half_w
+
+			var target_y: float = lerpf(u.water_y, down_st.water_y, tm)
+			grid[k][m] = {
+				"center": center,
+				"dir": dir_blend,
+				"normal": norm,
+				"width": width,
+				"half_width": half_w,
+				"left": p_l,
+				"right": p_r,
+				"water_y": target_y
+			}
+
+	return grid
 
 static func _extract_confluence_boundaries(
 	conf: Dictionary,
@@ -775,14 +922,37 @@ static func _get_river_boundary_station(
 	var w: float
 	var d: float
 
+	var has_upstream: bool = false
+	var has_downstream: bool = false
+	if river is River:
+		has_upstream = not river.upstream_rivers.is_empty()
+		has_downstream = (river.downstream_river != -1)
+	elif river is Dictionary:
+		has_upstream = not river.get("upstream_rivers", []).is_empty()
+		has_downstream = (river.get("downstream_river", -1) != -1)
+
 	if is_start:
 		p = raw_pts[0]
 		dir = (raw_pts[1] - raw_pts[0]).normalized()
+		if has_upstream and raw_pts.size() >= 3:
+			var trim_len: float = 0.75
+			var p_next: Vector3 = raw_pts[1]
+			var seg_d: float = p.distance_to(p_next)
+			if seg_d > trim_len * 1.5:
+				var t_trim: float = clampf(trim_len / seg_d, 0.05, 0.5)
+				p = p.lerp(p_next, t_trim)
 		w = _get_array_value(raw_widths, 0, 1.0)
 		d = _get_array_value(raw_depths, 0, 0.2)
 	else:
 		p = raw_pts[-1]
 		dir = (raw_pts[-1] - raw_pts[-2]).normalized()
+		if has_downstream and raw_pts.size() >= 3:
+			var trim_len: float = 0.75
+			var p_prev: Vector3 = raw_pts[-2]
+			var seg_d: float = p.distance_to(p_prev)
+			if seg_d > trim_len * 1.5:
+				var t_trim: float = clampf(1.0 - (trim_len / seg_d), 0.5, 0.95)
+				p = p_prev.lerp(p, t_trim)
 		var last_idx: int = raw_pts.size() - 1
 		w = _get_array_value(raw_widths, last_idx, 1.0)
 		d = _get_array_value(raw_depths, last_idx, 0.2)
