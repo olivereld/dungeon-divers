@@ -24,6 +24,7 @@ extends WorldStage
 ##  11. Exportación de Capas de Depuración en HydrologyResult
 
 const _HydrologyResultScript = preload("res://src/world_generator/hydrology/hydrology_result.gd")
+const _FlowDiscretizationMetricsScript = preload("res://src/world_generator/diagnostics/flow_discretization_metrics.gd")
 
 # Constantes del Pipeline Hidrológico (Fase 7)
 const FLOW_FLAT_TOLERANCE: float = 0.0001
@@ -194,10 +195,18 @@ func execute(context: WorldGenerationContext) -> void:
 	# -------------------------------------------------------------------------
 	# BLOQUE 3: DISCRETIZACIÓN DEL FLOW FIELD A GRILLA (D8 GUIADO POR GRADIENTE)
 	# -------------------------------------------------------------------------
+	var candidate_scores: Dictionary = {}
+	var record_scores = candidate_scores if profile.hydrology_debug_metrics_enabled else null
 	var flow_to := _discretize_flow_field(
 		cells, filled_height, flood_rank, continuous_flow,
-		hydro, width, height, profile
+		hydro, width, height, profile, record_scores
 	)
+
+	if profile.hydrology_debug_metrics_enabled:
+		var flow_metrics := _FlowDiscretizationMetricsScript.measure(
+			cells, flow_to, continuous_flow, hydro, width, height, candidate_scores
+		)
+		hydro.set_debug_grid("flow_metrics", flow_metrics)
 
 	for pos in flow_to:
 		var nxt: Vector2i = flow_to[pos]
@@ -619,7 +628,8 @@ func _discretize_flow_field(
 	hydro: RefCounted,
 	width: int,
 	height: int,
-	_profile: WorldProfile
+	_profile: WorldProfile,
+	debug_scores_out: Variant = null
 ) -> Dictionary:
 	var flow_to: Dictionary = {}
 
@@ -646,6 +656,11 @@ func _discretize_flow_field(
 			if not cells.has(pos):
 				continue
 			if hydro.is_lake(pos):
+				continue
+
+			# Las celdas de borde son outlets naturales de salida del mapa (terminales)
+			if pos.x == 0 or pos.x == width - 1 or pos.y == 0 or pos.y == height - 1:
+				flow_to[pos] = pos
 				continue
 
 			var current_h: float = float(filled_height.get(pos, 0.0))
@@ -685,10 +700,20 @@ func _discretize_flow_field(
 				var score: float = 0.0
 				if f_dir != Vector2.ZERO:
 					var align: float = f_dir.dot(d_vec)
-					score = align * 2.0 + drop * 0.5
+					var slope_factor: float = clampf(drop / 0.05, 0.0, 1.0)
+					score = align * (1.0 + slope_factor) + drop * 0.5
 				else:
 					# En planos sin gradiente continuo, el flood_rank causal es la autoridad absoluta
 					score = float(current_rank - neighbor_rank)
+
+				if debug_scores_out != null:
+					if not debug_scores_out.has(pos):
+						debug_scores_out[pos] = []
+					debug_scores_out[pos].append({
+						"neighbor": neighbor,
+						"score": score,
+						"rank": neighbor_rank
+					})
 
 				if score > best_score + 0.0001:
 					best_score = score

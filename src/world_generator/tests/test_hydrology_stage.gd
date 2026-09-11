@@ -3,6 +3,8 @@ extends SceneTree
 const _HydrologyStageScript = preload("res://src/world_generator/stages/hydrology_stage.gd")
 const _HydrologyRendererScript = preload("res://src/world_renderer/hydrology_renderer.gd")
 const _TerrainColorResolverScript = preload("res://src/world_generator/presentation/terrain_color_resolver.gd")
+const _WatershedIntegrityCheckerScript = preload("res://src/world_generator/diagnostics/watershed_integrity_checker.gd")
+const _OutletValidatorScript = preload("res://src/world_generator/diagnostics/outlet_validator.gd")
 
 func _init() -> void:
 	print("==================================================")
@@ -261,6 +263,8 @@ static func validate_hydrology_contract(result: WorldResult, profile: WorldProfi
 	validate_inverse_graph_consistency(result)
 	validate_river_network_contract(result, profile)
 	validate_lakes_and_geometry(result)
+	validate_watershed_integrity(result, profile)
+	validate_outlet_topology(result, profile)
 
 
 static func validate_global_flow_graph(result: WorldResult, profile: WorldProfile) -> void:
@@ -461,3 +465,29 @@ static func validate_lakes_and_geometry(result: WorldResult) -> void:
 		var water_h: float = float(data.get("water_height", 0.0))
 		var terrain_h: float = float(data.get("terrain_height", 0.0))
 		assert(water_h >= terrain_h - 0.01, "Water must be at or above terrain")
+
+
+static func validate_watershed_integrity(result: WorldResult, profile: WorldProfile) -> void:
+	var hydro = result.hydrology
+	var flow_to: Dictionary = hydro.debug_layers.get("flow_to", {})
+	var cell_basin_map: Dictionary = hydro.debug_layers.get("basins", {})
+	var check: Dictionary = _WatershedIntegrityCheckerScript.check(
+		result.cells, cell_basin_map, hydro.basins, flow_to, profile.width, profile.height
+	)
+	assert(check["bijection_violations"].is_empty(), "Watershed bijection violations detected: %d" % check["bijection_violations"].size())
+	assert(check["cycle_violations"].is_empty(), "Watershed cycle violations detected: %d" % check["cycle_violations"].size())
+	assert(check["invalid_outlet_violations"].is_empty(), "Watershed invalid outlet violations detected: %d" % check["invalid_outlet_violations"].size())
+	assert(check["orphan_cells"].is_empty(), "Watershed orphan cells detected: %d" % check["orphan_cells"].size())
+
+
+static func validate_outlet_topology(result: WorldResult, profile: WorldProfile) -> void:
+	var hydro = result.hydrology
+	var flow_to: Dictionary = hydro.debug_layers.get("flow_to", {})
+	var outlets: Array = []
+	for b_id in hydro.basins:
+		outlets.append(hydro.basins[b_id].get("outlet", Vector2i(-1, -1)))
+
+	var val: Dictionary = _OutletValidatorScript.validate_outlets(
+		outlets, result.cells, flow_to, hydro, profile.width, profile.height, profile
+	)
+	assert(val["outlets_invalid"] == 0, "Topological contract violation: found %d INVALID outlets" % val["outlets_invalid"])

@@ -123,6 +123,7 @@ func get_hydrology_noise_frequency() -> float:
 # Hydrology - General
 @export_group("Hydrology - General")
 @export var hydrology_enabled: bool = true
+@export var hydrology_debug_metrics_enabled: bool = false
 
 # Hydrology - Lakes
 @export_group("Hydrology - Lakes")
