@@ -69,10 +69,36 @@ static func build_river_surface(
 	station_tangents.resize(pts.size())
 	station_normals.resize(pts.size())
 
+	# ------------------------------------------------------------------
+	# TELEMETRÍA EFÍMERA DE DIAGNÓSTICO
+	# ------------------------------------------------------------------
+	var diagnostics := {
+		"sections": pts.size(),
+		"quads": maxi(pts.size() - 1, 0),
+		"fallback_normal_previous": 0,
+		"fallback_normal_next": 0,
+		"fallback_width_85": 0,
+		"fallback_width_70": 0,
+		"fallback_width_55": 0,
+		"fallback_width_40": 0,
+		"fallback_safe": 0,
+		"invalid_quads_before_fallback": 0,
+		"invalid_quads_after_fallback": 0,
+		"skipped_triangles": 0,
+		"valid_triangles": 0,
+		"min_width": INF,
+		"max_width": 0.0,
+		"min_segment_length": INF,
+		"max_segment_length": 0.0,
+		"turns_gt_30": 0,
+		"turns_gt_60": 0,
+		"turns_gt_90": 0
+	}
+
 	for i in range(pts.size()):
 		var p: Vector3 = pts[i]
 
-		# 2.1 Tangente
+		# 2.1 Tangente y ángulos de giro
 		var tangent: Vector3
 		var prev_dir := Vector3.ZERO
 		var next_dir := Vector3.ZERO
@@ -94,6 +120,16 @@ static func build_river_surface(
 			tangent = prev_dir + next_dir
 			if tangent.length_squared() < 0.0001:
 				tangent = next_dir
+
+			# Medir ángulo de giro entre segmentos
+			if prev_dir.length_squared() > 0.0001 and next_dir.length_squared() > 0.0001:
+				var turn_deg := rad_to_deg(acos(clampf(prev_dir.dot(next_dir), -1.0, 1.0)))
+				if turn_deg > 90.0:
+					diagnostics["turns_gt_90"] += 1
+				elif turn_deg > 60.0:
+					diagnostics["turns_gt_60"] += 1
+				elif turn_deg > 30.0:
+					diagnostics["turns_gt_30"] += 1
 
 		tangent.y = 0.0
 		if tangent.length_squared() < 0.0001:
@@ -125,6 +161,14 @@ static func build_river_surface(
 			blended_normal = Vector3(-tangent.z, 0.0, tangent.x).normalized()
 
 		var base_half_width: float = maxf(widths[i] / cell_size, 0.20) * 0.5
+		var effective_width: float = base_half_width * 2.0
+		diagnostics["min_width"] = minf(float(diagnostics["min_width"]), effective_width)
+		diagnostics["max_width"] = maxf(float(diagnostics["max_width"]), effective_width)
+
+		if i > 0:
+			var seg_len: float = pts[i].distance_to(pts[i - 1])
+			diagnostics["min_segment_length"] = minf(float(diagnostics["min_segment_length"]), seg_len)
+			diagnostics["max_segment_length"] = maxf(float(diagnostics["max_segment_length"]), seg_len)
 
 		# BLOQUE 3 & 4: Validación y fallbacks
 		if i == 0:
@@ -142,6 +186,8 @@ static func build_river_surface(
 			var quad_ok: bool = _quad_is_valid(prev_l, prev_r, chosen_left, chosen_right)
 
 			if not quad_ok:
+				diagnostics["invalid_quads_before_fallback"] += 1
+
 				# Fallback A: Normal del segmento anterior
 				if prev_norm != Vector3.ZERO:
 					var cand_l_a := p + prev_norm * base_half_width
@@ -151,6 +197,7 @@ static func build_river_surface(
 						chosen_left = cand_l_a
 						chosen_right = cand_r_a
 						quad_ok = true
+						diagnostics["fallback_normal_previous"] += 1
 
 				# Fallback B: Normal del segmento siguiente
 				if not quad_ok and next_norm != Vector3.ZERO:
@@ -161,6 +208,7 @@ static func build_river_surface(
 						chosen_left = cand_l_b
 						chosen_right = cand_r_b
 						quad_ok = true
+						diagnostics["fallback_normal_next"] += 1
 
 				# Fallback C: Reducción local progresiva de ancho
 				if not quad_ok:
@@ -180,12 +228,18 @@ static func build_river_surface(
 								chosen_left = cand_l
 								chosen_right = cand_r
 								quad_ok = true
+								if is_equal_approx(factor, 0.85): diagnostics["fallback_width_85"] += 1
+								elif is_equal_approx(factor, 0.70): diagnostics["fallback_width_70"] += 1
+								elif is_equal_approx(factor, 0.55): diagnostics["fallback_width_55"] += 1
+								elif is_equal_approx(factor, 0.40): diagnostics["fallback_width_40"] += 1
 								break
 						if quad_ok:
 							break
 
 				# Si todo falla, forzar normal previa y ancho al 40% para mantener coherencia
 				if not quad_ok:
+					diagnostics["fallback_safe"] += 1
+					diagnostics["invalid_quads_after_fallback"] += 1
 					var safe_norm: Vector3 = prev_norm if prev_norm != Vector3.ZERO else blended_normal
 					var safe_half_w: float = base_half_width * 0.40
 					chosen_normal = safe_norm
@@ -257,7 +311,7 @@ static func build_river_surface(
 
 	# ------------------------------------------------------------------
 	# BLOQUE 5 — Construcción definitiva del ribbon: exactamente
-	# dos triángulos por segmento longitudinal.
+	# dos triángulos por segmento longitudinal con conteo diagnóstico.
 	# ------------------------------------------------------------------
 	for i in range(pts.size() - 1):
 		var l0: int = left_indices[i]
@@ -265,11 +319,58 @@ static func build_river_surface(
 		var l1: int = left_indices[i + 1]
 		var r1: int = right_indices[i + 1]
 
-		if _triangle_is_valid(surf.vertices[l0], surf.vertices[r0], surf.vertices[l1]):
-			surf.add_triangle(l0, r0, l1)
+		var tri_a_valid: bool = _triangle_is_valid(surf.vertices[l0], surf.vertices[r0], surf.vertices[l1])
+		var tri_b_valid: bool = _triangle_is_valid(surf.vertices[r0], surf.vertices[r1], surf.vertices[l1])
 
-		if _triangle_is_valid(surf.vertices[r0], surf.vertices[r1], surf.vertices[l1]):
+		if tri_a_valid:
+			surf.add_triangle(l0, r0, l1)
+			diagnostics["valid_triangles"] += 1
+		else:
+			diagnostics["skipped_triangles"] += 1
+
+		if tri_b_valid:
 			surf.add_triangle(r0, r1, l1)
+			diagnostics["valid_triangles"] += 1
+		else:
+			diagnostics["skipped_triangles"] += 1
+
+	var fallback_total: int = (
+		diagnostics["fallback_normal_previous"]
+		+ diagnostics["fallback_normal_next"]
+		+ diagnostics["fallback_width_85"]
+		+ diagnostics["fallback_width_70"]
+		+ diagnostics["fallback_width_55"]
+		+ diagnostics["fallback_width_40"]
+		+ diagnostics["fallback_safe"]
+	)
+	var fallback_ratio: float = 0.0
+	if diagnostics["sections"] > 1:
+		fallback_ratio = float(fallback_total) / float(diagnostics["sections"] - 1)
+
+	print(
+		"[RiverMeshDiagnostics] ",
+		"sections=", diagnostics["sections"],
+		" quads=", diagnostics["quads"],
+		" invalid_before=", diagnostics["invalid_quads_before_fallback"],
+		" invalid_after=", diagnostics["invalid_quads_after_fallback"],
+		" prev_normal=", diagnostics["fallback_normal_previous"],
+		" next_normal=", diagnostics["fallback_normal_next"],
+		" width85=", diagnostics["fallback_width_85"],
+		" width70=", diagnostics["fallback_width_70"],
+		" width55=", diagnostics["fallback_width_55"],
+		" width40=", diagnostics["fallback_width_40"],
+		" safe=", diagnostics["fallback_safe"],
+		" skipped_triangles=", diagnostics["skipped_triangles"],
+		" valid_triangles=", diagnostics["valid_triangles"],
+		" fallback_ratio=", "%.4f" % fallback_ratio,
+		" turns>30=", diagnostics["turns_gt_30"],
+		" turns>60=", diagnostics["turns_gt_60"],
+		" turns>90=", diagnostics["turns_gt_90"],
+		" min_width=", "%.2f" % diagnostics["min_width"] if is_finite(diagnostics["min_width"]) else "0.0",
+		" max_width=", "%.2f" % diagnostics["max_width"],
+		" min_segment=", "%.2f" % diagnostics["min_segment_length"] if is_finite(diagnostics["min_segment_length"]) else "0.0",
+		" max_segment=", "%.2f" % diagnostics["max_segment_length"]
+	)
 
 	return surf
 
@@ -449,35 +550,188 @@ static func _get_array_value(
 	return float(values[index])
 
 # ----------------------------------------------------------------------
-# BLOQUE 6 — Confluencias aisladas (preservadas para la fase de confluencias)
+# BLOQUE C — Confluencias continuas mediante Junction Strip-Bridge (C1 a C8)
 # ----------------------------------------------------------------------
+static func build_confluence_surface(
+	conf: Dictionary,
+	result: WorldResult,
+	profile: WorldProfile,
+	network: Variant = null
+) -> RefCounted:
+	if network == null and result != null and result.hydrology != null:
+		network = result.hydrology.get_river_network()
+
+	var down_id: int = conf.get("downstream_river", -1)
+	var up_ids: Array = conf.get("upstream_rivers", [])
+
+	if down_id == -1 or up_ids.is_empty():
+		return null
+
+	var down_river = network.get_river(down_id) if network != null else null
+	if down_river == null:
+		return null
+
+	var cell_size: float = maxf(profile.cell_size, 0.01)
+	var down_st: Dictionary = _get_river_boundary_station(down_river, true, cell_size, result)
+	if down_st.is_empty():
+		return null
+
+	var up_stations: Array[Dictionary] = []
+	for uid in up_ids:
+		var u_river = network.get_river(uid) if network != null else null
+		if u_river != null:
+			var u_st = _get_river_boundary_station(u_river, false, cell_size, result)
+			if not u_st.is_empty():
+				up_stations.append(u_st)
+
+	if up_stations.is_empty():
+		return null
+
+	# BLOQUE C4 & C8: Ordenar los afluentes de izquierda a derecha respecto a downstream
+	var down_angle: float = atan2(down_st.dir.x, down_st.dir.z)
+	up_stations.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var dir_a: Vector3 = -a.dir
+		var dir_b: Vector3 = -b.dir
+		var angle_a: float = wrapf(atan2(dir_a.x, dir_a.z) - down_angle, -PI, PI)
+		var angle_b: float = wrapf(atan2(dir_b.x, dir_b.z) - down_angle, -PI, PI)
+		return angle_a < angle_b
+	)
+
+	# BLOQUE C5 & C6: Construcción de superficie strip-bridge sin radial fan
+	var surf = _WaterSurfaceDataScript.new()
+	var n_branches: int = up_stations.size()
+
+	# Particionar la estación downstream en n_branches segmentos
+	var down_indices: Array[int] = []
+	down_indices.resize(n_branches + 1)
+	var flow_down := Vector2(down_st.dir.x, down_st.dir.z).normalized()
+
+	for k in range(n_branches + 1):
+		var t: float = float(k) / float(n_branches)
+		var p: Vector3 = down_st.left.lerp(down_st.right, t)
+		var bed: float = _sample_terrain(result, p.x, p.z)
+		var norm_d: Vector3 = down_st.normal
+		var bank: float = _sample_terrain(
+			result,
+			p.x + norm_d.x * (1.0 - 2.0 * t) * 0.5,
+			p.z + norm_d.z * (1.0 - 2.0 * t) * 0.5
+		)
+		p.y = clampf(down_st.water_y, bed + 0.015, bank + 0.02)
+		var uv := Vector2(t, 0.0)
+		down_indices[k] = surf.add_vertex(p, Vector3.UP, uv, flow_down, profile.water_color_river)
+
+	var up_left_indices: Array[int] = []
+	var up_right_indices: Array[int] = []
+	up_left_indices.resize(n_branches)
+	up_right_indices.resize(n_branches)
+
+	# Añadir vértices de entrada para cada afluente
+	for k in range(n_branches):
+		var u: Dictionary = up_stations[k]
+		var flow_u := Vector2(u.dir.x, u.dir.z).normalized()
+		up_left_indices[k] = surf.add_vertex(u.left, Vector3.UP, Vector2(0.0, 1.0), flow_u, profile.water_color_river)
+		up_right_indices[k] = surf.add_vertex(u.right, Vector3.UP, Vector2(1.0, 1.0), flow_u, profile.water_color_river)
+
+		# Triangulación directa de la rama k hacia su porción [D_k, D_{k+1}]
+		var ul: int = up_left_indices[k]
+		var ur: int = up_right_indices[k]
+		var dl: int = down_indices[k]
+		var dr: int = down_indices[k + 1]
+
+		if _triangle_is_valid(surf.vertices[ul], surf.vertices[ur], surf.vertices[dl]):
+			surf.add_triangle(ul, ur, dl)
+
+		if _triangle_is_valid(surf.vertices[ur], surf.vertices[dr], surf.vertices[dl]):
+			surf.add_triangle(ur, dr, dl)
+
+	# Cuñas interiores continuas entre afluentes adyacentes
+	for k in range(n_branches - 1):
+		var ur_curr: int = up_right_indices[k]
+		var ul_next: int = up_left_indices[k + 1]
+		var d_mid: int = down_indices[k + 1]
+
+		if _triangle_is_valid(surf.vertices[ur_curr], surf.vertices[ul_next], surf.vertices[d_mid]):
+			surf.add_triangle(ur_curr, ul_next, d_mid)
+
+	return surf
+
 static func build_confluence_patch(
 	conf: Dictionary,
 	result: WorldResult,
 	profile: WorldProfile
 ) -> RefCounted:
-	var c_pos: Vector2i = conf.get("position", Vector2i(-1, -1))
-	if c_pos == Vector2i(-1, -1):
-		return null
+	return build_confluence_surface(conf, result, profile, null)
 
-	var surf = _WaterSurfaceDataScript.new()
-	var center_y: float = _sample_terrain(result, float(c_pos.x), float(c_pos.y)) + 0.03
-	var center := Vector3(float(c_pos.x), center_y, float(c_pos.y))
+static func _get_river_boundary_station(
+	river: Variant,
+	is_start: bool,
+	cell_size: float,
+	result: WorldResult
+) -> Dictionary:
+	var raw_pts: Array = []
+	var raw_widths: Array = []
+	var raw_depths: Array = []
 
-	var radius: float = (profile.river_max_width * 0.75) / maxf(profile.cell_size, 0.01)
-	var num_pts: int = 8
-	var center_idx: int = surf.add_vertex(center, Vector3.UP, Vector2(center.x, center.z), Vector2(0, 1), profile.water_color_river)
+	if river is River:
+		raw_pts = river.points
+		raw_widths = river.widths
+		raw_depths = river.depths
+	elif river is Dictionary:
+		raw_pts = river.get("points", [])
+		raw_widths = river.get("widths", [])
+		raw_depths = river.get("depths", [])
 
-	for k in range(num_pts + 1):
-		var angle: float = float(k) * (TAU / float(num_pts))
-		var px: float = center.x + cos(angle) * radius
-		var pz: float = center.z + sin(angle) * radius
-		var py: float = _sample_terrain(result, px, pz) + 0.025
-		surf.add_vertex(Vector3(px, py, pz), Vector3.UP, Vector2(px, pz), Vector2(cos(angle), sin(angle)), profile.water_color_river)
-		if k > 0:
-			surf.add_triangle(center_idx, center_idx + k, center_idx + k + 1)
+	if raw_pts.size() < 2:
+		return {}
 
-	return surf
+	var p: Vector3
+	var dir: Vector3
+	var w: float
+	var d: float
+
+	if is_start:
+		p = raw_pts[0]
+		dir = (raw_pts[1] - raw_pts[0]).normalized()
+		w = _get_array_value(raw_widths, 0, 1.0)
+		d = _get_array_value(raw_depths, 0, 0.2)
+	else:
+		p = raw_pts[-1]
+		dir = (raw_pts[-1] - raw_pts[-2]).normalized()
+		var last_idx: int = raw_pts.size() - 1
+		w = _get_array_value(raw_widths, last_idx, 1.0)
+		d = _get_array_value(raw_depths, last_idx, 0.2)
+
+	dir.y = 0.0
+	if dir.length_squared() < 0.0001:
+		dir = Vector3.FORWARD
+	dir = dir.normalized()
+
+	var normal := Vector3(-dir.z, 0.0, dir.x).normalized()
+	var half_w: float = maxf(w / cell_size, 0.20) * 0.5
+
+	var left := p + normal * half_w
+	var right := p - normal * half_w
+
+	var bed_l: float = _sample_terrain(result, left.x, left.z)
+	var bed_r: float = _sample_terrain(result, right.x, right.z)
+	var bank_l: float = _sample_terrain(result, left.x + normal.x * 0.5, left.z + normal.z * 0.5)
+	var bank_r: float = _sample_terrain(result, right.x - normal.x * 0.5, right.z - normal.z * 0.5)
+
+	left.y = clampf(bed_l + maxf(d, 0.05), bed_l + 0.015, bank_l + 0.02)
+	right.y = clampf(bed_r + maxf(d, 0.05), bed_r + 0.015, bank_r + 0.02)
+	var water_y: float = (left.y + right.y) * 0.5
+
+	return {
+		"center": p,
+		"dir": dir,
+		"normal": normal,
+		"half_width": half_w,
+		"width": half_w * 2.0,
+		"left": left,
+		"right": right,
+		"depth": d,
+		"water_y": water_y
+	}
 
 static func _sample_terrain(result: WorldResult, wx: float, wz: float) -> float:
 	if result == null:

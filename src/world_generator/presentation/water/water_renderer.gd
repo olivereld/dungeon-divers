@@ -36,6 +36,16 @@ static func build_water_node(result: WorldResult, profile: WorldProfile = null) 
 		if l_surf != null:
 			combined_surf.append_surface(l_surf)
 
+	# 3. Construir confluencias continuas
+	var confs: Array = hydro.confluences
+	if network is RiverNetwork and not network.confluences.is_empty():
+		confs = network.confluences
+
+	for conf in confs:
+		var c_surf = _RiverMeshBuilderScript.build_confluence_surface(conf, result, profile, network)
+		if c_surf != null:
+			combined_surf.append_surface(c_surf)
+
 	var mesh: ArrayMesh = combined_surf.to_array_mesh()
 	if mesh == null:
 		return null
