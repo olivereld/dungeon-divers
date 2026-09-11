@@ -47,15 +47,11 @@ var basins: Dictionary = {}
 ## }
 var confluences: Array = []
 
-## RiverNetwork dictionary:
-## {
-##   "rivers": Array,
-##   "sources": Array,
-##   "confluences": Array,
-##   "lakes": Array,
-##   "outlets": Array
-## }
-var river_network: Dictionary = {}
+## RiverNetwork instance modeling the explicit topological river network DAG:
+var river_network: Variant = null
+
+func get_river_network() -> RefCounted:
+	return river_network if river_network != null else null
 
 ## Debug maps (Vector2i -> float or Vector2) for visual analysis:
 ## "noise", "lake_potential", "river_potential", "drainage", "flow_dir", "flow_vector", "flow_to", "upstream", "basins"

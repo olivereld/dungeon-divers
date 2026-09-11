@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://cmsek6rj2qolc"]
 
-[ext_resource type="Script" path="res://src/world_renderer/scenes/taiga_world.gd" id="1_taiga"]
+[ext_resource type="Script" uid="uid://dvxbucbo57cxx" path="res://src/world_renderer/scenes/taiga_world.gd" id="1_taiga"]
 
-[node name="TaigaWorld" type="Node3D"]
+[node name="TaigaWorld" type="Node3D" unique_id=777752190]
 script = ExtResource("1_taiga")

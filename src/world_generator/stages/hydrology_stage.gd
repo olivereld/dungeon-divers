@@ -24,6 +24,9 @@ extends WorldStage
 ##  11. Exportación de Capas de Depuración en HydrologyResult
 
 const _HydrologyResultScript = preload("res://src/world_generator/hydrology/hydrology_result.gd")
+const _FlowDiscretizationMetricsScript = preload("res://src/world_generator/diagnostics/flow_discretization_metrics.gd")
+const _RiverScript = preload("res://src/world_generator/hydrology/river.gd")
+const _RiverNetworkScript = preload("res://src/world_generator/hydrology/river_network.gd")
 
 # Constantes del Pipeline Hidrológico (Fase 7)
 const FLOW_FLAT_TOLERANCE: float = 0.0001
@@ -194,10 +197,18 @@ func execute(context: WorldGenerationContext) -> void:
 	# -------------------------------------------------------------------------
 	# BLOQUE 3: DISCRETIZACIÓN DEL FLOW FIELD A GRILLA (D8 GUIADO POR GRADIENTE)
 	# -------------------------------------------------------------------------
+	var candidate_scores: Dictionary = {}
+	var record_scores = candidate_scores if profile.hydrology_debug_metrics_enabled else null
 	var flow_to := _discretize_flow_field(
 		cells, filled_height, flood_rank, continuous_flow,
-		hydro, width, height, profile
+		hydro, width, height, profile, record_scores
 	)
+
+	if profile.hydrology_debug_metrics_enabled:
+		var flow_metrics := _FlowDiscretizationMetricsScript.measure(
+			cells, flow_to, continuous_flow, hydro, width, height, candidate_scores
+		)
+		hydro.set_debug_grid("flow_metrics", flow_metrics)
 
 	for pos in flow_to:
 		var nxt: Vector2i = flow_to[pos]
@@ -256,14 +267,16 @@ func execute(context: WorldGenerationContext) -> void:
 	var network_rivers: Array = river_network_result["rivers"]
 	hydro.confluences = river_network_result["confluences"]
 
-	# Construir RiverNetwork explícito (Paso 4.5)
-	hydro.river_network = {
-		"rivers": network_rivers,
-		"sources": headwaters,
-		"confluences": hydro.confluences,
-		"lakes": hydro.lakes,
-		"outlets": basins_result["outlets"]
-	}
+	# Construir RiverNetwork explícito
+	var river_net_inst = _RiverNetworkScript.new()
+	river_net_inst.sources = headwaters
+	river_net_inst.confluences = hydro.confluences
+	river_net_inst.lakes = hydro.lakes
+	river_net_inst.outlets = basins_result["outlets"]
+	for r in network_rivers:
+		river_net_inst.add_river(r)
+
+	hydro.river_network = river_net_inst
 
 	# -------------------------------------------------------------------------
 	# BLOQUE 9: GEOMETRÍA, ORDEN HIDROGRÁFICO Y MEANDROS CONTROLADOS
@@ -272,20 +285,16 @@ func execute(context: WorldGenerationContext) -> void:
 	var river_max_acc: Dictionary = {}
 
 	for river_obj in network_rivers:
-		var r_id: int = river_obj["id"]
-		var r_path: Array[Vector2i] = river_obj["path"]
+		var r_id: int = river_obj.id
 		var local_max_acc: float = 1.0
-		for p in r_path:
+		for p in river_obj.path:
 			local_max_acc = maxf(local_max_acc, float(accumulation.get(p, 1.0)))
 		river_max_acc[r_id] = local_max_acc
 
 	for river_obj in network_rivers:
-		var r_id: int = river_obj["id"]
-		var r_path: Array[Vector2i] = river_obj["path"]
-		var r_order: int = river_obj["order"]
-
+		var r_id: int = river_obj.id
 		var river_geom := _build_river_geometry(
-			r_id, r_path, r_order, accumulation, cells,
+			river_obj, accumulation, cells,
 			profile, hydro, hydro_noise, river_max_acc.get(r_id, max_acc)
 		)
 		validated_rivers.append(river_geom)
@@ -619,7 +628,8 @@ func _discretize_flow_field(
 	hydro: RefCounted,
 	width: int,
 	height: int,
-	_profile: WorldProfile
+	_profile: WorldProfile,
+	debug_scores_out: Variant = null
 ) -> Dictionary:
 	var flow_to: Dictionary = {}
 
@@ -646,6 +656,11 @@ func _discretize_flow_field(
 			if not cells.has(pos):
 				continue
 			if hydro.is_lake(pos):
+				continue
+
+			# Las celdas de borde son outlets naturales de salida del mapa (terminales)
+			if pos.x == 0 or pos.x == width - 1 or pos.y == 0 or pos.y == height - 1:
+				flow_to[pos] = pos
 				continue
 
 			var current_h: float = float(filled_height.get(pos, 0.0))
@@ -685,10 +700,20 @@ func _discretize_flow_field(
 				var score: float = 0.0
 				if f_dir != Vector2.ZERO:
 					var align: float = f_dir.dot(d_vec)
-					score = align * 2.0 + drop * 0.5
+					var slope_factor: float = clampf(drop / 0.05, 0.0, 1.0)
+					score = align * (1.0 + slope_factor) + drop * 0.5
 				else:
 					# En planos sin gradiente continuo, el flood_rank causal es la autoridad absoluta
 					score = float(current_rank - neighbor_rank)
+
+				if debug_scores_out != null:
+					if not debug_scores_out.has(pos):
+						debug_scores_out[pos] = []
+					debug_scores_out[pos].append({
+						"neighbor": neighbor,
+						"score": score,
+						"rank": neighbor_rank
+					})
 
 				if score > best_score + 0.0001:
 					best_score = score
@@ -961,6 +986,7 @@ func _trace_river_network(
 	var rivers: Array = []
 	var confluences: Array = []
 	var river_cell_owner: Dictionary = {}  # pos -> river_id
+	var rivers_by_id: Dictionary = {}      # id -> River
 	var rendered_edges: Dictionary = {}    # "x,y->x,y" -> true
 	var current_river_id: int = 0
 
@@ -968,7 +994,8 @@ func _trace_river_network(
 	for head in headwaters:
 		var path: Array[Vector2i] = [head]
 		var curr: Vector2i = head
-		var reached_confluence: bool = false
+		var downstream_id: int = -1
+		var confluence_pos: Vector2i = Vector2i(-1, -1)
 
 		for _step in range(profile.river_max_steps):
 			var nxt: Vector2i = flow_to.get(curr, curr)
@@ -978,7 +1005,6 @@ func _trace_river_network(
 
 			var edge_key := "%d,%d->%d,%d" % [curr.x, curr.y, nxt.x, nxt.y]
 			if rendered_edges.has(edge_key):
-				# Ya cubierto por otro río
 				break
 
 			if hydro.is_lake(nxt):
@@ -991,13 +1017,8 @@ func _trace_river_network(
 				# Confluencia detectada
 				path.append(nxt)
 				rendered_edges[edge_key] = true
-				var other_id: int = river_cell_owner[nxt]
-				confluences.append({
-					"position": nxt,
-					"upstream_rivers": [current_river_id, other_id],
-					"downstream_river": other_id
-				})
-				reached_confluence = true
+				downstream_id = river_cell_owner[nxt]
+				confluence_pos = nxt
 				break
 
 			path.append(nxt)
@@ -1006,25 +1027,27 @@ func _trace_river_network(
 			curr = nxt
 
 		if path.size() >= 5:
-			# Calcular orden hidrográfico
-			var acc_start: float = float(accumulation.get(path[0], 1.0))
-			var acc_end: float = float(accumulation.get(path[-1], 1.0))
-			var order: int = 1
-			if acc_end > 80.0:
-				order = 3  # Curso Bajo
-			elif acc_end > 25.0:
-				order = 2  # Curso Medio
+			var river_obj = _RiverScript.new(current_river_id, head, path)
+			river_obj.accumulation_start = float(accumulation.get(path[0], 1.0))
+			river_obj.accumulation_end = float(accumulation.get(path[-1], 1.0))
+			river_obj.is_outflow = false
+			river_obj.downstream_river = downstream_id
 
-			rivers.append({
-				"id": current_river_id,
-				"source": head,
-				"path": path,
-				"length": float(path.size()),
-				"accumulation_start": acc_start,
-				"accumulation_end": acc_end,
-				"order": order,
-				"is_outflow": false
-			})
+			if downstream_id != -1:
+				river_obj.outlet = confluence_pos
+				if rivers_by_id.has(downstream_id):
+					var parent_river = rivers_by_id[downstream_id]
+					if not parent_river.upstream_rivers.has(current_river_id):
+						parent_river.upstream_rivers.append(current_river_id)
+
+				confluences.append({
+					"position": confluence_pos,
+					"upstream_rivers": [current_river_id],
+					"downstream_river": downstream_id
+				})
+
+			rivers.append(river_obj)
+			rivers_by_id[current_river_id] = river_obj
 			current_river_id += 1
 		else:
 			for i in range(path.size() - 1):
@@ -1044,6 +1067,8 @@ func _trace_river_network(
 
 		var outflow_path: Array[Vector2i] = [spill]
 		var curr_spill: Vector2i = spill
+		var downstream_id: int = -1
+		var confluence_pos: Vector2i = Vector2i(-1, -1)
 
 		for _step in range(profile.river_max_steps):
 			var nxt: Vector2i = flow_to.get(curr_spill, curr_spill)
@@ -1057,12 +1082,8 @@ func _trace_river_network(
 			if river_cell_owner.has(nxt):
 				outflow_path.append(nxt)
 				rendered_edges[edge_key] = true
-				var other_id: int = river_cell_owner[nxt]
-				confluences.append({
-					"position": nxt,
-					"upstream_rivers": [current_river_id, other_id],
-					"downstream_river": other_id
-				})
+				downstream_id = river_cell_owner[nxt]
+				confluence_pos = nxt
 				break
 
 			outflow_path.append(nxt)
@@ -1071,16 +1092,27 @@ func _trace_river_network(
 			curr_spill = nxt
 
 		if outflow_path.size() >= 5:
-			rivers.append({
-				"id": current_river_id,
-				"source": spill,
-				"path": outflow_path,
-				"length": float(outflow_path.size()),
-				"accumulation_start": float(accumulation.get(spill, 1.0)),
-				"accumulation_end": float(accumulation.get(outflow_path[-1], 1.0)),
-				"order": 2,
-				"is_outflow": true
-			})
+			var outflow_obj = _RiverScript.new(current_river_id, spill, outflow_path)
+			outflow_obj.accumulation_start = float(accumulation.get(spill, 1.0))
+			outflow_obj.accumulation_end = float(accumulation.get(outflow_path[-1], 1.0))
+			outflow_obj.is_outflow = true
+			outflow_obj.downstream_river = downstream_id
+
+			if downstream_id != -1:
+				outflow_obj.outlet = confluence_pos
+				if rivers_by_id.has(downstream_id):
+					var parent_river = rivers_by_id[downstream_id]
+					if not parent_river.upstream_rivers.has(current_river_id):
+						parent_river.upstream_rivers.append(current_river_id)
+
+				confluences.append({
+					"position": confluence_pos,
+					"upstream_rivers": [current_river_id],
+					"downstream_river": downstream_id
+				})
+
+			rivers.append(outflow_obj)
+			rivers_by_id[current_river_id] = outflow_obj
 			current_river_id += 1
 		else:
 			for i in range(outflow_path.size() - 1):
@@ -1088,10 +1120,63 @@ func _trace_river_network(
 				rendered_edges.erase(k)
 				river_cell_owner.erase(outflow_path[i])
 
+	# 3. Calcular orden topológico de Strahler
+	_calculate_strahler_orders(rivers)
+
 	return {
 		"rivers": rivers,
 		"confluences": confluences
 	}
+
+
+func _calculate_strahler_orders(rivers: Array) -> void:
+	var rivers_by_id: Dictionary = {}
+	var in_degree: Dictionary = {}
+
+	for r in rivers:
+		rivers_by_id[r.id] = r
+		in_degree[r.id] = r.upstream_rivers.size()
+
+	var queue: Array = []
+	for r in rivers:
+		if in_degree[r.id] == 0:
+			r.order = 1
+			queue.append(r)
+
+	while not queue.is_empty():
+		var curr_r = queue.pop_front()
+		var down_id: int = curr_r.downstream_river
+		if down_id != -1 and rivers_by_id.has(down_id):
+			in_degree[down_id] -= 1
+			if in_degree[down_id] == 0:
+				var down_r = rivers_by_id[down_id]
+				var up_orders: Array[int] = []
+				for up_id in down_r.upstream_rivers:
+					if rivers_by_id.has(up_id):
+						up_orders.append(rivers_by_id[up_id].order)
+
+				if up_orders.is_empty():
+					down_r.order = 1
+				else:
+					var max_o: int = 1
+					for o in up_orders:
+						if o > max_o:
+							max_o = o
+					var count_max: int = 0
+					for o in up_orders:
+						if o == max_o:
+							count_max += 1
+
+					if count_max >= 2:
+						down_r.order = max_o + 1
+					else:
+						down_r.order = max_o
+
+				queue.append(down_r)
+
+	for r in rivers:
+		if r.order <= 0:
+			r.order = 1
 
 
 # =============================================================================
@@ -1099,9 +1184,7 @@ func _trace_river_network(
 # =============================================================================
 
 func _build_river_geometry(
-	river_id: int,
-	path: Array[Vector2i],
-	river_order: int,
+	river_obj: RefCounted,
 	accumulation: Dictionary,
 	cells: Dictionary,
 	profile: WorldProfile,
@@ -1109,6 +1192,9 @@ func _build_river_geometry(
 	noise: FastNoiseLite,
 	network_max_acc: float
 ) -> Dictionary:
+	var river_id: int = river_obj.id
+	var path: Array[Vector2i] = river_obj.path
+	var river_order: int = river_obj.order
 	var points: Array[Vector3] = []
 	var widths: Array[float] = []
 	var depths: Array[float] = []
@@ -1122,20 +1208,17 @@ func _build_river_geometry(
 		var acc: float = float(accumulation.get(pos, 1.0))
 		var acc_norm: float = clampf(log(acc + 1.0) / maxf(log(network_max_acc + 1.0), 0.001), 0.0, 1.0)
 
-		# Ancho y profundidad modulados por acumulación y orden
-		var base_w: float = lerpf(profile.river_min_width, profile.river_max_width, pow(acc_norm, profile.river_width_response))
-		var base_d: float = lerpf(profile.river_min_depth, minf(profile.river_max_depth, 0.36), pow(acc_norm, profile.river_depth_response))
+		# Ancho y profundidad modulados hidrológicamente por acumulación, orden Strahler y pendiente
+		var order_w_mult: float = 1.0 + float(river_order - 1) * 0.30
+		var order_d_mult: float = 1.0 + float(river_order - 1) * 0.20
+		var slope_w_factor: float = clampf(1.0 - (cell.slope / 45.0) * 0.25, 0.75, 1.0)
 
-		if river_order == 3:
-			base_w *= 1.25
-			base_d *= 1.15
-		elif river_order == 1:
-			base_w *= 0.85
-			base_d *= 0.90
+		var base_w: float = lerpf(profile.river_min_width, profile.river_max_width, pow(acc_norm, profile.river_width_response)) * order_w_mult * slope_w_factor
+		var base_d: float = lerpf(profile.river_min_depth, minf(profile.river_max_depth, 0.45), pow(acc_norm, profile.river_depth_response)) * order_d_mult
 
 		var pt := Vector3(float(pos.x), c_h, float(pos.y))
 
-		# Meandro secundario controlado por valle (coordenadas en unidades de celda)
+		# Meandro secundario controlado por valle y confinado con taper en extremos
 		if i > 0 and i < total_pts - 1 and noise != null:
 			var prev_pos: Vector2i = path[i - 1]
 			var next_pos: Vector2i = path[i + 1]
@@ -1145,7 +1228,8 @@ func _build_river_geometry(
 			var slope_factor: float = clampf(1.0 - (cell.slope / MEANDER_SLOPE_LIMIT), 0.0, 1.0)
 			var n_val: float = noise.get_noise_2d(float(pos.x) * profile.cell_size * 2.0, float(pos.y) * profile.cell_size * 2.0)
 			var cell_w: float = base_w / maxf(profile.cell_size, 0.01)
-			var meander_offset: Vector2 = perp * (n_val * MEANDER_STRENGTH * slope_factor * cell_w * 0.4)
+			var taper: float = sin((float(i) / float(total_pts - 1)) * PI)
+			var meander_offset: Vector2 = perp * (n_val * MEANDER_STRENGTH * slope_factor * cell_w * 0.35 * taper)
 
 			pt.x += meander_offset.x
 			pt.z += meander_offset.y
@@ -1170,19 +1254,31 @@ func _build_river_geometry(
 				"river_index": river_id
 			}
 
-	# Monotonía descendente obligatoria para evitar flujo ascendente (Paso 8.3)
+	# Monotonía descendente obligatoria para evitar flujo ascendente (Regla A)
 	for i in range(1, points.size()):
 		if points[i].y > points[i - 1].y:
 			points[i].y = points[i - 1].y
 
-	return {
-		"index": river_id,
-		"points": points,
-		"widths": widths,
-		"depths": depths,
-		"cells": path,
-		"order": river_order
-	}
+	# Continuidad de cota en desembocadura a lago
+	if hydro.is_lake(path[-1]):
+		var lake_data: Dictionary = hydro.get_cell_data(path[-1])
+		var target_h: float = float(lake_data.get("water_height", points[-1].y))
+		points[-1].y = target_h
+		for j in range(points.size() - 2, -1, -1):
+			if points[j].y < points[j + 1].y:
+				points[j].y = points[j + 1].y
+
+	# Continuidad de cota en nacimiento desde spillway
+	if river_obj.is_outflow and hydro.is_lake(path[0]):
+		var lake_data: Dictionary = hydro.get_cell_data(path[0])
+		var spill_h: float = float(lake_data.get("water_height", points[0].y))
+		points[0].y = spill_h
+
+	river_obj.points = points
+	river_obj.widths = widths
+	river_obj.depths = depths
+
+	return river_obj.to_dict()
 
 
 # =============================================================================
