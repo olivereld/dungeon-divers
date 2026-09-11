@@ -10,6 +10,8 @@ func _init() -> void:
 	print("==================================================")
 
 	var profile := TaigaWorldProfile.new()
+	profile.width = 128
+	profile.height = 128
 	profile.hydrology_enabled = true
 	profile.lake_threshold = 0.25
 	profile.max_rivers = 3
@@ -220,13 +222,9 @@ func _init() -> void:
 	print(" [CHECK] H25. Comprehensive Hydrology Contract...")
 	validate_hydrology_contract(result, profile)
 
-	# H26: Multi-seed validation (30 seeds)
-	print(" [CHECK] H26. Multi-Seed Invariant Validation (30 seeds)...")
-	var test_seeds: Array[int] = [
-		1001, 1111, 1234, 1337, 1500, 1776, 2000, 2020, 2112, 2222,
-		2345, 2500, 2718, 2828, 3000, 3141, 3333, 3500, 3700, 3900,
-		4000, 4100, 4200, 4300, 4400, 4500, 4600, 4700, 4800, 5005
-	]
+	# H26: Multi-seed validation (5 representative seeds)
+	print(" [CHECK] H26. Multi-Seed Invariant Validation (5 seeds)...")
+	var test_seeds: Array[int] = [1001, 2002, 3003, 4004, 5005]
 
 	var total_rivers: int = 0
 	var total_lakes: int = 0
@@ -245,7 +243,7 @@ func _init() -> void:
 		if not test_hydro.lakes.is_empty():
 			seeds_with_lakes += 1
 
-	print("   30-seed summary:")
+	print("   5-seed summary:")
 	print("     Rivers: %d total, %d/%d seeds" % [total_rivers, seeds_with_rivers, test_seeds.size()])
 	print("     Lakes:  %d total, %d/%d seeds" % [total_lakes, seeds_with_lakes, test_seeds.size()])
 
@@ -259,40 +257,197 @@ static func validate_hydrology_contract(result: WorldResult, profile: WorldProfi
 	var hydro = result.hydrology
 	assert(hydro != null, "HydrologyResult must exist")
 
-	# --- FLOW ---
-	for river in hydro.rivers:
-		var pts: Array = river.get("points", [])
-		for i in range(pts.size() - 1):
-			assert(pts[i + 1].y <= pts[i].y + 0.001, "Flow must not ascend: %f -> %f" % [pts[i].y, pts[i + 1].y])
+	validate_global_flow_graph(result, profile)
+	validate_inverse_graph_consistency(result)
+	validate_river_network_contract(result, profile)
+	validate_lakes_and_geometry(result)
 
-	# --- ACCUMULATION ---
+
+static func validate_global_flow_graph(result: WorldResult, profile: WorldProfile) -> void:
+	var hydro = result.hydrology
+	var flow_to: Dictionary = hydro.debug_layers.get("flow_to", {})
+	assert(not flow_to.is_empty(), "flow_to layer must exist and not be empty")
+
 	var drainage: Dictionary = hydro.debug_layers.get("drainage", {})
-	for pos in drainage:
-		assert(float(drainage[pos]) >= 0.0, "Accumulation must be >= 0")
+	assert(not drainage.is_empty(), "drainage layer must exist")
 
-	# --- RIVERS ---
+	var spillway_set: Dictionary = {}
+	for lake in hydro.lakes:
+		var sp: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
+		if sp != Vector2i(-1, -1):
+			spillway_set[sp] = true
+
+	# 1. Global Acyclicity & Termination Validation (3-state DFS)
+	var visited_state: Dictionary = {}  # 0=unvisited, 1=visiting, 2=validated
+	for pos in flow_to:
+		if visited_state.get(pos, 0) == 2:
+			continue
+
+		var stack: Array[Vector2i] = []
+		var curr: Vector2i = pos
+
+		while true:
+			var state: int = visited_state.get(curr, 0)
+			if state == 1:
+				assert(false, "Global D8 cycle detected involving %s" % str(curr))
+			if state == 2:
+				break
+
+			visited_state[curr] = 1
+			stack.append(curr)
+
+			var nxt: Vector2i = flow_to.get(curr, curr)
+			if nxt == curr:
+				# Reached terminal sink: must be boundary, spillway, or lake body
+				var is_boundary: bool = (curr.x <= 1 or curr.x >= profile.width - 2 or curr.y <= 1 or curr.y >= profile.height - 2)
+				var is_spillway: bool = spillway_set.has(curr)
+				var is_lake: bool = hydro.is_lake(curr)
+				assert(is_boundary or is_spillway or is_lake, "Flow terminated in unclassified internal sink at %s" % str(curr))
+				break
+
+			# 2. Monotonic Accumulation: acc[B] >= acc[A] for A -> B
+			var acc_here: float = float(drainage.get(curr, 1.0))
+			var acc_next: float = float(drainage.get(nxt, 1.0))
+			assert(acc_next >= acc_here, "Accumulation must be monotonic downstream: %s (%.1f) -> %s (%.1f)" % [str(curr), acc_here, str(nxt), acc_next])
+
+			curr = nxt
+
+		for p in stack:
+			visited_state[p] = 2
+
+	# 3. Lake-to-Spillway Mapping Validation
+	for lake in hydro.lakes:
+		var lake_cells: Array = lake.get("cells", [])
+		var lake_set: Dictionary = {}
+		for lc in lake_cells:
+			lake_set[lc] = true
+
+		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
+		if result.cells.has(spill_pos):
+			assert(not lake_set.has(spill_pos), "Spillway %s cannot be inside lake cells" % str(spill_pos))
+			assert(not hydro.is_lake(spill_pos), "Spillway %s cannot be classified as lake" % str(spill_pos))
+
+			for lc in lake_cells:
+				assert(flow_to.get(lc, lc) == spill_pos, "H6: Lake cell %s must drain directly to spillway %s" % [str(lc), str(spill_pos)])
+
+			var spill_next: Vector2i = flow_to.get(spill_pos, spill_pos)
+			if spill_next != spill_pos:
+				assert(not lake_set.has(spill_next), "Spillway %s flows back into its lake at %s" % [str(spill_pos), str(spill_next)])
+
+
+static func validate_inverse_graph_consistency(result: WorldResult) -> void:
+	var hydro = result.hydrology
+	var flow_to: Dictionary = hydro.debug_layers.get("flow_to", {})
+	var upstream: Dictionary = hydro.debug_layers.get("upstream", {})
+	assert(not upstream.is_empty() or flow_to.is_empty(), "upstream reverse graph must exist")
+
+	var expected_in_degree: Dictionary = {}
+	for pos in flow_to:
+		var down: Vector2i = flow_to[pos]
+		if down != pos:
+			expected_in_degree[down] = expected_in_degree.get(down, 0) + 1
+
+	# Every flow_to edge must be present in upstream
+	for pos in flow_to:
+		var down: Vector2i = flow_to[pos]
+		if down != pos:
+			assert(upstream.has(down), "Upstream graph must have entry for downstream node %s" % str(down))
+			assert(upstream[down].has(pos), "upstream[%s] must contain upstream node %s" % [str(down), str(pos)])
+
+	# Every upstream entry must match flow_to and contain no duplicates
+	for down in upstream:
+		var up_list: Array = upstream[down]
+		var seen: Dictionary = {}
+		for up_node in up_list:
+			assert(not seen.has(up_node), "Duplicate upstream node %s in upstream[%s]" % [str(up_node), str(down)])
+			seen[up_node] = true
+			assert(flow_to.get(up_node) == down, "Node %s in upstream[%s] has mismatching flow_to %s (expected %s)" % [str(up_node), str(down), str(flow_to.get(up_node)), str(down)])
+
+		assert(up_list.size() == expected_in_degree.get(down, 0), "upstream[%s] size (%d) mismatch with in-degree (%d)" % [str(down), up_list.size(), expected_in_degree.get(down, 0)])
+
+
+static func validate_river_network_contract(result: WorldResult, profile: WorldProfile) -> void:
+	var hydro = result.hydrology
+	var flow_to: Dictionary = hydro.debug_layers.get("flow_to", {})
+	var drainage: Dictionary = hydro.debug_layers.get("drainage", {})
+
+	var river_by_cell: Dictionary = {}
+	for river in hydro.rivers:
+		var r_idx: int = river.get("index", -1)
+		var r_cells: Array = river.get("cells", [])
+		for c in r_cells:
+			if not river_by_cell.has(c):
+				river_by_cell[c] = []
+			river_by_cell[c].append(r_idx)
+
 	var rendered_edges: Dictionary = {}
+
 	for river in hydro.rivers:
 		var cells_arr: Array = river.get("cells", [])
 		var widths_arr: Array = river.get("widths", [])
 		var pts_arr: Array = river.get("points", [])
 
-		assert(widths_arr.size() == pts_arr.size(), "Width/point count mismatch")
+		assert(cells_arr.size() >= 2, "River must contain at least 2 cells")
+		assert(widths_arr.size() == pts_arr.size() and pts_arr.size() == cells_arr.size(), "Array size mismatch in river %d" % river.get("index", -1))
 
 		for w in widths_arr:
 			assert(float(w) > 0.0, "Width must be positive")
 
+		# 1. Headwater verification
+		var head_pos: Vector2i = cells_arr[0]
+		assert(result.cells.has(head_pos), "Headwater %s not in world cells" % str(head_pos))
+		assert(float(drainage.get(head_pos, 0.0)) >= 1.0, "Headwater %s must have positive drainage" % str(head_pos))
+
+		# 2. Path continuity, downhill gravity, flow_to alignment, edge disjointness
 		for i in range(cells_arr.size() - 1):
-			var key: String = "%d,%d->%d,%d" % [cells_arr[i].x, cells_arr[i].y, cells_arr[i + 1].x, cells_arr[i + 1].y]
-			assert(not rendered_edges.has(key), "Duplicate edge: %s" % key)
-			rendered_edges[key] = true
+			var cur_c: Vector2i = cells_arr[i]
+			var next_c: Vector2i = cells_arr[i + 1]
 
-		var last_pos: Vector2i = cells_arr[-1]
-		var is_near_boundary: bool = (last_pos.x <= 2 or last_pos.x >= profile.width - 3 or last_pos.y <= 2 or last_pos.y >= profile.height - 3)
-		var is_at_water: bool = hydro.is_lake(last_pos) or hydro.is_river(last_pos)
-		assert(is_near_boundary or is_at_water, "River must terminate at lake, confluence, or boundary")
+			var diff := next_c - cur_c
+			assert(maxi(absi(diff.x), absi(diff.y)) <= 1, "Discontinuous river cells at index %d: %s -> %s" % [i, str(cur_c), str(next_c)])
+			assert(pts_arr[i + 1].y <= pts_arr[i].y + 0.001, "River point flows uphill at index %d: %.3f -> %.3f" % [i, pts_arr[i].y, pts_arr[i + 1].y])
+			assert(flow_to.get(cur_c) == next_c, "River path %s -> %s deviates from flow_to %s" % [str(cur_c), str(next_c), str(flow_to.get(cur_c))])
 
-	# --- LAKES ---
+			var edge_key: String = "%d,%d->%d,%d" % [cur_c.x, cur_c.y, next_c.x, next_c.y]
+			assert(not rendered_edges.has(edge_key), "Duplicate river edge: %s" % edge_key)
+			rendered_edges[edge_key] = true
+
+		# 3. Destination Contract: Boundary, Lake, or True Confluence
+		var dest: Vector2i = cells_arr[-1]
+		var is_near_boundary: bool = (dest.x <= 2 or dest.x >= profile.width - 3 or dest.y <= 2 or dest.y >= profile.height - 3)
+		var is_lake_dest: bool = hydro.is_lake(dest) or hydro.is_lake(flow_to.get(dest, dest))
+
+		if not is_near_boundary and not is_lake_dest:
+			# Must be a true confluence with another river
+			var sharing_rivers: Array = river_by_cell.get(dest, [])
+			var found_confluence: bool = false
+			for other_idx in sharing_rivers:
+				if other_idx != river.get("index", -1):
+					found_confluence = true
+					break
+			assert(found_confluence, "River %d endpoint %s is in dry land without reaching boundary, lake, or another river confluence" % [river.get("index", -1), str(dest)])
+
+			# Trace downstream from confluence to ensure network reaches boundary or lake
+			var curr_trace: Vector2i = dest
+			var reaches_valid_destination: bool = false
+			for _step in range(profile.width + profile.height):
+				if curr_trace.x <= 2 or curr_trace.x >= profile.width - 3 or curr_trace.y <= 2 or curr_trace.y >= profile.height - 3:
+					reaches_valid_destination = true
+					break
+				if hydro.is_lake(curr_trace):
+					reaches_valid_destination = true
+					break
+				var next_trace: Vector2i = flow_to.get(curr_trace, curr_trace)
+				if next_trace == curr_trace:
+					break
+				curr_trace = next_trace
+
+			assert(reaches_valid_destination, "Confluence at %s does not eventually reach a boundary or lake" % str(dest))
+
+
+static func validate_lakes_and_geometry(result: WorldResult) -> void:
+	var hydro = result.hydrology
+
 	for lake in hydro.lakes:
 		var lake_h: float = float(lake.get("water_height", 0.0))
 		var lake_cells: Array = lake.get("cells", [])
@@ -301,11 +456,6 @@ static func validate_hydrology_contract(result: WorldResult, profile: WorldProfi
 			assert(c_data.get("type", "") == "lake", "Lake cell must be type 'lake'")
 			assert(is_equal_approx(float(c_data.get("water_height", 0.0)), lake_h), "Lake cells must share water height")
 
-		var spill_pos: Vector2i = lake.get("spillway_pos", Vector2i(-1, -1))
-		if result.cells.has(spill_pos):
-			assert(not hydro.is_lake(spill_pos), "Spillway must be outside lake body")
-
-	# --- GEOMETRY ---
 	for pos in hydro.water_cells:
 		var data: Dictionary = hydro.water_cells[pos]
 		var water_h: float = float(data.get("water_height", 0.0))

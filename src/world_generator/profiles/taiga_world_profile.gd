@@ -2,8 +2,8 @@ class_name TaigaWorldProfile
 extends WorldProfile
 
 func _init() -> void:
-	width = 128
-	height = 128
+	width = 64
+	height = 64
 	cell_size = 1.0
 
 	# Taiga Physical Terrain Scale (Hierarchy: Macro 140m, Medium 45m, Detail 10m)
@@ -73,8 +73,8 @@ func _init() -> void:
 	min_river_length = 12.0
 	max_river_length = 180.0
 	river_max_steps = 250
-	river_min_width = 0.35
-	river_max_width = 1.85
+	river_min_width = 1.35
+	river_max_width = 3.85
 	river_meander_strength = 0.18
 	river_channel_depth = 0.22
 	river_bank_width = 2.4

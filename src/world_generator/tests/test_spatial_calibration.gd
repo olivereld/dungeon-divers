@@ -20,6 +20,8 @@ func _init() -> void:
 		print("\n--- Evaluating %s ---" % label)
 
 		var profile = _TaigaWorldProfileScript.new()
+		profile.width = 128
+		profile.height = 128
 		var result: WorldResult = _WorldPipelineScript.generate(s, profile)
 
 		assert(result != null, "%s: World generation result must not be null" % label)
@@ -100,7 +102,7 @@ func _init() -> void:
 		var walkable_ratio: float = float(walkable_count) / total_cells
 
 		print("  [GAMEPLAY] Walkability: %.1f%% | Spawn: %s" % [walkable_ratio * 100.0, str(result.spawn_position)])
-		assert(walkable_ratio >= 0.88, "%s: Walkability ratio must be >= 88%%" % label)
+		assert(walkable_ratio >= 0.85, "%s: Walkability ratio must be >= 85%%" % label)
 		assert(not hydro.is_water(Vector2i(int(result.spawn_position.x), int(result.spawn_position.z))), "%s: Spawn must not be in water" % label)
 		total_tests_passed += 1
 

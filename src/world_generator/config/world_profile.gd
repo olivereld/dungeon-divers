@@ -3,8 +3,8 @@ extends Resource
 
 # Dimensions & Spatial Scale Contract (1 Godot unit = 1 meter)
 @export_group("Dimensions & Spatial Scale")
-@export var width: int = 128
-@export var height: int = 128
+@export var width: int = 64
+@export var height: int = 64
 @export_range(0.1, 10.0, 0.1) var cell_size: float = 1.0
 
 # Terrain Physical Wavelengths & Amplitudes (meters)

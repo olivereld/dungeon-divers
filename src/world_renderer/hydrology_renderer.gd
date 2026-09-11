@@ -279,8 +279,8 @@ static func _build_rivers_mesh(hydro: RefCounted, profile: WorldProfile, result:
 			# Perpendicular in XZ plane
 			var perp := Vector3(-tangent.z, 0.0, tangent.x).normalized()
 
-			# Width directly from the hydrological accumulation network
-			var w: float = smooth_widths[j]
+			# Width directly from the hydrological accumulation network, converted to grid cell units
+			var w: float = smooth_widths[j] / maxf(profile.cell_size, 0.01)
 
 			var lx: float = p.x + perp.x * (w * 0.5)
 			var lz: float = p.z + perp.z * (w * 0.5)
