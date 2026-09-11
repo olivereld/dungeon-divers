@@ -2,208 +2,553 @@ class_name RiverMeshBuilder
 extends RefCounted
 
 ## Constructor robusto de mallas de agua longitudinales (Quad Strips).
-## Elimina deformaciones, picos de sierra y cortes de terreno:
-## 1. Suavizado gaussiano del centroide para eliminar el efecto "escalera" del D8.
-## 2. Tangentes continuas y perpendiculares con miter limitado.
-## 3. Cota transversal plana (water_y idéntica en izquierda y derecha) para evitar que el terreno perfore la lámina de agua.
-## 4. Winding order y triangulación estricta en cuadriláteros continuos.
+## Topología limpia sin Catmull-Rom:
+## 1. Remuestreo lineal regular por longitud de arco sobre el trazado hidrológico real.
+## 2. Tangentes robustas por segmentos vecinos con miter limitado.
+## 3. Exactamente dos vértices por sección y dos triángulos por segmento.
+## 4. Validación geométrica de triángulos para prevenir degenerados.
 
 const _WaterSurfaceDataScript = preload("res://src/world_generator/presentation/water/water_surface_data.gd")
 const _RiverScript = preload("res://src/world_generator/hydrology/river.gd")
 
-static func build_river_surface(river: Variant, result: WorldResult, profile: WorldProfile) -> RefCounted:
-	var raw_pts: Array = river.points if (river is River or "points" in river) else river.get("points", [])
+static func build_river_surface(
+	river: Variant,
+	result: WorldResult,
+	profile: WorldProfile
+) -> RefCounted:
+	var raw_pts: Array = []
+	var raw_widths: Array = []
+	var raw_depths: Array = []
+
+	if river is River:
+		raw_pts = river.points
+		raw_widths = river.widths
+		raw_depths = river.depths
+	elif river is Dictionary:
+		raw_pts = river.get("points", [])
+		raw_widths = river.get("widths", [])
+		raw_depths = river.get("depths", [])
+	else:
+		return null
+
 	if raw_pts.size() < 2:
 		return null
 
-	var raw_widths: Array = river.widths if (river is River or "widths" in river) else river.get("widths", [])
-	var raw_depths: Array = river.depths if (river is River or "depths" in river) else river.get("depths", [])
-	var hydro = result.hydrology if result != null else null
+	# ------------------------------------------------------------------
+	# 1. Limpiar y remuestrear la línea central.
+	#
+	# NO usamos Catmull-Rom.
+	#
+	# La geometría hidrológica ya contiene el meandro correcto. Aquí
+	# solamente necesitamos una línea suficientemente regular para
+	# construir el ribbon.
+	# ------------------------------------------------------------------
 
-	# 1. Limpieza y suavizado gaussiano del centroide para eliminar saltos angulares de 90° del D8
-	var smooth_data := _smooth_and_resample_centerline(raw_pts, raw_widths, raw_depths, profile)
-	var pts: Array[Vector3] = smooth_data["points"]
-	var widths: Array[float] = smooth_data["widths"]
-	var depths: Array[float] = smooth_data["depths"]
-	var total_pts: int = pts.size()
-	if total_pts < 2:
+	var sampled := _resample_centerline(
+		raw_pts,
+		raw_widths,
+		raw_depths,
+		0.75
+	)
+
+	var pts: Array[Vector3] = sampled["points"]
+	var widths: Array[float] = sampled["widths"]
+	var depths: Array[float] = sampled["depths"]
+
+	if pts.size() < 2:
 		return null
 
 	var surf = _WaterSurfaceDataScript.new()
+
 	var cell_size: float = maxf(profile.cell_size, 0.01)
+	var accumulated_dist: float = 0.0
 
-	var shallow_col: Color = profile.water_color_shallow
-	var river_col: Color = profile.water_color_river
-	var lake_col: Color = profile.water_color_lake
+	# ------------------------------------------------------------------
+	# 2. Construir secciones left/right.
+	#
+	# Cada sección tiene exactamente dos vértices.
+	# ------------------------------------------------------------------
 
-	# 2. Calcular tangentes suavizadas a lo largo del centroide
-	var tangents: Array[Vector3] = []
-	for j in range(total_pts):
-		var t: Vector3
-		if j == 0:
-			t = (pts[1] - pts[0]).normalized()
-		elif j == total_pts - 1:
-			t = (pts[j] - pts[j - 1]).normalized()
+	var left_indices: Array[int] = []
+	var right_indices: Array[int] = []
+
+	left_indices.resize(pts.size())
+	right_indices.resize(pts.size())
+
+	for i in range(pts.size()):
+		var p: Vector3 = pts[i]
+
+		if i > 0:
+			accumulated_dist += pts[i].distance_to(pts[i - 1])
+
+		# --------------------------------------------------------------
+		# Tangente robusta.
+		#
+		# Usamos segmentos vecinos, pero NO una spline.
+		# --------------------------------------------------------------
+
+		var tangent: Vector3
+
+		if i == 0:
+			tangent = pts[1] - pts[0]
+		elif i == pts.size() - 1:
+			tangent = pts[i] - pts[i - 1]
 		else:
-			var v_in: Vector3 = (pts[j] - pts[j - 1]).normalized()
-			var v_out: Vector3 = (pts[j + 1] - pts[j]).normalized()
-			t = (v_in + v_out).normalized()
-			if t.length_squared() < 0.001:
-				t = v_out
-		t.y = 0.0
-		t = t.normalized() if t.length_squared() >= 0.0001 else Vector3(0, 0, 1)
-		tangents.append(t)
+			var prev_dir: Vector3 = (pts[i] - pts[i - 1]).normalized()
+			var next_dir: Vector3 = (pts[i + 1] - pts[i]).normalized()
 
-	# 3. Generar las estaciones izquierda y derecha
-	var left_pts: Array[Vector3] = []
-	var right_pts: Array[Vector3] = []
-	var water_heights: Array[float] = []
+			# Promedio de direcciones.
+			tangent = prev_dir + next_dir
 
-	var prev_water_y: float = 99999.0
+			# Si la curva es extremadamente cerrada, no intentamos
+			# inventar una tangente intermedia.
+			if tangent.length_squared() < 0.0001:
+				tangent = next_dir
 
-	for j in range(total_pts):
-		var p: Vector3 = pts[j]
-		var t: Vector3 = tangents[j]
-		var side := Vector3(-t.z, 0.0, t.x).normalized()
+		tangent.y = 0.0
 
-		# Control de miter en curvas para evitar ensanchamientos o picos bruscos
-		var miter_scale: float = 1.0
-		if j > 0 and j < total_pts - 1:
-			var v_in: Vector3 = (pts[j] - pts[j - 1]).normalized()
-			var v_out: Vector3 = (pts[j + 1] - pts[j]).normalized()
-			var dot: float = clampf(v_in.dot(v_out), -0.5, 1.0)
-			miter_scale = clampf(1.0 / maxf(sqrt((1.0 + dot) * 0.5), 0.707), 1.0, 1.25)
+		if tangent.length_squared() < 0.0001:
+			tangent = Vector3.FORWARD
 
-		var half_w: float = (widths[j] / cell_size) * 0.5 * miter_scale
+		tangent = tangent.normalized()
 
-		var lx: float = p.x + side.x * half_w
-		var lz: float = p.z + side.z * half_w
-		var rx: float = p.x - side.x * half_w
-		var rz: float = p.z - side.z * half_w
+		# --------------------------------------------------------------
+		# Normal lateral.
+		# --------------------------------------------------------------
 
-		# Muestrear el lecho y bordes
-		var ground_c: float = _sample_terrain(result, p.x, p.z)
-		var ground_l: float = _sample_terrain(result, lx, lz)
-		var ground_r: float = _sample_terrain(result, rx, rz)
+		var perp := Vector3(
+			-tangent.z,
+			0.0,
+			tangent.x
+		).normalized()
 
-		# Cota de agua transversalmente PLANA:
-		# Se apoya en la cota del lecho más la profundidad o sobre el terreno local para no quedar nunca enterrada
-		var max_ground: float = maxf(ground_c, maxf(ground_l, ground_r))
-		var base_depth: float = maxf(depths[j], 0.12)
-		var water_y: float = maxf(p.y + 0.03, max_ground + 0.025)
+		# --------------------------------------------------------------
+		# Miter limitado.
+		#
+		# En curvas fuertes, un miter normal puede dispararse a
+		# distancias enormes y cruzar la orilla opuesta.
+		#
+		# Limitamos la longitud.
+		# --------------------------------------------------------------
 
-		# Nivelar con lago si el tramo entra en cuenca lacustre
-		if hydro != null:
-			var grid_pos := Vector2i(clampi(int(round(p.x)), 0, profile.width - 1), clampi(int(round(p.z)), 0, profile.height - 1))
-			if hydro.is_lake(grid_pos):
-				var l_data: Dictionary = hydro.get_cell_data(grid_pos)
-				if l_data.has("water_height"):
-					water_y = maxf(water_y, float(l_data["water_height"]))
+		if i > 0 and i < pts.size() - 1:
+			var prev_dir: Vector3 = (
+				pts[i] - pts[i - 1]
+			).normalized()
 
-		left_pts.append(Vector3(lx, water_y, lz))
-		right_pts.append(Vector3(rx, water_y, rz))
-		water_heights.append(water_y)
+			var next_dir: Vector3 = (
+				pts[i + 1] - pts[i]
+			).normalized()
 
-	# 4. Construir la malla en franjas regulares continuas
-	for j in range(total_pts):
-		var prog: float = float(j) / float(maxi(total_pts - 1, 1))
-		var flow_vec := Vector2(tangents[j].x, tangents[j].z)
+			prev_dir.y = 0.0
+			next_dir.y = 0.0
 
-		var col: Color
-		if prog < 0.35:
-			col = shallow_col.lerp(river_col, prog / 0.35)
-		else:
-			col = river_col.lerp(lake_col, (prog - 0.35) / 0.65)
-		col.a = clampf(0.85 + prog * 0.10, 0.0, 0.98)
+			if (
+				prev_dir.length_squared() > 0.0001
+				and next_dir.length_squared() > 0.0001
+			):
+				var prev_normal := Vector3(
+					-prev_dir.z,
+					0.0,
+					prev_dir.x
+				).normalized()
 
-		var idx_l: int = surf.add_vertex(left_pts[j], Vector3.UP, Vector2(0.0, prog), flow_vec, col)
-		var idx_r: int = surf.add_vertex(right_pts[j], Vector3.UP, Vector2(1.0, prog), flow_vec, col)
+				var next_normal := Vector3(
+					-next_dir.z,
+					0.0,
+					next_dir.x
+				).normalized()
 
-		if j > 0:
-			var prev_l: int = idx_l - 2
-			var prev_r: int = idx_r - 2
+				var miter := prev_normal + next_normal
 
-			# Triángulo 1 (PrevL, PrevR, CurrL)
-			surf.add_triangle(prev_l, prev_r, idx_l)
-			# Triángulo 2 (PrevR, CurrR, CurrL)
-			surf.add_triangle(prev_r, idx_r, idx_l)
+				if miter.length_squared() > 0.0001:
+					miter = miter.normalized()
+
+					var denom: float = absf(
+						miter.dot(next_normal)
+					)
+
+					if denom > 0.15:
+						var miter_scale: float = 1.0 / denom
+
+						# Nunca permitimos un miter superior a 2x
+						# el ancho lateral.
+						miter_scale = minf(
+							miter_scale,
+							2.0
+						)
+
+						perp = miter * miter_scale
+
+		# --------------------------------------------------------------
+		# Ancho.
+		# --------------------------------------------------------------
+
+		var full_width: float = maxf(
+			widths[i] / cell_size,
+			0.20
+		)
+
+		var half_width: float = full_width * 0.5
+
+		# Limitar la magnitud final de la normal.
+		#
+		# Esto evita que una curva extremadamente cerrada genere
+		# vértices que se disparen hacia afuera.
+		if perp.length_squared() > 0.0001:
+			perp = perp.normalized()
+
+		var left_x: float = p.x + perp.x * half_width
+		var left_z: float = p.z + perp.z * half_width
+
+		var right_x: float = p.x - perp.x * half_width
+		var right_z: float = p.z - perp.z * half_width
+
+		# --------------------------------------------------------------
+		# Lecho y profundidad.
+		# --------------------------------------------------------------
+
+		var bed_l: float = _sample_terrain(
+			result,
+			left_x,
+			left_z
+		)
+
+		var bed_r: float = _sample_terrain(
+			result,
+			right_x,
+			right_z
+		)
+
+		# Muestreamos ligeramente hacia afuera del río.
+		var bank_l: float = _sample_terrain(
+			result,
+			left_x + perp.x * 0.5,
+			left_z + perp.z * 0.5
+		)
+
+		var bank_r: float = _sample_terrain(
+			result,
+			right_x - perp.x * 0.5,
+			right_z - perp.z * 0.5
+		)
+
+		var depth: float = maxf(
+			depths[i],
+			0.05
+		)
+
+		var left_y: float = minf(
+			bed_l + depth,
+			bank_l + 0.02
+		)
+
+		var right_y: float = minf(
+			bed_r + depth,
+			bank_r + 0.02
+		)
+
+		# Nunca permitir que el agua quede por debajo del lecho.
+		left_y = maxf(
+			left_y,
+			bed_l + 0.015
+		)
+
+		right_y = maxf(
+			right_y,
+			bed_r + 0.015
+		)
+
+		# --------------------------------------------------------------
+		# Flow.
+		# --------------------------------------------------------------
+
+		var flow_dir := Vector2(
+			tangent.x,
+			tangent.z
+		)
+
+		if flow_dir.length_squared() > 0.0001:
+			flow_dir = flow_dir.normalized()
+
+		var uv_v: float = accumulated_dist
+
+		var left_idx: int = surf.add_vertex(
+			Vector3(left_x, left_y, left_z),
+			Vector3.UP,
+			Vector2(0.0, uv_v),
+			flow_dir,
+			profile.water_color_river
+		)
+
+		var right_idx: int = surf.add_vertex(
+			Vector3(right_x, right_y, right_z),
+			Vector3.UP,
+			Vector2(1.0, uv_v),
+			flow_dir,
+			profile.water_color_river
+		)
+
+		left_indices[i] = left_idx
+		right_indices[i] = right_idx
+
+	# ------------------------------------------------------------------
+	# 3. Construcción del ribbon.
+	#
+	# EXACTAMENTE dos triángulos por segmento.
+	# ------------------------------------------------------------------
+
+	for i in range(pts.size() - 1):
+		var l0: int = left_indices[i]
+		var r0: int = right_indices[i]
+		var l1: int = left_indices[i + 1]
+		var r1: int = right_indices[i + 1]
+
+		# Evitar triángulos degenerados.
+		if _triangle_is_valid(
+			surf.vertices[l0],
+			surf.vertices[r0],
+			surf.vertices[l1]
+		):
+			surf.add_triangle(
+				l0,
+				r0,
+				l1
+			)
+
+		if _triangle_is_valid(
+			surf.vertices[r0],
+			surf.vertices[r1],
+			surf.vertices[l1]
+		):
+			surf.add_triangle(
+				r0,
+				r1,
+				l1
+			)
 
 	return surf
 
-static func build_confluence_patch(_conf: Dictionary, _result: WorldResult, _profile: WorldProfile) -> RefCounted:
-	return null
+static func _resample_centerline(
+	raw_pts: Array,
+	raw_widths: Array,
+	raw_depths: Array,
+	target_spacing: float
+) -> Dictionary:
+	var points: Array[Vector3] = []
+	var widths: Array[float] = []
+	var depths: Array[float] = []
 
-## Suaviza el centroide del río mediante filtrado gaussiano para eliminar saltos en dientes de sierra
-static func _smooth_and_resample_centerline(raw_pts: Array, raw_w: Array, raw_d: Array, profile: WorldProfile) -> Dictionary:
-	var n: int = raw_pts.size()
-	if n < 2:
-		return {"points": raw_pts, "widths": raw_w, "depths": raw_d}
+	if raw_pts.size() < 2:
+		return {
+			"points": points,
+			"widths": widths,
+			"depths": depths
+		}
 
-	# 1. Filtrar puntos duplicados exactos
-	var clean_pts: Array[Vector3] = []
-	var clean_w: Array[float] = []
-	var clean_d: Array[float] = []
+	var spacing: float = maxf(
+		target_spacing,
+		0.25
+	)
 
-	for i in range(n):
-		var p: Vector3 = raw_pts[i] as Vector3
-		var w: float = float(raw_w[i]) if i < raw_w.size() else 1.2
-		var d: float = float(raw_d[i]) if i < raw_d.size() else 0.25
+	# Primer punto.
+	var current_p: Vector3 = raw_pts[0]
 
-		if clean_pts.is_empty():
-			clean_pts.append(p)
-			clean_w.append(w)
-			clean_d.append(d)
-		else:
-			if p.distance_to(clean_pts[-1]) >= 0.02:
-				clean_pts.append(p)
-				clean_w.append(w)
-				clean_d.append(d)
+	points.append(current_p)
+	widths.append(
+		_get_array_value(
+			raw_widths,
+			0,
+			0.8
+		)
+	)
+	depths.append(
+		_get_array_value(
+			raw_depths,
+			0,
+			0.2
+		)
+	)
 
-	var count: int = clean_pts.size()
-	if count < 3:
-		return {"points": clean_pts, "widths": clean_w, "depths": clean_d}
+	var distance_accumulator: float = 0.0
 
-	# 2. Filtrado gaussiano de 3 pasadas sobre (X, Z) manteniendo intactos los extremos (source y outlet)
-	var smoothed_pts := clean_pts.duplicate()
-	for pass_idx in range(3):
-		var temp := smoothed_pts.duplicate()
-		for i in range(1, count - 1):
-			smoothed_pts[i].x = 0.25 * temp[i - 1].x + 0.5 * temp[i].x + 0.25 * temp[i + 1].x
-			smoothed_pts[i].z = 0.25 * temp[i - 1].z + 0.5 * temp[i].z + 0.25 * temp[i + 1].z
+	for i in range(1, raw_pts.size()):
+		var a: Vector3 = raw_pts[i - 1]
+		var b: Vector3 = raw_pts[i]
 
-	# 3. Interpolación Catmull-Rom sobre los puntos ya filtrados con paso uniforme (sub_divs = 2)
-	var final_pts: Array[Vector3] = []
-	var final_w: Array[float] = []
-	var final_d: Array[float] = []
+		var segment: Vector3 = b - a
+		var segment_length: float = segment.length()
 
-	for i in range(count - 1):
-		var p0: Vector3 = smoothed_pts[maxi(i - 1, 0)]
-		var p1: Vector3 = smoothed_pts[i]
-		var p2: Vector3 = smoothed_pts[i + 1]
-		var p3: Vector3 = smoothed_pts[mini(i + 2, count - 1)]
+		if segment_length < 0.0001:
+			continue
 
-		var w1: float = clean_w[i]
-		var w2: float = clean_w[i + 1]
-		var d1: float = clean_d[i]
-		var d2: float = clean_d[i + 1]
+		var local_distance: float = 0.0
 
-		for step in range(2):
-			var t: float = float(step) * 0.5
-			var t2: float = t * t
-			var t3: float = t2 * t
-			var pt: Vector3 = 0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3)
-			var w_val: float = lerpf(w1, w2, t)
-			var d_val: float = lerpf(d1, d2, t)
+		while (
+			distance_accumulator + segment_length - local_distance
+			>= spacing
+		):
+			var remaining: float = (
+				spacing
+				- distance_accumulator
+			)
 
-			final_pts.append(pt)
-			final_w.append(maxf(w_val, 0.4))
-			final_d.append(maxf(d_val, 0.08))
+			local_distance += remaining
 
-	final_pts.append(smoothed_pts[-1])
-	final_w.append(maxf(clean_w[-1], 0.4))
-	final_d.append(maxf(clean_d[-1], 0.08))
+			if local_distance > segment_length:
+				break
 
-	return {"points": final_pts, "widths": final_w, "depths": final_d}
+			var t: float = (
+				local_distance / segment_length
+			)
+
+			var p: Vector3 = a.lerp(
+				b,
+				t
+			)
+
+			var width_a: float = _get_array_value(
+				raw_widths,
+				i - 1,
+				0.8
+			)
+
+			var width_b: float = _get_array_value(
+				raw_widths,
+				i,
+				width_a
+			)
+
+			var depth_a: float = _get_array_value(
+				raw_depths,
+				i - 1,
+				0.2
+			)
+
+			var depth_b: float = _get_array_value(
+				raw_depths,
+				i,
+				depth_a
+			)
+
+			points.append(p)
+			widths.append(
+				lerpf(
+					width_a,
+					width_b,
+					t
+				)
+			)
+			depths.append(
+				lerpf(
+					depth_a,
+					depth_b,
+					t
+				)
+			)
+
+			distance_accumulator = 0.0
+
+		distance_accumulator += (
+			segment_length - local_distance
+		)
+
+	# Último punto siempre incluido.
+	var last_point: Vector3 = raw_pts[-1]
+
+	if (
+		points.is_empty()
+		or points[-1].distance_to(last_point) > 0.05
+	):
+		points.append(last_point)
+
+		var last_index: int = raw_pts.size() - 1
+
+		widths.append(
+			_get_array_value(
+				raw_widths,
+				last_index,
+				0.8
+			)
+		)
+
+		depths.append(
+			_get_array_value(
+				raw_depths,
+				last_index,
+				0.2
+			)
+		)
+
+	return {
+		"points": points,
+		"widths": widths,
+		"depths": depths
+	}
+
+static func _get_array_value(
+	values: Array,
+	index: int,
+	fallback: float
+) -> float:
+	if index < 0 or index >= values.size():
+		return fallback
+
+	return float(values[index])
+
+static func _triangle_is_valid(
+	a: Vector3,
+	b: Vector3,
+	c: Vector3
+) -> bool:
+	var ab: Vector3 = b - a
+	var ac: Vector3 = c - a
+
+	var cross: Vector3 = ab.cross(ac)
+
+	# Área doble.
+	var area_squared: float = cross.length_squared()
+
+	return (
+		is_finite(a.x)
+		and is_finite(a.y)
+		and is_finite(a.z)
+		and is_finite(b.x)
+		and is_finite(b.y)
+		and is_finite(b.z)
+		and is_finite(c.x)
+		and is_finite(c.y)
+		and is_finite(c.z)
+		and area_squared > 0.000001
+	)
+
+static func build_confluence_patch(
+	conf: Dictionary,
+	result: WorldResult,
+	profile: WorldProfile
+) -> RefCounted:
+	var c_pos: Vector2i = conf.get("position", Vector2i(-1, -1))
+	if c_pos == Vector2i(-1, -1):
+		return null
+
+	var surf = _WaterSurfaceDataScript.new()
+	var center_y: float = _sample_terrain(result, float(c_pos.x), float(c_pos.y)) + 0.03
+	var center := Vector3(float(c_pos.x), center_y, float(c_pos.y))
+
+	var radius: float = (profile.river_max_width * 0.75) / maxf(profile.cell_size, 0.01)
+	var num_pts: int = 8
+	var center_idx: int = surf.add_vertex(center, Vector3.UP, Vector2(center.x, center.z), Vector2(0, 1), profile.water_color_river)
+
+	for k in range(num_pts + 1):
+		var angle: float = float(k) * (TAU / float(num_pts))
+		var px: float = center.x + cos(angle) * radius
+		var pz: float = center.z + sin(angle) * radius
+		var py: float = _sample_terrain(result, px, pz) + 0.025
+		surf.add_vertex(Vector3(px, py, pz), Vector3.UP, Vector2(px, pz), Vector2(cos(angle), sin(angle)), profile.water_color_river)
+		if k > 0:
+			surf.add_triangle(center_idx, center_idx + k, center_idx + k + 1)
+
+	return surf
 
 static func _sample_terrain(result: WorldResult, wx: float, wz: float) -> float:
 	if result == null:
