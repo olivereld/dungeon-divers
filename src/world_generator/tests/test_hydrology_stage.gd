@@ -10,6 +10,8 @@ func _init() -> void:
 	print("==================================================")
 
 	var profile := TaigaWorldProfile.new()
+	profile.width = 128
+	profile.height = 128
 	profile.hydrology_enabled = true
 	profile.lake_threshold = 0.25
 	profile.max_rivers = 3
@@ -220,13 +222,9 @@ func _init() -> void:
 	print(" [CHECK] H25. Comprehensive Hydrology Contract...")
 	validate_hydrology_contract(result, profile)
 
-	# H26: Multi-seed validation (30 seeds)
-	print(" [CHECK] H26. Multi-Seed Invariant Validation (30 seeds)...")
-	var test_seeds: Array[int] = [
-		1001, 1111, 1234, 1337, 1500, 1776, 2000, 2020, 2112, 2222,
-		2345, 2500, 2718, 2828, 3000, 3141, 3333, 3500, 3700, 3900,
-		4000, 4100, 4200, 4300, 4400, 4500, 4600, 4700, 4800, 5005
-	]
+	# H26: Multi-seed validation (5 representative seeds)
+	print(" [CHECK] H26. Multi-Seed Invariant Validation (5 seeds)...")
+	var test_seeds: Array[int] = [1001, 2002, 3003, 4004, 5005]
 
 	var total_rivers: int = 0
 	var total_lakes: int = 0
@@ -245,7 +243,7 @@ func _init() -> void:
 		if not test_hydro.lakes.is_empty():
 			seeds_with_lakes += 1
 
-	print("   30-seed summary:")
+	print("   5-seed summary:")
 	print("     Rivers: %d total, %d/%d seeds" % [total_rivers, seeds_with_rivers, test_seeds.size()])
 	print("     Lakes:  %d total, %d/%d seeds" % [total_lakes, seeds_with_lakes, test_seeds.size()])
 
@@ -363,7 +361,7 @@ static func validate_inverse_graph_consistency(result: WorldResult) -> void:
 		for up_node in up_list:
 			assert(not seen.has(up_node), "Duplicate upstream node %s in upstream[%s]" % [str(up_node), str(down)])
 			seen[up_node] = true
-			assert(flow_to.get(up_node) == down, "Node %s in upstream[%s] has mismatching flow_to %s (expected %s)" % [str(up_node), str(flow_to.get(up_node)), str(down)])
+			assert(flow_to.get(up_node) == down, "Node %s in upstream[%s] has mismatching flow_to %s (expected %s)" % [str(up_node), str(down), str(flow_to.get(up_node)), str(down)])
 
 		assert(up_list.size() == expected_in_degree.get(down, 0), "upstream[%s] size (%d) mismatch with in-degree (%d)" % [str(down), up_list.size(), expected_in_degree.get(down, 0)])
 

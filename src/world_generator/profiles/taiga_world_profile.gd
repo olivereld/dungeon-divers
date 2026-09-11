@@ -2,8 +2,8 @@ class_name TaigaWorldProfile
 extends WorldProfile
 
 func _init() -> void:
-	width = 128
-	height = 128
+	width = 64
+	height = 64
 	cell_size = 1.0
 
 	# Taiga Physical Terrain Scale (Hierarchy: Macro 140m, Medium 45m, Detail 10m)

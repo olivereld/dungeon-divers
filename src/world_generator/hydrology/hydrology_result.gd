@@ -34,11 +34,31 @@ var rivers: Array = []
 ##   "spillway_height": float,
 ##   "min_pos": Vector2i,
 ##   "max_pos": Vector2i
-## }
 var lakes: Array = []
 
+## Basin dictionaries (basin_id -> { "id": int, "outlet": Vector2i, "area": int, "cells": Array[Vector2i], "min_elevation": float, "max_elevation": float })
+var basins: Dictionary = {}
+
+## Array of confluence dictionaries:
+## {
+##   "position": Vector2i,
+##   "upstream_rivers": Array[int],
+##   "downstream_river": int
+## }
+var confluences: Array = []
+
+## RiverNetwork dictionary:
+## {
+##   "rivers": Array,
+##   "sources": Array,
+##   "confluences": Array,
+##   "lakes": Array,
+##   "outlets": Array
+## }
+var river_network: Dictionary = {}
+
 ## Debug maps (Vector2i -> float or Vector2) for visual analysis:
-## "noise", "lake_potential", "river_potential", "drainage", "flow_dir"
+## "noise", "lake_potential", "river_potential", "drainage", "flow_dir", "flow_vector", "flow_to", "upstream", "basins"
 var debug_layers: Dictionary = {}
 
 func is_water(pos: Vector2i) -> bool:

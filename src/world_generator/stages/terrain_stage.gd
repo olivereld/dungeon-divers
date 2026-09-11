@@ -74,6 +74,7 @@ func execute(context: WorldGenerationContext) -> void:
 
 			var cell := context.result.get_cell(Vector2i(x, y))
 			cell.height = h
+			cell.raw_height = h
 
 	# 2. Normalization & Slope computation
 	var h_range := maxf(max_h - min_h, 0.001)
