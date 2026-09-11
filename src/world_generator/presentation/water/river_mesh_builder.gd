@@ -550,13 +550,14 @@ static func _get_array_value(
 	return float(values[index])
 
 # ----------------------------------------------------------------------
-# BLOQUE C — Confluencias continuas mediante Junction Strip-Bridge (C1 a C8)
+# BLOQUE C — Confluencias continuas con estaciones longitudinales (C1 a C8)
 # ----------------------------------------------------------------------
 static func build_confluence_surface(
 	conf: Dictionary,
 	result: WorldResult,
 	profile: WorldProfile,
-	network: Variant = null
+	network: Variant = null,
+	longitudinal_steps: int = 3
 ) -> RefCounted:
 	if network == null and result != null and result.hydrology != null:
 		network = result.hydrology.get_river_network()
@@ -587,7 +588,7 @@ static func build_confluence_surface(
 	if up_stations.is_empty():
 		return null
 
-	# BLOQUE C4 & C8: Ordenar los afluentes de izquierda a derecha respecto a downstream
+	# Ordenar los afluentes de izquierda a derecha respecto a downstream
 	var down_angle: float = atan2(down_st.dir.x, down_st.dir.z)
 	up_stations.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var dir_a: Vector3 = -a.dir
@@ -597,70 +598,155 @@ static func build_confluence_surface(
 		return angle_a < angle_b
 	)
 
-	# BLOQUE C5 & C6: Construcción de superficie strip-bridge sin radial fan
 	var surf = _WaterSurfaceDataScript.new()
 	var n_branches: int = up_stations.size()
+	var m_steps: int = maxi(longitudinal_steps, 2) # M estaciones longitudinales
 
-	# Particionar la estación downstream en n_branches segmentos
-	var down_indices: Array[int] = []
-	down_indices.resize(n_branches + 1)
-	var flow_down := Vector2(down_st.dir.x, down_st.dir.z).normalized()
+	# ------------------------------------------------------------------
+	# Matriz de estaciones longitudinales: grid_left[branch][step], grid_right[branch][step]
+	# ------------------------------------------------------------------
+	var grid_left: Array = []   # Array[Array[int]]
+	var grid_right: Array = []  # Array[Array[int]]
+	grid_left.resize(n_branches)
+	grid_right.resize(n_branches)
 
-	for k in range(n_branches + 1):
-		var t: float = float(k) / float(n_branches)
-		var p: Vector3 = down_st.left.lerp(down_st.right, t)
-		var bed: float = _sample_terrain(result, p.x, p.z)
-		var norm_d: Vector3 = down_st.normal
-		var bank: float = _sample_terrain(
-			result,
-			p.x + norm_d.x * (1.0 - 2.0 * t) * 0.5,
-			p.z + norm_d.z * (1.0 - 2.0 * t) * 0.5
-		)
-		p.y = clampf(down_st.water_y, bed + 0.015, bank + 0.02)
-		var uv := Vector2(t, 0.0)
-		down_indices[k] = surf.add_vertex(p, Vector3.UP, uv, flow_down, profile.water_color_river)
-
-	var up_left_indices: Array[int] = []
-	var up_right_indices: Array[int] = []
-	up_left_indices.resize(n_branches)
-	up_right_indices.resize(n_branches)
-
-	# Añadir vértices de entrada para cada afluente
 	for k in range(n_branches):
+		grid_left[k] = []
+		grid_right[k] = []
+		grid_left[k].resize(m_steps + 1)
+		grid_right[k].resize(m_steps + 1)
+
 		var u: Dictionary = up_stations[k]
-		var flow_u := Vector2(u.dir.x, u.dir.z).normalized()
-		up_left_indices[k] = surf.add_vertex(u.left, Vector3.UP, Vector2(0.0, 1.0), flow_u, profile.water_color_river)
-		up_right_indices[k] = surf.add_vertex(u.right, Vector3.UP, Vector2(1.0, 1.0), flow_u, profile.water_color_river)
+		var t_k_down_left: float = float(k) / float(n_branches)
+		var t_k_down_right: float = float(k + 1) / float(n_branches)
 
-		# Triangulación directa de la rama k hacia su porción [D_k, D_{k+1}]
-		var ul: int = up_left_indices[k]
-		var ur: int = up_right_indices[k]
-		var dl: int = down_indices[k]
-		var dr: int = down_indices[k + 1]
+		var target_down_left: Vector3 = down_st.left.lerp(down_st.right, t_k_down_left)
+		var target_down_right: Vector3 = down_st.left.lerp(down_st.right, t_k_down_right)
 
-		if _triangle_is_valid(surf.vertices[ul], surf.vertices[ur], surf.vertices[dl]):
-			surf.add_triangle(ul, ur, dl)
+		for m in range(m_steps + 1):
+			var tm: float = float(m) / float(m_steps)
+			# Interpolación progresiva de posición, dirección y cota
+			var p_l: Vector3 = u.left.lerp(target_down_left, tm)
+			var p_r: Vector3 = u.right.lerp(target_down_right, tm)
 
-		if _triangle_is_valid(surf.vertices[ur], surf.vertices[dr], surf.vertices[dl]):
-			surf.add_triangle(ur, dr, dl)
+			var dir_blend: Vector3 = u.dir.lerp(down_st.dir, tm)
+			if dir_blend.length_squared() < 0.0001:
+				dir_blend = down_st.dir
+			dir_blend.y = 0.0
+			dir_blend = dir_blend.normalized()
+			var flow_vec := Vector2(dir_blend.x, dir_blend.z)
 
-	# Cuñas interiores continuas entre afluentes adyacentes
+			# Alturas interpoladas y clampadas al terreno
+			var bed_l: float = _sample_terrain(result, p_l.x, p_l.z)
+			var bed_r: float = _sample_terrain(result, p_r.x, p_r.z)
+			var norm: Vector3 = Vector3(-dir_blend.z, 0.0, dir_blend.x).normalized()
+			var bank_l: float = _sample_terrain(result, p_l.x + norm.x * 0.5, p_l.z + norm.z * 0.5)
+			var bank_r: float = _sample_terrain(result, p_r.x - norm.x * 0.5, p_r.z - norm.z * 0.5)
+
+			var target_y: float = lerpf(u.water_y, down_st.water_y, tm)
+			p_l.y = clampf(target_y, bed_l + 0.015, bank_l + 0.02)
+			p_r.y = clampf(target_y, bed_r + 0.015, bank_r + 0.02)
+
+			var uv_l := Vector2(0.0, tm)
+			var uv_r := Vector2(1.0, tm)
+
+			var idx_l: int = surf.add_vertex(p_l, Vector3.UP, uv_l, flow_vec, profile.water_color_river)
+			var idx_r: int = surf.add_vertex(p_r, Vector3.UP, uv_r, flow_vec, profile.water_color_river)
+
+			grid_left[k][m] = idx_l
+			grid_right[k][m] = idx_r
+
+	# ------------------------------------------------------------------
+	# Triangulación Longitudinal por Rama (N ramas x M pasos)
+	# ------------------------------------------------------------------
+	for k in range(n_branches):
+		for m in range(m_steps):
+			var l0: int = grid_left[k][m]
+			var r0: int = grid_right[k][m]
+			var l1: int = grid_left[k][m + 1]
+			var r1: int = grid_right[k][m + 1]
+
+			if _triangle_is_valid(surf.vertices[l0], surf.vertices[r0], surf.vertices[l1]):
+				surf.add_triangle(l0, r0, l1)
+			if _triangle_is_valid(surf.vertices[r0], surf.vertices[r1], surf.vertices[l1]):
+				surf.add_triangle(r0, r1, l1)
+
+	# ------------------------------------------------------------------
+	# Cuñas Interiores entre Afluentes Adyacentes (mismo nivel longitudinal)
+	# ------------------------------------------------------------------
 	for k in range(n_branches - 1):
-		var ur_curr: int = up_right_indices[k]
-		var ul_next: int = up_left_indices[k + 1]
-		var d_mid: int = down_indices[k + 1]
+		for m in range(m_steps):
+			var r_curr_0: int = grid_right[k][m]
+			var l_next_0: int = grid_left[k + 1][m]
+			var r_curr_1: int = grid_right[k][m + 1]
+			var l_next_1: int = grid_left[k + 1][m + 1]
 
-		if _triangle_is_valid(surf.vertices[ur_curr], surf.vertices[ul_next], surf.vertices[d_mid]):
-			surf.add_triangle(ur_curr, ul_next, d_mid)
+			# Si en el paso m+1 los puntos coinciden o casi coinciden, usar 1 triángulo
+			var dist_1: float = surf.vertices[r_curr_1].distance_to(surf.vertices[l_next_1])
+			if dist_1 < 0.05:
+				if _triangle_is_valid(surf.vertices[r_curr_0], surf.vertices[l_next_0], surf.vertices[r_curr_1]):
+					surf.add_triangle(r_curr_0, l_next_0, r_curr_1)
+			else:
+				# Quad completo en la horquilla de convergencia
+				if _triangle_is_valid(surf.vertices[r_curr_0], surf.vertices[l_next_0], surf.vertices[r_curr_1]):
+					surf.add_triangle(r_curr_0, l_next_0, r_curr_1)
+				if _triangle_is_valid(surf.vertices[l_next_0], surf.vertices[l_next_1], surf.vertices[r_curr_1]):
+					surf.add_triangle(l_next_0, l_next_1, r_curr_1)
 
 	return surf
+
+static func build_confluence_surface_multistation(
+	conf: Dictionary,
+	result: WorldResult,
+	profile: WorldProfile,
+	network: Variant = null,
+	longitudinal_steps: int = 3
+) -> RefCounted:
+	return build_confluence_surface(conf, result, profile, network, longitudinal_steps)
 
 static func build_confluence_patch(
 	conf: Dictionary,
 	result: WorldResult,
 	profile: WorldProfile
 ) -> RefCounted:
-	return build_confluence_surface(conf, result, profile, null)
+	return build_confluence_surface(conf, result, profile, null, 3)
+
+static func _extract_confluence_boundaries(
+	conf: Dictionary,
+	network: Variant,
+	result: WorldResult,
+	profile: WorldProfile
+) -> Dictionary:
+	var down_id: int = conf.get("downstream_river", -1)
+	var up_ids: Array = conf.get("upstream_rivers", [])
+
+	if down_id == -1 or up_ids.is_empty():
+		return {}
+
+	var down_river = network.get_river(down_id) if network != null else null
+	if down_river == null:
+		return {}
+
+	var cell_size: float = maxf(profile.cell_size, 0.01)
+	var down_st: Dictionary = _get_river_boundary_station(down_river, true, cell_size, result)
+	if down_st.is_empty():
+		return {}
+
+	var up_stations: Array[Dictionary] = []
+	var max_w: float = down_st.width
+	for uid in up_ids:
+		var u_river = network.get_river(uid) if network != null else null
+		if u_river != null:
+			var u_st = _get_river_boundary_station(u_river, false, cell_size, result)
+			if not u_st.is_empty():
+				up_stations.append(u_st)
+				max_w = maxf(max_w, u_st.width)
+
+	return {
+		"upstreams": up_stations,
+		"downstream": down_st,
+		"transition_length": max_w * 1.25
+	}
 
 static func _get_river_boundary_station(
 	river: Variant,
