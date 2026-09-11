@@ -30,13 +30,7 @@ static func build_water_node(result: WorldResult, profile: WorldProfile = null) 
 		if r_surf != null:
 			combined_surf.append_surface(r_surf)
 
-	# 2. Construir parches de confluencia
-	for conf in hydro.confluences:
-		var conf_patch = _RiverMeshBuilderScript.build_confluence_patch(conf, result, profile)
-		if conf_patch != null:
-			combined_surf.append_surface(conf_patch)
-
-	# 3. Construir lagos
+	# 2. Construir lagos
 	for lake in hydro.lakes:
 		var l_surf = _LakeMeshBuilderScript.build_lake_surface(lake, result, profile)
 		if l_surf != null:

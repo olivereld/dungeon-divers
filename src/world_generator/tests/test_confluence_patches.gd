@@ -5,7 +5,7 @@ const _TaigaWorldProfileScript = preload("res://src/world_generator/profiles/tai
 const _WorldPipelineScript = preload("res://src/world_generator/facade/world_pipeline.gd")
 
 func _init() -> void:
-	print("--- Test Confluence Patches ---")
+	print("--- Test Confluence Ribbon Continuity ---")
 	var profile = _TaigaWorldProfileScript.new()
 	profile.width = 128
 	profile.height = 128
@@ -15,11 +15,22 @@ func _init() -> void:
 	assert(result != null and result.hydrology != null)
 
 	var confs: Array = result.hydrology.confluences
+	var network = result.hydrology.get_river_network()
+	var rivers: Array = network.rivers if network != null else result.hydrology.rivers
+
+	var checked_tributary := false
+	for r in rivers:
+		var downstream: int = r.downstream_river if (r is River or "downstream_river" in r) else r.get("downstream_river", -1)
+		if downstream != -1:
+			var surf = _RiverMeshBuilderScript.build_river_surface(r, result, profile)
+			assert(surf != null, "Tributary river ribbon must be generated")
+			assert(surf.vertices.size() >= 4, "Tributary must have quad strip vertices")
+			assert(surf.indices.size() >= 6, "Tributary must have quad strip triangles")
+			checked_tributary = true
+			break
+
 	if not confs.is_empty():
-		var conf = confs[0]
-		var patch = _RiverMeshBuilderScript.build_confluence_patch(conf, result, profile)
-		assert(patch != null, "Confluence patch must be built")
-		assert(patch.vertices.size() >= 3, "Patch must have geometry")
-		assert(patch.indices.size() >= 3, "Patch must have triangles")
-	print("Test Confluence Patches: PASSED")
+		assert(checked_tributary, "At least one tributary confluence was verified")
+
+	print("Test Confluence Ribbon Continuity: PASSED")
 	quit(0)
