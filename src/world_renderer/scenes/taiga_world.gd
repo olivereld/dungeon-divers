@@ -47,6 +47,7 @@ var right_panel: PanelContainer = null
 # TopBar Controls
 var seed_spin: SpinBox = null
 var preset_option: OptionButton = null
+var map_size_option: OptionButton = null
 var auto_gen_btn: Button = null
 var is_auto_gen: bool = true
 var gen_btn: Button = null
@@ -80,7 +81,7 @@ var terrain_overview_grid: GridContainer = null
 var terrain_single_box: VBoxContainer = null
 
 # Hydrology Debug Visualizer Widgets
-enum HydroDebugMode { OFF, NOISE, LAKE_POTENTIAL, RIVER_POTENTIAL, DRAINAGE, FLOW_DIR, DEPTH, BODIES }
+enum HydroDebugMode { OFF, NOISE, LAKE_POTENTIAL, RIVER_POTENTIAL, DRAINAGE, FLOW_DIR, DEPTH, BODIES, RIVER_NETWORK_IDS, STRAHLER_ORDER, ACCUMULATION_HEATMAP }
 var current_hydro_debug_mode: HydroDebugMode = HydroDebugMode.BODIES
 var hydro_debug_option: OptionButton = null
 var hydro_debug_rect: TextureRect = null
@@ -894,6 +895,45 @@ func _build_top_bar() -> void:
 	preset_box.add_child(preset_option)
 	hbox.add_child(preset_box)
 
+	# Map Size Selector
+	var size_box := HBoxContainer.new()
+	size_box.add_theme_constant_override("separation", 6)
+	var size_tag := Label.new()
+	size_tag.text = "Tamaño:"
+	size_tag.add_theme_color_override("font_color", Color("#64748b"))
+	size_tag.add_theme_font_size_override("font_size", 11)
+	size_box.add_child(size_tag)
+
+	map_size_option = OptionButton.new()
+	map_size_option.add_item("32 x 32 (Compacto)", 32)
+	map_size_option.add_item("48 x 48 (Pequeño)", 48)
+	map_size_option.add_item("64 x 64 (Estándar)", 64)
+	map_size_option.add_item("96 x 96 (Medio)", 96)
+	map_size_option.add_item("128 x 128 (Grande)", 128)
+	map_size_option.add_item("160 x 160 (Muy Grande)", 160)
+	map_size_option.add_item("256 x 256 (Épico)", 256)
+
+	var initial_size_idx := 2
+	for i in range(map_size_option.item_count):
+		if map_size_option.get_item_id(i) == profile.width:
+			initial_size_idx = i
+			break
+	map_size_option.select(initial_size_idx)
+
+	map_size_option.item_selected.connect(func(idx: int):
+		var size_val: int = map_size_option.get_item_id(idx)
+		profile.width = size_val
+		profile.height = size_val
+		if _sliders.has("width"):
+			_update_slider_visual("width", float(size_val))
+		if _sliders.has("height"):
+			_update_slider_visual("height", float(size_val))
+		if is_auto_gen:
+			generate_world(true)
+	)
+	size_box.add_child(map_size_option)
+	hbox.add_child(size_box)
+
 	# Auto-Gen Button
 	auto_gen_btn = Button.new()
 	auto_gen_btn.text = "◉ Auto-Gen" if is_auto_gen else "○ Auto-Gen"
@@ -1017,6 +1057,8 @@ func _build_left_panel() -> void:
 
 	# 5. ESCALA DEL MUNDO (1 Godot unit = 1 metro)
 	_add_left_section(vbox, "ESCALA DEL MUNDO", "⛶", Color("#38bdf8"))
+	_add_slider(vbox, "width", "Ancho del Mapa (celdas)", float(profile.width), 32.0, 256.0, 8.0, Color("#38bdf8"))
+	_add_slider(vbox, "height", "Largo del Mapa (celdas)", float(profile.height), 32.0, 256.0, 8.0, Color("#38bdf8"))
 	_add_slider(vbox, "cell_size", "Escala del Mundo (m/celda)", profile.cell_size, 0.5, 3.0, 0.1, Color("#38bdf8"))
 
 	# 6. HIDROLOGÍA & CUENCAS
@@ -1077,7 +1119,12 @@ func _add_slider(parent: Control, prop_name: String, label_text: String, default
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.value_changed.connect(func(new_val: float):
 		val_lbl.text = "%.3f" % new_val if step < 0.01 else ("%.2f" % new_val if step < 1.0 else "%d" % int(new_val))
-		profile.set(prop_name, new_val)
+		if prop_name == "width" or prop_name == "height":
+			profile.set(prop_name, int(new_val))
+			_sync_map_size_option()
+		else:
+			profile.set(prop_name, new_val)
+
 		if prop_name == "macro_wavelength":
 			profile.macro_frequency = 1.0 / maxf(new_val, 1.0)
 		elif prop_name == "macro_amplitude":
@@ -1102,7 +1149,8 @@ func _add_slider(parent: Control, prop_name: String, label_text: String, default
 			profile.hydrology_noise_frequency = 1.0 / maxf(new_val, 1.0)
 
 		if is_auto_gen:
-			generate_world(false)
+			var reset_cam: bool = (prop_name == "width" or prop_name == "height")
+			generate_world(reset_cam)
 	)
 	box.add_child(slider)
 	parent.add_child(box)
@@ -1753,6 +1801,9 @@ func _build_hydrology_tab(parent: Control) -> void:
 	hydro_debug_option.add_item("[Dirección] Vectores de Flujo", HydroDebugMode.FLOW_DIR)
 	hydro_debug_option.add_item("[Profundidad] Niveles de Agua", HydroDebugMode.DEPTH)
 	hydro_debug_option.add_item("[Cuerpos] Lagos y Ríos Registrados", HydroDebugMode.BODIES)
+	hydro_debug_option.add_item("[Ríos] IDs de Red Hidrográfica", HydroDebugMode.RIVER_NETWORK_IDS)
+	hydro_debug_option.add_item("[Strahler] Orden de Ríos (R1, R2, R3+)", HydroDebugMode.STRAHLER_ORDER)
+	hydro_debug_option.add_item("[Calor] Mapa de Acumulación de Flujo", HydroDebugMode.ACCUMULATION_HEATMAP)
 	hydro_debug_option.select(HydroDebugMode.BODIES)
 	hydro_debug_option.item_selected.connect(func(idx: int):
 		current_hydro_debug_mode = idx as HydroDebugMode
@@ -1822,6 +1873,19 @@ func _update_hydrology_debug_view() -> void:
 		if d > max_depth:
 			max_depth = d
 
+	var cell_to_river: Dictionary = {}
+	var network = hydro.get_river_network()
+	var rivers_list: Array = []
+	if network is RiverNetwork and not network.rivers.is_empty():
+		rivers_list = network.rivers
+	else:
+		rivers_list = hydro.rivers
+
+	for r in rivers_list:
+		var r_path: Array = r.path if (r is River or "path" in r) else r.get("cells", [])
+		for p in r_path:
+			cell_to_river[p] = r
+
 	for y in range(h):
 		for x in range(w):
 			var pos := Vector2i(x, y)
@@ -1866,6 +1930,54 @@ func _update_hydrology_debug_view() -> void:
 					else:
 						var nh: float = cell.normalized_height if cell != null else 0.5
 						col = Color(nh * 0.25 + 0.05, nh * 0.28 + 0.08, nh * 0.20 + 0.05, 1.0)
+				HydroDebugMode.RIVER_NETWORK_IDS:
+					if cell_to_river.has(pos):
+						var r = cell_to_river[pos]
+						var r_id: int = r.id if (r is River or "id" in r) else r.get("index", 0)
+						var r_source: Vector2i = r.source if (r is River or "source" in r) else (r.get("path", [Vector2i(-1,-1)])[0] if r.get("path", []).size() > 0 else Vector2i(-1,-1))
+						var r_outlet: Vector2i = r.outlet if (r is River or "outlet" in r) else (r.get("path", [Vector2i(-1,-1)])[-1] if r.get("path", []).size() > 0 else Vector2i(-1,-1))
+						if pos == r_source:
+							col = Color(1.0, 1.0, 1.0, 1.0)  # Fuente blanca brillante
+						elif pos == r_outlet:
+							col = Color(1.0, 0.9, 0.2, 1.0)  # Salida / confluencia amarilla
+						else:
+							var hue: float = fmod(float(r_id + 1) * 0.381966, 1.0)
+							col = Color.from_hsv(hue, 0.85, 0.95)
+					elif hydro.is_lake(pos):
+						col = Color(0.10, 0.25, 0.50, 1.0)
+					else:
+						var nh: float = cell.normalized_height if cell != null else 0.5
+						col = Color(nh * 0.15 + 0.03, nh * 0.18 + 0.04, nh * 0.14 + 0.03, 1.0)
+				HydroDebugMode.STRAHLER_ORDER:
+					if cell_to_river.has(pos):
+						var r = cell_to_river[pos]
+						var r_order: int = r.order if (r is River or "order" in r) else r.get("order", 1)
+						match r_order:
+							1: col = Color("#38bdf8")  # R1: Azul cielo / cabeceras
+							2: col = Color("#2563eb")  # R2: Azul medio / tributarios
+							3: col = Color("#8b5cf6")  # R3: Violeta / cauce mayor
+							_: col = Color("#ec4899")  # R4+: Rosa intenso / tronco principal
+					elif hydro.is_lake(pos):
+						col = Color("#0f172a")
+					else:
+						var nh: float = cell.normalized_height if cell != null else 0.5
+						col = Color(nh * 0.12 + 0.03, nh * 0.14 + 0.04, nh * 0.12 + 0.03, 1.0)
+				HydroDebugMode.ACCUMULATION_HEATMAP:
+					var acc: float = float(hydro.get_debug_value("drainage", pos, 0.0))
+					if acc > 0.0:
+						var t: float = clampf(log(acc + 1.0) / log(250.0), 0.0, 1.0)
+						if t < 0.25:
+							col = Color(0.0, t * 4.0, 1.0)
+						elif t < 0.5:
+							col = Color(0.0, 1.0, 1.0 - (t - 0.25) * 4.0)
+						elif t < 0.75:
+							col = Color((t - 0.5) * 4.0, 1.0, 0.0)
+						else:
+							col = Color(1.0, 1.0 - (t - 0.75) * 4.0, 0.0)
+					elif hydro.is_lake(pos):
+						col = Color(0.05, 0.15, 0.35, 1.0)
+					else:
+						col = Color(0.04, 0.05, 0.07, 1.0)
 
 			img.set_pixel(x, y, col)
 
@@ -1890,6 +2002,12 @@ func _update_hydrology_debug_view() -> void:
 				hydro_debug_legend.text = "Profundidad vertical de columna de agua (m)."
 			HydroDebugMode.BODIES:
 				hydro_debug_legend.text = "Cuerpos de agua clasificados: Lagos (azul) y Ríos (cian)."
+			HydroDebugMode.RIVER_NETWORK_IDS:
+				hydro_debug_legend.text = "Red Hidrográfica por IDs únicos. Blanco: fuentes. Amarillo: salidas/confluencias."
+			HydroDebugMode.STRAHLER_ORDER:
+				hydro_debug_legend.text = "Orden de Strahler: R1 Celeste (cabeceras), R2 Azul (tributarios), R3+ Violeta (cauce principal)."
+			HydroDebugMode.ACCUMULATION_HEATMAP:
+				hydro_debug_legend.text = "Mapa de calor de drenaje acumulado logarítmico (Azul → Cian → Verde → Amarillo → Rojo)."
 
 	# Update telemetry readouts
 	if hydro_stat_lakes_lbl != null:
@@ -1955,7 +2073,20 @@ func _read_ui_to_profile() -> void:
 	for prop_name in _sliders.keys():
 		var entry: Dictionary = _sliders[prop_name]
 		var sl: HSlider = entry["slider"]
-		profile.set(prop_name, sl.value)
+		if prop_name == "width" or prop_name == "height":
+			profile.set(prop_name, int(sl.value))
+		else:
+			profile.set(prop_name, sl.value)
+
+func _sync_map_size_option() -> void:
+	if map_size_option == null:
+		return
+	if profile.width == profile.height:
+		for i in range(map_size_option.item_count):
+			if map_size_option.get_item_id(i) == profile.width:
+				map_size_option.select(i)
+				return
+	map_size_option.select(-1)
 
 func _on_preset_selected(index: int) -> void:
 	if not PRESETS.has(index):

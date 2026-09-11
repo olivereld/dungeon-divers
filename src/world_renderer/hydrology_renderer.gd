@@ -29,15 +29,10 @@ static func build_hydrology_node(result: WorldResult, profile: WorldProfile = nu
 			lake_mi.set_surface_override_material(0, mat)
 			hydro_root.add_child(lake_mi)
 
-	# 2. Build Rivers Mesh
-	if not hydro.rivers.is_empty():
-		var river_mesh := _build_rivers_mesh(hydro, profile, result)
-		if river_mesh != null and river_mesh.get_surface_count() > 0:
-			var river_mi := MeshInstance3D.new()
-			river_mi.name = "RiversMesh"
-			river_mi.mesh = river_mesh
-			river_mi.set_surface_override_material(0, mat)
-			hydro_root.add_child(river_mi)
+	# 2. Build Rivers & Banks Mesh
+	var river_node := RiverRenderer.build_river_node(result, profile)
+	if river_node != null:
+		hydro_root.add_child(river_node)
 
 	return hydro_root
 

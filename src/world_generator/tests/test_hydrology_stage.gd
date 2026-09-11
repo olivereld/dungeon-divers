@@ -5,6 +5,7 @@ const _HydrologyRendererScript = preload("res://src/world_renderer/hydrology_ren
 const _TerrainColorResolverScript = preload("res://src/world_generator/presentation/terrain_color_resolver.gd")
 const _WatershedIntegrityCheckerScript = preload("res://src/world_generator/diagnostics/watershed_integrity_checker.gd")
 const _OutletValidatorScript = preload("res://src/world_generator/diagnostics/outlet_validator.gd")
+const _HydrologyValidationScript = preload("res://src/world_generator/validation/hydrology_validation.gd")
 
 func _init() -> void:
 	print("==================================================")
@@ -106,6 +107,12 @@ func _init() -> void:
 		var last_quarter: float = float(widths[3 * widths.size() / 4])
 		if widths.size() > 10:
 			assert(last_quarter >= first_quarter * 0.8, "H17: River width should generally increase downstream")
+
+	# H18: Formal Structural & Topological Hydrology Validation
+	print(" [CHECK] H18. Formal Structural & Topological Hydrology Validation...")
+	var val_report: Dictionary = _HydrologyValidationScript.validate(result, profile)
+	assert(val_report["valid"], "H18: HydrologyValidation failed: %s" % str(val_report["errors"]))
+	print("   HydrologyValidation passed: %d rivers, max Strahler order %d" % [val_report["metrics"]["river_count"], val_report["metrics"]["max_strahler_order"]])
 
 	# H20: Water elevation invariant
 	print(" [CHECK] H20. Water Elevation >= Terrain Elevation...")
