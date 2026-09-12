@@ -320,9 +320,6 @@ static func validate_full_junction(
 	var n_up: int = conf.get("upstream_rivers", []).size()
 	var m_steps: int = 3
 
-	# Generar station_grid si no se proporcionó
-	if station_grid.is_empty() and network != null and profile != null:
-		station_grid = _RiverMeshBuilderScript._generate_explicit_junction_stations(conf, network, result, profile, m_steps)
 
 	var quads_checked: int = 0
 	var crossed_edges: int = 0

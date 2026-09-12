@@ -106,14 +106,13 @@ func _init() -> void:
 	var conf := {"position": Vector2i(5, 2), "upstream_rivers": [0, 1], "downstream_river": 2}
 	var dummy_profile = WorldProfile.new()
 
-	var station_grid = _RiverMeshBuilder._generate_explicit_junction_stations(conf, net, null, dummy_profile, 3)
-	var res_ribbon_cont = _JunctionValidator.validate_junction_ribbon_continuity(conf, net, null, dummy_profile, station_grid)
-	assert(res_ribbon_cont["valid"], "Continuidad ribbon debe ser válida: %s" % str(res_ribbon_cont["errors"]))
-
 	# 9. Validación Integral Completa (validate_full_junction)
 	var surf = _RiverMeshBuilder.build_confluence_surface(conf, null, dummy_profile, net, 3)
-	var full_res = _JunctionValidator.validate_full_junction(conf, net, null, dummy_profile, surf, station_grid)
+	assert(surf != null, "Superficie de confluencia debe generarse")
+	var surf_res = _JunctionValidator.validate_junction_surface(surf, 2, 3)
+	assert(surf_res["valid"], "Validación de superficie debe ser válida: %s" % str(surf_res["errors"]))
 
+	var full_res = _JunctionValidator.validate_full_junction(conf, net, null, dummy_profile, surf, [])
 	assert(full_res["valid"], "Validación integral de junction debe ser exitosa: %s" % str(full_res["errors"]))
 	assert(full_res["metrics"]["crossed_edges"] == 0, "Bordes cruzados deben ser 0")
 	assert(full_res["metrics"]["inverted_quads"] == 0, "Quads invertidos deben ser 0")

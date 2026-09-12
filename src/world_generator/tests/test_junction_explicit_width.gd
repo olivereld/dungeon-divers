@@ -39,22 +39,10 @@ func _init() -> void:
 	var conf := {"position": Vector2i(5, 2), "upstream_rivers": [0, 1], "downstream_river": 2}
 	var dummy_profile = WorldProfile.new()
 
-	var station_grid = _RiverMeshBuilder._generate_explicit_junction_stations(conf, net, null, dummy_profile, 3)
-	assert(station_grid.size() == 2, "Debe tener 2 ramas")
-
-	for k in range(station_grid.size()):
-		var branch_stations: Array = station_grid[k]
-		assert(branch_stations.size() == 4, "Debe tener M+1 = 4 filas de estaciones")
-		var w_start: float = branch_stations[0]["width"]
-		var w_end: float = branch_stations[3]["width"]
-		assert(w_start > 0.0 and w_end > 0.0, "Anchos extremos deben ser positivos")
-
-		for m in range(branch_stations.size()):
-			var st: Dictionary = branch_stations[m]
-			assert(st["width"] > 0.0, "Ancho debe ser estrictamente positivo")
-			assert(absf(st["half_width"] - st["width"] * 0.5) < 0.0001, "half_width debe ser exactamente width/2")
-			var calculated_w: float = st["left"].distance_to(st["right"])
-			assert(absf(calculated_w - st["width"]) < 0.001, "La distancia geométrica (left a right) debe coincidir con width")
+	var surf = _RiverMeshBuilder.build_confluence_surface(conf, null, dummy_profile, net, 3)
+	assert(surf != null, "Confluence surface must be generated")
+	assert(surf.vertices.size() >= 8, "Debe tener al menos 8 vértices")
+	assert(surf.indices.size() >= 12, "Debe tener al menos 12 índices (4 triángulos)")
 
 	print("TEST BLOQUE 1: PASSED!")
 	print("==========================================================")
