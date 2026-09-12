@@ -704,7 +704,7 @@ static func build_confluence_surface(
 				var cand_r: Vector3 = center - norm * half_w
 				var prev_l: Vector3 = raw_l[k][m - 1]
 				var prev_r: Vector3 = raw_r[k][m - 1]
-				if _junction_quad_is_valid(prev_l, prev_r, cand_l, cand_r):
+				if _quad_is_valid(prev_l, prev_r, cand_l, cand_r):
 					p_l = cand_l
 					p_r = cand_r
 				else:
@@ -780,16 +780,14 @@ static func build_confluence_surface(
 			var l1: int = grid_left[k][m + 1]
 			var r1: int = grid_right[k][m + 1]
 
-			var v_l0: Vector3 = surf.vertices[l0]
-			var v_r0: Vector3 = surf.vertices[r0]
-			var v_l1: Vector3 = surf.vertices[l1]
-			var v_r1: Vector3 = surf.vertices[r1]
+			var q_l0: Vector3 = surf.vertices[l0]
+			var q_r0: Vector3 = surf.vertices[r0]
+			var q_l1: Vector3 = surf.vertices[l1]
+			var q_r1: Vector3 = surf.vertices[r1]
 
-			if _junction_quad_is_valid(v_l0, v_r0, v_l1, v_r1):
+			if _quad_is_valid(q_l0, q_r0, q_l1, q_r1):
 				surf.add_triangle(l0, r0, l1)
 				surf.add_triangle(r0, r1, l1)
-			else:
-				push_warning("RiverMeshBuilder: Junction quad rejected by validator at branch %d, step %d" % [k, m])
 
 	# ------------------------------------------------------------------
 	# 5. Cuñas Interiores entre Afluentes Adyacentes (topológicamente limpias)
@@ -817,57 +815,16 @@ static func build_confluence_surface(
 						surf.add_triangle(l_next_0, r_curr_0, r_curr_1)
 			else:
 				# Cuña trapezoidal completa entre afluentes separados
-				if r_curr_0 != l_next_0 and _junction_quad_is_valid(v_l0, v_r0, v_l1, v_r1):
-					surf.add_triangle(l_next_0, r_curr_0, l_next_1)
-					surf.add_triangle(r_curr_0, r_curr_1, l_next_1)
-				else:
-					push_warning("RiverMeshBuilder: Junction crook quad rejected by validator between branches %d and %d, step %d" % [k, k + 1, m])
+				var q_l0: Vector3 = v_r0
+				var q_r0: Vector3 = v_l0
+				var q_l1: Vector3 = v_r1
+				var q_r1: Vector3 = v_l1
+
+				if r_curr_0 != l_next_0 and _quad_is_valid(q_l0, q_r0, q_l1, q_r1):
+					surf.add_triangle(r_curr_0, l_next_0, r_curr_1)
+					surf.add_triangle(l_next_0, l_next_1, r_curr_1)
 
 	return surf
-
-static func _junction_quad_is_valid(l0: Vector3, r0: Vector3, l1: Vector3, r1: Vector3) -> bool:
-	# 1. Base quad
-	if not _quad_is_valid(l0, r0, l1, r1):
-		# print("REJECT: base_quad_invalid")
-		return false
-
-	# 2. Inversión
-	var signed_area_1: float = (r0.x - l0.x) * (l1.z - l0.z) - (r0.z - l0.z) * (l1.x - l0.x)
-	var signed_area_2: float = (r1.x - r0.x) * (l1.z - r0.z) - (r1.z - r0.z) * (l1.x - r0.x)
-	var cross_a: Vector3 = (r0 - l0).cross(l1 - l0)
-	var cross_b: Vector3 = (r1 - r0).cross(l1 - r0)
-	if cross_a.dot(cross_b) <= 0.00001 or (signed_area_1 * signed_area_2) <= 0.00001:
-		return false
-
-	# 3. Continuidad
-	var y0: float = (l0.y + r0.y) * 0.5
-	var y1: float = (l1.y + r1.y) * 0.5
-	if absf(y1 - y0) > 1.5:
-		return false
-
-	# 4. Ancho
-	var w0: float = l0.distance_to(r0)
-	var w1: float = l1.distance_to(r1)
-	if w0 < 0.05 or w1 < 0.05:
-		return false
-	var ratio: float = w1 / w0
-	if ratio < 0.25 or ratio > 4.0:
-		return false
-
-	# 5. Desplazamiento
-	var mid0 := Vector2(l0.x + r0.x, l0.z + r0.z) * 0.5
-	var mid1 := Vector2(l1.x + r1.x, l1.z + r1.z) * 0.5
-	var step_dist: float = mid0.distance_to(mid1)
-	if step_dist < 0.001 or step_dist > 10.0:
-		return false
-
-	var disp := mid1 - mid0
-	var lateral0 := Vector2(r0.x - l0.x, r0.z - l0.z)
-	var fwd0 := Vector2(-lateral0.y, lateral0.x)
-	if fwd0.dot(disp) <= 0.0:
-		return false
-
-	return true
 
 static func build_confluence_patch(
 	conf: Dictionary,
@@ -969,7 +926,7 @@ static func _generate_explicit_junction_stations(
 				var cand_r: Vector3 = center - norm * half_w
 				var prev_l: Vector3 = grid[k][m - 1]["left"]
 				var prev_r: Vector3 = grid[k][m - 1]["right"]
-				if _junction_quad_is_valid(prev_l, prev_r, cand_l, cand_r):
+				if _quad_is_valid(prev_l, prev_r, cand_l, cand_r):
 					p_l = cand_l
 					p_r = cand_r
 				else:
