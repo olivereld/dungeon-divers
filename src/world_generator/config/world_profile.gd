@@ -51,6 +51,7 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var shrub_density: float = 0.40
 @export_range(0.0, 1.0, 0.01) var rock_density: float = 0.15
 @export_range(0.5, 10.0, 0.1) var min_tree_spacing: float = 2.2
+@export_range(0.0, 5.0, 0.25) var vegetation_bank_clearance: float = 1.5
 
 # Navigation
 @export_group("Navigation")
@@ -129,6 +130,7 @@ func get_hydrology_noise_frequency() -> float:
 @export_group("Hydrology - Lakes")
 @export_range(0.05, 0.60, 0.01) var lake_threshold: float = 0.22
 @export_range(1, 50, 1) var lake_minimum_area: int = 4
+@export_range(0.0, 12.0, 0.5) var lake_merge_distance: float = 4.0
 
 # Hydrology - Rivers
 @export_group("Hydrology - Rivers")
@@ -149,9 +151,9 @@ func get_hydrology_noise_frequency() -> float:
 
 # Hydrology - River Geometry (Post-Geometry)
 @export_group("Hydrology - River Geometry")
-@export_range(64, 512, 16) var water_field_resolution: int = 128
-@export_range(0.01, 0.50, 0.01) var contour_simplification_tolerance: float = 0.08
-@export_range(0.01, 0.30, 0.01) var minimum_contour_edge: float = 0.05
+@export_range(64, 512, 16) var water_field_resolution: int = 224
+@export_range(0.01, 0.50, 0.01) var contour_simplification_tolerance: float = 0.05
+@export_range(0.01, 0.30, 0.01) var minimum_contour_edge: float = 0.03
 @export_range(0.01, 2.0, 0.05) var minimum_polygon_area: float = 0.20
 
 # Hydrology - Noise Field (Channel Preference & Meanders)

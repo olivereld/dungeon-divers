@@ -46,6 +46,7 @@ func _init() -> void:
 	shrub_density = 0.45
 	rock_density = 0.20
 	min_tree_spacing = 2.0
+	vegetation_bank_clearance = 1.5
 	max_walkable_slope = 35.0
 
 	# Pure Boreal Land Palette (Zero Blue in Terrain Mesh)
@@ -67,6 +68,7 @@ func _init() -> void:
 	hydrology_enabled = true
 	lake_threshold = 0.22
 	lake_minimum_area = 4
+	lake_merge_distance = 4.0
 	max_rivers = 3
 	river_source_min_height = 0.65
 	river_source_min_slope = 4.0
@@ -81,9 +83,9 @@ func _init() -> void:
 	river_max_depth = 0.45
 	river_depth_response = 0.45
 	river_width_response = 0.42
-	water_field_resolution = 128
-	contour_simplification_tolerance = 0.08
-	minimum_contour_edge = 0.05
+	water_field_resolution = 224
+	contour_simplification_tolerance = 0.05
+	minimum_contour_edge = 0.03
 	minimum_polygon_area = 0.20
 	hydrology_noise_enabled = true
 	hydrology_noise_wavelength = 80.0

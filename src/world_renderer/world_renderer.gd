@@ -4,7 +4,7 @@ extends Node3D
 const _TerrainMaterialScript = preload("res://src/world_generator/presentation/terrain_material.gd")
 const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
 
-func render_world(result: WorldResult, profile_or_cell_size: Variant = 1.0) -> Node3D:
+func render_world(result: WorldResult, profile_or_cell_size: Variant = 1.0, show_water_wireframe: bool = false) -> Node3D:
 	var profile: WorldProfile = null
 	var cell_size: float = 1.0
 
@@ -35,7 +35,7 @@ func render_world(result: WorldResult, profile_or_cell_size: Variant = 1.0) -> N
 
 	# 2. Water Surface Mesh (Unified Rivers & Lakes Presentation)
 	if result.hydrology != null:
-		var water_node: Node3D = _WaterRendererScript.build_water_node(result, profile)
+		var water_node: Node3D = _WaterRendererScript.build_water_node(result, profile, show_water_wireframe)
 		if water_node != null:
 			root.add_child(water_node)
 

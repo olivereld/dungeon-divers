@@ -26,6 +26,8 @@ var profile: TaigaWorldProfile = null
 var test_player: CharacterBody3D = null
 var is_player_active: bool = true
 var player_toggle_btn: Button = null
+var is_water_wireframe_active: bool = false
+var water_wireframe_btn: Button = null
 
 # Camera & Navigation
 var camera_rig: IsometricCameraRig = null
@@ -392,6 +394,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			camera_rig.yaw_degrees += 45.0
 		elif ke.keycode == KEY_P:
 			_toggle_player()
+		elif ke.keycode == KEY_M:
+			_toggle_water_wireframe()
 		elif ke.keycode == KEY_F11:
 			_toggle_fullscreen()
 		elif ke.keycode == KEY_TAB or ke.keycode == KEY_H:
@@ -421,7 +425,7 @@ func generate_world(reset_camera: bool = false) -> void:
 	current_result = _WorldPipelineScript.generate(world_seed, profile)
 
 	var renderer := _WorldRendererScript.new()
-	current_world_node = renderer.render_world(current_result, profile)
+	current_world_node = renderer.render_world(current_result, profile, is_water_wireframe_active)
 	world_container.add_child(current_world_node)
 	renderer.queue_free()
 
@@ -970,6 +974,14 @@ func _build_top_bar() -> void:
 	player_toggle_btn.pressed.connect(_toggle_player)
 	hbox.add_child(player_toggle_btn)
 
+	# Water Wireframe Toggle Button (Ríos y Lagos)
+	water_wireframe_btn = Button.new()
+	water_wireframe_btn.text = "🌐 Malla Agua: OFF"
+	water_wireframe_btn.add_theme_font_size_override("font_size", 11)
+	_update_water_wireframe_button_style()
+	water_wireframe_btn.pressed.connect(_toggle_water_wireframe)
+	hbox.add_child(water_wireframe_btn)
+
 	# Generate Button
 	gen_btn = Button.new()
 	gen_btn.text = "⚡ GENERAR MUNDO"
@@ -1000,6 +1012,27 @@ func _update_auto_gen_button_style() -> void:
 	else:
 		auto_gen_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
 		auto_gen_btn.add_theme_color_override("font_color", Color("#64748b"))
+
+func _update_water_wireframe_button_style() -> void:
+	if water_wireframe_btn == null:
+		return
+	if is_water_wireframe_active:
+		water_wireframe_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.06, 0.72, 0.83, 0.22), Color("#06b6d4"), 4, 1))
+		water_wireframe_btn.add_theme_color_override("font_color", Color("#22d3ee"))
+		water_wireframe_btn.text = "🌐 Malla Agua: ON"
+	else:
+		water_wireframe_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
+		water_wireframe_btn.add_theme_color_override("font_color", Color("#94a3b8"))
+		water_wireframe_btn.text = "🌐 Malla Agua: OFF"
+
+func _toggle_water_wireframe() -> void:
+	is_water_wireframe_active = not is_water_wireframe_active
+	_update_water_wireframe_button_style()
+
+	if world_container != null:
+		var wire_node = world_container.find_child("WaterWireframeOverlay", true, false)
+		if wire_node != null:
+			wire_node.visible = is_water_wireframe_active
 
 func _build_left_panel() -> void:
 	left_panel = PanelContainer.new()
@@ -1061,6 +1094,7 @@ func _build_left_panel() -> void:
 	_add_slider(vbox, "min_tree_spacing", "Espaciado Mínimo", profile.min_tree_spacing, 0.5, 8.0, 0.1, Color("#14b8a6"))
 	_add_slider(vbox, "shrub_density", "Densidad Arbustos", profile.shrub_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
 	_add_slider(vbox, "rock_density", "Densidad Rocas", profile.rock_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
+	_add_slider(vbox, "vegetation_bank_clearance", "Margen Orilla (m)", profile.vegetation_bank_clearance, 0.0, 5.0, 0.25, Color("#14b8a6"))
 
 	# 5. ESCALA DEL MUNDO (1 Godot unit = 1 metro)
 	_add_left_section(vbox, "ESCALA DEL MUNDO", "⛶", Color("#38bdf8"))
@@ -1072,6 +1106,7 @@ func _build_left_panel() -> void:
 	_add_left_section(vbox, "HIDROLOGÍA & CUENCAS", "💧", Color("#38bdf8"))
 	_add_slider(vbox, "lake_threshold", "Umbral Lagos", profile.lake_threshold, 0.05, 0.50, 0.01, Color("#38bdf8"))
 	_add_slider(vbox, "lake_minimum_area", "Área Mín. Lagos", float(profile.lake_minimum_area), 1.0, 20.0, 1.0, Color("#38bdf8"))
+	_add_slider(vbox, "lake_merge_distance", "Dist. Unión Lagos", profile.lake_merge_distance, 0.0, 10.0, 0.5, Color("#38bdf8"))
 	_add_slider(vbox, "max_rivers", "Cant. Ríos", float(profile.max_rivers), 0.0, 8.0, 1.0, Color("#38bdf8"))
 	_add_slider(vbox, "river_source_min_height", "Altura Cabecera", profile.river_source_min_height, 0.3, 0.95, 0.05, Color("#38bdf8"))
 	_add_slider(vbox, "river_meander_strength", "Meandros / Jitter", profile.river_meander_strength, 0.0, 0.5, 0.02, Color("#38bdf8"))

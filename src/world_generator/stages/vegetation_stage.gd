@@ -21,10 +21,13 @@ func execute(context: WorldGenerationContext) -> void:
 			if x <= 0 or x >= profile.width - 1 or y <= 0 or y >= profile.height - 1:
 				continue
 
-			# Skip submerged cells (lakes and rivers)
+			# 1. Filtro rápido de autoridad hidrológica: descartar celdas en agua y en orillas/talud
 			var hydro = context.result.hydrology
-			if hydro != null and hydro.has_method("is_water") and hydro.is_water(Vector2i(x, y)):
-				continue
+			if hydro != null:
+				if hydro.has_method("is_vegetation_excluded") and hydro.is_vegetation_excluded(Vector2i(x, y)):
+					continue
+				elif hydro.has_method("is_water") and hydro.is_water(Vector2i(x, y)):
+					continue
 
 			var cell := context.result.get_cell(Vector2i(x, y))
 
@@ -48,6 +51,11 @@ func execute(context: WorldGenerationContext) -> void:
 
 			# Ensure spawn location has a clear radius
 			if pos_2d.distance_squared_to(spawn_pos_2d) < spawn_clearance_sq:
+				continue
+
+			# 2. Filtro geométrico continuo preciso contra cuerpos de agua y orillas
+			var bank_clearance: float = profile.vegetation_bank_clearance if "vegetation_bank_clearance" in profile else 1.5
+			if hydro != null and hydro.has_method("is_position_excluded") and hydro.is_position_excluded(pos_2d, bank_clearance):
 				continue
 
 			# 1. Conifer Placement (Forest areas, walkable gentle/flat terrain, avoid steep local faces)

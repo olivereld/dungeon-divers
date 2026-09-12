@@ -62,17 +62,14 @@ static func create(
 ) -> WaterField:
 	var cell_size: float = profile.cell_size if profile != null else 1.0
 
-	# 1. Determinar resolución base
+	# 1. Determinar resolución base (escalada para que nunca sea inferior a la cuadrícula de terreno)
 	var res: int = terrain_resolution
 	if res <= 0:
+		var map_dim: int = maxi(result.dimensions.x, result.dimensions.y) if result != null else (profile.width if profile != null else 128)
 		if profile != null and "water_field_resolution" in profile and profile.water_field_resolution > 0:
-			res = profile.water_field_resolution
-		elif result != null and result.dimensions.x > 0:
-			res = result.dimensions.x
-		elif profile != null and profile.width > 0:
-			res = profile.width
+			res = maxi(profile.water_field_resolution, map_dim)
 		else:
-			res = 128
+			res = maxi(128, map_dim)
 
 	# 2. Extraer o normalizar segmentos
 	var segs: Array = []
@@ -277,9 +274,9 @@ func get_water_data_at(x: float, z: float, _result: WorldResult = null, _profile
 	var d1: float = float(best_seg.depth_end if "depth_end" in best_seg else best_seg.get("depth_end", 0.2))
 
 	var depth: float = maxf(lerpf(d0, d1, best_t), 0.05)
-	# water_height(x, z) = terrain + river_depth (sin cálculo por triángulo, sin previous_water_y)
-	var terrain_y: float = sample_terrain(_result, x, z)
-	var elev: float = terrain_y + depth
+	var f_bank: float = maxf(depth * 0.75, 0.25)
+	var centerline_y: float = lerpf(p0_3d.y, p1_3d.y, best_t)
+	var elev: float = centerline_y - f_bank
 
 	var dir_3d: Vector3 = (p1_3d - p0_3d)
 	var dir_2d := Vector2(dir_3d.x, dir_3d.z)
@@ -354,6 +351,17 @@ func extract_water_surface(result: WorldResult, profile: WorldProfile = null) ->
 			# Celda completamente seca
 			if d00 > 0.0 and d10 > 0.0 and d11 > 0.0 and d01 > 0.0:
 				continue
+
+			# Si el quad está completamente inmerso dentro de un lago, lo renderiza LakeMeshBuilder
+			var hydro = result.hydrology if result != null else null
+			if hydro != null and hydro.has_method("is_lake"):
+				var cell_sz: float = profile.cell_size if profile != null else 1.0
+				var g00 := Vector2i(int(floor(x0 / cell_sz)), int(floor(z0 / cell_sz)))
+				var g10 := Vector2i(int(floor(x1 / cell_sz)), int(floor(z0 / cell_sz)))
+				var g11 := Vector2i(int(floor(x1 / cell_sz)), int(floor(z1 / cell_sz)))
+				var g01 := Vector2i(int(floor(x0 / cell_sz)), int(floor(z1 / cell_sz)))
+				if hydro.is_lake(g00) and hydro.is_lake(g10) and hydro.is_lake(g11) and hydro.is_lake(g01):
+					continue
 
 			# 1. Caso interior pleno: los 4 vértices están en agua (d <= 0.0)
 			if d00 <= 0.0 and d10 <= 0.0 and d11 <= 0.0 and d01 <= 0.0:

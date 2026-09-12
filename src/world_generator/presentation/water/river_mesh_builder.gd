@@ -282,20 +282,12 @@ static func build_network_surface(
 	if segments.is_empty():
 		return _WaterSurfaceDataScript.new()
 
-	# 2. Generar WaterPolygons y triangular a malla 2D limpia
-	var mesh_2d: Dictionary = triangulate_water_mesh_2d(segments, result, profile)
-
-	# 3. Convertir puntos 2D (XZ) a vértices 3D mediante water_height(x, z) = terrain + river_depth
-	#    (sin calcular Y por triángulo, sin previous_water_y, manteniendo continuidad de altura)
-	if not mesh_2d.get("vertices_2d", PackedVector2Array()).is_empty():
-		return build_surface_from_2d_mesh(mesh_2d, result, profile, segments)
-
-	# Fallback a extracción directa del SDF si la triangulación 2D no produjo geometría
+	# 2. Generar superficie mediante cuadrícula uniforme de quads (WaterField) con recorte continuo en orillas
+	# Evita triangulación por Ear Clipping que creaba abanicos y elevaciones artificiales en el centro
 	var field: WaterField = _WaterFieldScript.create(segments, result, profile)
-	var fallback_surf: WaterSurfaceData = field.extract_water_surface(result, profile)
-	smooth_surface_elevation(fallback_surf, result, profile)
-	derive_surface_normals(fallback_surf)
-	return fallback_surf
+	var surf: WaterSurfaceData = field.extract_water_surface(result, profile)
+	derive_surface_normals(surf)
+	return surf
 
 ## Construye la superficie de un río individual reutilizando el pipeline unificado de red.
 static func build_river_surface(
@@ -621,10 +613,17 @@ static func water_height(
 	result: WorldResult,
 	segments: Array[RenderSegment]
 ) -> float:
-	var terrain: float = sample_terrain(result, x, z)
 	var seg_data: Dictionary = find_closest_segment_data(x, z, segments)
-	var river_depth: float = float(seg_data.get("depth", 0.2))
-	return terrain + river_depth
+	var seg: RenderSegment = seg_data.get("segment", null)
+	var depth: float = float(seg_data.get("depth", 0.2))
+	var f_bank: float = maxf(depth * 0.75, 0.25)
+
+	if seg != null:
+		var t: float = float(seg_data.get("t", 0.0))
+		var centerline_y: float = lerpf(seg.start_position.y, seg.end_position.y, t)
+		return centerline_y - f_bank
+
+	return sample_terrain(result, x, z) - f_bank
 
 ## Convierte un único punto 2D (x, z) a un vector 3D (x, water_height, z).
 static func convert_point_2d_to_3d(
@@ -655,7 +654,7 @@ static func convert_2d_to_3d_vertices(
 ## adaptando la nueva geometría al sistema existente de renderizado (WaterRenderer, WaterMaterial y water_flow.gdshader).
 ##
 ## ATRIBUTOS DE VÉRTICE:
-## - position: (x, water_height, z) evaluado continuamente con water_height = terrain + river_depth.
+## - position: (x, water_height, z) evaluado dentro del canal excavado (centerline_y - freeboard).
 ## - normal: Inicialmente Vector3.UP. Se deriva después a partir de los triángulos tras el suavizado.
 ## - uv: World-space XZ (Vector2(x, z)) para preservar la textura y el ruido del material existente.
 ## - flow_direction: Vector unitario derivado de RiverNetwork (asignado a uv2_flow).
@@ -665,8 +664,8 @@ static func build_surface_from_2d_mesh(
 	result: WorldResult,
 	profile: WorldProfile,
 	segments: Array[RenderSegment],
-	smooth_iterations: int = 2,
-	smooth_factor: float = 0.5,
+	smooth_iterations: int = 3,
+	smooth_factor: float = 0.55,
 	minimum_depth: float = -1.0,
 	derive_normals: bool = true
 ) -> WaterSurfaceData:
@@ -692,10 +691,18 @@ static func build_surface_from_2d_mesh(
 
 	for i in range(num_verts):
 		var p2: Vector2 = verts_2d[i]
-		var terrain: float = sample_terrain(result, p2.x, p2.y)
 		var seg_data: Dictionary = find_closest_segment_data(p2.x, p2.y, segments, spatial_index)
+		var seg: RenderSegment = seg_data.get("segment", null)
 		var depth: float = float(seg_data.get("depth", 0.2))
-		var y: float = terrain + depth
+		var f_bank: float = maxf(depth * 0.75, 0.25)
+
+		var y: float = 0.0
+		if seg != null:
+			var t: float = float(seg_data.get("t", 0.0))
+			var centerline_y: float = lerpf(seg.start_position.y, seg.end_position.y, t)
+			y = centerline_y - f_bank
+		else:
+			y = sample_terrain(result, p2.x, p2.y) - f_bank
 
 		# 1. position: (x, water_height, z)
 		surf.vertices[i] = Vector3(p2.x, y, p2.y)
@@ -711,7 +718,6 @@ static func build_surface_from_2d_mesh(
 	surf.indices = indices
 
 	# Suavizado vertical para eliminar escalones garantizando continuidad en Y
-	# y respetando la restricción water_height >= terrain_height + minimum_depth sin alterar X/Z ni topología
 	smooth_surface_elevation(surf, result, profile, smooth_iterations, smooth_factor, minimum_depth)
 
 	# Derivar normales después del suavizado a partir de la geometría de los triángulos
@@ -726,8 +732,6 @@ static func build_surface_from_2d_mesh(
 ## 1. Construye el grafo de adyacencia de la malla a partir de sus índices triangulares.
 ## 2. Para cada vértice, calcula la media ponderada por distancia horizontal de las elevaciones vecinas.
 ## 3. Interpola la elevación actual hacia la media ponderada según el factor de relajación.
-## 4. Aplica estrictamente la restricción: water_height >= terrain_height + minimum_depth,
-##    evitando que el agua quede bajo el terreno o por debajo del calado mínimo admisible.
 ##
 ## RESTRICCIONES CUMPLIDAS:
 ## - Interpola solo altura (Y). No modifica coordenadas X ni Z.
@@ -735,21 +739,14 @@ static func build_surface_from_2d_mesh(
 ## - Garantiza continuidad C0/C1 en Y sin escalones bruscos.
 static func smooth_surface_elevation(
 	surf: WaterSurfaceData,
-	result: WorldResult,
-	profile: WorldProfile = null,
+	_result: WorldResult,
+	_profile: WorldProfile = null,
 	iterations: int = 2,
 	factor: float = 0.5,
-	minimum_depth: float = -1.0
+	_minimum_depth: float = -1.0
 ) -> void:
 	if surf == null or surf.vertices.is_empty() or surf.indices.is_empty():
 		return
-
-	var min_depth: float = minimum_depth
-	if min_depth < 0.0:
-		if profile != null and "river_min_depth" in profile:
-			min_depth = float(profile.river_min_depth)
-		else:
-			min_depth = 0.08
 
 	var num_verts: int = surf.vertices.size()
 	var adj: Array = _build_mesh_adjacency(surf.indices, num_verts)
@@ -785,13 +782,7 @@ static func smooth_surface_elevation(
 					sum_y += w * current_y[n_idx]
 
 				var avg_y: float = sum_y / sum_w if sum_w > 0.00001 else y_val
-				var smoothed_y: float = lerpf(y_val, avg_y, blend_factor)
-
-				# Restricción: water_height >= terrain_height + minimum_depth
-				# Evita que el agua quede bajo el terreno o por debajo del calado mínimo
-				var terrain_h: float = sample_terrain(result, p_i.x, p_i.z)
-				var min_allowed_h: float = terrain_h + min_depth
-				next_y[i] = maxf(smoothed_y, min_allowed_h)
+				next_y[i] = lerpf(y_val, avg_y, blend_factor)
 
 		# Intercambio de buffers sin re-alocaciones (.duplicate eliminado)
 		var tmp_y: PackedFloat32Array = current_y
