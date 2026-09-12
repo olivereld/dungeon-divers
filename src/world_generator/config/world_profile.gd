@@ -160,11 +160,11 @@ func get_hydrology_noise_frequency() -> float:
 
 # Hydrology - Water Visuals
 @export_group("Hydrology - Water Visuals")
-@export var water_color_shallow: Color = Color("#2a68a8")
-@export var water_color_medium: Color = Color("#1e4e82")
-@export var water_color_deep: Color = Color("#143254")
-@export var water_color_river: Color = Color("#2d74b8")
-@export var water_color_lake: Color = Color("#193e68")
+@export var water_color_shallow: Color = Color("#22b8c6")
+@export var water_color_medium: Color = Color("#12729a")
+@export var water_color_deep: Color = Color("#073b5e")
+@export var water_color_river: Color = Color("#1cb0be")
+@export var water_color_lake: Color = Color("#073b5e")
 @export_range(0.0, 1.0, 0.02) var water_roughness: float = 0.08
 @export_range(0.1, 1.0, 0.05) var water_transparency: float = 0.85
 

@@ -167,10 +167,10 @@ static func build_river_surface(
 		"turns_gt_90": 0
 	}
 
+	# ------------------------------------------------------------------
+	# 2.1 Cálculo inicial de tangentes y normales unitarias
+	# ------------------------------------------------------------------
 	for i in range(pts.size()):
-		var p: Vector3 = pts[i]
-
-		# 2.1 Tangente y ángulos de giro
 		var tangent: Vector3
 		var prev_dir := Vector3.ZERO
 		var next_dir := Vector3.ZERO
@@ -193,7 +193,6 @@ static func build_river_surface(
 			if tangent.length_squared() < 0.0001:
 				tangent = next_dir
 
-			# Medir ángulo de giro entre segmentos
 			if prev_dir.length_squared() > 0.0001 and next_dir.length_squared() > 0.0001:
 				var turn_deg := rad_to_deg(acos(clampf(prev_dir.dot(next_dir), -1.0, 1.0)))
 				if turn_deg > 90.0:
@@ -209,7 +208,6 @@ static func build_river_surface(
 		tangent = tangent.normalized()
 		station_tangents[i] = tangent
 
-		# 2.2 Normales candidatas (longitud estrictamente 1.0)
 		var prev_norm := Vector3.ZERO
 		if prev_dir.length_squared() > 0.0001:
 			prev_norm = Vector3(-prev_dir.z, 0.0, prev_dir.x).normalized()
@@ -232,140 +230,119 @@ static func build_river_surface(
 		else:
 			blended_normal = Vector3(-tangent.z, 0.0, tangent.x).normalized()
 
+		station_normals[i] = blended_normal
+
+	# ------------------------------------------------------------------
+	# 2.2 Suavizado de normales entre estaciones adyacentes para erradicar el serrucho
+	# ------------------------------------------------------------------
+	if pts.size() > 2:
+		var sm_norms: Array[Vector3] = station_normals.duplicate()
+		for i in range(1, pts.size() - 1):
+			var sn: Vector3 = station_normals[i] * 0.5 + (station_normals[i - 1] + station_normals[i + 1]) * 0.25
+			sn.y = 0.0
+			if sn.length_squared() > 0.0001:
+				sm_norms[i] = sn.normalized()
+		station_normals = sm_norms
+
+	# ------------------------------------------------------------------
+	# 2.3 Posiciones laterales de orilla y validación de quads (sin pellizcos al 40%)
+	# ------------------------------------------------------------------
+	for i in range(pts.size()):
+		var p: Vector3 = pts[i]
 		var base_half_width: float = maxf(widths[i] / cell_size, 0.20) * 0.5
-		var effective_width: float = base_half_width * 2.0
-		diagnostics["min_width"] = minf(float(diagnostics["min_width"]), effective_width)
-		diagnostics["max_width"] = maxf(float(diagnostics["max_width"]), effective_width)
+		var eff_w: float = base_half_width * 2.0
+		diagnostics["min_width"] = minf(float(diagnostics["min_width"]), eff_w)
+		diagnostics["max_width"] = maxf(float(diagnostics["max_width"]), eff_w)
 
 		if i > 0:
 			var seg_len: float = pts[i].distance_to(pts[i - 1])
 			diagnostics["min_segment_length"] = minf(float(diagnostics["min_segment_length"]), seg_len)
 			diagnostics["max_segment_length"] = maxf(float(diagnostics["max_segment_length"]), seg_len)
 
-		# BLOQUE 3 & 4: Validación y fallbacks
-		if i == 0:
-			# Primera sección: usar normal combinada directa
-			station_normals[0] = blended_normal
-			left_positions[0] = p + blended_normal * base_half_width
-			right_positions[0] = p - blended_normal * base_half_width
-		else:
-			var prev_l: Vector3 = left_positions[i - 1]
-			var prev_r: Vector3 = right_positions[i - 1]
+		var norm: Vector3 = station_normals[i]
+		left_positions[i] = p + norm * base_half_width
+		right_positions[i] = p - norm * base_half_width
 
-			var chosen_normal: Vector3 = blended_normal
-			var chosen_left: Vector3 = p + blended_normal * base_half_width
-			var chosen_right: Vector3 = p - blended_normal * base_half_width
-			var quad_ok: bool = _quad_is_valid(prev_l, prev_r, chosen_left, chosen_right)
+	for i in range(1, pts.size()):
+		var prev_l: Vector3 = left_positions[i - 1]
+		var prev_r: Vector3 = right_positions[i - 1]
+		var cur_l: Vector3 = left_positions[i]
+		var cur_r: Vector3 = right_positions[i]
+		var p: Vector3 = pts[i]
+		var base_half_width: float = maxf(widths[i] / cell_size, 0.20) * 0.5
 
-			if not quad_ok:
-				diagnostics["invalid_quads_before_fallback"] += 1
-
-				# Fallback A: Normal del segmento anterior
-				if prev_norm != Vector3.ZERO:
-					var cand_l_a := p + prev_norm * base_half_width
-					var cand_r_a := p - prev_norm * base_half_width
-					if _quad_is_valid(prev_l, prev_r, cand_l_a, cand_r_a):
-						chosen_normal = prev_norm
-						chosen_left = cand_l_a
-						chosen_right = cand_r_a
-						quad_ok = true
-						diagnostics["fallback_normal_previous"] += 1
-
-				# Fallback B: Normal del segmento siguiente
-				if not quad_ok and next_norm != Vector3.ZERO:
-					var cand_l_b := p + next_norm * base_half_width
-					var cand_r_b := p - next_norm * base_half_width
-					if _quad_is_valid(prev_l, prev_r, cand_l_b, cand_r_b):
-						chosen_normal = next_norm
-						chosen_left = cand_l_b
-						chosen_right = cand_r_b
-						quad_ok = true
-						diagnostics["fallback_normal_next"] += 1
-
-				# Fallback C: Reducción local progresiva de ancho
-				if not quad_ok:
-					var width_factors: Array[float] = [0.85, 0.70, 0.55, 0.40]
-					var candidate_normals: Array[Vector3] = []
-					if blended_normal != Vector3.ZERO: candidate_normals.append(blended_normal)
-					if prev_norm != Vector3.ZERO and not candidate_normals.has(prev_norm): candidate_normals.append(prev_norm)
-					if next_norm != Vector3.ZERO and not candidate_normals.has(next_norm): candidate_normals.append(next_norm)
-
-					for factor in width_factors:
-						var pinched_half_w: float = base_half_width * factor
-						for c_norm in candidate_normals:
-							var cand_l := p + c_norm * pinched_half_w
-							var cand_r := p - c_norm * pinched_half_w
-							if _quad_is_valid(prev_l, prev_r, cand_l, cand_r):
-								chosen_normal = c_norm
-								chosen_left = cand_l
-								chosen_right = cand_r
-								quad_ok = true
-								if is_equal_approx(factor, 0.85): diagnostics["fallback_width_85"] += 1
-								elif is_equal_approx(factor, 0.70): diagnostics["fallback_width_70"] += 1
-								elif is_equal_approx(factor, 0.55): diagnostics["fallback_width_55"] += 1
-								elif is_equal_approx(factor, 0.40): diagnostics["fallback_width_40"] += 1
-								break
-						if quad_ok:
-							break
-
-				# Si todo falla, forzar normal previa y ancho al 40% para mantener coherencia
-				if not quad_ok:
+		if not _quad_is_valid(prev_l, prev_r, cur_l, cur_r):
+			diagnostics["invalid_quads_before_fallback"] += 1
+			var adj_norm: Vector3 = (station_normals[i - 1] + station_normals[i]).normalized()
+			adj_norm.y = 0.0
+			var adj_l := p + adj_norm * base_half_width
+			var adj_r := p - adj_norm * base_half_width
+			if _quad_is_valid(prev_l, prev_r, adj_l, adj_r):
+				station_normals[i] = adj_norm
+				left_positions[i] = adj_l
+				right_positions[i] = adj_r
+				diagnostics["fallback_normal_previous"] += 1
+			else:
+				var resolved: bool = false
+				for factor in [0.85, 0.75]:
+					var pinched_w: float = base_half_width * factor
+					var pinch_l := p + adj_norm * pinched_w
+					var pinch_r := p - adj_norm * pinched_w
+					if _quad_is_valid(prev_l, prev_r, pinch_l, pinch_r):
+						station_normals[i] = adj_norm
+						left_positions[i] = pinch_l
+						right_positions[i] = pinch_r
+						diagnostics["fallback_width_85"] += 1
+						resolved = true
+						break
+				if not resolved:
 					diagnostics["fallback_safe"] += 1
 					diagnostics["invalid_quads_after_fallback"] += 1
-					var safe_norm: Vector3 = prev_norm if prev_norm != Vector3.ZERO else blended_normal
-					var safe_half_w: float = base_half_width * 0.40
-					chosen_normal = safe_norm
-					chosen_left = p + safe_norm * safe_half_w
-					chosen_right = p - safe_norm * safe_half_w
-
-			station_normals[i] = chosen_normal
-			left_positions[i] = chosen_left
-			right_positions[i] = chosen_right
+					left_positions[i] = adj_l
+					right_positions[i] = adj_r
 
 	# ------------------------------------------------------------------
-	# BLOQUE 7 — Alturas del agua y adición de vértices a la superficie
+	# BLOQUE 7 — Alturas horizontales y UVs en espacio mundo (como el lago)
 	# ------------------------------------------------------------------
 	var left_indices: Array[int] = []
 	var right_indices: Array[int] = []
 	left_indices.resize(pts.size())
 	right_indices.resize(pts.size())
 
-	var accumulated_dist: float = 0.0
+	var prev_water_y: float = INF
 
 	for i in range(pts.size()):
 		var p: Vector3 = pts[i]
-		if i > 0:
-			accumulated_dist += pts[i].distance_to(pts[i - 1])
-
 		var left_pt: Vector3 = left_positions[i]
 		var right_pt: Vector3 = right_positions[i]
-		var norm: Vector3 = station_normals[i]
 		var tangent: Vector3 = station_tangents[i]
 
+		var bed_c: float = _sample_terrain(result, p.x, p.z)
 		var bed_l: float = _sample_terrain(result, left_pt.x, left_pt.z)
 		var bed_r: float = _sample_terrain(result, right_pt.x, right_pt.z)
-
-		var bank_l: float = _sample_terrain(result, left_pt.x + norm.x * 0.5, left_pt.z + norm.z * 0.5)
-		var bank_r: float = _sample_terrain(result, right_pt.x - norm.x * 0.5, right_pt.z - norm.z * 0.5)
-
 		var depth: float = maxf(depths[i], 0.05)
 
-		var left_y: float = minf(bed_l + depth, bank_l + 0.02)
-		var right_y: float = minf(bed_r + depth, bank_r + 0.02)
+		# Cota de agua horizontal idéntica en ambas orillas (sin inclinación lateral)
+		var base_bed: float = minf(bed_c, minf(bed_l, bed_r))
+		var water_y: float = base_bed + depth
 
-		left_y = maxf(left_y, bed_l + 0.015)
-		right_y = maxf(right_y, bed_r + 0.015)
+		# Monotonía descendente obligatoria (el agua nunca fluye hacia arriba)
+		if is_finite(prev_water_y) and water_y > prev_water_y:
+			water_y = prev_water_y
+		prev_water_y = water_y
+
+		var left_y: float = water_y
+		var right_y: float = water_y
 
 		var flow_dir := Vector2(tangent.x, tangent.z)
 		if flow_dir.length_squared() > 0.0001:
 			flow_dir = flow_dir.normalized()
 
-		var uv_v: float = accumulated_dist
-
+		# Coordenadas UV en espacio de mundo exactamente igual que en LakeMeshBuilder
 		var left_idx: int = surf.add_vertex(
 			Vector3(left_pt.x, left_y, left_pt.z),
 			Vector3.UP,
-			Vector2(0.0, uv_v),
+			Vector2(left_pt.x, left_pt.z),
 			flow_dir,
 			profile.water_color_river
 		)
@@ -373,7 +350,7 @@ static func build_river_surface(
 		var right_idx: int = surf.add_vertex(
 			Vector3(right_pt.x, right_y, right_pt.z),
 			Vector3.UP,
-			Vector2(1.0, uv_v),
+			Vector2(right_pt.x, right_pt.z),
 			flow_dir,
 			profile.water_color_river
 		)
@@ -579,6 +556,20 @@ static func _clean_and_resample_centerline(
 
 	if clean_pts.size() < 2:
 		return {"points": clean_pts, "widths": clean_w, "depths": clean_d}
+
+	# 1.5 Suavizado Laplaciano para erradicar las esquinas angulosas de grilla preservando extremos
+	if clean_pts.size() > 2:
+		for _iter in range(2):
+			var sm_pts: Array[Vector3] = clean_pts.duplicate()
+			var sm_w: Array[float] = clean_w.duplicate()
+			var sm_d: Array[float] = clean_d.duplicate()
+			for j in range(1, clean_pts.size() - 1):
+				sm_pts[j] = clean_pts[j] * 0.5 + (clean_pts[j - 1] + clean_pts[j + 1]) * 0.25
+				sm_w[j] = clean_w[j] * 0.5 + (clean_w[j - 1] + clean_w[j + 1]) * 0.25
+				sm_d[j] = clean_d[j] * 0.5 + (clean_d[j - 1] + clean_d[j + 1]) * 0.25
+			clean_pts = sm_pts
+			clean_w = sm_w
+			clean_d = sm_d
 
 	# 2. Calcular distancias acumuladas de la línea limpia
 	var total_length: float = 0.0
@@ -900,8 +891,10 @@ static func build_confluence_surface(
 			var bank_r: float = _sample_terrain(result, p_r.x - norm.x * 0.5, p_r.z - norm.z * 0.5)
 
 			var target_y: float = lerpf(u.water_y, down_st.water_y, tm)
-			p_l.y = clampf(target_y, bed_l + 0.015, bank_l + 0.02)
-			p_r.y = clampf(target_y, bed_r + 0.015, bank_r + 0.02)
+			var base_bed: float = maxf(bed_l, bed_r)
+			var safe_y: float = maxf(target_y, base_bed + 0.015)
+			p_l.y = safe_y
+			p_r.y = safe_y
 
 			raw_l[k][m] = p_l
 			raw_r[k][m] = p_r
@@ -946,9 +939,9 @@ static func build_confluence_surface(
 			if k > 0 and p_l.distance_to(raw_r[k - 1][m]) < 0.001:
 				idx_l = grid_right[k - 1][m]
 			else:
-				idx_l = surf.add_vertex(p_l, Vector3.UP, Vector2(0.0, tm), flow_vec, profile.water_color_river)
+				idx_l = surf.add_vertex(p_l, Vector3.UP, Vector2(p_l.x, p_l.z), flow_vec, profile.water_color_river)
 
-			var idx_r: int = surf.add_vertex(p_r, Vector3.UP, Vector2(1.0, tm), flow_vec, profile.water_color_river)
+			var idx_r: int = surf.add_vertex(p_r, Vector3.UP, Vector2(p_r.x, p_r.z), flow_vec, profile.water_color_river)
 
 			grid_left[k][m] = idx_l
 			grid_right[k][m] = idx_r
@@ -1205,9 +1198,9 @@ static func _get_river_boundary_station(
 	var bank_l: float = _sample_terrain(result, left.x + normal.x * 0.5, left.z + normal.z * 0.5)
 	var bank_r: float = _sample_terrain(result, right.x - normal.x * 0.5, right.z - normal.z * 0.5)
 
-	left.y = clampf(bed_l + maxf(d, 0.05), bed_l + 0.015, bank_l + 0.02)
-	right.y = clampf(bed_r + maxf(d, 0.05), bed_r + 0.015, bank_r + 0.02)
-	var water_y: float = (left.y + right.y) * 0.5
+	var water_y: float = (clampf(bed_l + maxf(d, 0.05), bed_l + 0.015, bank_l + 0.02) + clampf(bed_r + maxf(d, 0.05), bed_r + 0.015, bank_r + 0.02)) * 0.5
+	left.y = water_y
+	right.y = water_y
 
 	var r_id: int = -1
 	if river is River:

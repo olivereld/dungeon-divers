@@ -136,9 +136,9 @@ const COLOR_PRESETS: Dictionary = {
 		"terrain_loam_color": Color("#3e3830"), "terrain_moss_color": Color("#4a5338"),
 		"terrain_grass_color": Color("#3f4f34"), "forest_floor_color": Color("#25311e"),
 		"terrain_rock_color": Color("#464648"), "terrain_snow_color": Color("#d8e2eb"),
-		"water_color_shallow": Color("#205485"), "water_color_medium": Color("#143c64"),
-		"water_color_lake": Color("#102e4d"), "water_color_river": Color("#184674"),
-		"color_deep_water": Color("#102e4d"), "color_water": Color("#205485"), "color_sand": Color("#4a5338"),
+		"water_color_shallow": Color("#22b8c6"), "water_color_medium": Color("#12729a"),
+		"water_color_lake": Color("#073b5e"), "water_color_river": Color("#1cb0be"),
+		"color_deep_water": Color("#073b5e"), "color_water": Color("#22b8c6"), "color_sand": Color("#4a5338"),
 		"color_ground": Color("#3e3830"), "color_grass": Color("#3f4f34"), "color_forest": Color("#25311e"),
 		"color_rock": Color("#464648"), "color_snow": Color("#d8e2eb")
 	},

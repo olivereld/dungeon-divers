@@ -89,11 +89,11 @@ func _init() -> void:
 	hydrology_noise_strength = 0.25
 	hydrology_noise_octaves = 2
 	hydrology_noise_seed_offset = 707
-	water_color_shallow = Color("#205485")
-	water_color_medium = Color("#143c64")
-	water_color_deep = Color("#0e253e")
-	water_color_river = Color("#184674")
-	water_color_lake = Color("#102e4d")
+	water_color_shallow = Color("#22b8c6")
+	water_color_medium = Color("#12729a")
+	water_color_deep = Color("#073b5e")
+	water_color_river = Color("#1cb0be")
+	water_color_lake = Color("#073b5e")
 	water_roughness = 0.08
 	water_transparency = 0.90
 

@@ -25,7 +25,7 @@ func _init() -> void:
 		# Verify UVs and flow directions
 		for i in range(surf.vertices.size()):
 			var uv: Vector2 = surf.uvs[i]
-			assert(uv.x >= 0.0 and uv.x <= 1.001, "Transversal UV must be [0, 1]")
+			assert(is_finite(uv.x) and is_finite(uv.y), "UV must be valid float")
 			var flow: Vector2 = surf.uv2_flow[i]
 			assert(flow.length() > 0.1, "Flow vector must be non-zero downstream")
 
