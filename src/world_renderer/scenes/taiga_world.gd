@@ -26,6 +26,8 @@ var profile: TaigaWorldProfile = null
 var test_player: CharacterBody3D = null
 var is_player_active: bool = true
 var player_toggle_btn: Button = null
+var is_water_wireframe_active: bool = false
+var water_wireframe_btn: Button = null
 
 # Camera & Navigation
 var camera_rig: IsometricCameraRig = null
@@ -136,9 +138,9 @@ const COLOR_PRESETS: Dictionary = {
 		"terrain_loam_color": Color("#3e3830"), "terrain_moss_color": Color("#4a5338"),
 		"terrain_grass_color": Color("#3f4f34"), "forest_floor_color": Color("#25311e"),
 		"terrain_rock_color": Color("#464648"), "terrain_snow_color": Color("#d8e2eb"),
-		"water_color_shallow": Color("#205485"), "water_color_medium": Color("#143c64"),
-		"water_color_lake": Color("#102e4d"), "water_color_river": Color("#184674"),
-		"color_deep_water": Color("#102e4d"), "color_water": Color("#205485"), "color_sand": Color("#4a5338"),
+		"water_color_shallow": Color("#22b8c6"), "water_color_medium": Color("#12729a"),
+		"water_color_lake": Color("#073b5e"), "water_color_river": Color("#1cb0be"),
+		"color_deep_water": Color("#073b5e"), "color_water": Color("#22b8c6"), "color_sand": Color("#4a5338"),
 		"color_ground": Color("#3e3830"), "color_grass": Color("#3f4f34"), "color_forest": Color("#25311e"),
 		"color_rock": Color("#464648"), "color_snow": Color("#d8e2eb")
 	},
@@ -183,7 +185,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 90.0, "warp_amplitude": 18.0, "warp_octaves": 2,
 		"forest_wavelength": 65.0, "clearing_wavelength": 30.0, "clearing_threshold": 0.45,
 		"tree_density": 0.70, "min_tree_spacing": 2.0, "shrub_density": 0.45, "rock_density": 0.20,
-		"cell_size": 1.0, "lake_threshold": 0.22, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0
+		"cell_size": 1.0, "lake_threshold": 0.22, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	1: {
 		"name": "Valle Glaciar Amplio (Bajo Relieve)",
@@ -193,7 +196,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 120.0, "warp_amplitude": 14.0, "warp_octaves": 2,
 		"forest_wavelength": 80.0, "clearing_wavelength": 40.0, "clearing_threshold": 0.52,
 		"tree_density": 0.55, "min_tree_spacing": 2.4, "shrub_density": 0.50, "rock_density": 0.12,
-		"cell_size": 1.0, "lake_threshold": 0.26, "lake_minimum_area": 6, "hydrology_noise_wavelength": 95.0
+		"cell_size": 1.0, "lake_threshold": 0.26, "lake_minimum_area": 6, "hydrology_noise_wavelength": 95.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	2: {
 		"name": "Tierras Altas Escarpadas (Fiordos)",
@@ -203,7 +207,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 75.0, "warp_amplitude": 24.0, "warp_octaves": 3,
 		"forest_wavelength": 50.0, "clearing_wavelength": 25.0, "clearing_threshold": 0.40,
 		"tree_density": 0.50, "min_tree_spacing": 2.2, "shrub_density": 0.35, "rock_density": 0.35,
-		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 3, "hydrology_noise_wavelength": 70.0
+		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 3, "hydrology_noise_wavelength": 70.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	3: {
 		"name": "Bosque Boreal Cerrado (Old-Growth)",
@@ -213,7 +218,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 85.0, "warp_amplitude": 15.0, "warp_octaves": 2,
 		"forest_wavelength": 90.0, "clearing_wavelength": 20.0, "clearing_threshold": 0.30,
 		"tree_density": 0.85, "min_tree_spacing": 1.7, "shrub_density": 0.60, "rock_density": 0.15,
-		"cell_size": 1.0, "lake_threshold": 0.20, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0
+		"cell_size": 1.0, "lake_threshold": 0.20, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	4: {
 		"name": "Turberas y Claros Abiertos",
@@ -223,7 +229,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 100.0, "warp_amplitude": 12.0, "warp_octaves": 2,
 		"forest_wavelength": 45.0, "clearing_wavelength": 55.0, "clearing_threshold": 0.65,
 		"tree_density": 0.28, "min_tree_spacing": 2.2, "shrub_density": 0.65, "rock_density": 0.10,
-		"cell_size": 1.0, "lake_threshold": 0.30, "lake_minimum_area": 6, "hydrology_noise_wavelength": 90.0
+		"cell_size": 1.0, "lake_threshold": 0.30, "lake_minimum_area": 6, "hydrology_noise_wavelength": 90.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	5: {
 		"name": "Archipiélago (Islas y Fiordos)",
@@ -233,7 +240,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 70.0, "warp_amplitude": 22.0, "warp_octaves": 2,
 		"forest_wavelength": 55.0, "clearing_wavelength": 28.0, "clearing_threshold": 0.50,
 		"tree_density": 0.42, "min_tree_spacing": 2.2, "shrub_density": 0.45, "rock_density": 0.30,
-		"cell_size": 1.0, "lake_threshold": 0.28, "lake_minimum_area": 3, "hydrology_noise_wavelength": 65.0
+		"cell_size": 1.0, "lake_threshold": 0.28, "lake_minimum_area": 3, "hydrology_noise_wavelength": 65.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	6: {
 		"name": "Tundra Nevada (Cimas Rocosas)",
@@ -243,7 +251,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 80.0, "warp_amplitude": 10.0, "warp_octaves": 2,
 		"forest_wavelength": 40.0, "clearing_wavelength": 40.0, "clearing_threshold": 0.72,
 		"tree_density": 0.15, "min_tree_spacing": 3.2, "shrub_density": 0.25, "rock_density": 0.45,
-		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 4, "hydrology_noise_wavelength": 75.0
+		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 4, "hydrology_noise_wavelength": 75.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	}
 }
 
@@ -385,6 +394,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			camera_rig.yaw_degrees += 45.0
 		elif ke.keycode == KEY_P:
 			_toggle_player()
+		elif ke.keycode == KEY_M:
+			_toggle_water_wireframe()
 		elif ke.keycode == KEY_F11:
 			_toggle_fullscreen()
 		elif ke.keycode == KEY_TAB or ke.keycode == KEY_H:
@@ -414,7 +425,7 @@ func generate_world(reset_camera: bool = false) -> void:
 	current_result = _WorldPipelineScript.generate(world_seed, profile)
 
 	var renderer := _WorldRendererScript.new()
-	current_world_node = renderer.render_world(current_result, profile)
+	current_world_node = renderer.render_world(current_result, profile, is_water_wireframe_active)
 	world_container.add_child(current_world_node)
 	renderer.queue_free()
 
@@ -963,6 +974,14 @@ func _build_top_bar() -> void:
 	player_toggle_btn.pressed.connect(_toggle_player)
 	hbox.add_child(player_toggle_btn)
 
+	# Water Wireframe Toggle Button (Ríos y Lagos)
+	water_wireframe_btn = Button.new()
+	water_wireframe_btn.text = "🌐 Malla Agua: OFF"
+	water_wireframe_btn.add_theme_font_size_override("font_size", 11)
+	_update_water_wireframe_button_style()
+	water_wireframe_btn.pressed.connect(_toggle_water_wireframe)
+	hbox.add_child(water_wireframe_btn)
+
 	# Generate Button
 	gen_btn = Button.new()
 	gen_btn.text = "⚡ GENERAR MUNDO"
@@ -993,6 +1012,27 @@ func _update_auto_gen_button_style() -> void:
 	else:
 		auto_gen_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
 		auto_gen_btn.add_theme_color_override("font_color", Color("#64748b"))
+
+func _update_water_wireframe_button_style() -> void:
+	if water_wireframe_btn == null:
+		return
+	if is_water_wireframe_active:
+		water_wireframe_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.06, 0.72, 0.83, 0.22), Color("#06b6d4"), 4, 1))
+		water_wireframe_btn.add_theme_color_override("font_color", Color("#22d3ee"))
+		water_wireframe_btn.text = "🌐 Malla Agua: ON"
+	else:
+		water_wireframe_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
+		water_wireframe_btn.add_theme_color_override("font_color", Color("#94a3b8"))
+		water_wireframe_btn.text = "🌐 Malla Agua: OFF"
+
+func _toggle_water_wireframe() -> void:
+	is_water_wireframe_active = not is_water_wireframe_active
+	_update_water_wireframe_button_style()
+
+	if world_container != null:
+		var wire_node = world_container.find_child("WaterWireframeOverlay", true, false)
+		if wire_node != null:
+			wire_node.visible = is_water_wireframe_active
 
 func _build_left_panel() -> void:
 	left_panel = PanelContainer.new()
@@ -1054,6 +1094,7 @@ func _build_left_panel() -> void:
 	_add_slider(vbox, "min_tree_spacing", "Espaciado Mínimo", profile.min_tree_spacing, 0.5, 8.0, 0.1, Color("#14b8a6"))
 	_add_slider(vbox, "shrub_density", "Densidad Arbustos", profile.shrub_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
 	_add_slider(vbox, "rock_density", "Densidad Rocas", profile.rock_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
+	_add_slider(vbox, "vegetation_bank_clearance", "Margen Orilla (m)", profile.vegetation_bank_clearance, 0.0, 5.0, 0.25, Color("#14b8a6"))
 
 	# 5. ESCALA DEL MUNDO (1 Godot unit = 1 metro)
 	_add_left_section(vbox, "ESCALA DEL MUNDO", "⛶", Color("#38bdf8"))
@@ -1065,11 +1106,19 @@ func _build_left_panel() -> void:
 	_add_left_section(vbox, "HIDROLOGÍA & CUENCAS", "💧", Color("#38bdf8"))
 	_add_slider(vbox, "lake_threshold", "Umbral Lagos", profile.lake_threshold, 0.05, 0.50, 0.01, Color("#38bdf8"))
 	_add_slider(vbox, "lake_minimum_area", "Área Mín. Lagos", float(profile.lake_minimum_area), 1.0, 20.0, 1.0, Color("#38bdf8"))
+	_add_slider(vbox, "lake_merge_distance", "Dist. Unión Lagos", profile.lake_merge_distance, 0.0, 10.0, 0.5, Color("#38bdf8"))
 	_add_slider(vbox, "max_rivers", "Cant. Ríos", float(profile.max_rivers), 0.0, 8.0, 1.0, Color("#38bdf8"))
 	_add_slider(vbox, "river_source_min_height", "Altura Cabecera", profile.river_source_min_height, 0.3, 0.95, 0.05, Color("#38bdf8"))
 	_add_slider(vbox, "river_meander_strength", "Meandros / Jitter", profile.river_meander_strength, 0.0, 0.5, 0.02, Color("#38bdf8"))
 	_add_slider(vbox, "hydrology_noise_wavelength", "Long. Onda Ruido Cauce (m)", profile.hydrology_noise_wavelength, 20.0, 200.0, 5.0, Color("#38bdf8"))
 	_add_slider(vbox, "hydrology_noise_strength", "Fuerza Ruido Cauce", profile.hydrology_noise_strength, 0.0, 0.8, 0.05, Color("#38bdf8"))
+
+	# 7. GEOMETRÍA DE RÍOS (POST-GEOMETRÍA)
+	_add_left_section(vbox, "GEOMETRÍA RÍOS (POST-GEO)", "🌊", Color("#22d3ee"))
+	_add_slider(vbox, "water_field_resolution", "Resolución Campo SDF", float(profile.water_field_resolution), 64.0, 512.0, 16.0, Color("#22d3ee"))
+	_add_slider(vbox, "contour_simplification_tolerance", "Tolerancia RDP (m)", profile.contour_simplification_tolerance, 0.01, 0.50, 0.01, Color("#22d3ee"))
+	_add_slider(vbox, "minimum_contour_edge", "Arista Mínima (m)", profile.minimum_contour_edge, 0.01, 0.30, 0.01, Color("#22d3ee"))
+	_add_slider(vbox, "minimum_polygon_area", "Área Mín. Polígono (m²)", profile.minimum_polygon_area, 0.01, 2.0, 0.05, Color("#22d3ee"))
 
 	ui_root.add_child(left_panel)
 
@@ -1119,9 +1168,10 @@ func _add_slider(parent: Control, prop_name: String, label_text: String, default
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.value_changed.connect(func(new_val: float):
 		val_lbl.text = "%.3f" % new_val if step < 0.01 else ("%.2f" % new_val if step < 1.0 else "%d" % int(new_val))
-		if prop_name == "width" or prop_name == "height":
+		if prop_name == "width" or prop_name == "height" or prop_name == "water_field_resolution":
 			profile.set(prop_name, int(new_val))
-			_sync_map_size_option()
+			if prop_name == "width" or prop_name == "height":
+				_sync_map_size_option()
 		else:
 			profile.set(prop_name, new_val)
 
@@ -2073,7 +2123,7 @@ func _read_ui_to_profile() -> void:
 	for prop_name in _sliders.keys():
 		var entry: Dictionary = _sliders[prop_name]
 		var sl: HSlider = entry["slider"]
-		if prop_name == "width" or prop_name == "height":
+		if prop_name == "width" or prop_name == "height" or prop_name == "water_field_resolution":
 			profile.set(prop_name, int(sl.value))
 		else:
 			profile.set(prop_name, sl.value)

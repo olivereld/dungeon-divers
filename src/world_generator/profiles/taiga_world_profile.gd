@@ -46,6 +46,7 @@ func _init() -> void:
 	shrub_density = 0.45
 	rock_density = 0.20
 	min_tree_spacing = 2.0
+	vegetation_bank_clearance = 1.5
 	max_walkable_slope = 35.0
 
 	# Pure Boreal Land Palette (Zero Blue in Terrain Mesh)
@@ -67,6 +68,7 @@ func _init() -> void:
 	hydrology_enabled = true
 	lake_threshold = 0.22
 	lake_minimum_area = 4
+	lake_merge_distance = 4.0
 	max_rivers = 3
 	river_source_min_height = 0.65
 	river_source_min_slope = 4.0
@@ -77,23 +79,25 @@ func _init() -> void:
 	river_max_width = 3.85
 	river_meander_strength = 0.18
 	river_channel_depth = 0.22
-	river_bank_width = 2.4
-	river_bank_falloff = 1.6
 	river_min_depth = 0.08
 	river_max_depth = 0.45
 	river_depth_response = 0.45
 	river_width_response = 0.42
+	water_field_resolution = 224
+	contour_simplification_tolerance = 0.05
+	minimum_contour_edge = 0.03
+	minimum_polygon_area = 0.20
 	hydrology_noise_enabled = true
 	hydrology_noise_wavelength = 80.0
 	hydrology_noise_frequency = 1.0 / hydrology_noise_wavelength
 	hydrology_noise_strength = 0.25
 	hydrology_noise_octaves = 2
 	hydrology_noise_seed_offset = 707
-	water_color_shallow = Color("#205485")
-	water_color_medium = Color("#143c64")
-	water_color_deep = Color("#0e253e")
-	water_color_river = Color("#184674")
-	water_color_lake = Color("#102e4d")
+	water_color_shallow = Color("#22b8c6")
+	water_color_medium = Color("#12729a")
+	water_color_deep = Color("#073b5e")
+	water_color_river = Color("#1cb0be")
+	water_color_lake = Color("#073b5e")
 	water_roughness = 0.08
 	water_transparency = 0.90
 

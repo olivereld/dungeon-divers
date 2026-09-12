@@ -304,6 +304,12 @@ func execute(context: WorldGenerationContext) -> void:
 	# BLOQUE 10: ESCULPIDO DEL CAUCE EN EL TERRENO (RIVER CARVING SOBRE H_raw)
 	# -------------------------------------------------------------------------
 	_carve_river_channels(cells, validated_rivers, accumulation, width, height, profile, hydro)
+	_carve_lake_basins(cells, hydro.lakes, width, height, profile, hydro)
+
+	# -------------------------------------------------------------------------
+	# BLOQUE 10C: ZONIFICACIÓN HIDROLÓGICA Y MÁSCARA DE EXCLUSIÓN PARA VEGETACIÓN
+	# -------------------------------------------------------------------------
+	_build_hydrology_zones(width, height, profile, hydro)
 
 	# -------------------------------------------------------------------------
 	# BLOQUE 11: EXPORTACIÓN DE CAPAS DE DEPURACIÓN (Fase 8.1)
@@ -321,6 +327,8 @@ func execute(context: WorldGenerationContext) -> void:
 	hydro.set_debug_grid("filled_height", debug_filled_height)
 	hydro.set_debug_grid("flood_rank", flood_rank)
 	hydro.set_debug_grid("channel_mask", channel_mask)
+	hydro.set_debug_grid("hydrology_zones", hydro.zones)
+	hydro.set_debug_grid("exclusion_mask", hydro.exclusion_mask)
 
 
 # =============================================================================
@@ -338,8 +346,10 @@ func _generate_lakes(
 	profile: WorldProfile
 ) -> void:
 	var visited: Dictionary = {}
+	var raw_clusters: Array = []
 	var next_lake_id: int = 1
 
+	# 1. Extraer todos los clusters candidatos bajo el umbral lake_threshold
 	for y in range(height):
 		for x in range(width):
 			var start := Vector2i(x, y)
@@ -375,103 +385,222 @@ func _generate_lakes(
 						visited[neighbor] = true
 						queue.append(neighbor)
 
-			if cluster.size() < profile.lake_minimum_area:
-				continue
+			raw_clusters.append(cluster)
 
-			var cluster_set: Dictionary = {}
-			var max_cluster_h: float = -INF
-			for pos in cluster:
-				cluster_set[pos] = true
-				var c_cell: WorldCell = cells.get(pos)
-				if c_cell != null:
-					var ch: float = c_cell.raw_height if c_cell.raw_height != 0.0 else c_cell.height
-					if ch > max_cluster_h:
-						max_cluster_h = ch
+	if raw_clusters.is_empty():
+		return
 
-			var min_rank: int = 999999999
-			var spillway_pos: Vector2i = cluster[0]
-			var spillway_height: float = INF
+	# 2. FUSIÓN Y CONEXIÓN DIRECTA DE LAGOS Y CHARCOS CERCANOS
+	# Si dos clusters están a una distancia <= lake_merge_distance, se excava un canal/cuello
+	# conectivo entre sus puntos más cercanos y se fusionan en un único cuerpo de agua.
+	var merge_dist: float = profile.lake_merge_distance if "lake_merge_distance" in profile else 4.0
+	var merge_dist_sq: float = merge_dist * merge_dist
 
-			# El spillway causal es el vecino de tierra firme con MENOR flood_rank (salida natural hacia el mar)
+	# Grafo de adyacencia de fusiones
+	var num_clusters: int = raw_clusters.size()
+	var parent: Array[int] = []
+	parent.resize(num_clusters)
+	for i in range(num_clusters):
+		parent[i] = i
+
+	var find_root = func(i: int, self_fn: Callable) -> int:
+		if parent[i] == i:
+			return i
+		parent[i] = self_fn.call(parent[i], self_fn)
+		return parent[i]
+
+	var bridge_cells: Array[Vector2i] = []
+
+	if merge_dist > 0.0:
+		for i in range(num_clusters):
+			var c_a: Array = raw_clusters[i]
+			for j in range(i + 1, num_clusters):
+				var c_b: Array = raw_clusters[j]
+
+				var min_d_sq: float = INF
+				var best_pa := Vector2i(-1, -1)
+				var best_pb := Vector2i(-1, -1)
+
+				for pa in c_a:
+					for pb in c_b:
+						var dx: float = float(pa.x - pb.x)
+						var dy: float = float(pa.y - pb.y)
+						var d2: float = dx * dx + dy * dy
+						if d2 < min_d_sq:
+							min_d_sq = d2
+							best_pa = pa
+							best_pb = pb
+
+				if min_d_sq <= merge_dist_sq and best_pa != Vector2i(-1, -1):
+					var root_a: int = find_root.call(i, find_root)
+					var root_b: int = find_root.call(j, find_root)
+					parent[root_b] = root_a
+
+					# Trazar canal conector lineal (Bresenham / D8) entre best_pa y best_pb
+					var line_pts := _trace_grid_line(best_pa, best_pb)
+					for lp in line_pts:
+						bridge_cells.append(lp)
+
+	# Agrupar clusters por su raíz de componente conexa
+	var merged_groups: Dictionary = {}
+	for i in range(num_clusters):
+		var root: int = find_root.call(i, find_root)
+		if not merged_groups.has(root):
+			merged_groups[root] = []
+		merged_groups[root].append_array(raw_clusters[i])
+
+	# Añadir celdas de puente a los grupos que conectan
+	for bp in bridge_cells:
+		var bp_cell: WorldCell = cells.get(bp)
+		if bp_cell != null:
+			# Rebajar terreno para garantizar continuidad sumergida
+			bp_cell.normalized_height = minf(bp_cell.normalized_height, profile.lake_threshold - 0.01)
+
+		# Asignar la celda al grupo más cercano
+		var best_root: int = -1
+		var best_dist: float = INF
+		for root in merged_groups:
+			for gp in merged_groups[root]:
+				var dsq: float = float((gp.x - bp.x) * (gp.x - bp.x) + (gp.y - bp.y) * (gp.y - bp.y))
+				if dsq < best_dist:
+					best_dist = dsq
+					best_root = root
+		if best_root != -1:
+			merged_groups[best_root].append(bp)
+
+	# 3. CONSOLIDACIÓN DE LAGOS FINALES
+	for root in merged_groups:
+		var raw_list: Array = merged_groups[root]
+		# Eliminar celdas duplicadas mediante diccionario
+		var unique_dict: Dictionary = {}
+		var cluster: Array[Vector2i] = []
+		for p in raw_list:
+			if not unique_dict.has(p):
+				unique_dict[p] = true
+				cluster.append(p)
+
+		# Descartar si el lago final consolidado no cumple el área mínima
+		if cluster.size() < profile.lake_minimum_area:
+			continue
+
+		var cluster_set: Dictionary = {}
+		var max_cluster_h: float = -INF
+		for pos in cluster:
+			cluster_set[pos] = true
+			var c_cell: WorldCell = cells.get(pos)
+			if c_cell != null:
+				var ch: float = c_cell.raw_height if c_cell.raw_height != 0.0 else c_cell.height
+				if ch > max_cluster_h:
+					max_cluster_h = ch
+
+		var min_rank: int = 999999999
+		var spillway_pos: Vector2i = cluster[0]
+		var spillway_height: float = INF
+
+		# El spillway causal es el vecino de tierra firme con MENOR flood_rank (salida natural hacia el mar)
+		for pos in cluster:
+			for offset in D8_OFFSETS:
+				var neighbor: Vector2i = pos + offset
+				if neighbor.x < 0 or neighbor.x >= width or neighbor.y < 0 or neighbor.y >= height:
+					continue
+				if cluster_set.has(neighbor):
+					continue
+
+				var neighbor_cell: WorldCell = cells.get(neighbor)
+				if neighbor_cell == null:
+					continue
+				if neighbor_cell.normalized_height < profile.lake_threshold:
+					continue
+
+				var r_val: int = flood_rank.get(neighbor, 999999999)
+				if r_val < min_rank:
+					min_rank = r_val
+					spillway_pos = neighbor
+					spillway_height = float(filled_height.get(neighbor, neighbor_cell.raw_height))
+
+		if is_inf(spillway_height):
 			for pos in cluster:
 				for offset in D8_OFFSETS:
 					var neighbor: Vector2i = pos + offset
-					if neighbor.x < 0 or neighbor.x >= width or neighbor.y < 0 or neighbor.y >= height:
-						continue
-					if cluster_set.has(neighbor):
-						continue
-
-					var neighbor_cell: WorldCell = cells.get(neighbor)
-					if neighbor_cell == null:
-						continue
-					if neighbor_cell.normalized_height < profile.lake_threshold:
-						continue
-
-					var r_val: int = flood_rank.get(neighbor, 999999999)
-					if r_val < min_rank:
-						min_rank = r_val
-						spillway_pos = neighbor
-						spillway_height = float(filled_height.get(neighbor, neighbor_cell.raw_height))
-
+					if neighbor.x >= 0 and neighbor.x < width and neighbor.y >= 0 and neighbor.y < height:
+						if not cluster_set.has(neighbor):
+							var nc: WorldCell = cells.get(neighbor)
+							if nc != null:
+								spillway_pos = neighbor
+								spillway_height = float(filled_height.get(neighbor, nc.raw_height))
+								break
+				if not is_inf(spillway_height):
+					break
 			if is_inf(spillway_height):
-				# Fallback a vecino perimetral cualquiera si toda la vecindad inmediata fuera lago
-				for pos in cluster:
-					for offset in D8_OFFSETS:
-						var neighbor: Vector2i = pos + offset
-						if neighbor.x >= 0 and neighbor.x < width and neighbor.y >= 0 and neighbor.y < height:
-							if not cluster_set.has(neighbor):
-								var nc: WorldCell = cells.get(neighbor)
-								if nc != null:
-									spillway_pos = neighbor
-									spillway_height = float(filled_height.get(neighbor, nc.raw_height))
-									break
-					if not is_inf(spillway_height):
-						break
-				if is_inf(spillway_height):
-					spillway_height = start_cell.raw_height
+				spillway_height = cells[cluster[0]].raw_height
 
-			if max_cluster_h > spillway_height:
-				spillway_height = max_cluster_h
+		if max_cluster_h > spillway_height:
+			spillway_height = max_cluster_h
 
-			var min_pos := cluster[0]
-			var max_pos := cluster[0]
-			for pos in cluster:
-				min_pos.x = mini(min_pos.x, pos.x)
-				min_pos.y = mini(min_pos.y, pos.y)
-				max_pos.x = maxi(max_pos.x, pos.x)
-				max_pos.y = maxi(max_pos.y, pos.y)
+		var min_pos := cluster[0]
+		var max_pos := cluster[0]
+		for pos in cluster:
+			min_pos.x = mini(min_pos.x, pos.x)
+			min_pos.y = mini(min_pos.y, pos.y)
+			max_pos.x = maxi(max_pos.x, pos.x)
+			max_pos.y = maxi(max_pos.y, pos.y)
 
-			var lake_id: int = next_lake_id
-			next_lake_id += 1
+		var lake_id: int = next_lake_id
+		next_lake_id += 1
 
-			for pos in cluster:
-				var cell: WorldCell = cells[pos]
-				var c_h: float = cell.raw_height if cell.raw_height != 0.0 else cell.height
-				var depth: float = maxf(0.0, spillway_height - c_h)
+		for pos in cluster:
+			var cell: WorldCell = cells[pos]
+			var c_h: float = cell.raw_height if cell.raw_height != 0.0 else cell.height
+			var depth: float = maxf(0.0, spillway_height - c_h)
 
-				hydro.water_cells[pos] = {
-					"type": "lake",
-					"water_height": spillway_height,
-					"terrain_height": c_h,
-					"depth": depth,
-					"lake_id": lake_id,
-					"flow_dir": Vector2.ZERO
-				}
-
-				debug_drainage[pos] = maxf(
-					float(debug_drainage.get(pos, 0.0)),
-					10.0 + depth * 5.0
-				)
-
-			hydro.lakes.append({
-				"id": lake_id,
+			hydro.water_cells[pos] = {
+				"type": "lake",
 				"water_height": spillway_height,
-				"cells": cluster,
-				"spillway_pos": spillway_pos,
-				"spillway_height": spillway_height,
-				"min_pos": min_pos,
-				"max_pos": max_pos
-			})
+				"terrain_height": c_h,
+				"depth": depth,
+				"lake_id": lake_id,
+				"flow_dir": Vector2.ZERO
+			}
+
+			debug_drainage[pos] = maxf(
+				float(debug_drainage.get(pos, 0.0)),
+				10.0 + depth * 5.0
+			)
+
+		hydro.lakes.append({
+			"id": lake_id,
+			"water_height": spillway_height,
+			"cells": cluster,
+			"spillway_pos": spillway_pos,
+			"spillway_height": spillway_height,
+			"min_pos": min_pos,
+			"max_pos": max_pos
+		})
+
+
+## Traza una línea continua en la grilla discreta entre p0 y p1 (algoritmo Bresenham)
+func _trace_grid_line(p0: Vector2i, p1: Vector2i) -> Array[Vector2i]:
+	var line: Array[Vector2i] = []
+	var dx: int = absi(p1.x - p0.x)
+	var dy: int = -absi(p1.y - p0.y)
+	var sx: int = 1 if p0.x < p1.x else -1
+	var sy: int = 1 if p0.y < p1.y else -1
+	var err: int = dx + dy
+	var curr := p0
+
+	while true:
+		line.append(curr)
+		if curr == p1:
+			break
+		var e2: int = 2 * err
+		if e2 >= dy:
+			err += dy
+			curr.x += sx
+		if e2 <= dx:
+			err += dx
+			curr.y += sy
+
+	return line
 
 
 func _build_filled_height_field(
@@ -921,7 +1050,8 @@ func _select_headwaters(
 			# Rastrear longitud potencial downstream
 			var curr: Vector2i = pos
 			var potential_length: float = 0.0
-			for _step in range(profile.river_max_steps):
+			var max_river_steps: int = maxi(profile.river_max_steps, (width + height) * 4)
+			for _step in range(max_river_steps):
 				var nxt: Vector2i = flow_to.get(curr, curr)
 				if nxt == curr or hydro.is_lake(nxt):
 					break
@@ -997,7 +1127,8 @@ func _trace_river_network(
 		var downstream_id: int = -1
 		var confluence_pos: Vector2i = Vector2i(-1, -1)
 
-		for _step in range(profile.river_max_steps):
+		var max_river_steps: int = maxi(profile.river_max_steps, (width + height) * 4)
+		for _step in range(max_river_steps):
 			var nxt: Vector2i = flow_to.get(curr, curr)
 			if nxt == curr:
 				# Fin en el borde del mapa
@@ -1070,7 +1201,8 @@ func _trace_river_network(
 		var downstream_id: int = -1
 		var confluence_pos: Vector2i = Vector2i(-1, -1)
 
-		for _step in range(profile.river_max_steps):
+		var max_river_steps: int = maxi(profile.river_max_steps, (width + height) * 4)
+		for _step in range(max_river_steps):
 			var nxt: Vector2i = flow_to.get(curr_spill, curr_spill)
 			if nxt == curr_spill or hydro.is_lake(nxt):
 				break
@@ -1205,6 +1337,17 @@ func _build_river_geometry(
 		var cell: WorldCell = cells[pos]
 		var c_h: float = cell.raw_height if cell.raw_height != 0.0 else cell.height
 
+		# Anclar la cota al punto más bajo del corredor transversal inmediato
+		# para asegurar que el agua nunca quede por encima de la cota lateral del terreno
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				var npos := Vector2i(pos.x + dx, pos.y + dy)
+				if cells.has(npos):
+					var nc: WorldCell = cells[npos]
+					var n_h: float = nc.raw_height if nc.raw_height != 0.0 else nc.height
+					if n_h < c_h:
+						c_h = n_h
+
 		var acc: float = float(accumulation.get(pos, 1.0))
 		var acc_norm: float = clampf(log(acc + 1.0) / maxf(log(network_max_acc + 1.0), 0.001), 0.0, 1.0)
 
@@ -1234,6 +1377,15 @@ func _build_river_geometry(
 			pt.x += meander_offset.x
 			pt.z += meander_offset.y
 
+			var m_cx: int = clampi(int(round(pt.x)), 0, profile.width - 1)
+			var m_cy: int = clampi(int(round(pt.z)), 0, profile.height - 1)
+			var m_cell: WorldCell = cells.get(Vector2i(m_cx, m_cy))
+			if m_cell != null:
+				var m_h: float = m_cell.raw_height if m_cell.raw_height != 0.0 else m_cell.height
+				if m_h < c_h:
+					c_h = m_h
+			pt.y = c_h
+
 		points.append(pt)
 		widths.append(base_w)
 		depths.append(base_d)
@@ -1245,10 +1397,11 @@ func _build_river_geometry(
 				var nxt_c: Vector2i = path[i + 1]
 				flow_d = Vector2(float(nxt_c.x - pos.x), float(nxt_c.y - pos.y)).normalized()
 
+			var f_b: float = maxf(base_d * 0.75, 0.25)
 			hydro.water_cells[pos] = {
 				"type": "river",
-				"water_height": c_h + 0.02,
-				"terrain_height": c_h,
+				"water_height": c_h - f_b,
+				"terrain_height": c_h - f_b - base_d,
 				"depth": base_d,
 				"flow_dir": flow_d,
 				"river_index": river_id
@@ -1259,20 +1412,27 @@ func _build_river_geometry(
 		if points[i].y > points[i - 1].y:
 			points[i].y = points[i - 1].y
 
-	# Continuidad de cota en desembocadura a lago
+	# Continuidad de cota en desembocadura a lago: la lámina de agua del río (centerline_y - f_b)
+	# debe coincidir con exactitud milimétrica con target_h (espejo de agua del lago)
 	if hydro.is_lake(path[-1]):
 		var lake_data: Dictionary = hydro.get_cell_data(path[-1])
 		var target_h: float = float(lake_data.get("water_height", points[-1].y))
-		points[-1].y = target_h
+		var f_b_end: float = maxf(depths[-1] * 0.75, 0.25)
+		points[-1].y = target_h + f_b_end
 		for j in range(points.size() - 2, -1, -1):
 			if points[j].y < points[j + 1].y:
 				points[j].y = points[j + 1].y
 
-	# Continuidad de cota en nacimiento desde spillway
+	# Continuidad de cota en nacimiento desde spillway: el río que nace del lago
+	# parte a la cota exacta spill_h del espejo de agua del lago
 	if river_obj.is_outflow and hydro.is_lake(path[0]):
 		var lake_data: Dictionary = hydro.get_cell_data(path[0])
 		var spill_h: float = float(lake_data.get("water_height", points[0].y))
-		points[0].y = spill_h
+		var f_b_start: float = maxf(depths[0] * 0.75, 0.25)
+		points[0].y = spill_h + f_b_start
+		for j in range(1, points.size()):
+			if points[j].y > points[j - 1].y:
+				points[j].y = points[j - 1].y
 
 	river_obj.points = points
 	river_obj.widths = widths
@@ -1295,24 +1455,45 @@ func _carve_river_channels(
 	hydro: RefCounted
 ) -> void:
 	var carved_cells: Dictionary = {}
+	var cell_size: float = profile.cell_size if profile != null else 1.0
 
 	for river_data in rivers:
-		var cells_arr: Array = river_data["cells"]
-		var pts_arr: Array = river_data["points"]
-		var depths_arr: Array = river_data["depths"]
-		var widths_arr: Array = river_data["widths"]
+		var pts_arr: Array = river_data.get("points", [])
+		var depths_arr: Array = river_data.get("depths", [])
+		var widths_arr: Array = river_data.get("widths", [])
+		var num_pts: int = pts_arr.size()
 
-		for i in range(cells_arr.size()):
-			var center_cell: Vector2i = cells_arr[i]
-			var d_max: float = depths_arr[i] * CHANNEL_DEPTH_FACTOR
-			var w_val: float = widths_arr[i] * BANK_WIDTH_FACTOR
-			var radius: int = maxi(1, int(ceil(w_val / profile.cell_size)))
+		if num_pts < 2:
+			continue
 
-			for dy in range(-radius, radius + 1):
-				for dx in range(-radius, radius + 1):
-					var target_pos := Vector2i(center_cell.x + dx, center_cell.y + dy)
-					if target_pos.x < 0 or target_pos.x >= width or target_pos.y < 0 or target_pos.y >= height:
-						continue
+		for j in range(num_pts - 1):
+			var p0_3d: Vector3 = pts_arr[j]
+			var p1_3d: Vector3 = pts_arr[j + 1]
+			var p0 := Vector2(p0_3d.x, p0_3d.z)
+			var p1 := Vector2(p1_3d.x, p1_3d.z)
+			var v := p1 - p0
+			var len_sq: float = v.length_squared()
+			var inv_len_sq: float = 1.0 / len_sq if len_sq > 0.00001 else 0.0
+
+			var w0: float = float(widths_arr[j])
+			var w1: float = float(widths_arr[j + 1])
+			var d0: float = float(depths_arr[j])
+			var d1: float = float(depths_arr[j + 1])
+
+			var max_w: float = maxf(w0, w1)
+			var max_w_river: float = max_w * 0.5
+			# Orilla suave: se extiende al menos 3.5 celdas más allá de la lámina de agua para dar resolución al talud
+			var max_w_bank_slope: float = maxf(max_w_river * 1.5, cell_size * 3.5)
+			var max_w_bank: float = max_w_river + max_w_bank_slope
+
+			var min_cx: int = clampi(int(floor((minf(p0.x, p1.x) - max_w_bank) / cell_size)), 0, width - 1)
+			var max_cx: int = clampi(int(ceil((maxf(p0.x, p1.x) + max_w_bank) / cell_size)), 0, width - 1)
+			var min_cy: int = clampi(int(floor((minf(p0.y, p1.y) - max_w_bank) / cell_size)), 0, height - 1)
+			var max_cy: int = clampi(int(ceil((maxf(p0.y, p1.y) + max_w_bank) / cell_size)), 0, height - 1)
+
+			for cy in range(min_cy, max_cy + 1):
+				for cx in range(min_cx, max_cx + 1):
+					var target_pos := Vector2i(cx, cy)
 					if hydro.is_lake(target_pos):
 						continue
 
@@ -1320,26 +1501,51 @@ func _carve_river_channels(
 					if cell == null:
 						continue
 
-					var dist_m: float = float(dx * dx + dy * dy) * profile.cell_size
-					dist_m = sqrt(dist_m)
-					if dist_m > w_val:
+					var q := Vector2(float(cx), float(cy)) * cell_size
+					var t: float = clampf((q - p0).dot(v) * inv_len_sq, 0.0, 1.0)
+					var proj: Vector2 = p0 + v * t
+					var dist_m: float = q.distance_to(proj)
+
+					var cur_w: float = lerpf(w0, w1, t)
+					var cur_d: float = lerpf(d0, d1, t)
+					var cur_w_river: float = cur_w * 0.5
+					var w_bank_slope: float = maxf(cur_w_river * 1.5, cell_size * 3.5)
+					var cur_w_bank: float = cur_w_river + w_bank_slope
+
+					if dist_m > cur_w_bank:
 						continue
 
-					# Función de falloff suave en perfil cosinusoidal Profile(d) = cos^2(pi*d / (2W))
-					var norm_dist: float = clampf(dist_m / w_val, 0.0, 1.0)
-					var profile_falloff: float = cos(norm_dist * PI * 0.5)
-					profile_falloff = profile_falloff * profile_falloff
+					var f_bank: float = maxf(cur_d * 0.75, 0.25)
+					var centerline_y: float = lerpf(p0_3d.y, p1_3d.y, t)
+					var water_y: float = centerline_y - f_bank
 
-					var carve_amount: float = d_max * profile_falloff
-					var prev_carve: float = float(carved_cells.get(target_pos, 0.0))
-					if carve_amount > prev_carve:
-						carved_cells[target_pos] = carve_amount
+					var target_h: float = 0.0
+
+					if dist_m <= cur_w_river:
+						# ZONA 1: LECHO CENTRAL SUMERGIDO
+						# Excavación parabólica suave que va desde (water_y - cur_d) en el centro
+						# hasta (water_y - 0.15 * cur_d) en la orilla
+						var norm_w: float = dist_m / maxf(cur_w_river, 0.001)
+						var bed_parabola: float = 1.0 - norm_w * norm_w
+						target_h = water_y - cur_d * (0.15 + 0.85 * bed_parabola)
+					else:
+						# ZONA 2: TALUD / ORILLA DE TRANSICIÓN SUAVE
+						# El terreno asciende suavemente desde la orilla del agua (+0.05m)
+						# hasta la cota del terreno natural
+						var u: float = clampf((dist_m - cur_w_river) / maxf(w_bank_slope, 0.001), 0.0, 1.0)
+						var s: float = smoothstep(0.0, 1.0, u)
+						var shore_y: float = water_y + 0.05
+						var crest_y: float = maxf(cell.raw_height, shore_y + f_bank)
+						target_h = lerpf(shore_y, crest_y, s)
+
+					var current_carved: float = float(carved_cells.get(target_pos, cell.raw_height))
+					if target_h < current_carved:
+						carved_cells[target_pos] = target_h
 
 	# Aplicar el tallado sobre cell.height respetando cell.raw_height intacto
 	for pos in carved_cells:
 		var cell: WorldCell = cells[pos]
-		var carve: float = float(carved_cells[pos])
-		cell.height = cell.raw_height - carve
+		cell.height = float(carved_cells[pos])
 
 	# Recalcular pendientes para celdas modificadas
 	for pos in carved_cells:
@@ -1355,3 +1561,224 @@ func _carve_river_channels(
 		var grad_x := (h_right - h_left) / (2.0 * profile.cell_size)
 		var grad_y := (h_down - h_up) / (2.0 * profile.cell_size)
 		cell.slope = rad_to_deg(atan(sqrt(grad_x * grad_x + grad_y * grad_y)))
+
+
+# =============================================================================
+# BLOQUE 10B: ESCULPIDO DE CUENCAS Y TALUDES DE LAGOS (LAKE CARVING)
+# =============================================================================
+
+func _carve_lake_basins(
+	cells: Dictionary,
+	lakes: Array,
+	width: int,
+	height: int,
+	profile: WorldProfile,
+	hydro: RefCounted
+) -> void:
+	if lakes.is_empty():
+		return
+
+	var cell_size: float = profile.cell_size if profile != null else 1.0
+	var w_lake_bank: float = cell_size * 3.5
+	var carved_lake_cells: Dictionary = {}
+
+	for lake in lakes:
+		var water_y: float = float(lake.get("water_height", 0.0))
+		var cluster: Array = lake.get("cells", [])
+		if cluster.is_empty():
+			continue
+
+		var lake_set: Dictionary = {}
+		for p in cluster:
+			lake_set[p] = true
+
+		var min_pos: Vector2i = lake.get("min_pos", Vector2i(0, 0))
+		var max_pos: Vector2i = lake.get("max_pos", Vector2i(width - 1, height - 1))
+		var search_margin: int = clampi(int(ceil(w_lake_bank / cell_size)) + 1, 1, 6)
+
+		var bx0: int = clampi(min_pos.x - search_margin, 0, width - 1)
+		var bx1: int = clampi(max_pos.x + search_margin, 0, width - 1)
+		var by0: int = clampi(min_pos.y - search_margin, 0, height - 1)
+		var by1: int = clampi(max_pos.y + search_margin, 0, height - 1)
+
+		# 1. Tallar lecho interior sumergido para garantizar que esté bajo el agua
+		for p in cluster:
+			var cell: WorldCell = cells.get(p)
+			if cell == null:
+				continue
+			var c_h: float = cell.raw_height if cell.raw_height != 0.0 else cell.height
+			var min_bed_depth: float = 0.35
+			var target_bed_h: float = minf(c_h, water_y - min_bed_depth)
+			if target_bed_h < float(carved_lake_cells.get(p, cell.height)):
+				carved_lake_cells[p] = target_bed_h
+
+		# 2. Tallar talud / orilla suave perimetral para encauzar el lago bajo el terreno
+		for cy in range(by0, by1 + 1):
+			for cx in range(bx0, bx1 + 1):
+				var pos := Vector2i(cx, cy)
+				if lake_set.has(pos):
+					continue
+				# No levantar taludes de tierra sobre desembocaduras o nacimientos de ríos
+				if hydro != null and hydro.has_method("is_river") and hydro.is_river(pos):
+					continue
+				var cell: WorldCell = cells.get(pos)
+				if cell == null:
+					continue
+
+				var min_dist_sq: float = INF
+				for lp in cluster:
+					var dx: float = float(cx - lp.x)
+					var dy: float = float(cy - lp.y)
+					var dsq: float = dx * dx + dy * dy
+					if dsq < min_dist_sq:
+						min_dist_sq = dsq
+
+				var dist_m: float = sqrt(min_dist_sq) * cell_size
+				var dist_from_shore: float = maxf(0.0, dist_m - cell_size * 0.5)
+
+				if dist_from_shore >= w_lake_bank:
+					continue
+
+				var u: float = clampf(dist_from_shore / w_lake_bank, 0.0, 1.0)
+				var s: float = smoothstep(0.0, 1.0, u)
+				var shore_y: float = water_y + 0.05
+				var crest_y: float = maxf(cell.raw_height, shore_y + 0.30)
+				var target_h: float = lerpf(shore_y, crest_y, s)
+
+				if target_h < float(carved_lake_cells.get(pos, cell.height)):
+					carved_lake_cells[pos] = target_h
+
+	for pos in carved_lake_cells:
+		var cell: WorldCell = cells[pos]
+		cell.height = float(carved_lake_cells[pos])
+
+	for pos in carved_lake_cells:
+		var x: int = pos.x
+		var y: int = pos.y
+		var cell: WorldCell = cells[pos]
+
+		var h_left: float = cells[Vector2i(maxi(x - 1, 0), y)].height
+		var h_right: float = cells[Vector2i(mini(x + 1, width - 1), y)].height
+		var h_up: float = cells[Vector2i(x, maxi(y - 1, 0))].height
+		var h_down: float = cells[Vector2i(x, mini(y + 1, height - 1))].height
+
+		var grad_x := (h_right - h_left) / (2.0 * profile.cell_size)
+		var grad_y := (h_down - h_up) / (2.0 * profile.cell_size)
+		cell.slope = rad_to_deg(atan(sqrt(grad_x * grad_x + grad_y * grad_y)))
+
+
+# =============================================================================
+# BLOQUE 10C: CONSTRUCCIÓN DE ZONAS HIDROLÓGICAS Y MÁSCARA DE EXCLUSIÓN
+# =============================================================================
+
+func _build_hydrology_zones(
+	width: int,
+	height: int,
+	profile: WorldProfile,
+	hydro: RefCounted
+) -> void:
+	var cell_size: float = profile.cell_size if profile != null else 1.0
+	var bank_clearance: float = profile.vegetation_bank_clearance if (profile != null and "vegetation_bank_clearance" in profile) else 1.5
+
+	# 1. Inicializar todas las celdas como DRY
+	for y in range(height):
+		for x in range(width):
+			hydro.zones[Vector2i(x, y)] = _HydrologyResultScript.HydrologyZone.DRY
+
+	# 2. Lagos: Lake Water & Lake Bank
+	var w_lake_bank: float = maxf(cell_size * 2.0, bank_clearance)
+	for lake in hydro.lakes:
+		var cluster: Array = lake.get("cells", [])
+		var min_pos: Vector2i = lake.get("min_pos", Vector2i.ZERO)
+		var max_pos: Vector2i = lake.get("max_pos", Vector2i(width - 1, height - 1))
+		var lake_set: Dictionary = {}
+
+		for p in cluster:
+			lake_set[p] = true
+			hydro.zones[p] = _HydrologyResultScript.HydrologyZone.LAKE_WATER
+
+		var search_margin: int = clampi(int(ceil(w_lake_bank / cell_size)) + 1, 1, 5)
+		var bx0: int = clampi(min_pos.x - search_margin, 0, width - 1)
+		var bx1: int = clampi(max_pos.x + search_margin, 0, width - 1)
+		var by0: int = clampi(min_pos.y - search_margin, 0, height - 1)
+		var by1: int = clampi(max_pos.y + search_margin, 0, height - 1)
+
+		for cy in range(by0, by1 + 1):
+			for cx in range(bx0, bx1 + 1):
+				var pos := Vector2i(cx, cy)
+				if lake_set.has(pos):
+					continue
+				if hydro.zones.get(pos, 0) == _HydrologyResultScript.HydrologyZone.LAKE_WATER:
+					continue
+
+				var min_dist_sq: float = INF
+				for lp in cluster:
+					var dx: float = float(cx - lp.x)
+					var dy: float = float(cy - lp.y)
+					var dsq: float = dx * dx + dy * dy
+					if dsq < min_dist_sq:
+						min_dist_sq = dsq
+
+				var dist_m: float = sqrt(min_dist_sq) * cell_size
+				var dist_from_shore: float = maxf(0.0, dist_m - cell_size * 0.5)
+				if dist_from_shore <= w_lake_bank:
+					hydro.zones[pos] = _HydrologyResultScript.HydrologyZone.LAKE_BANK
+
+	# 3. Ríos: River Water & River Bank (usando la geometría continua y anchos)
+	for river_data in hydro.rivers:
+		var pts_arr: Array = river_data.get("points", [])
+		var widths_arr: Array = river_data.get("widths", [])
+		var num_pts: int = pts_arr.size()
+		if num_pts < 2:
+			continue
+
+		for j in range(num_pts - 1):
+			var p0_3d: Vector3 = pts_arr[j]
+			var p1_3d: Vector3 = pts_arr[j + 1]
+			var p0 := Vector2(p0_3d.x, p0_3d.z)
+			var p1 := Vector2(p1_3d.x, p1_3d.z)
+			var v := p1 - p0
+			var len_sq: float = v.length_squared()
+			var inv_len_sq: float = 1.0 / len_sq if len_sq > 0.00001 else 0.0
+
+			var w0: float = float(widths_arr[j])
+			var w1: float = float(widths_arr[j + 1])
+			var max_w: float = maxf(w0, w1)
+			var max_w_river: float = max_w * 0.5
+			var seg_bank_clearance: float = maxf(max_w_river * 0.8, bank_clearance)
+			var max_w_bank: float = max_w_river + seg_bank_clearance
+
+			var min_cx: int = clampi(int(floor((minf(p0.x, p1.x) - max_w_bank) / cell_size)), 0, width - 1)
+			var max_cx: int = clampi(int(ceil((maxf(p0.x, p1.x) + max_w_bank) / cell_size)), 0, width - 1)
+			var min_cy: int = clampi(int(floor((minf(p0.y, p1.y) - max_w_bank) / cell_size)), 0, height - 1)
+			var max_cy: int = clampi(int(ceil((maxf(p0.y, p1.y) + max_w_bank) / cell_size)), 0, height - 1)
+
+			for cy in range(min_cy, max_cy + 1):
+				for cx in range(min_cx, max_cx + 1):
+					var target_pos := Vector2i(cx, cy)
+					# Si ya está catalogada como agua de lago, preservar LAKE_WATER
+					if hydro.zones.get(target_pos, 0) == _HydrologyResultScript.HydrologyZone.LAKE_WATER:
+						continue
+
+					var q := Vector2(float(cx), float(cy)) * cell_size
+					var t: float = clampf((q - p0).dot(v) * inv_len_sq, 0.0, 1.0)
+					var proj: Vector2 = p0 + v * t
+					var dist_m: float = q.distance_to(proj)
+
+					var cur_w: float = lerpf(w0, w1, t)
+					var cur_w_river: float = cur_w * 0.5
+					var cur_w_bank: float = cur_w_river + maxf(cur_w_river * 0.8, bank_clearance)
+
+					if dist_m <= cur_w_river:
+						hydro.zones[target_pos] = _HydrologyResultScript.HydrologyZone.RIVER_WATER
+					elif dist_m <= cur_w_bank:
+						if hydro.zones.get(target_pos, 0) != _HydrologyResultScript.HydrologyZone.RIVER_WATER:
+							hydro.zones[target_pos] = _HydrologyResultScript.HydrologyZone.RIVER_BANK
+
+	# 4. Generar la máscara booleana de exclusión para vegetación O(1)
+	for y in range(height):
+		for x in range(width):
+			var pos := Vector2i(x, y)
+			var zone: int = int(hydro.zones.get(pos, _HydrologyResultScript.HydrologyZone.DRY))
+			if zone != _HydrologyResultScript.HydrologyZone.DRY:
+				hydro.exclusion_mask[pos] = true

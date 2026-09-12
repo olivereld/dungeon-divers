@@ -34,10 +34,12 @@ func _init() -> void:
 
 	# 5. Renderer Check
 	var renderer := WorldRenderer.new()
-	var world_node := renderer.render_world(result, profile.cell_size)
+	var world_node := renderer.render_world(result, profile)
 	assert(world_node != null)
 	assert(world_node.has_node("TerrainMesh"))
 	assert(world_node.has_node("TerrainCollision"))
+	if result.hydrology != null and (!result.hydrology.rivers.is_empty() or !result.hydrology.lakes.is_empty()):
+		assert(world_node.has_node("WaterRoot"), "WorldRenderer must produce WaterRoot node")
 	world_node.free()
 	renderer.free()
 

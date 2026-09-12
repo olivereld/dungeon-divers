@@ -51,6 +51,7 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var shrub_density: float = 0.40
 @export_range(0.0, 1.0, 0.01) var rock_density: float = 0.15
 @export_range(0.5, 10.0, 0.1) var min_tree_spacing: float = 2.2
+@export_range(0.0, 5.0, 0.25) var vegetation_bank_clearance: float = 1.5
 
 # Navigation
 @export_group("Navigation")
@@ -129,6 +130,7 @@ func get_hydrology_noise_frequency() -> float:
 @export_group("Hydrology - Lakes")
 @export_range(0.05, 0.60, 0.01) var lake_threshold: float = 0.22
 @export_range(1, 50, 1) var lake_minimum_area: int = 4
+@export_range(0.0, 12.0, 0.5) var lake_merge_distance: float = 4.0
 
 # Hydrology - Rivers
 @export_group("Hydrology - Rivers")
@@ -142,12 +144,17 @@ func get_hydrology_noise_frequency() -> float:
 @export_range(0.8, 6.0, 0.1) var river_max_width: float = 2.4
 @export_range(0.0, 1.0, 0.02) var river_meander_strength: float = 0.18
 @export_range(0.05, 0.80, 0.02) var river_channel_depth: float = 0.20
-@export_range(0.8, 6.0, 0.1) var river_bank_width: float = 2.4
-@export_range(0.5, 4.0, 0.1) var river_bank_falloff: float = 1.6
 @export_range(0.05, 2.0, 0.02) var river_min_depth: float = 0.08
 @export_range(0.1, 5.0, 0.05) var river_max_depth: float = 0.50
 @export_range(0.2, 1.0, 0.05) var river_depth_response: float = 0.45
 @export_range(0.2, 1.0, 0.05) var river_width_response: float = 0.42
+
+# Hydrology - River Geometry (Post-Geometry)
+@export_group("Hydrology - River Geometry")
+@export_range(64, 512, 16) var water_field_resolution: int = 224
+@export_range(0.01, 0.50, 0.01) var contour_simplification_tolerance: float = 0.05
+@export_range(0.01, 0.30, 0.01) var minimum_contour_edge: float = 0.03
+@export_range(0.01, 2.0, 0.05) var minimum_polygon_area: float = 0.20
 
 # Hydrology - Noise Field (Channel Preference & Meanders)
 @export_group("Hydrology - Noise Field")
@@ -160,11 +167,11 @@ func get_hydrology_noise_frequency() -> float:
 
 # Hydrology - Water Visuals
 @export_group("Hydrology - Water Visuals")
-@export var water_color_shallow: Color = Color("#2a68a8")
-@export var water_color_medium: Color = Color("#1e4e82")
-@export var water_color_deep: Color = Color("#143254")
-@export var water_color_river: Color = Color("#2d74b8")
-@export var water_color_lake: Color = Color("#193e68")
+@export var water_color_shallow: Color = Color("#22b8c6")
+@export var water_color_medium: Color = Color("#12729a")
+@export var water_color_deep: Color = Color("#073b5e")
+@export var water_color_river: Color = Color("#1cb0be")
+@export var water_color_lake: Color = Color("#073b5e")
 @export_range(0.0, 1.0, 0.02) var water_roughness: float = 0.08
 @export_range(0.1, 1.0, 0.05) var water_transparency: float = 0.85
 

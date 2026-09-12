@@ -7,6 +7,8 @@ extends RefCounted
 ## 2. NUNCA recalcula la hidrología, cuencas o direcciones de flujo.
 ## 3. Consume RiverNetwork, River.points y River.widths como fuente única de verdad geométrica.
 
+const _RiverMeshBuilderScript = preload("res://src/world_generator/presentation/water/river_mesh_builder.gd")
+
 static func build_river_node(result: WorldResult, profile: WorldProfile = null) -> Node3D:
 	if result == null or result.hydrology == null:
 		return null
@@ -39,7 +41,8 @@ static func build_river_node(result: WorldResult, profile: WorldProfile = null) 
 		river_root.add_child(river_mi)
 
 	# 2. Maya de orillas físicas (River Banks) si bank_width > 0.0
-	if profile.river_bank_width > 0.0:
+	var bank_width: float = float(profile.get("river_bank_width", 0.0))
+	if bank_width > 0.0:
 		var bank_mat := _create_bank_material(profile)
 		var bank_mesh := build_bank_mesh(result, profile)
 		if bank_mesh != null and bank_mesh.get_surface_count() > 0:
@@ -80,8 +83,15 @@ static func build_river_mesh(result: WorldResult, profile: WorldProfile = null) 
 		profile = WorldProfile.new()
 
 	var hydro = result.hydrology
-	var rivers: Array = []
 	var network = hydro.get_river_network()
+	if network != null:
+		var net_surf: WaterSurfaceData = _RiverMeshBuilderScript.build_network_mesh(network, result, profile)
+		if net_surf != null and not net_surf.vertices.is_empty():
+			var mesh: ArrayMesh = net_surf.to_array_mesh()
+			if mesh != null:
+				return mesh
+
+	var rivers: Array = []
 	if network is RiverNetwork and not network.rivers.is_empty():
 		rivers = network.rivers
 	else:
@@ -230,7 +240,8 @@ static func build_bank_mesh(result: WorldResult, profile: WorldProfile = null) -
 	var bank_inner_col := Color(0.24, 0.18, 0.12, 0.70)  # Fango húmedo en contacto con el agua
 	var bank_outer_col := Color(0.38, 0.32, 0.22, 0.0)   # Desvanecimiento al terreno circundante
 
-	var bank_w_extra: float = (profile.river_bank_width * 0.5) / maxf(profile.cell_size, 0.01)
+	var bank_width: float = float(profile.get("river_bank_width", 0.0))
+	var bank_w_extra: float = (bank_width * 0.5) / maxf(profile.cell_size, 0.01)
 
 	for river in rivers:
 		var raw_pts: Array = river.points if (river is River or "points" in river) else river.get("points", [])
