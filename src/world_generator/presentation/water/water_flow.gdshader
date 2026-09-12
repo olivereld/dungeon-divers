@@ -19,11 +19,11 @@ uniform vec4 foam_color : source_color = vec4(0.96, 0.99, 1.0, 1.0);        // E
 uniform float depth_max_distance : hint_range(0.5, 10.0) = 2.8;
 
 // --- Espuma y Ondas de Orilla ---
-uniform float foam_edge_width : hint_range(0.02, 0.8) = 0.22; // Espesor de contacto
-uniform float wave_frequency : hint_range(0.5, 10.0) = 4.2;   // Frecuencia de la ola
-uniform float wave_speed : hint_range(0.1, 5.0) = 1.6;        // Velocidad hacia la orilla
-uniform float wave_max_depth : hint_range(0.2, 5.0) = 1.6;    // Rango de acción de la ola
-uniform float wave_intensity : hint_range(0.0, 1.5) = 0.90;
+uniform float foam_edge_width : hint_range(0.02, 0.8) = 0.18; // Espesor de contacto estático
+uniform float wave_speed : hint_range(0.1, 4.0) = 0.85;       // Velocidad del ciclo de ola (avance y retroceso)
+uniform float wave_max_depth : hint_range(0.2, 4.0) = 1.2;    // Alcance máximo hacia aguas abiertas
+uniform float wave_intensity : hint_range(0.0, 1.5) = 0.70;   // Intensidad sutil de la ola dinámica
+uniform float wave_thickness : hint_range(0.02, 0.25) = 0.055;// Grosor estilizado de la línea de espuma
 
 // --- Superficie y Ruido ---
 uniform sampler2D noise_texture : filter_linear_mipmap, repeat_enable;
@@ -73,18 +73,61 @@ void fragment() {
 	float noise_val = (n1 + n2) * 0.5;
 
 	// 3. Efecto de ola y espuma de orilla
-	// A) Espuma de contacto con rocas, orillas y muros (con perturbación de ruido)
-	float dist_depth = water_depth + (noise_val - 0.5) * 0.16;
+	// A) Espuma de contacto estática en rocas, orillas y muros (sutil e irregular)
+	float dist_depth = water_depth + (noise_val - 0.5) * 0.14;
 	float contact_foam = 1.0 - smoothstep(0.0, foam_edge_width, dist_depth);
 
-	// B) Ola que viaja hacia la ribera
-	float wave_phase = (water_depth * wave_frequency) - (TIME * wave_speed);
-	float wave_sine = sin(wave_phase);
-	float wave_crest = smoothstep(0.72, 0.95, wave_sine);
-	float shore_band = smoothstep(wave_max_depth, 0.10, water_depth);
-	float shore_wave = wave_crest * shore_band * wave_intensity * (n1 * 0.4 + 0.6);
+	// B) Pequeña ola estilizada con ciclo: AVANCE -> CONTACTO -> RETROCESO -> REPETIR
+	// Desincronización espacial orgánica a lo largo de la costa para evitar un pulso uniforme global
+	float coast_phase_shift = sin(dot(v_world_pos.xz, vec2(0.14, 0.09))) * 0.35 + (n2 - 0.5) * 0.45;
+	float cycle = fract((TIME * wave_speed * 0.40) + coast_phase_shift);
 
-	float total_foam = clamp(contact_foam + shore_wave, 0.0, 1.0);
+	float wave_crest_depth = 0.0;
+	float wave_strength = 0.0;
+	float current_thickness = wave_thickness * (1.0 + (n1 - 0.5) * 0.35);
+
+	if (cycle < 0.55) {
+		// FASE 1: AVANCE (desde agua somera hacia la costa)
+		float t_adv = cycle / 0.55;
+		float progress = smoothstep(0.0, 1.0, t_adv);
+		// La cresta se desplaza físicamente desde wave_max_depth hacia la orilla (0.02)
+		wave_crest_depth = mix(wave_max_depth, 0.02, progress);
+		// Crece gradualmente en visibilidad a medida que se aproxima a la orilla
+		wave_strength = smoothstep(0.0, 0.30, t_adv) * (0.65 + 0.35 * progress);
+	} else if (cycle < 0.70) {
+		// FASE 2: CONTACTO / IMPACTO (rompe brevemente contra la costa)
+		float t_contact = (cycle - 0.55) / 0.15;
+		wave_crest_depth = mix(0.02, 0.0, t_contact);
+		// Momento de choque en la orilla
+		wave_strength = 1.0;
+		current_thickness *= 1.35;
+	} else {
+		// FASE 3: RETROCESO (el agua se retira de la costa hacia adentro y se disuelve)
+		float t_ret = (cycle - 0.70) / 0.30;
+		float progress = smoothstep(0.0, 1.0, t_ret);
+		// La espuma retrocede hacia aguas abiertas
+		wave_crest_depth = mix(0.0, wave_max_depth * 0.55, progress);
+		// Se desvanece de manera claramente perceptible pero suave
+		wave_strength = (1.0 - progress) * 0.70;
+		current_thickness *= (1.0 - progress * 0.35);
+	}
+
+	// Delimitación espacial y perfil de la fina línea de espuma
+	float depth_diff = abs(dist_depth - wave_crest_depth);
+	float crest_line = 1.0 - smoothstep(0.0, max(current_thickness, 0.01), depth_diff);
+
+	// Máscara de profundidad para contener la ola dentro del rango de costa
+	float depth_mask = smoothstep(wave_max_depth * 1.15, wave_max_depth * 0.80, water_depth);
+	float shore_wave = crest_line * wave_strength * wave_intensity * depth_mask;
+
+	// Pequeña acumulación / estallido de espuma en el momento de contacto con la costa
+	float shore_burst = 0.0;
+	if (cycle >= 0.55 && cycle < 0.72) {
+		float burst_t = sin(((cycle - 0.55) / 0.17) * 3.14159265);
+		shore_burst = (1.0 - smoothstep(0.0, foam_edge_width * 1.25, dist_depth)) * burst_t * 0.30 * wave_intensity;
+	}
+
+	float total_foam = clamp(contact_foam + shore_wave + shore_burst, 0.0, 1.0);
 
 	// 4. Gradiente de color según profundidad
 	float depth_factor = clamp(water_depth / depth_max_distance, 0.0, 1.0);
