@@ -16,35 +16,27 @@ static func build_water_node(result: WorldResult, profile: WorldProfile = null) 
 	if profile == null:
 		profile = WorldProfile.new()
 
+	# Flujo canónico: Hydrology -> RiverNetwork -> RiverMeshBuilder -> WaterSurfaceData -> Presentation
 	var hydro = result.hydrology
 	var combined_surf = _WaterSurfaceDataScript.new()
 
-	# 1. Construir ríos
-	var rivers: Array = hydro.rivers
-	var network = hydro.get_river_network()
-	if network is RiverNetwork and not network.rivers.is_empty():
-		rivers = network.rivers
-
-	for r in rivers:
-		var r_surf = _RiverMeshBuilderScript.build_river_surface(r, result, profile, network)
-		if r_surf != null:
-			combined_surf.append_surface(r_surf)
+	# 1. Hydrology -> RiverNetwork -> RiverMeshBuilder -> WaterSurfaceData (Generación Única)
+	var river_surf: WaterSurfaceData = null
+	if "cached_water_surface" in result and result.cached_water_surface != null and result.cached_water_surface is _WaterSurfaceDataScript:
+		river_surf = result.cached_water_surface as WaterSurfaceData
+	else:
+		var river_network = hydro.get_river_network()
+		river_surf = _RiverMeshBuilderScript.build_network_mesh(river_network, result, profile)
+		if "cached_water_surface" in result:
+			result.cached_water_surface = river_surf
+	if river_surf != null:
+		combined_surf.append_surface(river_surf)
 
 	# 2. Construir lagos
 	for lake in hydro.lakes:
 		var l_surf = _LakeMeshBuilderScript.build_lake_surface(lake, result, profile)
 		if l_surf != null:
 			combined_surf.append_surface(l_surf)
-
-	# 3. Construir confluencias continuas
-	var confs: Array = hydro.confluences
-	if network is RiverNetwork and not network.confluences.is_empty():
-		confs = network.confluences
-
-	for conf in confs:
-		var c_surf = _RiverMeshBuilderScript.build_confluence_surface(conf, result, profile, network)
-		if c_surf != null:
-			combined_surf.append_surface(c_surf)
 
 	var mesh: ArrayMesh = combined_surf.to_array_mesh()
 	if mesh == null:

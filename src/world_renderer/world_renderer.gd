@@ -2,7 +2,6 @@ class_name WorldRenderer
 extends Node3D
 
 const _TerrainMaterialScript = preload("res://src/world_generator/presentation/terrain_material.gd")
-const _HydrologyRendererScript = preload("res://src/world_renderer/hydrology_renderer.gd")
 const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
 
 func render_world(result: WorldResult, profile_or_cell_size: Variant = 1.0) -> Node3D:

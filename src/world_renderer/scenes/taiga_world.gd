@@ -183,7 +183,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 90.0, "warp_amplitude": 18.0, "warp_octaves": 2,
 		"forest_wavelength": 65.0, "clearing_wavelength": 30.0, "clearing_threshold": 0.45,
 		"tree_density": 0.70, "min_tree_spacing": 2.0, "shrub_density": 0.45, "rock_density": 0.20,
-		"cell_size": 1.0, "lake_threshold": 0.22, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0
+		"cell_size": 1.0, "lake_threshold": 0.22, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	1: {
 		"name": "Valle Glaciar Amplio (Bajo Relieve)",
@@ -193,7 +194,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 120.0, "warp_amplitude": 14.0, "warp_octaves": 2,
 		"forest_wavelength": 80.0, "clearing_wavelength": 40.0, "clearing_threshold": 0.52,
 		"tree_density": 0.55, "min_tree_spacing": 2.4, "shrub_density": 0.50, "rock_density": 0.12,
-		"cell_size": 1.0, "lake_threshold": 0.26, "lake_minimum_area": 6, "hydrology_noise_wavelength": 95.0
+		"cell_size": 1.0, "lake_threshold": 0.26, "lake_minimum_area": 6, "hydrology_noise_wavelength": 95.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	2: {
 		"name": "Tierras Altas Escarpadas (Fiordos)",
@@ -203,7 +205,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 75.0, "warp_amplitude": 24.0, "warp_octaves": 3,
 		"forest_wavelength": 50.0, "clearing_wavelength": 25.0, "clearing_threshold": 0.40,
 		"tree_density": 0.50, "min_tree_spacing": 2.2, "shrub_density": 0.35, "rock_density": 0.35,
-		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 3, "hydrology_noise_wavelength": 70.0
+		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 3, "hydrology_noise_wavelength": 70.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	3: {
 		"name": "Bosque Boreal Cerrado (Old-Growth)",
@@ -213,7 +216,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 85.0, "warp_amplitude": 15.0, "warp_octaves": 2,
 		"forest_wavelength": 90.0, "clearing_wavelength": 20.0, "clearing_threshold": 0.30,
 		"tree_density": 0.85, "min_tree_spacing": 1.7, "shrub_density": 0.60, "rock_density": 0.15,
-		"cell_size": 1.0, "lake_threshold": 0.20, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0
+		"cell_size": 1.0, "lake_threshold": 0.20, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	4: {
 		"name": "Turberas y Claros Abiertos",
@@ -223,7 +227,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 100.0, "warp_amplitude": 12.0, "warp_octaves": 2,
 		"forest_wavelength": 45.0, "clearing_wavelength": 55.0, "clearing_threshold": 0.65,
 		"tree_density": 0.28, "min_tree_spacing": 2.2, "shrub_density": 0.65, "rock_density": 0.10,
-		"cell_size": 1.0, "lake_threshold": 0.30, "lake_minimum_area": 6, "hydrology_noise_wavelength": 90.0
+		"cell_size": 1.0, "lake_threshold": 0.30, "lake_minimum_area": 6, "hydrology_noise_wavelength": 90.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	5: {
 		"name": "Archipiélago (Islas y Fiordos)",
@@ -233,7 +238,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 70.0, "warp_amplitude": 22.0, "warp_octaves": 2,
 		"forest_wavelength": 55.0, "clearing_wavelength": 28.0, "clearing_threshold": 0.50,
 		"tree_density": 0.42, "min_tree_spacing": 2.2, "shrub_density": 0.45, "rock_density": 0.30,
-		"cell_size": 1.0, "lake_threshold": 0.28, "lake_minimum_area": 3, "hydrology_noise_wavelength": 65.0
+		"cell_size": 1.0, "lake_threshold": 0.28, "lake_minimum_area": 3, "hydrology_noise_wavelength": 65.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
 	6: {
 		"name": "Tundra Nevada (Cimas Rocosas)",
@@ -243,7 +249,8 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 80.0, "warp_amplitude": 10.0, "warp_octaves": 2,
 		"forest_wavelength": 40.0, "clearing_wavelength": 40.0, "clearing_threshold": 0.72,
 		"tree_density": 0.15, "min_tree_spacing": 3.2, "shrub_density": 0.25, "rock_density": 0.45,
-		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 4, "hydrology_noise_wavelength": 75.0
+		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 4, "hydrology_noise_wavelength": 75.0,
+		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	}
 }
 
@@ -1071,6 +1078,13 @@ func _build_left_panel() -> void:
 	_add_slider(vbox, "hydrology_noise_wavelength", "Long. Onda Ruido Cauce (m)", profile.hydrology_noise_wavelength, 20.0, 200.0, 5.0, Color("#38bdf8"))
 	_add_slider(vbox, "hydrology_noise_strength", "Fuerza Ruido Cauce", profile.hydrology_noise_strength, 0.0, 0.8, 0.05, Color("#38bdf8"))
 
+	# 7. GEOMETRÍA DE RÍOS (POST-GEOMETRÍA)
+	_add_left_section(vbox, "GEOMETRÍA RÍOS (POST-GEO)", "🌊", Color("#22d3ee"))
+	_add_slider(vbox, "water_field_resolution", "Resolución Campo SDF", float(profile.water_field_resolution), 64.0, 512.0, 16.0, Color("#22d3ee"))
+	_add_slider(vbox, "contour_simplification_tolerance", "Tolerancia RDP (m)", profile.contour_simplification_tolerance, 0.01, 0.50, 0.01, Color("#22d3ee"))
+	_add_slider(vbox, "minimum_contour_edge", "Arista Mínima (m)", profile.minimum_contour_edge, 0.01, 0.30, 0.01, Color("#22d3ee"))
+	_add_slider(vbox, "minimum_polygon_area", "Área Mín. Polígono (m²)", profile.minimum_polygon_area, 0.01, 2.0, 0.05, Color("#22d3ee"))
+
 	ui_root.add_child(left_panel)
 
 func _add_left_section(parent: Control, title: String, icon: String, col: Color) -> void:
@@ -1119,9 +1133,10 @@ func _add_slider(parent: Control, prop_name: String, label_text: String, default
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.value_changed.connect(func(new_val: float):
 		val_lbl.text = "%.3f" % new_val if step < 0.01 else ("%.2f" % new_val if step < 1.0 else "%d" % int(new_val))
-		if prop_name == "width" or prop_name == "height":
+		if prop_name == "width" or prop_name == "height" or prop_name == "water_field_resolution":
 			profile.set(prop_name, int(new_val))
-			_sync_map_size_option()
+			if prop_name == "width" or prop_name == "height":
+				_sync_map_size_option()
 		else:
 			profile.set(prop_name, new_val)
 
@@ -2073,7 +2088,7 @@ func _read_ui_to_profile() -> void:
 	for prop_name in _sliders.keys():
 		var entry: Dictionary = _sliders[prop_name]
 		var sl: HSlider = entry["slider"]
-		if prop_name == "width" or prop_name == "height":
+		if prop_name == "width" or prop_name == "height" or prop_name == "water_field_resolution":
 			profile.set(prop_name, int(sl.value))
 		else:
 			profile.set(prop_name, sl.value)

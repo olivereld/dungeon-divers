@@ -1,1228 +1,436 @@
 class_name RiverMeshBuilder
 extends RefCounted
 
-## Constructor robusto de mallas de agua longitudinales (Quad Strips).
-## Topología limpia garantizada (Bloques 1 al 9):
-## 1. Deduplicación y remuestreo regular por longitud de arco acumulada (0.75m).
-## 2. Tangentes normalizadas y normales combinadas estrictamente unitarias (|n| = 1.0).
-## 3. Validación de quad 2D en XZ contra inversión de winding y cruce de aristas.
-## 4. Fallback progresivo para curvas cerradas (normal previa, normal siguiente, reducción de ancho).
-## 5. Ribbon estricto: exactamente dos vértices por sección y dos triángulos por segmento.
+## Constructor de alto nivel para la red hidrográfica de ríos y confluencias.
+## Aísla la implementación geométrica de RiverMeshBuilder desacoplando los orquestadores
+## de renderizado (WaterRenderer / RiverRenderer) de los algoritmos de geometría de bajo nivel.
+##
+## ==============================================================================
+## CONTRATO DE ENTRADA Y SALIDA (Documentación de Arquitectura):
+## ==============================================================================
+##
+## ENTRADA (Inputs):
+## 1. network: RiverNetwork (o Variant convertible/resuelto desde HydrologyResult):
+##    - Grafo acíclico dirigido (DAG) de la red fluvial.
+##    - Contiene 'rivers' (Array[River]) y 'confluences' (Array[Dictionary]).
+##    - Si es null o no provisto, se resuelve automáticamente desde result.hydrology.get_river_network().
+##
+## 2. result: WorldResult:
+##    - Contenedor canónico del mundo generado.
+##    - Proporciona dimensiones del mapa (dimensions), celdas de terreno para muestreo de lecho
+##      y contexto hidrológico general (result.hydrology).
+##
+## 3. profile: WorldProfile:
+##    - Configuración física y visual de la generación (cell_size, water_level_min_offset,
+##      colores de agua, ancho mínimo de río, etc.).
+##
+## SALIDA (Output):
+## - WaterSurfaceData:
+##    - Objeto unificado que encapsula la geometría completa de la red de agua:
+##      * vertices (PackedVector3Array)
+##      * normals (PackedVector3Array)
+##      * uvs (PackedVector2Array)
+##      * uv2_flow (PackedVector2Array) - codificación vectorial de flujo continuo
+##      * colors (PackedColorArray)
+##      * indices (PackedInt32Array)
+##    - Se convierte directamente a ArrayMesh mediante .to_array_mesh() o se agrega a
+##      superficies combinadas (WaterRenderer).
+##
+## RESTRICCIÓN DE DISEÑO:
+## - No implementa nuevos algoritmos geométricos aún; reutiliza y aísla la generación
+##   probada de RiverMeshBuilder (ribbons longitudinales y patches de confluencia).
+## ==============================================================================
 
 const _WaterSurfaceDataScript = preload("res://src/world_generator/presentation/water/water_surface_data.gd")
-const _RiverScript = preload("res://src/world_generator/hydrology/river.gd")
+const _RiverNetworkScript = preload("res://src/world_generator/hydrology/river_network.gd")
+const _RenderSegmentScript = preload("res://src/world_generator/presentation/water/render_segment.gd")
+const _WaterFieldScript = preload("res://src/world_generator/presentation/water/water_field.gd")
+const _RawContourScript = preload("res://src/world_generator/presentation/water/raw_contour.gd")
+const _CleanContourScript = preload("res://src/world_generator/presentation/water/clean_contour.gd")
+const _WaterPolygonScript = preload("res://src/world_generator/presentation/water/water_polygon.gd")
 
-static func build_river_surface(
+## Normaliza una RiverNetwork (o colección de ríos) a un arreglo lineal de RenderSegment[].
+##
+## PROCESO:
+## 1. Itera ríos ignorando ríos sin puntos, con geometría inválida o ancho <= 0.
+## 2. Copia datos sin modificar el original.
+## 3. Limpia centerlines eliminando duplicados y segmentos menores a epsilon (manteniendo extremos e interpolando W/D).
+## 4. Convierte cada tramo consecutivo (P0, W0, D0 -> P1, W1, D1) a RenderSegment.
+##
+## RESTRICCIONES:
+## - No modifica el original.
+## - Sin suavizado (mantiene las líneas base limpias sin convoluciones ni splines).
+## - Sin vértices de malla (puramente geométrico-descriptivo).
+static func normalize_network_to_segments(
+	network: Variant,
+	epsilon: float = 0.001
+) -> Array[RenderSegment]:
+	var segments: Array[RenderSegment] = []
+	if network == null:
+		return segments
+
+	var rivers: Array = []
+	if network is _RiverNetworkScript or (network is Object and "rivers" in network):
+		rivers = network.rivers
+	elif network is Array:
+		rivers = network
+	elif network is Dictionary and "rivers" in network:
+		rivers = network["rivers"]
+
+	for river in rivers:
+		var river_segs: Array[RenderSegment] = normalize_river_to_segments(river, epsilon)
+		segments.append_array(river_segs)
+
+	return segments
+
+## Normaliza un río individual a una lista de RenderSegment
+static func normalize_river_to_segments(
 	river: Variant,
-	result: WorldResult,
-	profile: WorldProfile,
-	network: Variant = null
-) -> RefCounted:
-	var raw_pts: Array = []
-	var raw_widths: Array = []
-	var raw_depths: Array = []
-
-	if river is River:
-		raw_pts = river.points.duplicate()
-		raw_widths = river.widths.duplicate()
-		raw_depths = river.depths.duplicate()
-	elif river is Dictionary:
-		raw_pts = river.get("points", []).duplicate()
-		raw_widths = river.get("widths", []).duplicate()
-		raw_depths = river.get("depths", []).duplicate()
-	else:
-		return null
-
-	if raw_pts.size() < 2:
-		return null
-
-	# ------------------------------------------------------------------
-	# BLOQUE 2 — Ownership y recorte de ribbons
-	# El ribbon cede el espacio de la zona de confluencia a la junction.
-	# ------------------------------------------------------------------
-	var has_downstream: bool = false
-	var has_upstream: bool = false
-	if river is River:
-		has_downstream = (river.downstream_river != -1)
-		has_upstream = not river.upstream_rivers.is_empty()
-	elif river is Dictionary:
-		has_downstream = (river.get("downstream_river", -1) != -1)
-		has_upstream = not river.get("upstream_rivers", []).is_empty()
-
-	var cell_size: float = maxf(profile.cell_size, 0.01) if profile != null else 1.0
-	var trim_len: float = 0.0
-
-	if has_downstream or has_upstream:
-		var junction_width: float = 1.0
-
-		if has_downstream:
-			var downstream_boundary = _get_river_boundary_station(
-				river,
-				true,
-				cell_size,
-				result
-			)
-			junction_width = maxf(
-				junction_width,
-				float(downstream_boundary.get("width", 0.0))
-			)
-
-		if has_upstream:
-			var upstream_boundary = _get_river_boundary_station(
-				river,
-				false,
-				cell_size,
-				result
-			)
-			junction_width = maxf(
-				junction_width,
-				float(upstream_boundary.get("width", 0.0))
-			)
-
-		trim_len = maxf(junction_width * 1.25, 1.0)
-
-	if trim_len > 0.001:
-		if has_downstream:
-			var trimmed_down := _trim_river_endpoint(
-				raw_pts,
-				raw_widths,
-				raw_depths,
-				true,
-				trim_len
-			)
-
-			raw_pts = trimmed_down["points"]
-			raw_widths = trimmed_down["widths"]
-			raw_depths = trimmed_down["depths"]
-
-		if has_upstream:
-			var trimmed_up := _trim_river_endpoint(
-				raw_pts,
-				raw_widths,
-				raw_depths,
-				false,
-				trim_len
-			)
-
-			raw_pts = trimmed_up["points"]
-			raw_widths = trimmed_up["widths"]
-			raw_depths = trimmed_up["depths"]
-
-	# ------------------------------------------------------------------
-	# BLOQUE 1 — Limpiar y remuestrear la línea central por distancia acumulada.
-	# ------------------------------------------------------------------
-	var sampled := _clean_and_resample_centerline(
-		raw_pts,
-		raw_widths,
-		raw_depths,
-		0.75
-	)
-
-	var pts: Array[Vector3] = sampled["points"]
-	var widths: Array[float] = sampled["widths"]
-	var depths: Array[float] = sampled["depths"]
-
-	if pts.size() < 2:
-		return null
-
-	var surf = _WaterSurfaceDataScript.new()
-
-	# ------------------------------------------------------------------
-	# BLOQUE 2 & 4 — Cálculo lateral del ribbon con normales unitarias
-	# y pipeline de fallback para curvas cerradas.
-	# ------------------------------------------------------------------
-	var left_positions: Array[Vector3] = []
-	var right_positions: Array[Vector3] = []
-	var station_tangents: Array[Vector3] = []
-	var station_normals: Array[Vector3] = []
-
-	left_positions.resize(pts.size())
-	right_positions.resize(pts.size())
-	station_tangents.resize(pts.size())
-	station_normals.resize(pts.size())
-
-	# ------------------------------------------------------------------
-	# TELEMETRÍA EFÍMERA DE DIAGNÓSTICO
-	# ------------------------------------------------------------------
-	var diagnostics := {
-		"sections": pts.size(),
-		"quads": maxi(pts.size() - 1, 0),
-		"fallback_normal_previous": 0,
-		"fallback_normal_next": 0,
-		"fallback_width_85": 0,
-		"fallback_width_70": 0,
-		"fallback_width_55": 0,
-		"fallback_width_40": 0,
-		"fallback_safe": 0,
-		"invalid_quads_before_fallback": 0,
-		"invalid_quads_after_fallback": 0,
-		"skipped_triangles": 0,
-		"valid_triangles": 0,
-		"min_width": INF,
-		"max_width": 0.0,
-		"min_segment_length": INF,
-		"max_segment_length": 0.0,
-		"turns_gt_30": 0,
-		"turns_gt_60": 0,
-		"turns_gt_90": 0
-	}
-
-	# ------------------------------------------------------------------
-	# 2.1 Cálculo inicial de tangentes y normales unitarias
-	# ------------------------------------------------------------------
-	for i in range(pts.size()):
-		var tangent: Vector3
-		var prev_dir := Vector3.ZERO
-		var next_dir := Vector3.ZERO
-
-		if i == 0:
-			next_dir = (pts[1] - pts[0]).normalized()
-			next_dir.y = 0.0
-			tangent = next_dir
-		elif i == pts.size() - 1:
-			prev_dir = (pts[i] - pts[i - 1]).normalized()
-			prev_dir.y = 0.0
-			tangent = prev_dir
-		else:
-			prev_dir = (pts[i] - pts[i - 1]).normalized()
-			next_dir = (pts[i + 1] - pts[i]).normalized()
-			prev_dir.y = 0.0
-			next_dir.y = 0.0
-
-			tangent = prev_dir + next_dir
-			if tangent.length_squared() < 0.0001:
-				tangent = next_dir
-
-			if prev_dir.length_squared() > 0.0001 and next_dir.length_squared() > 0.0001:
-				var turn_deg := rad_to_deg(acos(clampf(prev_dir.dot(next_dir), -1.0, 1.0)))
-				if turn_deg > 90.0:
-					diagnostics["turns_gt_90"] += 1
-				elif turn_deg > 60.0:
-					diagnostics["turns_gt_60"] += 1
-				elif turn_deg > 30.0:
-					diagnostics["turns_gt_30"] += 1
-
-		tangent.y = 0.0
-		if tangent.length_squared() < 0.0001:
-			tangent = Vector3.FORWARD
-		tangent = tangent.normalized()
-		station_tangents[i] = tangent
-
-		var prev_norm := Vector3.ZERO
-		if prev_dir.length_squared() > 0.0001:
-			prev_norm = Vector3(-prev_dir.z, 0.0, prev_dir.x).normalized()
-
-		var next_norm := Vector3.ZERO
-		if next_dir.length_squared() > 0.0001:
-			next_norm = Vector3(-next_dir.z, 0.0, next_dir.x).normalized()
-
-		var blended_normal := Vector3.ZERO
-		if prev_norm != Vector3.ZERO and next_norm != Vector3.ZERO:
-			blended_normal = prev_norm + next_norm
-			if blended_normal.length_squared() > 0.0001:
-				blended_normal = blended_normal.normalized()
-			else:
-				blended_normal = next_norm
-		elif next_norm != Vector3.ZERO:
-			blended_normal = next_norm
-		elif prev_norm != Vector3.ZERO:
-			blended_normal = prev_norm
-		else:
-			blended_normal = Vector3(-tangent.z, 0.0, tangent.x).normalized()
-
-		station_normals[i] = blended_normal
-
-	# ------------------------------------------------------------------
-	# 2.2 Suavizado de normales entre estaciones adyacentes para erradicar el serrucho
-	# ------------------------------------------------------------------
-	if pts.size() > 2:
-		var sm_norms: Array[Vector3] = station_normals.duplicate()
-		for i in range(1, pts.size() - 1):
-			var sn: Vector3 = station_normals[i] * 0.5 + (station_normals[i - 1] + station_normals[i + 1]) * 0.25
-			sn.y = 0.0
-			if sn.length_squared() > 0.0001:
-				sm_norms[i] = sn.normalized()
-		station_normals = sm_norms
-
-	# ------------------------------------------------------------------
-	# 2.3 Posiciones laterales de orilla y validación de quads (sin pellizcos al 40%)
-	# ------------------------------------------------------------------
-	for i in range(pts.size()):
-		var p: Vector3 = pts[i]
-		var base_half_width: float = maxf(widths[i] / cell_size, 0.20) * 0.5
-		var eff_w: float = base_half_width * 2.0
-		diagnostics["min_width"] = minf(float(diagnostics["min_width"]), eff_w)
-		diagnostics["max_width"] = maxf(float(diagnostics["max_width"]), eff_w)
-
-		if i > 0:
-			var seg_len: float = pts[i].distance_to(pts[i - 1])
-			diagnostics["min_segment_length"] = minf(float(diagnostics["min_segment_length"]), seg_len)
-			diagnostics["max_segment_length"] = maxf(float(diagnostics["max_segment_length"]), seg_len)
-
-		var norm: Vector3 = station_normals[i]
-		left_positions[i] = p + norm * base_half_width
-		right_positions[i] = p - norm * base_half_width
-
-	for i in range(1, pts.size()):
-		var prev_l: Vector3 = left_positions[i - 1]
-		var prev_r: Vector3 = right_positions[i - 1]
-		var cur_l: Vector3 = left_positions[i]
-		var cur_r: Vector3 = right_positions[i]
-		var p: Vector3 = pts[i]
-		var base_half_width: float = maxf(widths[i] / cell_size, 0.20) * 0.5
-
-		if not _quad_is_valid(prev_l, prev_r, cur_l, cur_r):
-			diagnostics["invalid_quads_before_fallback"] += 1
-			var adj_norm: Vector3 = (station_normals[i - 1] + station_normals[i]).normalized()
-			adj_norm.y = 0.0
-			var adj_l := p + adj_norm * base_half_width
-			var adj_r := p - adj_norm * base_half_width
-			if _quad_is_valid(prev_l, prev_r, adj_l, adj_r):
-				station_normals[i] = adj_norm
-				left_positions[i] = adj_l
-				right_positions[i] = adj_r
-				diagnostics["fallback_normal_previous"] += 1
-			else:
-				var resolved: bool = false
-				for factor in [0.85, 0.75]:
-					var pinched_w: float = base_half_width * factor
-					var pinch_l := p + adj_norm * pinched_w
-					var pinch_r := p - adj_norm * pinched_w
-					if _quad_is_valid(prev_l, prev_r, pinch_l, pinch_r):
-						station_normals[i] = adj_norm
-						left_positions[i] = pinch_l
-						right_positions[i] = pinch_r
-						diagnostics["fallback_width_85"] += 1
-						resolved = true
-						break
-				if not resolved:
-					diagnostics["fallback_safe"] += 1
-					diagnostics["invalid_quads_after_fallback"] += 1
-					left_positions[i] = adj_l
-					right_positions[i] = adj_r
-
-	# ------------------------------------------------------------------
-	# BLOQUE 7 — Alturas horizontales y UVs en espacio mundo (como el lago)
-	# ------------------------------------------------------------------
-	var left_indices: Array[int] = []
-	var right_indices: Array[int] = []
-	left_indices.resize(pts.size())
-	right_indices.resize(pts.size())
-
-	var prev_water_y: float = INF
-
-	for i in range(pts.size()):
-		var p: Vector3 = pts[i]
-		var left_pt: Vector3 = left_positions[i]
-		var right_pt: Vector3 = right_positions[i]
-		var tangent: Vector3 = station_tangents[i]
-
-		var bed_c: float = _sample_terrain(result, p.x, p.z)
-		var bed_l: float = _sample_terrain(result, left_pt.x, left_pt.z)
-		var bed_r: float = _sample_terrain(result, right_pt.x, right_pt.z)
-		var depth: float = maxf(depths[i], 0.05)
-
-		# Cota de agua horizontal idéntica en ambas orillas (sin inclinación lateral)
-		var base_bed: float = minf(bed_c, minf(bed_l, bed_r))
-		var water_y: float = base_bed + depth
-
-		# Monotonía descendente obligatoria (el agua nunca fluye hacia arriba)
-		if is_finite(prev_water_y) and water_y > prev_water_y:
-			water_y = prev_water_y
-		prev_water_y = water_y
-
-		var left_y: float = water_y
-		var right_y: float = water_y
-
-		var flow_dir := Vector2(tangent.x, tangent.z)
-		if flow_dir.length_squared() > 0.0001:
-			flow_dir = flow_dir.normalized()
-
-		# Coordenadas UV en espacio de mundo exactamente igual que en LakeMeshBuilder
-		var left_idx: int = surf.add_vertex(
-			Vector3(left_pt.x, left_y, left_pt.z),
-			Vector3.UP,
-			Vector2(left_pt.x, left_pt.z),
-			flow_dir,
-			profile.water_color_river
-		)
-
-		var right_idx: int = surf.add_vertex(
-			Vector3(right_pt.x, right_y, right_pt.z),
-			Vector3.UP,
-			Vector2(right_pt.x, right_pt.z),
-			flow_dir,
-			profile.water_color_river
-		)
-
-		left_indices[i] = left_idx
-		right_indices[i] = right_idx
-
-	# ------------------------------------------------------------------
-	# BLOQUE 5 — Construcción definitiva del ribbon: exactamente
-	# dos triángulos por segmento longitudinal con conteo diagnóstico.
-	# ------------------------------------------------------------------
-	for i in range(pts.size() - 1):
-		var l0: int = left_indices[i]
-		var r0: int = right_indices[i]
-		var l1: int = left_indices[i + 1]
-		var r1: int = right_indices[i + 1]
-
-		var tri_a_valid: bool = _triangle_is_valid(surf.vertices[l0], surf.vertices[r0], surf.vertices[l1])
-		var tri_b_valid: bool = _triangle_is_valid(surf.vertices[r0], surf.vertices[r1], surf.vertices[l1])
-
-		if tri_a_valid:
-			surf.add_triangle(l0, r0, l1)
-			diagnostics["valid_triangles"] += 1
-		else:
-			diagnostics["skipped_triangles"] += 1
-
-		if tri_b_valid:
-			surf.add_triangle(r0, r1, l1)
-			diagnostics["valid_triangles"] += 1
-		else:
-			diagnostics["skipped_triangles"] += 1
-
-	var fallback_total: int = (
-		diagnostics["fallback_normal_previous"]
-		+ diagnostics["fallback_normal_next"]
-		+ diagnostics["fallback_width_85"]
-		+ diagnostics["fallback_width_70"]
-		+ diagnostics["fallback_width_55"]
-		+ diagnostics["fallback_width_40"]
-		+ diagnostics["fallback_safe"]
-	)
-	var fallback_ratio: float = 0.0
-	if diagnostics["sections"] > 1:
-		fallback_ratio = float(fallback_total) / float(diagnostics["sections"] - 1)
-
-	print(
-		"[RiverMeshDiagnostics] ",
-		"sections=", diagnostics["sections"],
-		" quads=", diagnostics["quads"],
-		" invalid_before=", diagnostics["invalid_quads_before_fallback"],
-		" invalid_after=", diagnostics["invalid_quads_after_fallback"],
-		" prev_normal=", diagnostics["fallback_normal_previous"],
-		" next_normal=", diagnostics["fallback_normal_next"],
-		" width85=", diagnostics["fallback_width_85"],
-		" width70=", diagnostics["fallback_width_70"],
-		" width55=", diagnostics["fallback_width_55"],
-		" width40=", diagnostics["fallback_width_40"],
-		" safe=", diagnostics["fallback_safe"],
-		" skipped_triangles=", diagnostics["skipped_triangles"],
-		" valid_triangles=", diagnostics["valid_triangles"],
-		" fallback_ratio=", "%.4f" % fallback_ratio,
-		" turns>30=", diagnostics["turns_gt_30"],
-		" turns>60=", diagnostics["turns_gt_60"],
-		" turns>90=", diagnostics["turns_gt_90"],
-		" min_width=", "%.2f" % diagnostics["min_width"] if is_finite(diagnostics["min_width"]) else "0.0",
-		" max_width=", "%.2f" % diagnostics["max_width"],
-		" min_segment=", "%.2f" % diagnostics["min_segment_length"] if is_finite(diagnostics["min_segment_length"]) else "0.0",
-		" max_segment=", "%.2f" % diagnostics["max_segment_length"]
-	)
-
-	return surf
-
-static func _trim_river_endpoint(
-	points: Array,
-	widths: Array,
-	depths: Array,
-	from_end: bool,
-	distance_to_remove: float
-) -> Dictionary:
-	var out_points: Array = points.duplicate()
-	var out_widths: Array = widths.duplicate()
-	var out_depths: Array = depths.duplicate()
-
-	if out_points.size() < 2 or distance_to_remove <= 0.001:
-		return {
-			"points": out_points,
-			"widths": out_widths,
-			"depths": out_depths
-		}
-
-	var remaining: float = distance_to_remove
-
-	while out_points.size() > 1 and remaining > 0.001:
-		if from_end:
-			var a: Vector3 = out_points[-2]
-			var b: Vector3 = out_points[-1]
-			var segment_length: float = a.distance_to(b)
-
-			if segment_length <= 0.001:
-				out_points.pop_back()
-				out_widths.pop_back()
-				out_depths.pop_back()
-				continue
-
-			if remaining < segment_length:
-				var t: float = 1.0 - remaining / segment_length
-
-				out_points[-1] = a.lerp(b, t)
-				out_widths[-1] = lerpf(
-					out_widths[-2],
-					out_widths[-1],
-					t
-				)
-				out_depths[-1] = lerpf(
-					out_depths[-2],
-					out_depths[-1],
-					t
-				)
-
-				remaining = 0.0
-			else:
-				remaining -= segment_length
-				out_points.pop_back()
-				out_widths.pop_back()
-				out_depths.pop_back()
-
-		else:
-			var a: Vector3 = out_points[0]
-			var b: Vector3 = out_points[1]
-			var segment_length: float = a.distance_to(b)
-
-			if segment_length <= 0.001:
-				out_points.pop_front()
-				out_widths.pop_front()
-				out_depths.pop_front()
-				continue
-
-			if remaining < segment_length:
-				var t: float = remaining / segment_length
-
-				out_points[0] = a.lerp(b, t)
-				out_widths[0] = lerpf(
-					out_widths[0],
-					out_widths[1],
-					t
-				)
-				out_depths[0] = lerpf(
-					out_depths[0],
-					out_depths[1],
-					t
-				)
-
-				remaining = 0.0
-			else:
-				remaining -= segment_length
-				out_points.pop_front()
-				out_widths.pop_front()
-				out_depths.pop_front()
-
-	# Nunca dejar un río sin segmento válido.
-	if out_points.size() < 2:
-		return {
-			"points": points.duplicate(),
-			"widths": widths.duplicate(),
-			"depths": depths.duplicate()
-		}
-
-	return {
-		"points": out_points,
-		"widths": out_widths,
-		"depths": out_depths
-	}
-
-# ----------------------------------------------------------------------
-# BLOQUE 1 — Remuestreo por distancia acumulada y sanitización
-# ----------------------------------------------------------------------
-static func _clean_and_resample_centerline(
-	raw_pts: Array,
-	raw_widths: Array,
-	raw_depths: Array,
-	target_spacing: float
-) -> Dictionary:
+	epsilon: float = 0.001
+) -> Array[RenderSegment]:
+	var result_segments: Array[RenderSegment] = []
+	if river == null:
+		return result_segments
+
+	# 1. Ignorar: sin puntos (< 2 puntos)
+	var raw_pts: Array = river.points if (river is Object and "points" in river) else (river.get("points", []) if river is Dictionary else [])
+	if raw_pts == null or raw_pts.size() < 2:
+		return result_segments
+
+	# 1. Ignorar: geom. inválida (puntos con coordenadas no finitas o tipos erróneos)
+	for p in raw_pts:
+		if not (p is Vector3) or not is_finite(p.x) or not is_finite(p.y) or not is_finite(p.z):
+			return result_segments
+
+	# 1. Ignorar: ancho <= 0
+	var raw_widths: Array = river.widths if (river is Object and "widths" in river) else (river.get("widths", []) if river is Dictionary else [])
+	if raw_widths == null or raw_widths.is_empty():
+		return result_segments
+
+	var max_w: float = -INF
+	for w in raw_widths:
+		max_w = maxf(max_w, float(w))
+	if max_w <= 0.0:
+		return result_segments
+
+	# 2. Copiar datos (RESTRICCIÓN: No modificar original)
+	var pts: Array[Vector3] = []
+	for p in raw_pts:
+		pts.append(Vector3(p.x, p.y, p.z))
+
+	var widths: Array[float] = []
+	for w in raw_widths:
+		widths.append(float(w))
+
+	var raw_depths: Array = river.depths if (river is Object and "depths" in river) else (river.get("depths", []) if river is Dictionary else [])
+	var depths: Array[float] = []
+	if raw_depths != null:
+		for d in raw_depths:
+			depths.append(float(d))
+
+	var river_id: int = river.id if (river is Object and "id" in river) else (river.get("id", -1) if river is Dictionary else -1)
+	var order: int = river.order if (river is Object and "order" in river) else (river.get("order", 1) if river is Dictionary else 1)
+
+	# Interpolar W/D si las longitudes de arreglo no coinciden con la cantidad de puntos
+	var total_pts: int = pts.size()
+	if widths.size() != total_pts:
+		widths = _interpolate_float_array(widths, pts, 1.0)
+	if depths.size() != total_pts:
+		depths = _interpolate_float_array(depths, pts, 0.2)
+
+	# 3. Limpiar centerlines: eliminar duplicados/segs < epsilon. Interpolar W/D. Mantener extremos.
+	# RESTRICCIONES: Sin suavizado.
 	var clean_pts: Array[Vector3] = []
 	var clean_w: Array[float] = []
 	var clean_d: Array[float] = []
 
-	if raw_pts.size() < 2:
-		return {"points": clean_pts, "widths": clean_w, "depths": clean_d}
+	clean_pts.append(pts[0])
+	clean_w.append(widths[0])
+	clean_d.append(depths[0])
 
-	# 1. Deduplicar puntos adyacentes a menos de 0.001m
-	clean_pts.append(raw_pts[0])
-	clean_w.append(_get_array_value(raw_widths, 0, 0.8))
-	clean_d.append(_get_array_value(raw_depths, 0, 0.2))
+	for i in range(1, total_pts - 1):
+		var d: float = pts[i].distance_to(clean_pts[-1])
+		if d >= epsilon:
+			clean_pts.append(pts[i])
+			clean_w.append(widths[i])
+			clean_d.append(depths[i])
 
-	for i in range(1, raw_pts.size()):
-		var pt: Vector3 = raw_pts[i]
-		if pt.distance_to(clean_pts[-1]) >= 0.001:
-			clean_pts.append(pt)
-			clean_w.append(_get_array_value(raw_widths, i, clean_w[-1]))
-			clean_d.append(_get_array_value(raw_depths, i, clean_d[-1]))
-		elif i == raw_pts.size() - 1:
-			clean_pts[-1] = pt
+	# Mantener extremos: el punto final se preserva
+	var end_pt: Vector3 = pts[total_pts - 1]
+	var end_w: float = widths[total_pts - 1]
+	var end_d: float = depths[total_pts - 1]
+
+	var dist_to_last: float = end_pt.distance_to(clean_pts[-1])
+	if dist_to_last >= epsilon:
+		clean_pts.append(end_pt)
+		clean_w.append(end_w)
+		clean_d.append(end_d)
+	else:
+		if clean_pts.size() > 1:
+			if end_pt.distance_to(clean_pts[-2]) >= epsilon:
+				clean_pts[-1] = end_pt
+				clean_w[-1] = end_w
+				clean_d[-1] = end_d
+			else:
+				while clean_pts.size() > 1 and end_pt.distance_to(clean_pts[-1]) < epsilon:
+					clean_pts.pop_back()
+					clean_w.pop_back()
+					clean_d.pop_back()
+				if not clean_pts.is_empty() and end_pt.distance_to(clean_pts[-1]) >= epsilon:
+					clean_pts.append(end_pt)
+					clean_w.append(end_w)
+					clean_d.append(end_d)
+		else:
+			clean_pts.clear()
 
 	if clean_pts.size() < 2:
-		return {"points": clean_pts, "widths": clean_w, "depths": clean_d}
-
-	# 1.5 Suavizado Laplaciano para erradicar las esquinas angulosas de grilla preservando extremos
-	if clean_pts.size() > 2:
-		for _iter in range(2):
-			var sm_pts: Array[Vector3] = clean_pts.duplicate()
-			var sm_w: Array[float] = clean_w.duplicate()
-			var sm_d: Array[float] = clean_d.duplicate()
-			for j in range(1, clean_pts.size() - 1):
-				sm_pts[j] = clean_pts[j] * 0.5 + (clean_pts[j - 1] + clean_pts[j + 1]) * 0.25
-				sm_w[j] = clean_w[j] * 0.5 + (clean_w[j - 1] + clean_w[j + 1]) * 0.25
-				sm_d[j] = clean_d[j] * 0.5 + (clean_d[j - 1] + clean_d[j + 1]) * 0.25
-			clean_pts = sm_pts
-			clean_w = sm_w
-			clean_d = sm_d
-
-	# 2. Calcular distancias acumuladas de la línea limpia
-	var total_length: float = 0.0
-	var cum_dists: Array[float] = [0.0]
-	for i in range(1, clean_pts.size()):
-		var seg_len: float = clean_pts[i].distance_to(clean_pts[i - 1])
-		total_length += seg_len
-		cum_dists.append(total_length)
-
-	if total_length < 0.001:
-		return {"points": clean_pts, "widths": clean_w, "depths": clean_d}
-
-	var spacing: float = maxf(target_spacing, 0.25)
-	var out_pts: Array[Vector3] = []
-	var out_w: Array[float] = []
-	var out_d: Array[float] = []
-
-	# Primer punto siempre conservado exactamente
-	out_pts.append(clean_pts[0])
-	out_w.append(clean_w[0])
-	out_d.append(clean_d[0])
-
-	var current_dist: float = spacing
-	var seg_idx: int = 1
-
-	while current_dist < total_length - 0.05:
-		while seg_idx < cum_dists.size() and cum_dists[seg_idx] < current_dist:
-			seg_idx += 1
-		if seg_idx >= cum_dists.size():
-			break
-
-		var d0: float = cum_dists[seg_idx - 1]
-		var d1: float = cum_dists[seg_idx]
-		var seg_len: float = d1 - d0
-		var t: float = 0.0
-		if seg_len > 0.0001:
-			t = clampf((current_dist - d0) / seg_len, 0.0, 1.0)
-
-		var p: Vector3 = clean_pts[seg_idx - 1].lerp(clean_pts[seg_idx], t)
-		var w: float = lerpf(clean_w[seg_idx - 1], clean_w[seg_idx], t)
-		var d: float = lerpf(clean_d[seg_idx - 1], clean_d[seg_idx], t)
-
-		out_pts.append(p)
-		out_w.append(w)
-		out_d.append(d)
-
-		current_dist += spacing
-
-	# Último punto siempre conservado exactamente
-	var last_clean: Vector3 = clean_pts[-1]
-	if out_pts.is_empty() or out_pts[-1].distance_to(last_clean) > 0.05:
-		out_pts.append(last_clean)
-		out_w.append(clean_w[-1])
-		out_d.append(clean_d[-1])
-	else:
-		out_pts[-1] = last_clean
-		out_w[-1] = clean_w[-1]
-		out_d[-1] = clean_d[-1]
-
-	return {
-		"points": out_pts,
-		"widths": out_w,
-		"depths": out_d
-	}
-
-# ----------------------------------------------------------------------
-# BLOQUE 3 — Validación de Quad y Geometría
-# ----------------------------------------------------------------------
-static func _quad_is_valid(l0: Vector3, r0: Vector3, l1: Vector3, r1: Vector3) -> bool:
-	if not (_triangle_is_valid(l0, r0, l1) and _triangle_is_valid(r0, r1, l1)):
-		return false
-
-	var p_l0 := Vector2(l0.x, l0.z)
-	var p_l1 := Vector2(l1.x, l1.z)
-	var p_r0 := Vector2(r0.x, r0.z)
-	var p_r1 := Vector2(r1.x, r1.z)
-
-	# Cruce de aristas izquierda y derecha (bowtie / self-intersection)
-	if _segments_intersect_2d(p_l0, p_l1, p_r0, p_r1):
-		return false
-
-	# Anchuras mínimas en los extremos
-	if p_l0.distance_squared_to(p_r0) < 0.0004 or p_l1.distance_squared_to(p_r1) < 0.0004:
-		return false
-
-	# Longitud mínima de avance longitudinal
-	var mid0: Vector2 = (p_l0 + p_r0) * 0.5
-	var mid1: Vector2 = (p_l1 + p_r1) * 0.5
-	if mid0.distance_squared_to(mid1) < 0.0001:
-		return false
-
-	# Área 2D mínima por triángulo
-	var area1: float = _triangle_area_2d(p_l0, p_r0, p_l1)
-	var area2: float = _triangle_area_2d(p_r0, p_r1, p_l1)
-	if area1 < 0.00001 or area2 < 0.00001:
-		return false
-
-	return true
-
-static func _segments_intersect_2d(a: Vector2, b: Vector2, c: Vector2, d: Vector2) -> bool:
-	var d1: float = _ccw_2d(a, b, c)
-	var d2: float = _ccw_2d(a, b, d)
-	var d3: float = _ccw_2d(c, d, a)
-	var d4: float = _ccw_2d(c, d, b)
-
-	if ((d1 > 0.00001 and d2 < -0.00001) or (d1 < -0.00001 and d2 > 0.00001)) and \
-	   ((d3 > 0.00001 and d4 < -0.00001) or (d3 < -0.00001 and d4 > 0.00001)):
-		return true
-
-	return false
-
-static func _ccw_2d(p1: Vector2, p2: Vector2, p3: Vector2) -> float:
-	return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x)
-
-static func _triangle_area_2d(a: Vector2, b: Vector2, c: Vector2) -> float:
-	return absf((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) * 0.5
-
-static func _triangle_is_valid(
-	a: Vector3,
-	b: Vector3,
-	c: Vector3
-) -> bool:
-	var ab: Vector3 = b - a
-	var ac: Vector3 = c - a
-	var cross: Vector3 = ab.cross(ac)
-	var area_squared: float = cross.length_squared()
-
-	return (
-		is_finite(a.x) and is_finite(a.y) and is_finite(a.z) and
-		is_finite(b.x) and is_finite(b.y) and is_finite(b.z) and
-		is_finite(c.x) and is_finite(c.y) and is_finite(c.z) and
-		area_squared > 0.000001
-	)
-
-static func _get_array_value(
-	values: Array,
-	index: int,
-	fallback: float
-) -> float:
-	if index < 0 or index >= values.size():
-		return fallback
-	return float(values[index])
-
-static func _get_confluence_transition_length(
-	conf: Dictionary,
-	down_st: Dictionary,
-	up_stations: Array[Dictionary]
-) -> float:
-	var max_width: float = float(down_st.get("width", 0.0))
-
-	for station in up_stations:
-		max_width = maxf(max_width, float(station.get("width", 0.0)))
-
-	# La zona pertenece a la confluencia desde 1.25 anchos máximos.
-	return maxf(max_width * 1.25, 1.0)
-
-# ----------------------------------------------------------------------
-# BLOQUE C — Confluencias continuas con estaciones longitudinales (C1 a C8)
-# ----------------------------------------------------------------------
-static func build_confluence_surface(
-	conf: Dictionary,
-	result: WorldResult,
-	profile: WorldProfile,
-	network: Variant = null,
-	longitudinal_steps: int = 3
-) -> RefCounted:
-	if network == null and result != null and result.hydrology != null:
-		network = result.hydrology.get_river_network()
-
-	var down_id: int = conf.get("downstream_river", -1)
-	var up_ids: Array = conf.get("upstream_rivers", [])
-
-	if down_id == -1 or up_ids.is_empty():
-		return null
-
-	var down_river = network.get_river(down_id) if network != null else null
-	if down_river == null:
-		return null
-
-	var cell_size: float = maxf(profile.cell_size, 0.01)
-	var conf_grid_pos: Vector2i = conf.get("position", Vector2i(-1, -1))
-	var conf_world: Vector3 = Vector3.INF
-	if conf_grid_pos.x >= 0 and conf_grid_pos.y >= 0:
-		conf_world = Vector3(conf_grid_pos.x * cell_size + cell_size * 0.5, 0.0, conf_grid_pos.y * cell_size + cell_size * 0.5)
-
-	var down_st: Dictionary = _get_river_boundary_station(down_river, true, cell_size, result, conf_world)
-	if down_st.is_empty():
-		return null
-
-	var up_stations: Array[Dictionary] = []
-	for uid in up_ids:
-		var u_river = network.get_river(uid) if network != null else null
-		if u_river != null:
-			var u_st = _get_river_boundary_station(u_river, false, cell_size, result)
-			if not u_st.is_empty():
-				up_stations.append(u_st)
-
-	if up_stations.is_empty():
-		return null
-
-	var transition_length: float = _get_confluence_transition_length(
-		conf,
-		down_st,
-		up_stations
-	)
-
-	down_st = _get_river_boundary_station(
-		down_river,
-		true,
-		cell_size,
-		result,
-		conf_world,
-		transition_length
-	)
-	for i in range(up_stations.size()):
-		var uid: int = up_ids[i]
-		var u_river = network.get_river(uid) if network != null else null
-		if u_river != null:
-			var u_st = _get_river_boundary_station(
-				u_river,
-				false,
-				cell_size,
-				result,
-				Vector3.INF,
-				transition_length
-			)
-			if not u_st.is_empty():
-				up_stations[i] = u_st
-
-	# Ordenar los afluentes de izquierda a derecha respecto a downstream
-	var down_angle: float = atan2(down_st.dir.x, down_st.dir.z)
-	up_stations.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var dir_a: Vector3 = -a.dir
-		var dir_b: Vector3 = -b.dir
-		var angle_a: float = wrapf(atan2(dir_a.x, dir_a.z) - down_angle, -PI, PI)
-		var angle_b: float = wrapf(atan2(dir_b.x, dir_b.z) - down_angle, -PI, PI)
-		return angle_a < angle_b
-	)
-
-	var surf = _WaterSurfaceDataScript.new()
-	var n_branches: int = up_stations.size()
-	var m_steps: int = maxi(longitudinal_steps, 2) # M estaciones longitudinales
-
-	# ------------------------------------------------------------------
-	# Matriz de estaciones longitudinales: grid_left[branch][step], grid_right[branch][step]
-	# BLOQUE 1 — Ancho como magnitud explícita de verdad
-	# ------------------------------------------------------------------
-	# ------------------------------------------------------------------
-	# 1. Generar posiciones preliminares de estaciones por rama
-	# ------------------------------------------------------------------
-	var raw_l: Array = []
-	var raw_r: Array = []
-	var raw_flow: Array = []
-	var raw_tm: Array = []
-	raw_l.resize(n_branches)
-	raw_r.resize(n_branches)
-	raw_flow.resize(n_branches)
-	raw_tm.resize(n_branches)
-
-	for k in range(n_branches):
-		raw_l[k] = []
-		raw_r[k] = []
-		raw_flow[k] = []
-		raw_tm[k] = []
-		raw_l[k].resize(m_steps + 1)
-		raw_r[k].resize(m_steps + 1)
-		raw_flow[k].resize(m_steps + 1)
-		raw_tm[k].resize(m_steps + 1)
-
-		var u: Dictionary = up_stations[k]
-		var t_k_left: float = float(k) / float(n_branches)
-		var t_k_right: float = float(k + 1) / float(n_branches)
-
-		var width_start: float = u.width
-		var width_end: float = down_st.width / float(n_branches)
-
-		var target_down_l: Vector3 = down_st.left.lerp(down_st.right, t_k_left)
-		var target_down_r: Vector3 = down_st.left.lerp(down_st.right, t_k_right)
-		var target_center: Vector3 = (target_down_l + target_down_r) * 0.5
-		var target_dir: Vector3 = down_st.dir
-
-		for m in range(m_steps + 1):
-			var tm: float = float(m) / float(m_steps)
-			var width: float = lerpf(width_start, width_end, tm)
-			var half_w: float = width * 0.5
-
-			var center: Vector3 = u.center.lerp(target_center, tm)
-			var dir_blend: Vector3 = u.dir.lerp(target_dir, tm)
-			if dir_blend.length_squared() < 0.0001:
-				dir_blend = target_dir
-			dir_blend.y = 0.0
-			dir_blend = dir_blend.normalized()
-			var norm: Vector3 = Vector3(-dir_blend.z, 0.0, dir_blend.x).normalized()
-
-			var p_l: Vector3
-			var p_r: Vector3
-
-			if m == 0:
-				p_l = u.left
-				p_r = u.right
-			elif m == m_steps:
-				p_l = target_down_l
-				p_r = target_down_r
-			else:
-				var cand_l: Vector3 = center + norm * half_w
-				var cand_r: Vector3 = center - norm * half_w
-				var prev_l: Vector3 = raw_l[k][m - 1]
-				var prev_r: Vector3 = raw_r[k][m - 1]
-				if _quad_is_valid(prev_l, prev_r, cand_l, cand_r):
-					p_l = cand_l
-					p_r = cand_r
-				else:
-					p_l = u.left.lerp(target_down_l, tm)
-					p_r = u.right.lerp(target_down_r, tm)
-
-			var bed_l: float = _sample_terrain(result, p_l.x, p_l.z)
-			var bed_r: float = _sample_terrain(result, p_r.x, p_r.z)
-			var bank_l: float = _sample_terrain(result, p_l.x + norm.x * 0.5, p_l.z + norm.z * 0.5)
-			var bank_r: float = _sample_terrain(result, p_r.x - norm.x * 0.5, p_r.z - norm.z * 0.5)
-
-			var target_y: float = lerpf(u.water_y, down_st.water_y, tm)
-			var base_bed: float = maxf(bed_l, bed_r)
-			var safe_y: float = maxf(target_y, base_bed + 0.015)
-			p_l.y = safe_y
-			p_r.y = safe_y
-
-			raw_l[k][m] = p_l
-			raw_r[k][m] = p_r
-			raw_flow[k][m] = Vector2(dir_blend.x, dir_blend.z)
-			raw_tm[k][m] = tm
-
-	# ------------------------------------------------------------------
-	# 2. Cierre de costura entre ramas adyacentes (unificación topológica)
-	# ------------------------------------------------------------------
-	for m in range(1, m_steps + 1):
-		for k in range(n_branches - 1):
-			var r_pt: Vector3 = raw_r[k][m]
-			var l_pt: Vector3 = raw_l[k + 1][m]
-			var diff: Vector3 = r_pt - l_pt
-			var lateral_check: float = diff.x * down_st.normal.x + diff.z * down_st.normal.z
-			if m == m_steps or r_pt.distance_to(l_pt) < 0.05 or lateral_check <= 0.0:
-				var seam_pt: Vector3 = (r_pt + l_pt) * 0.5
-				raw_r[k][m] = seam_pt
-				raw_l[k + 1][m] = seam_pt
-
-	# ------------------------------------------------------------------
-	# 3. Adición de vértices con compartición exacta de índices
-	# ------------------------------------------------------------------
-	var grid_left: Array = []
-	var grid_right: Array = []
-	grid_left.resize(n_branches)
-	grid_right.resize(n_branches)
-
-	for k in range(n_branches):
-		grid_left[k] = []
-		grid_right[k] = []
-		grid_left[k].resize(m_steps + 1)
-		grid_right[k].resize(m_steps + 1)
-
-		for m in range(m_steps + 1):
-			var p_l: Vector3 = raw_l[k][m]
-			var p_r: Vector3 = raw_r[k][m]
-			var flow_vec: Vector2 = raw_flow[k][m]
-			var tm: float = raw_tm[k][m]
-
-			var idx_l: int
-			if k > 0 and p_l.distance_to(raw_r[k - 1][m]) < 0.001:
-				idx_l = grid_right[k - 1][m]
-			else:
-				idx_l = surf.add_vertex(p_l, Vector3.UP, Vector2(p_l.x, p_l.z), flow_vec, profile.water_color_river)
-
-			var idx_r: int = surf.add_vertex(p_r, Vector3.UP, Vector2(p_r.x, p_r.z), flow_vec, profile.water_color_river)
-
-			grid_left[k][m] = idx_l
-			grid_right[k][m] = idx_r
-
-	# ------------------------------------------------------------------
-	# 4. Triangulación Longitudinal por Rama (N ramas x M pasos)
-	# ------------------------------------------------------------------
-	for k in range(n_branches):
-		for m in range(m_steps):
-			var l0: int = grid_left[k][m]
-			var r0: int = grid_right[k][m]
-			var l1: int = grid_left[k][m + 1]
-			var r1: int = grid_right[k][m + 1]
-
-			var q_l0: Vector3 = surf.vertices[l0]
-			var q_r0: Vector3 = surf.vertices[r0]
-			var q_l1: Vector3 = surf.vertices[l1]
-			var q_r1: Vector3 = surf.vertices[r1]
-
-			if _quad_is_valid(q_l0, q_r0, q_l1, q_r1):
-				surf.add_triangle(l0, r0, l1)
-				surf.add_triangle(r0, r1, l1)
-
-	# ------------------------------------------------------------------
-	# 5. Cuñas Interiores entre Afluentes Adyacentes (topológicamente limpias)
-	# ------------------------------------------------------------------
-	for k in range(n_branches - 1):
-		for m in range(m_steps):
-			var r_curr_0: int = grid_right[k][m]
-			var l_next_0: int = grid_left[k + 1][m]
-			var r_curr_1: int = grid_right[k][m + 1]
-			var l_next_1: int = grid_left[k + 1][m + 1]
-
-			# Si ya comparten vértices en ambos pasos, la costura está perfectamente unida
-			if r_curr_0 == l_next_0 and r_curr_1 == l_next_1:
-				continue
-
-			var v_r0: Vector3 = surf.vertices[r_curr_0]
-			var v_l0: Vector3 = surf.vertices[l_next_0]
-			var v_r1: Vector3 = surf.vertices[r_curr_1]
-			var v_l1: Vector3 = surf.vertices[l_next_1]
-
-			# Si se unen en el paso m+1 (apice convergente)
-			if r_curr_1 == l_next_1 or v_r1.distance_to(v_l1) < 0.05:
-				if r_curr_0 != l_next_0 and v_r0.distance_to(v_l0) >= 0.05:
-					if _triangle_is_valid(v_r0, v_l0, v_r1):
-						surf.add_triangle(r_curr_0, l_next_0, r_curr_1)
-			else:
-				# Cuña trapezoidal completa entre afluentes separados
-				var q_l0: Vector3 = v_r0
-				var q_r0: Vector3 = v_l0
-				var q_l1: Vector3 = v_r1
-				var q_r1: Vector3 = v_l1
-
-				if r_curr_0 != l_next_0 and _quad_is_valid(q_l0, q_r0, q_l1, q_r1):
-					surf.add_triangle(r_curr_0, l_next_0, r_curr_1)
-					surf.add_triangle(l_next_0, l_next_1, r_curr_1)
-
-	var junction_triangles: int = surf.indices.size() / 3
-
-	print(
-		"[RiverJunction] ",
-		"downstream=", down_id,
-		" upstreams=", n_branches,
-		" steps=", m_steps,
-		" transition=", "%.2f" % transition_length,
-		" vertices=", surf.vertices.size(),
-		" triangles=", junction_triangles
-	)
-
-	if junction_triangles == 0:
-		print(
-			"[RiverJunction][WARNING] Junction sin triangulos: downstream=",
-			down_id,
-			" upstreams=",
-			n_branches
+		return result_segments
+
+	# 4. Convertir tramos (P0,W0,D0 -> P1,W1,D1) a RenderSegment.
+	# RESTRICCIÓN: Sin vértices.
+	for j in range(clean_pts.size() - 1):
+		var p0: Vector3 = clean_pts[j]
+		var p1: Vector3 = clean_pts[j + 1]
+		var w0: float = clean_w[j]
+		var w1: float = clean_w[j + 1]
+		var d0: float = clean_d[j]
+		var d1: float = clean_d[j + 1]
+
+		if w0 <= 0.0 and w1 <= 0.0:
+			continue
+
+		var seg := _RenderSegmentScript.new(
+			p0,
+			p1,
+			w0,
+			w1,
+			d0,
+			d1,
+			river_id,
+			order
 		)
+		result_segments.append(seg)
 
-	return surf
+	return result_segments
 
-static func build_confluence_patch(
-	conf: Dictionary,
-	result: WorldResult,
-	profile: WorldProfile
-) -> RefCounted:
-	return build_confluence_surface(conf, result, profile, null, 3)
+static func _interpolate_float_array(values: Array[float], pts: Array[Vector3], default_val: float) -> Array[float]:
+	var n: int = pts.size()
+	var result: Array[float] = []
+	if n == 0:
+		return result
 
-static func _extract_confluence_boundaries(
-	conf: Dictionary,
+	if values.is_empty():
+		for _i in range(n):
+			result.append(default_val)
+		return result
+
+	if values.size() == 1:
+		for _i in range(n):
+			result.append(values[0])
+		return result
+
+	if values.size() == n:
+		return values.duplicate()
+
+	var cum_dists: Array[float] = [0.0]
+	var total_len: float = 0.0
+	for i in range(1, n):
+		total_len += pts[i].distance_to(pts[i - 1])
+		cum_dists.append(total_len)
+
+	var num_vals: int = values.size()
+	for i in range(n):
+		var t: float = cum_dists[i] / total_len if total_len > 0.0001 else float(i) / float(maxi(n - 1, 1))
+		var val_idx_float: float = t * float(num_vals - 1)
+		var idx0: int = clampi(int(floor(val_idx_float)), 0, num_vals - 1)
+		var idx1: int = clampi(idx0 + 1, 0, num_vals - 1)
+		var frac: float = val_idx_float - float(idx0)
+		result.append(lerpf(values[idx0], values[idx1], frac))
+
+	return result
+
+## Punto de entrada canónico de presentación para construir la malla de la red hidrográfica.
+## Se invoca UNA SOLA VEZ por red completa (RiverNetwork) para preservar la topología global continua,
+## resolver confluencias por unión matemática y evitar la fragmentación en parches o piezas aisladas.
+static func build_network_mesh(
+	river_network: Variant,
+	result: WorldResult = null,
+	profile: WorldProfile = null
+) -> WaterSurfaceData:
+	return build_network_surface(river_network, result, profile)
+
+## Alias canónico compatible: construye la superficie completa de la red hidrográfica
+## como una única región continua de agua conectada (SDF y polígonos triangulados).
+##
+## CONTRATO DE CONFLUENCIAS UNIFICADAS:
+## - Procesa todos los segmentos antes de extraer geometría.
+## - La unión se resuelve matemáticamente mediante min(campos).
+## - Sin mallas ni parches de unión/confluencia separados.
+## - Río abajo aumenta ancho naturalmente por acumulación y orden.
+## - El tributario intersecta directamente sin segunda superficie.
+## - Las confluencias no son casos especiales del renderizador.
+static func build_network_surface(
 	network: Variant,
-	result: WorldResult,
-	profile: WorldProfile
-) -> Dictionary:
-	var down_id: int = conf.get("downstream_river", -1)
-	var up_ids: Array = conf.get("upstream_rivers", [])
+	result: WorldResult = null,
+	profile: WorldProfile = null
+) -> WaterSurfaceData:
+	if profile == null:
+		profile = WorldProfile.new()
 
-	if down_id == -1 or up_ids.is_empty():
-		return {}
+	# 1. Normalizar toda la red fluvial a RenderSegment[] sin recortes ni casos especiales
+	var segments: Array[RenderSegment] = normalize_network_to_segments(network)
+	if segments.is_empty():
+		return _WaterSurfaceDataScript.new()
 
-	var down_river = network.get_river(down_id) if network != null else null
-	if down_river == null:
-		return {}
+	# 2. Generar WaterPolygons y triangular a malla 2D limpia
+	var mesh_2d: Dictionary = triangulate_water_mesh_2d(segments, result, profile)
 
-	var cell_size: float = maxf(profile.cell_size, 0.01)
-	var down_st: Dictionary = _get_river_boundary_station(down_river, true, cell_size, result)
-	if down_st.is_empty():
-		return {}
+	# 3. Convertir puntos 2D (XZ) a vértices 3D mediante water_height(x, z) = terrain + river_depth
+	#    (sin calcular Y por triángulo, sin previous_water_y, manteniendo continuidad de altura)
+	if not mesh_2d.get("vertices_2d", PackedVector2Array()).is_empty():
+		return build_surface_from_2d_mesh(mesh_2d, result, profile, segments)
 
-	var up_stations: Array[Dictionary] = []
-	var max_w: float = down_st.width
-	for uid in up_ids:
-		var u_river = network.get_river(uid) if network != null else null
-		if u_river != null:
-			var u_st = _get_river_boundary_station(u_river, false, cell_size, result)
-			if not u_st.is_empty():
-				up_stations.append(u_st)
-				max_w = maxf(max_w, u_st.width)
+	# Fallback a extracción directa del SDF si la triangulación 2D no produjo geometría
+	var field: WaterField = _WaterFieldScript.create(segments, result, profile)
+	var fallback_surf: WaterSurfaceData = field.extract_water_surface(result, profile)
+	smooth_surface_elevation(fallback_surf, result, profile)
+	derive_surface_normals(fallback_surf)
+	return fallback_surf
 
-	return {
-		"upstreams": up_stations,
-		"downstream": down_st,
-		"transition_length": max_w * 1.25
-	}
-
-static func get_river_boundary_station(
+## Construye la superficie de un río individual reutilizando el pipeline unificado de red.
+static func build_river_surface(
 	river: Variant,
-	is_start: bool,
-	cell_size: float,
+	result: WorldResult = null,
+	profile: WorldProfile = null,
+	network: Variant = null
+) -> WaterSurfaceData:
+	if profile == null:
+		profile = WorldProfile.new()
+	if network != null:
+		return build_network_mesh(network, result, profile)
+	return build_network_mesh([river], result, profile)
+
+## Las confluencias no son casos especiales: quedan unificadas en la red global.
+static func build_confluence_surface(
+	conf: Variant,
+	result: WorldResult = null,
+	profile: WorldProfile = null,
+	network: Variant = null,
+	_boundary_divisions: int = 3
+) -> WaterSurfaceData:
+	if profile == null:
+		profile = WorldProfile.new()
+	if network != null:
+		return build_network_mesh(network, result, profile)
+	return _WaterSurfaceDataScript.new()
+
+## Genera un WaterField (campo SDF en XZ) para la red fluvial o segmentos dados.
+## Cumple con:
+## - Bounds derivados de WorldResult con margen anti-recorte.
+## - Resolución terrain_resolution x terrain_resolution.
+## - water_field[x][z] = distance_to_network - width/2.
+## - Contribución acotada al radio de influencia e interpolación continua de anchos.
+## - < 0 (agua), = 0 (frontera/orilla), > 0 (terreno).
+## - Solapamientos unificados mediante min(field, segment_field).
+static func build_water_field(
+	network_or_segments: Variant,
 	result: WorldResult,
-	near_world_pos: Vector3 = Vector3.INF,
-	transition_length: float = 0.0
-) -> Dictionary:
-	return _get_river_boundary_station(river, is_start, cell_size, result, near_world_pos, transition_length)
+	profile: WorldProfile = null,
+	terrain_resolution: int = -1,
+	margin: float = -1.0
+) -> WaterField:
+	return _WaterFieldScript.create(network_or_segments, result, profile, terrain_resolution, margin)
 
-static func _get_river_boundary_station(
-	river: Variant,
-	is_start: bool,
-	cell_size: float,
-	result: WorldResult,
-	near_world_pos: Vector3 = Vector3.INF,
-	transition_length: float = 0.0
-) -> Dictionary:
-	var raw_pts: Array = []
-	var raw_widths: Array = []
-	var raw_depths: Array = []
-
-	if river is River:
-		raw_pts = river.points
-		raw_widths = river.widths
-		raw_depths = river.depths
-	elif river is Dictionary:
-		raw_pts = river.get("points", [])
-		raw_widths = river.get("widths", [])
-		raw_depths = river.get("depths", [])
-
-	if raw_pts.size() < 2:
-		return {}
-
-	var p: Vector3
-	var dir: Vector3
-	var w: float
-	var d: float
-
-	var has_upstream: bool = false
-	var has_downstream: bool = false
-	if river is River:
-		has_upstream = not river.upstream_rivers.is_empty()
-		has_downstream = (river.downstream_river != -1)
-	elif river is Dictionary:
-		has_upstream = not river.get("upstream_rivers", []).is_empty()
-		has_downstream = (river.get("downstream_river", -1) != -1)
-
-	var trim_len: float = transition_length if transition_length > 0.0 else 0.75
-
-	if is_finite(near_world_pos.x) and is_start:
-		var best_idx: int = 0
-		var best_d2: float = INF
-		for j in range(raw_pts.size()):
-			var d2: float = Vector2(raw_pts[j].x - near_world_pos.x, raw_pts[j].z - near_world_pos.z).length_squared()
-			if d2 < best_d2:
-				best_d2 = d2
-				best_idx = j
-
-		var curr_idx: int = best_idx
-		var rem: float = trim_len
-		while curr_idx < raw_pts.size() - 1:
-			var seg_d: float = raw_pts[curr_idx].distance_to(raw_pts[curr_idx + 1])
-			if rem <= seg_d or curr_idx == raw_pts.size() - 2:
-				var t: float = clampf(rem / maxf(seg_d, 0.001), 0.0, 1.0)
-				p = raw_pts[curr_idx].lerp(raw_pts[curr_idx + 1], t)
-				dir = (raw_pts[curr_idx + 1] - raw_pts[curr_idx]).normalized()
-				w = lerpf(_get_array_value(raw_widths, curr_idx, 1.0), _get_array_value(raw_widths, curr_idx + 1, 1.0), t)
-				d = lerpf(_get_array_value(raw_depths, curr_idx, 0.2), _get_array_value(raw_depths, curr_idx + 1, 0.2), t)
-				break
-			rem -= seg_d
-			curr_idx += 1
-		if curr_idx >= raw_pts.size() - 1:
-			p = raw_pts[-1]
-			dir = (raw_pts[-1] - raw_pts[-2]).normalized() if raw_pts.size() >= 2 else Vector3.FORWARD
-			w = _get_array_value(raw_widths, raw_pts.size() - 1, 1.0)
-			d = _get_array_value(raw_depths, raw_pts.size() - 1, 0.2)
-	elif is_start:
-		var curr_idx: int = 0
-		var rem: float = trim_len
-		while curr_idx < raw_pts.size() - 1:
-			var seg_d: float = raw_pts[curr_idx].distance_to(raw_pts[curr_idx + 1])
-			if rem <= seg_d or curr_idx == raw_pts.size() - 2:
-				var t: float = clampf(rem / maxf(seg_d, 0.001), 0.0, 1.0)
-				p = raw_pts[curr_idx].lerp(raw_pts[curr_idx + 1], t)
-				dir = (raw_pts[curr_idx + 1] - raw_pts[curr_idx]).normalized()
-				w = lerpf(_get_array_value(raw_widths, curr_idx, 1.0), _get_array_value(raw_widths, curr_idx + 1, 1.0), t)
-				d = lerpf(_get_array_value(raw_depths, curr_idx, 0.2), _get_array_value(raw_depths, curr_idx + 1, 0.2), t)
-				break
-			rem -= seg_d
-			curr_idx += 1
-		if curr_idx >= raw_pts.size() - 1:
-			p = raw_pts[-1]
-			dir = (raw_pts[-1] - raw_pts[-2]).normalized() if raw_pts.size() >= 2 else Vector3.FORWARD
-			w = _get_array_value(raw_widths, raw_pts.size() - 1, 1.0)
-			d = _get_array_value(raw_depths, raw_pts.size() - 1, 0.2)
+## Extrae contornos geométricos cerrados (RawContours[]) mediante Marching Squares 2x2.
+static func extract_raw_contours(
+	network_or_field: Variant,
+	result: WorldResult = null,
+	profile: WorldProfile = null,
+	terrain_resolution: int = -1,
+	margin: float = -1.0
+) -> Array:
+	var field: WaterField = null
+	if network_or_field is _WaterFieldScript:
+		field = network_or_field
 	else:
-		var curr_idx: int = raw_pts.size() - 1
-		var rem: float = trim_len
-		while curr_idx > 0:
-			var seg_d: float = raw_pts[curr_idx].distance_to(raw_pts[curr_idx - 1])
-			if rem <= seg_d or curr_idx == 1:
-				var t: float = clampf(rem / maxf(seg_d, 0.001), 0.0, 1.0)
-				p = raw_pts[curr_idx].lerp(raw_pts[curr_idx - 1], t)
-				dir = (raw_pts[curr_idx] - raw_pts[curr_idx - 1]).normalized()
-				w = lerpf(_get_array_value(raw_widths, curr_idx, 1.0), _get_array_value(raw_widths, curr_idx - 1, 1.0), t)
-				d = lerpf(_get_array_value(raw_depths, curr_idx, 0.2), _get_array_value(raw_depths, curr_idx - 1, 0.2), t)
-				break
-			rem -= seg_d
-			curr_idx -= 1
-		if curr_idx <= 0:
-			p = raw_pts[0]
-			dir = (raw_pts[1] - raw_pts[0]).normalized() if raw_pts.size() >= 2 else Vector3.FORWARD
-			w = _get_array_value(raw_widths, 0, 1.0)
-			d = _get_array_value(raw_depths, 0, 0.2)
+		field = build_water_field(network_or_field, result, profile, terrain_resolution, margin)
+	return field.extract_raw_contours()
 
-	dir.y = 0.0
-	if dir.length_squared() < 0.0001:
-		dir = Vector3.FORWARD
-	dir = dir.normalized()
+## Extrae contornos geométricos limpios (CleanContours[]) sin ruido y preservando la forma.
+## Aplica: 1. Quitar duplicados -> 2. Quitar aristas cero -> 3. Quitar aristas diminutas ->
+## 4. Quitar casi colineales -> 5. RDP por error geométrico máximo.
+static func extract_clean_contours(
+	network_or_field: Variant,
+	result: WorldResult = null,
+	profile: WorldProfile = null,
+	terrain_resolution: int = -1,
+	margin: float = -1.0,
+	epsilon: float = -1.0,
+	angular_tol_deg: float = 2.5,
+	max_geometric_error: float = -1.0
+) -> Array:
+	var res: int = terrain_resolution
+	if res <= 0 and profile != null and "water_field_resolution" in profile:
+		res = profile.water_field_resolution
+	var eps: float = epsilon
+	if eps < 0.0:
+		eps = profile.minimum_contour_edge if (profile != null and "minimum_contour_edge" in profile) else 0.05
+	var max_err: float = max_geometric_error
+	if max_err < 0.0:
+		max_err = profile.contour_simplification_tolerance if (profile != null and "contour_simplification_tolerance" in profile) else 0.08
+	var raw_contours: Array = extract_raw_contours(network_or_field, result, profile, res, margin)
+	return _CleanContourScript.clean_contours(raw_contours, eps, angular_tol_deg, max_err)
 
-	var normal := Vector3(-dir.z, 0.0, dir.x).normalized()
-	var half_w: float = maxf(w / cell_size, 0.20) * 0.5
+## Genera una lista de WaterPolygon válidos (exterior, agujeros[]) para cuerpos de agua únicos o múltiples.
+## - Confluencias conectadas forman parte del mismo polígono continuo.
+## - Detección de outer/hole mediante jerarquía PIP y paridad de anidamiento.
+## - Winding consistente (CCW exterior, CW agujeros) y first != last.
+static func extract_water_polygons(
+	network_or_field: Variant,
+	result: WorldResult = null,
+	profile: WorldProfile = null,
+	terrain_resolution: int = -1,
+	margin: float = -1.0,
+	epsilon: float = -1.0,
+	angular_tol_deg: float = 2.5,
+	max_geometric_error: float = -1.0,
+	minimum_polygon_area: float = -1.0
+) -> Array[WaterPolygon]:
+	var clean_contours: Array = extract_clean_contours(
+		network_or_field, result, profile, terrain_resolution, margin, epsilon, angular_tol_deg, max_geometric_error
+	)
+	var min_area: float = minimum_polygon_area
+	if min_area < 0.0:
+		min_area = profile.minimum_polygon_area if (profile != null and "minimum_polygon_area" in profile) else 0.20
+	return _WaterPolygonScript.from_contours(clean_contours, min_area)
 
-	var left := p + normal * half_w
-	var right := p - normal * half_w
+## Triangula la red hidrográfica a partir de sus WaterPolygons generando una malla 2D limpia y conectada.
+## Reglas:
+## - Sin quads manuales, sin fans, sin ribbons, sin triángulos junction especiales.
+## - Validación: área > epsilon, winding CCW estricto, sin vértices duplicados y conectividad continua.
+## Retorna: Dictionary con { "vertices_2d": PackedVector2Array, "indices": PackedInt32Array }.
+static func triangulate_water_mesh_2d(
+	network_or_polygons: Variant,
+	result: WorldResult = null,
+	profile: WorldProfile = null,
+	terrain_resolution: int = -1,
+	margin: float = -1.0,
+	epsilon: float = 0.0001
+) -> Dictionary:
+	var polys: Array = []
+	if network_or_polygons is WaterPolygon:
+		polys = [network_or_polygons]
+	elif network_or_polygons is Array and not network_or_polygons.is_empty() and network_or_polygons[0] is _WaterPolygonScript:
+		polys = network_or_polygons
+	else:
+		polys = extract_water_polygons(network_or_polygons, result, profile, terrain_resolution, margin)
 
-	var bed_l: float = _sample_terrain(result, left.x, left.z)
-	var bed_r: float = _sample_terrain(result, right.x, right.z)
-	var bank_l: float = _sample_terrain(result, left.x + normal.x * 0.5, left.z + normal.z * 0.5)
-	var bank_r: float = _sample_terrain(result, right.x - normal.x * 0.5, right.z - normal.z * 0.5)
+	return _WaterPolygonScript.triangulate_multiple_2d(polys, epsilon)
 
-	var water_y: float = (clampf(bed_l + maxf(d, 0.05), bed_l + 0.015, bank_l + 0.02) + clampf(bed_r + maxf(d, 0.05), bed_r + 0.015, bank_r + 0.02)) * 0.5
-	left.y = water_y
-	right.y = water_y
-
-	var r_id: int = -1
-	if river is River:
-		r_id = river.id
-	elif river is Dictionary:
-		r_id = river.get("id", -1)
-
-	return {
-		"river_id": r_id,
-		"center": p,
-		"dir": dir,
-		"normal": normal,
-		"half_width": half_w,
-		"width": half_w * 2.0,
-		"left": left,
-		"right": right,
-		"depth": d,
-		"water_y": water_y
-	}
-
-static func _sample_terrain(result: WorldResult, wx: float, wz: float) -> float:
-	if result == null:
+## Muestreo continuo exacto de la elevación del lecho de terreno mediante interpolación
+## bilineal dividida por la diagonal de cada celda (consistente con la triangulación del terreno).
+static func sample_terrain(result: WorldResult, wx: float, wz: float) -> float:
+	if result == null or result.dimensions.x < 2 or result.dimensions.y < 2:
 		return 0.0
 	var w: int = result.dimensions.x
 	var h: int = result.dimensions.y
@@ -1245,3 +453,609 @@ static func _sample_terrain(result: WorldResult, wx: float, wz: float) -> float:
 		return h00 + u * (h10 - h00) + v * (h01 - h00)
 	else:
 		return h11 + (1.0 - u) * (h01 - h11) + (1.0 - v) * (h10 - h11)
+
+## Estructura de partición espacial determinista (Spatial Bins) para consultas aceleradas de segmentos.
+## Evita evaluar todos los segmentos contra todos los vértices cuando la red fluvial crece.
+static func build_spatial_bins(segments: Array[RenderSegment], bin_size: float = 16.0) -> Dictionary:
+	var bins: Dictionary = {}
+	var inv_bin_size: float = 1.0 / maxf(bin_size, 1.0)
+	var num_segs: int = segments.size()
+
+	for s_idx in range(num_segs):
+		var seg := segments[s_idx]
+		if seg == null:
+			continue
+		var p0 := seg.start_position
+		var p1 := seg.end_position
+		var max_half_w: float = maxf(seg.width_start, seg.width_end) * 0.5 + 4.0
+		var min_x: float = minf(p0.x, p1.x) - max_half_w
+		var max_x: float = maxf(p0.x, p1.x) + max_half_w
+		var min_z: float = minf(p0.z, p1.z) - max_half_w
+		var max_z: float = maxf(p0.z, p1.z) + max_half_w
+
+		var bx0: int = int(floor(min_x * inv_bin_size))
+		var bx1: int = int(floor(max_x * inv_bin_size))
+		var bz0: int = int(floor(min_z * inv_bin_size))
+		var bz1: int = int(floor(max_z * inv_bin_size))
+
+		for bx in range(bx0, bx1 + 1):
+			for bz in range(bz0, bz1 + 1):
+				var bin_key := Vector2i(bx, bz)
+				if not bins.has(bin_key):
+					bins[bin_key] = PackedInt32Array()
+				bins[bin_key].append(s_idx)
+
+	return {
+		"bin_size": bin_size,
+		"inv_bin_size": inv_bin_size,
+		"bins": bins,
+		"segments": segments
+	}
+
+## Retorna los índices de segmentos candidatos cercanos a (x, z) usando spatial bins.
+static func get_candidate_segment_indices(
+	x: float,
+	z: float,
+	spatial_index: Dictionary,
+	radius: float = 0.0
+) -> PackedInt32Array:
+	if spatial_index.is_empty():
+		return PackedInt32Array()
+
+	var inv_bin_size: float = float(spatial_index.get("inv_bin_size", 1.0 / 16.0))
+	var bins: Dictionary = spatial_index.get("bins", {})
+	var r: float = maxf(radius, 0.0)
+	var bx0: int = int(floor((x - r) * inv_bin_size))
+	var bx1: int = int(floor((x + r) * inv_bin_size))
+	var bz0: int = int(floor((z - r) * inv_bin_size))
+	var bz1: int = int(floor((z + r) * inv_bin_size))
+
+	var candidates := PackedInt32Array()
+	var seen: Dictionary = {}
+
+	for bx in range(bx0, bx1 + 1):
+		for bz in range(bz0, bz1 + 1):
+			var key := Vector2i(bx, bz)
+			if bins.has(key):
+				var seg_indices: PackedInt32Array = bins[key]
+				for idx in seg_indices:
+					if not seen.has(idx):
+						seen[idx] = true
+						candidates.append(idx)
+
+	return candidates
+
+## Encuentra el segmento hidrográfico más cercano al punto 2D (x, z) e interpola sus atributos
+## (profundidad, dirección de flujo y proyección paramétrica t en [0, 1]).
+## Optimizado con Spatial Bins y registros escalares libres de allocations.
+static func find_closest_segment_data(
+	x: float,
+	z: float,
+	segments: Array[RenderSegment],
+	spatial_index: Dictionary = {}
+) -> Dictionary:
+	var best_seg: RenderSegment = null
+	var best_dist_sq: float = INF
+	var best_t: float = 0.0
+
+	var cand_indices: PackedInt32Array
+	if not spatial_index.is_empty():
+		cand_indices = get_candidate_segment_indices(x, z, spatial_index, 4.0)
+
+	var check_all: bool = cand_indices.is_empty()
+	var total_candidates: int = segments.size() if check_all else cand_indices.size()
+
+	for k in range(total_candidates):
+		var seg_idx: int = k if check_all else cand_indices[k]
+		var seg: RenderSegment = segments[seg_idx]
+		if seg == null:
+			continue
+
+		var p0_x: float = seg.start_position.x
+		var p0_z: float = seg.start_position.z
+		var p1_x: float = seg.end_position.x
+		var p1_z: float = seg.end_position.z
+		var vx: float = p1_x - p0_x
+		var vz: float = p1_z - p0_z
+		var len_sq: float = vx * vx + vz * vz
+
+		var t: float = 0.0
+		if len_sq > 0.00001:
+			var rx: float = x - p0_x
+			var rz: float = z - p0_z
+			t = clampf((rx * vx + rz * vz) / len_sq, 0.0, 1.0)
+
+		var proj_x: float = p0_x + vx * t
+		var proj_z: float = p0_z + vz * t
+		var dx_proj: float = x - proj_x
+		var dz_proj: float = z - proj_z
+		var d_sq: float = dx_proj * dx_proj + dz_proj * dz_proj
+
+		if d_sq < best_dist_sq:
+			best_dist_sq = d_sq
+			best_seg = seg
+			best_t = t
+
+	if best_seg == null:
+		return {
+			"segment": null,
+			"t": 0.0,
+			"depth": 0.2,
+			"flow": Vector2(0.0, 1.0),
+			"distance_sq": 0.0
+		}
+
+	var d0: float = best_seg.depth_start
+	var d1: float = best_seg.depth_end
+	var depth: float = maxf(lerpf(d0, d1, best_t), 0.05)
+
+	var dir_x: float = best_seg.end_position.x - best_seg.start_position.x
+	var dir_z: float = best_seg.end_position.z - best_seg.start_position.z
+	var dir_len_sq: float = dir_x * dir_x + dir_z * dir_z
+	var flow: Vector2
+	if dir_len_sq > 0.0001:
+		var inv_len: float = 1.0 / sqrt(dir_len_sq)
+		flow = Vector2(dir_x * inv_len, dir_z * inv_len)
+	else:
+		flow = Vector2(0.0, 1.0)
+
+	return {
+		"segment": best_seg,
+		"t": best_t,
+		"depth": depth,
+		"flow": flow,
+		"distance_sq": best_dist_sq
+	}
+
+## Calcula la altura continua Y de la superficie de agua en (x, z):
+## water_height(x, z) = terrain + river_depth
+##
+## RESTRICCIONES CUMPLIDAS:
+## - No calcula Y por triángulo (se evalúa por cada vértice individual en XZ).
+## - Interpola river_depth del segmento hidrográfico más cercano.
+## - Mantiene continuidad de altura C0 en todo el dominio.
+## - Evita previous_water_y, acumuladores secuenciales o post-modificaciones.
+static func water_height(
+	x: float,
+	z: float,
+	result: WorldResult,
+	segments: Array[RenderSegment]
+) -> float:
+	var terrain: float = sample_terrain(result, x, z)
+	var seg_data: Dictionary = find_closest_segment_data(x, z, segments)
+	var river_depth: float = float(seg_data.get("depth", 0.2))
+	return terrain + river_depth
+
+## Convierte un único punto 2D (x, z) a un vector 3D (x, water_height, z).
+static func convert_point_2d_to_3d(
+	pt_2d: Vector2,
+	result: WorldResult,
+	segments: Array[RenderSegment]
+) -> Vector3:
+	var y: float = water_height(pt_2d.x, pt_2d.y, result, segments)
+	return Vector3(pt_2d.x, y, pt_2d.y)
+
+## Convierte un arreglo de puntos 2D (XZ) a vértices 3D evaluando water_height por vértice.
+## Garantiza que vértices compartidos por múltiples triángulos posean cotas idénticas sin rasgaduras.
+static func convert_2d_to_3d_vertices(
+	vertices_2d: PackedVector2Array,
+	result: WorldResult,
+	segments: Array[RenderSegment]
+) -> PackedVector3Array:
+	var vertices_3d := PackedVector3Array()
+	var count: int = vertices_2d.size()
+	vertices_3d.resize(count)
+	for i in range(count):
+		var p2: Vector2 = vertices_2d[i]
+		var y: float = water_height(p2.x, p2.y, result, segments)
+		vertices_3d[i] = Vector3(p2.x, y, p2.y)
+	return vertices_3d
+
+## Ensambla un WaterSurfaceData 3D completo a partir de la malla 2D triangulada
+## adaptando la nueva geometría al sistema existente de renderizado (WaterRenderer, WaterMaterial y water_flow.gdshader).
+##
+## ATRIBUTOS DE VÉRTICE:
+## - position: (x, water_height, z) evaluado continuamente con water_height = terrain + river_depth.
+## - normal: Inicialmente Vector3.UP. Se deriva después a partir de los triángulos tras el suavizado.
+## - uv: World-space XZ (Vector2(x, z)) para preservar la textura y el ruido del material existente.
+## - flow_direction: Vector unitario derivado de RiverNetwork (asignado a uv2_flow).
+## - water_color: Color fluvial derivado de WorldProfile (asignado a colors).
+static func build_surface_from_2d_mesh(
+	mesh_2d: Dictionary,
+	result: WorldResult,
+	profile: WorldProfile,
+	segments: Array[RenderSegment],
+	smooth_iterations: int = 2,
+	smooth_factor: float = 0.5,
+	minimum_depth: float = -1.0,
+	derive_normals: bool = true
+) -> WaterSurfaceData:
+	var surf := _WaterSurfaceDataScript.new()
+	var verts_2d: PackedVector2Array = mesh_2d.get("vertices_2d", PackedVector2Array())
+	var indices: PackedInt32Array = mesh_2d.get("indices", PackedInt32Array())
+	if verts_2d.is_empty() or indices.is_empty():
+		return surf
+
+	if profile == null:
+		profile = WorldProfile.new()
+
+	var num_verts: int = verts_2d.size()
+
+	surf.vertices.resize(num_verts)
+	surf.normals.resize(num_verts)
+	surf.uvs.resize(num_verts)
+	surf.uv2_flow.resize(num_verts)
+	surf.colors.resize(num_verts)
+
+	var use_spatial_bins: bool = segments.size() > 8
+	var spatial_index: Dictionary = build_spatial_bins(segments, 16.0) if use_spatial_bins else {}
+
+	for i in range(num_verts):
+		var p2: Vector2 = verts_2d[i]
+		var terrain: float = sample_terrain(result, p2.x, p2.y)
+		var seg_data: Dictionary = find_closest_segment_data(p2.x, p2.y, segments, spatial_index)
+		var depth: float = float(seg_data.get("depth", 0.2))
+		var y: float = terrain + depth
+
+		# 1. position: (x, water_height, z)
+		surf.vertices[i] = Vector3(p2.x, y, p2.y)
+		# 2. normal: Inicial Vector3.UP. Derivar después tras el suavizado.
+		surf.normals[i] = Vector3.UP
+		# 3. uv: Usar world-space XZ para preservar material y escalas de ruido.
+		surf.uvs[i] = Vector2(p2.x, p2.y)
+		# 4. flow_direction: Derivar de RiverNetwork hacia uv2_flow.
+		surf.uv2_flow[i] = sample_flow_direction(p2.x, p2.y, segments, 3.0, spatial_index)
+		# 5. water_color: Adaptado al perfil y sistema existente.
+		surf.colors[i] = sample_water_color(p2.x, p2.y, depth, profile)
+
+	surf.indices = indices
+
+	# Suavizado vertical para eliminar escalones garantizando continuidad en Y
+	# y respetando la restricción water_height >= terrain_height + minimum_depth sin alterar X/Z ni topología
+	smooth_surface_elevation(surf, result, profile, smooth_iterations, smooth_factor, minimum_depth)
+
+	# Derivar normales después del suavizado a partir de la geometría de los triángulos
+	if derive_normals:
+		derive_surface_normals(surf)
+
+	return surf
+
+## Suaviza verticalmente las elevaciones (Y) de una superficie de agua para evitar escalones.
+##
+## PROCESO:
+## 1. Construye el grafo de adyacencia de la malla a partir de sus índices triangulares.
+## 2. Para cada vértice, calcula la media ponderada por distancia horizontal de las elevaciones vecinas.
+## 3. Interpola la elevación actual hacia la media ponderada según el factor de relajación.
+## 4. Aplica estrictamente la restricción: water_height >= terrain_height + minimum_depth,
+##    evitando que el agua quede bajo el terreno o por debajo del calado mínimo admisible.
+##
+## RESTRICCIONES CUMPLIDAS:
+## - Interpola solo altura (Y). No modifica coordenadas X ni Z.
+## - No modifica la topología (índices, número de vértices y triángulos permanecen idénticos).
+## - Garantiza continuidad C0/C1 en Y sin escalones bruscos.
+static func smooth_surface_elevation(
+	surf: WaterSurfaceData,
+	result: WorldResult,
+	profile: WorldProfile = null,
+	iterations: int = 2,
+	factor: float = 0.5,
+	minimum_depth: float = -1.0
+) -> void:
+	if surf == null or surf.vertices.is_empty() or surf.indices.is_empty():
+		return
+
+	var min_depth: float = minimum_depth
+	if min_depth < 0.0:
+		if profile != null and "river_min_depth" in profile:
+			min_depth = float(profile.river_min_depth)
+		else:
+			min_depth = 0.08
+
+	var num_verts: int = surf.vertices.size()
+	var adj: Array = _build_mesh_adjacency(surf.indices, num_verts)
+
+	var current_y: PackedFloat32Array = PackedFloat32Array()
+	current_y.resize(num_verts)
+	for i in range(num_verts):
+		current_y[i] = surf.vertices[i].y
+
+	var next_y: PackedFloat32Array = PackedFloat32Array()
+	next_y.resize(num_verts)
+
+	var iters: int = maxi(iterations, 1)
+	var blend_factor: float = clampf(factor, 0.0, 1.0)
+
+	for _iter in range(iters):
+		for i in range(num_verts):
+			var neighbors: PackedInt32Array = adj[i]
+			var y_val: float = current_y[i]
+			var p_i: Vector3 = surf.vertices[i]
+
+			if neighbors.is_empty():
+				next_y[i] = y_val
+			else:
+				var sum_w: float = 0.0
+				var sum_y: float = 0.0
+
+				for n_idx in neighbors:
+					var p_n: Vector3 = surf.vertices[n_idx]
+					var d_xz: float = sqrt((p_i.x - p_n.x) ** 2 + (p_i.z - p_n.z) ** 2)
+					var w: float = 1.0 / maxf(d_xz, 0.01)
+					sum_w += w
+					sum_y += w * current_y[n_idx]
+
+				var avg_y: float = sum_y / sum_w if sum_w > 0.00001 else y_val
+				var smoothed_y: float = lerpf(y_val, avg_y, blend_factor)
+
+				# Restricción: water_height >= terrain_height + minimum_depth
+				# Evita que el agua quede bajo el terreno o por debajo del calado mínimo
+				var terrain_h: float = sample_terrain(result, p_i.x, p_i.z)
+				var min_allowed_h: float = terrain_h + min_depth
+				next_y[i] = maxf(smoothed_y, min_allowed_h)
+
+		# Intercambio de buffers sin re-alocaciones (.duplicate eliminado)
+		var tmp_y: PackedFloat32Array = current_y
+		current_y = next_y
+		next_y = tmp_y
+
+	# Asignar cotas suavizadas a los vértices sin tocar coordenadas X y Z
+	for i in range(num_verts):
+		var v: Vector3 = surf.vertices[i]
+		surf.vertices[i] = Vector3(v.x, current_y[i], v.z)
+
+## Versión funcional desacoplada para suavizar cotas de un arreglo de vértices 3D
+## manteniendo estrictamente intactas las posiciones X/Z y la topología original.
+static func smooth_mesh_elevation(
+	vertices: PackedVector3Array,
+	indices: PackedInt32Array,
+	result: WorldResult,
+	profile: WorldProfile = null,
+	iterations: int = 2,
+	factor: float = 0.5,
+	minimum_depth: float = -1.0
+) -> PackedVector3Array:
+	var num_verts: int = vertices.size()
+	if num_verts == 0 or indices.is_empty():
+		return vertices.duplicate()
+
+	var min_depth: float = minimum_depth
+	if min_depth < 0.0:
+		if profile != null and "river_min_depth" in profile:
+			min_depth = float(profile.river_min_depth)
+		else:
+			min_depth = 0.08
+
+	var adj: Array = _build_mesh_adjacency(indices, num_verts)
+
+	var current_y: PackedFloat32Array = PackedFloat32Array()
+	current_y.resize(num_verts)
+	for i in range(num_verts):
+		current_y[i] = vertices[i].y
+
+	var next_y: PackedFloat32Array = PackedFloat32Array()
+	next_y.resize(num_verts)
+
+	var iters: int = maxi(iterations, 1)
+	var blend_factor: float = clampf(factor, 0.0, 1.0)
+
+	for _iter in range(iters):
+		for i in range(num_verts):
+			var neighbors: PackedInt32Array = adj[i]
+			var y_val: float = current_y[i]
+			var p_i: Vector3 = vertices[i]
+
+			if neighbors.is_empty():
+				next_y[i] = y_val
+			else:
+				var sum_w: float = 0.0
+				var sum_y: float = 0.0
+
+				for n_idx in neighbors:
+					var p_n: Vector3 = vertices[n_idx]
+					var d_xz: float = sqrt((p_i.x - p_n.x) ** 2 + (p_i.z - p_n.z) ** 2)
+					var w: float = 1.0 / maxf(d_xz, 0.01)
+					sum_w += w
+					sum_y += w * current_y[n_idx]
+
+				var avg_y: float = sum_y / sum_w if sum_w > 0.00001 else y_val
+				var smoothed_y: float = lerpf(y_val, avg_y, blend_factor)
+
+				# Restricción: water_height >= terrain_height + minimum_depth
+				var terrain_h: float = sample_terrain(result, p_i.x, p_i.z)
+				var min_allowed_h: float = terrain_h + min_depth
+				next_y[i] = maxf(smoothed_y, min_allowed_h)
+
+		# Intercambio de buffers sin re-alocaciones (.duplicate eliminado)
+		var tmp_m_y: PackedFloat32Array = current_y
+		current_y = next_y
+		next_y = tmp_m_y
+
+	var smoothed_verts := PackedVector3Array()
+	smoothed_verts.resize(num_verts)
+	for i in range(num_verts):
+		var v: Vector3 = vertices[i]
+		smoothed_verts[i] = Vector3(v.x, current_y[i], v.z)
+
+	return smoothed_verts
+
+## Construye la lista de adyacencia de vértices a partir de la conectividad de triángulos.
+static func _build_mesh_adjacency(indices: PackedInt32Array, num_vertices: int) -> Array:
+	var adj_sets: Array = []
+	adj_sets.resize(num_vertices)
+	for i in range(num_vertices):
+		adj_sets[i] = {}
+
+	var num_indices: int = indices.size()
+	for k in range(0, num_indices - 2, 3):
+		var i0: int = indices[k]
+		var i1: int = indices[k + 1]
+		var i2: int = indices[k + 2]
+
+		if i0 >= 0 and i0 < num_vertices and i1 >= 0 and i1 < num_vertices:
+			adj_sets[i0][i1] = true
+			adj_sets[i1][i0] = true
+
+		if i1 >= 0 and i1 < num_vertices and i2 >= 0 and i2 < num_vertices:
+			adj_sets[i1][i2] = true
+			adj_sets[i2][i1] = true
+
+		if i2 >= 0 and i2 < num_vertices and i0 >= 0 and i0 < num_vertices:
+			adj_sets[i2][i0] = true
+			adj_sets[i0][i2] = true
+
+	var adj: Array = []
+	adj.resize(num_vertices)
+	for i in range(num_vertices):
+		var neighbors := PackedInt32Array()
+		for n in adj_sets[i].keys():
+			neighbors.append(int(n))
+		adj[i] = neighbors
+
+	return adj
+
+## Deriva las normales de la superficie a partir de la geometría de los triángulos (cross product)
+## y promedia las normales en los vértices compartidos para un sombreado suave continuo.
+## Las normales se inicializan en Vector3.UP y se derivan después del suavizado de elevaciones.
+static func derive_surface_normals(surf: WaterSurfaceData) -> void:
+	if surf == null or surf.vertices.is_empty() or surf.indices.is_empty():
+		return
+
+	var num_verts: int = surf.vertices.size()
+	var accum_normals: PackedVector3Array = PackedVector3Array()
+	accum_normals.resize(num_verts)
+	for i in range(num_verts):
+		accum_normals[i] = Vector3.ZERO
+
+	var num_indices: int = surf.indices.size()
+	for k in range(0, num_indices - 2, 3):
+		var i0: int = surf.indices[k]
+		var i1: int = surf.indices[k + 1]
+		var i2: int = surf.indices[k + 2]
+
+		if i0 >= 0 and i0 < num_verts and i1 >= 0 and i1 < num_verts and i2 >= 0 and i2 < num_verts:
+			var v0: Vector3 = surf.vertices[i0]
+			var v1: Vector3 = surf.vertices[i1]
+			var v2: Vector3 = surf.vertices[i2]
+
+			# Producto vectorial para la normal de la cara con winding CCW
+			var face_norm: Vector3 = (v1 - v0).cross(v2 - v0)
+			var len_sq: float = face_norm.length_squared()
+			if len_sq > 0.000001:
+				accum_normals[i0] += face_norm
+				accum_normals[i1] += face_norm
+				accum_normals[i2] += face_norm
+
+	for i in range(num_verts):
+		var n: Vector3 = accum_normals[i]
+		if n.length_squared() > 0.000001:
+			var n_unit: Vector3 = n.normalized()
+			# Asegurar que las normales apunten hacia arriba (superficie superior de agua)
+			if n_unit.y < 0.0:
+				n_unit = -n_unit
+			surf.normals[i] = n_unit
+		else:
+			surf.normals[i] = Vector3.UP
+
+## Muestrea la dirección de flujo continuo 2D derivada de la red hidrográfica (RiverNetwork).
+## Proyecta sobre los segmentos de la red e interpola el vector unitario normalizado en XZ.
+## En confluencias y bifurcaciones, suaviza la transición mediante ponderación por distancia e inercia.
+## Optimizado con Spatial Bins y escalares libres de allocations.
+static func sample_flow_direction(
+	x: float,
+	z: float,
+	segments: Array[RenderSegment],
+	blend_radius: float = 3.0,
+	spatial_index: Dictionary = {}
+) -> Vector2:
+	if segments.is_empty():
+		return Vector2(0.0, 1.0)
+
+	var cand_indices: PackedInt32Array
+	if not spatial_index.is_empty():
+		cand_indices = get_candidate_segment_indices(x, z, spatial_index, blend_radius + 4.0)
+
+	var check_all: bool = cand_indices.is_empty()
+	var total_candidates: int = segments.size() if check_all else cand_indices.size()
+
+	var total_w: float = 0.0
+	var blended_flow_x: float = 0.0
+	var blended_flow_z: float = 0.0
+	var best_dist_sq: float = INF
+	var best_flow_x: float = 0.0
+	var best_flow_z: float = 1.0
+
+	for k in range(total_candidates):
+		var seg_idx: int = k if check_all else cand_indices[k]
+		var seg: RenderSegment = segments[seg_idx]
+		if seg == null:
+			continue
+
+		var p0_x: float = seg.start_position.x
+		var p0_z: float = seg.start_position.z
+		var p1_x: float = seg.end_position.x
+		var p1_z: float = seg.end_position.z
+		var vx: float = p1_x - p0_x
+		var vz: float = p1_z - p0_z
+		var len_sq: float = vx * vx + vz * vz
+
+		var t: float = 0.0
+		if len_sq > 0.00001:
+			var rx: float = x - p0_x
+			var rz: float = z - p0_z
+			t = clampf((rx * vx + rz * vz) / len_sq, 0.0, 1.0)
+
+		var proj_x: float = p0_x + vx * t
+		var proj_z: float = p0_z + vz * t
+		var dx_proj: float = x - proj_x
+		var dz_proj: float = z - proj_z
+		var d_sq: float = dx_proj * dx_proj + dz_proj * dz_proj
+
+		var dir_x: float = 0.0
+		var dir_z: float = 1.0
+		if len_sq > 0.00001:
+			var inv_len: float = 1.0 / sqrt(len_sq)
+			dir_x = vx * inv_len
+			dir_z = vz * inv_len
+
+		if d_sq < best_dist_sq:
+			best_dist_sq = d_sq
+			best_flow_x = dir_x
+			best_flow_z = dir_z
+
+		var d: float = sqrt(d_sq)
+		var half_w: float = (seg.width_start + (seg.width_end - seg.width_start) * t) * 0.5
+		var eff_radius: float = half_w + blend_radius
+		if d < eff_radius:
+			var w: float = 1.0 / maxf(d_sq + 0.01, 0.01)
+			var order_factor: float = float(maxi(seg.order, 1))
+			w *= order_factor
+			total_w += w
+			blended_flow_x += dir_x * w
+			blended_flow_z += dir_z * w
+
+	if total_w > 0.00001:
+		var blended_len_sq: float = blended_flow_x * blended_flow_x + blended_flow_z * blended_flow_z
+		if blended_len_sq > 0.00001:
+			var inv_b: float = 1.0 / sqrt(blended_len_sq)
+			return Vector2(blended_flow_x * inv_b, blended_flow_z * inv_b)
+
+	return Vector2(best_flow_x, best_flow_z)
+
+## Determina el color de vértice para la superficie de agua a partir de las propiedades del perfil.
+## Se adapta al sistema existente (material y shader) manteniendo consistencia estética.
+static func sample_water_color(
+	_x: float,
+	_z: float,
+	depth: float,
+	profile: WorldProfile = null
+) -> Color:
+	if profile == null:
+		return Color("#1cb0be")
+
+	var base_river_color: Color = profile.water_color_river
+	if "water_color_shallow" in profile:
+		var shallow_col: Color = profile.water_color_shallow
+		var max_d: float = profile.river_channel_depth if "river_channel_depth" in profile else 0.5
+		var t: float = clampf(depth / maxf(max_d, 0.1), 0.0, 1.0)
+		return shallow_col.lerp(base_river_color, t)
+	return base_river_color
