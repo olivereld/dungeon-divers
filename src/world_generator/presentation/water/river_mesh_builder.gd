@@ -56,14 +56,24 @@ static func build_river_surface(
 		var junction_width: float = 1.0
 
 		if has_downstream:
-			var downstream_boundary = _get_river_boundary_station(river, false, cell_size, result)
+			var downstream_boundary = _get_river_boundary_station(
+				river,
+				true,
+				cell_size,
+				result
+			)
 			junction_width = maxf(
 				junction_width,
 				float(downstream_boundary.get("width", 0.0))
 			)
 
 		if has_upstream:
-			var upstream_boundary = _get_river_boundary_station(river, true, cell_size, result)
+			var upstream_boundary = _get_river_boundary_station(
+				river,
+				false,
+				cell_size,
+				result
+			)
 			junction_width = maxf(
 				junction_width,
 				float(upstream_boundary.get("width", 0.0))
@@ -71,21 +81,32 @@ static func build_river_surface(
 
 		trim_len = maxf(junction_width * 1.25, 1.0)
 
-	if has_downstream and raw_pts.size() >= 2:
-		var seg_d: float = raw_pts[-2].distance_to(raw_pts[-1])
-		if seg_d > 0.1:
-			var t_trim: float = clampf(1.0 - trim_len / seg_d, 0.3, 0.95)
-			raw_pts[-1] = raw_pts[-2].lerp(raw_pts[-1], t_trim)
-			raw_widths[-1] = lerpf(raw_widths[-2], raw_widths[-1], t_trim)
-			raw_depths[-1] = lerpf(raw_depths[-2], raw_depths[-1], t_trim)
+	if trim_len > 0.001:
+		if has_downstream:
+			var trimmed_down := _trim_river_endpoint(
+				raw_pts,
+				raw_widths,
+				raw_depths,
+				true,
+				trim_len
+			)
 
-	if has_upstream and raw_pts.size() >= 2:
-		var seg_d: float = raw_pts[0].distance_to(raw_pts[1])
-		if seg_d > 0.1:
-			var t_trim: float = clampf(trim_len / seg_d, 0.05, 0.7)
-			raw_pts[0] = raw_pts[0].lerp(raw_pts[1], t_trim)
-			raw_widths[0] = lerpf(raw_widths[0], raw_widths[1], t_trim)
-			raw_depths[0] = lerpf(raw_depths[0], raw_depths[1], t_trim)
+			raw_pts = trimmed_down["points"]
+			raw_widths = trimmed_down["widths"]
+			raw_depths = trimmed_down["depths"]
+
+		if has_upstream:
+			var trimmed_up := _trim_river_endpoint(
+				raw_pts,
+				raw_widths,
+				raw_depths,
+				false,
+				trim_len
+			)
+
+			raw_pts = trimmed_up["points"]
+			raw_widths = trimmed_up["widths"]
+			raw_depths = trimmed_up["depths"]
 
 	# ------------------------------------------------------------------
 	# BLOQUE 1 — Limpiar y remuestrear la línea central por distancia acumulada.
@@ -424,6 +445,107 @@ static func build_river_surface(
 	)
 
 	return surf
+
+static func _trim_river_endpoint(
+	points: Array,
+	widths: Array,
+	depths: Array,
+	from_end: bool,
+	distance_to_remove: float
+) -> Dictionary:
+	var out_points: Array = points.duplicate()
+	var out_widths: Array = widths.duplicate()
+	var out_depths: Array = depths.duplicate()
+
+	if out_points.size() < 2 or distance_to_remove <= 0.001:
+		return {
+			"points": out_points,
+			"widths": out_widths,
+			"depths": out_depths
+		}
+
+	var remaining: float = distance_to_remove
+
+	while out_points.size() > 1 and remaining > 0.001:
+		if from_end:
+			var a: Vector3 = out_points[-2]
+			var b: Vector3 = out_points[-1]
+			var segment_length: float = a.distance_to(b)
+
+			if segment_length <= 0.001:
+				out_points.pop_back()
+				out_widths.pop_back()
+				out_depths.pop_back()
+				continue
+
+			if remaining < segment_length:
+				var t: float = 1.0 - remaining / segment_length
+
+				out_points[-1] = a.lerp(b, t)
+				out_widths[-1] = lerpf(
+					out_widths[-2],
+					out_widths[-1],
+					t
+				)
+				out_depths[-1] = lerpf(
+					out_depths[-2],
+					out_depths[-1],
+					t
+				)
+
+				remaining = 0.0
+			else:
+				remaining -= segment_length
+				out_points.pop_back()
+				out_widths.pop_back()
+				out_depths.pop_back()
+
+		else:
+			var a: Vector3 = out_points[0]
+			var b: Vector3 = out_points[1]
+			var segment_length: float = a.distance_to(b)
+
+			if segment_length <= 0.001:
+				out_points.pop_front()
+				out_widths.pop_front()
+				out_depths.pop_front()
+				continue
+
+			if remaining < segment_length:
+				var t: float = remaining / segment_length
+
+				out_points[0] = a.lerp(b, t)
+				out_widths[0] = lerpf(
+					out_widths[0],
+					out_widths[1],
+					t
+				)
+				out_depths[0] = lerpf(
+					out_depths[0],
+					out_depths[1],
+					t
+				)
+
+				remaining = 0.0
+			else:
+				remaining -= segment_length
+				out_points.pop_front()
+				out_widths.pop_front()
+				out_depths.pop_front()
+
+	# Nunca dejar un río sin segmento válido.
+	if out_points.size() < 2:
+		return {
+			"points": points.duplicate(),
+			"widths": widths.duplicate(),
+			"depths": depths.duplicate()
+		}
+
+	return {
+		"points": out_points,
+		"widths": out_widths,
+		"depths": out_depths
+	}
 
 # ----------------------------------------------------------------------
 # BLOQUE 1 — Remuestreo por distancia acumulada y sanitización
