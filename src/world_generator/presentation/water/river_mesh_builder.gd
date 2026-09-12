@@ -49,22 +49,22 @@ static func build_river_surface(
 		has_downstream = (river.get("downstream_river", -1) != -1)
 		has_upstream = not river.get("upstream_rivers", []).is_empty()
 
-	if raw_pts.size() >= 3:
+	if raw_pts.size() >= 2:
 		var trim_len: float = 0.75
 		if has_downstream:
 			var p_last: Vector3 = raw_pts[-1]
 			var p_prev: Vector3 = raw_pts[-2]
 			var seg_d: float = p_last.distance_to(p_prev)
-			if seg_d > trim_len * 1.5:
-				var t_trim: float = clampf(1.0 - (trim_len / seg_d), 0.5, 0.95)
+			if seg_d > 0.1:
+				var t_trim: float = clampf(1.0 - (trim_len / seg_d), 0.3, 0.95)
 				raw_pts[-1] = p_prev.lerp(p_last, t_trim)
 
 		if has_upstream:
 			var p_first: Vector3 = raw_pts[0]
 			var p_next: Vector3 = raw_pts[1]
 			var seg_d: float = p_first.distance_to(p_next)
-			if seg_d > trim_len * 1.5:
-				var t_trim: float = clampf(trim_len / seg_d, 0.05, 0.5)
+			if seg_d > 0.1:
+				var t_trim: float = clampf(trim_len / seg_d, 0.05, 0.7)
 				raw_pts[0] = p_first.lerp(p_next, t_trim)
 
 	# ------------------------------------------------------------------
@@ -605,7 +605,12 @@ static func build_confluence_surface(
 		return null
 
 	var cell_size: float = maxf(profile.cell_size, 0.01)
-	var down_st: Dictionary = _get_river_boundary_station(down_river, true, cell_size, result)
+	var conf_grid_pos: Vector2i = conf.get("position", Vector2i(-1, -1))
+	var conf_world: Vector3 = Vector3.INF
+	if conf_grid_pos.x >= 0 and conf_grid_pos.y >= 0:
+		conf_world = Vector3(conf_grid_pos.x * cell_size, 0.0, conf_grid_pos.y * cell_size)
+
+	var down_st: Dictionary = _get_river_boundary_station(down_river, true, cell_size, result, conf_world)
 	if down_st.is_empty():
 		return null
 
@@ -638,16 +643,27 @@ static func build_confluence_surface(
 	# Matriz de estaciones longitudinales: grid_left[branch][step], grid_right[branch][step]
 	# BLOQUE 1 — Ancho como magnitud explícita de verdad
 	# ------------------------------------------------------------------
-	var grid_left: Array = []   # Array[Array[int]]
-	var grid_right: Array = []  # Array[Array[int]]
-	grid_left.resize(n_branches)
-	grid_right.resize(n_branches)
+	# ------------------------------------------------------------------
+	# 1. Generar posiciones preliminares de estaciones por rama
+	# ------------------------------------------------------------------
+	var raw_l: Array = []
+	var raw_r: Array = []
+	var raw_flow: Array = []
+	var raw_tm: Array = []
+	raw_l.resize(n_branches)
+	raw_r.resize(n_branches)
+	raw_flow.resize(n_branches)
+	raw_tm.resize(n_branches)
 
 	for k in range(n_branches):
-		grid_left[k] = []
-		grid_right[k] = []
-		grid_left[k].resize(m_steps + 1)
-		grid_right[k].resize(m_steps + 1)
+		raw_l[k] = []
+		raw_r[k] = []
+		raw_flow[k] = []
+		raw_tm[k] = []
+		raw_l[k].resize(m_steps + 1)
+		raw_r[k].resize(m_steps + 1)
+		raw_flow[k].resize(m_steps + 1)
+		raw_tm[k].resize(m_steps + 1)
 
 		var u: Dictionary = up_stations[k]
 		var t_k_left: float = float(k) / float(n_branches)
@@ -663,12 +679,9 @@ static func build_confluence_surface(
 
 		for m in range(m_steps + 1):
 			var tm: float = float(m) / float(m_steps)
-
-			# 1.1 y 1.2: Ancho interpolado explícito
 			var width: float = lerpf(width_start, width_end, tm)
 			var half_w: float = width * 0.5
 
-			# Centro y dirección interpolados
 			var center: Vector3 = u.center.lerp(target_center, tm)
 			var dir_blend: Vector3 = u.dir.lerp(target_dir, tm)
 			if dir_blend.length_squared() < 0.0001:
@@ -677,7 +690,6 @@ static func build_confluence_surface(
 			dir_blend = dir_blend.normalized()
 			var norm: Vector3 = Vector3(-dir_blend.z, 0.0, dir_blend.x).normalized()
 
-			# 1.3: Derivar left/right estrictamente de center +- norm * half_w
 			var p_l: Vector3
 			var p_r: Vector3
 
@@ -688,10 +700,17 @@ static func build_confluence_surface(
 				p_l = target_down_l
 				p_r = target_down_r
 			else:
-				p_l = center + norm * half_w
-				p_r = center - norm * half_w
+				var cand_l: Vector3 = center + norm * half_w
+				var cand_r: Vector3 = center - norm * half_w
+				var prev_l: Vector3 = raw_l[k][m - 1]
+				var prev_r: Vector3 = raw_r[k][m - 1]
+				if _junction_quad_is_valid(prev_l, prev_r, cand_l, cand_r):
+					p_l = cand_l
+					p_r = cand_r
+				else:
+					p_l = u.left.lerp(target_down_l, tm)
+					p_r = u.right.lerp(target_down_r, tm)
 
-			# Cota de agua interpolada y clampada al terreno
 			var bed_l: float = _sample_terrain(result, p_l.x, p_l.z)
 			var bed_r: float = _sample_terrain(result, p_r.x, p_r.z)
 			var bank_l: float = _sample_terrain(result, p_l.x + norm.x * 0.5, p_l.z + norm.z * 0.5)
@@ -701,18 +720,58 @@ static func build_confluence_surface(
 			p_l.y = clampf(target_y, bed_l + 0.015, bank_l + 0.02)
 			p_r.y = clampf(target_y, bed_r + 0.015, bank_r + 0.02)
 
-			var flow_vec := Vector2(dir_blend.x, dir_blend.z)
-			var uv_l := Vector2(0.0, tm)
-			var uv_r := Vector2(1.0, tm)
+			raw_l[k][m] = p_l
+			raw_r[k][m] = p_r
+			raw_flow[k][m] = Vector2(dir_blend.x, dir_blend.z)
+			raw_tm[k][m] = tm
 
-			var idx_l: int = surf.add_vertex(p_l, Vector3.UP, uv_l, flow_vec, profile.water_color_river)
-			var idx_r: int = surf.add_vertex(p_r, Vector3.UP, uv_r, flow_vec, profile.water_color_river)
+	# ------------------------------------------------------------------
+	# 2. Cierre de costura entre ramas adyacentes (unificación topológica)
+	# ------------------------------------------------------------------
+	for m in range(1, m_steps + 1):
+		for k in range(n_branches - 1):
+			var r_pt: Vector3 = raw_r[k][m]
+			var l_pt: Vector3 = raw_l[k + 1][m]
+			var diff: Vector3 = r_pt - l_pt
+			var lateral_check: float = diff.x * down_st.normal.x + diff.z * down_st.normal.z
+			if m == m_steps or r_pt.distance_to(l_pt) < 0.05 or lateral_check <= 0.0:
+				var seam_pt: Vector3 = (r_pt + l_pt) * 0.5
+				raw_r[k][m] = seam_pt
+				raw_l[k + 1][m] = seam_pt
+
+	# ------------------------------------------------------------------
+	# 3. Adición de vértices con compartición exacta de índices
+	# ------------------------------------------------------------------
+	var grid_left: Array = []
+	var grid_right: Array = []
+	grid_left.resize(n_branches)
+	grid_right.resize(n_branches)
+
+	for k in range(n_branches):
+		grid_left[k] = []
+		grid_right[k] = []
+		grid_left[k].resize(m_steps + 1)
+		grid_right[k].resize(m_steps + 1)
+
+		for m in range(m_steps + 1):
+			var p_l: Vector3 = raw_l[k][m]
+			var p_r: Vector3 = raw_r[k][m]
+			var flow_vec: Vector2 = raw_flow[k][m]
+			var tm: float = raw_tm[k][m]
+
+			var idx_l: int
+			if k > 0 and p_l.distance_to(raw_r[k - 1][m]) < 0.001:
+				idx_l = grid_right[k - 1][m]
+			else:
+				idx_l = surf.add_vertex(p_l, Vector3.UP, Vector2(0.0, tm), flow_vec, profile.water_color_river)
+
+			var idx_r: int = surf.add_vertex(p_r, Vector3.UP, Vector2(1.0, tm), flow_vec, profile.water_color_river)
 
 			grid_left[k][m] = idx_l
 			grid_right[k][m] = idx_r
 
 	# ------------------------------------------------------------------
-	# Triangulación Longitudinal por Rama (N ramas x M pasos)
+	# 4. Triangulación Longitudinal por Rama (N ramas x M pasos)
 	# ------------------------------------------------------------------
 	for k in range(n_branches):
 		for m in range(m_steps):
@@ -721,13 +780,19 @@ static func build_confluence_surface(
 			var l1: int = grid_left[k][m + 1]
 			var r1: int = grid_right[k][m + 1]
 
-			if _triangle_is_valid(surf.vertices[l0], surf.vertices[r0], surf.vertices[l1]):
+			var v_l0: Vector3 = surf.vertices[l0]
+			var v_r0: Vector3 = surf.vertices[r0]
+			var v_l1: Vector3 = surf.vertices[l1]
+			var v_r1: Vector3 = surf.vertices[r1]
+
+			if _junction_quad_is_valid(v_l0, v_r0, v_l1, v_r1):
 				surf.add_triangle(l0, r0, l1)
-			if _triangle_is_valid(surf.vertices[r0], surf.vertices[r1], surf.vertices[l1]):
 				surf.add_triangle(r0, r1, l1)
+			else:
+				push_warning("RiverMeshBuilder: Junction quad rejected by validator at branch %d, step %d" % [k, m])
 
 	# ------------------------------------------------------------------
-	# Cuñas Interiores entre Afluentes Adyacentes (mismo nivel longitudinal)
+	# 5. Cuñas Interiores entre Afluentes Adyacentes (topológicamente limpias)
 	# ------------------------------------------------------------------
 	for k in range(n_branches - 1):
 		for m in range(m_steps):
@@ -736,19 +801,73 @@ static func build_confluence_surface(
 			var r_curr_1: int = grid_right[k][m + 1]
 			var l_next_1: int = grid_left[k + 1][m + 1]
 
-			# Si en el paso m+1 los puntos coinciden o casi coinciden, usar 1 triángulo
-			var dist_1: float = surf.vertices[r_curr_1].distance_to(surf.vertices[l_next_1])
-			if dist_1 < 0.05:
-				if _triangle_is_valid(surf.vertices[r_curr_0], surf.vertices[l_next_0], surf.vertices[r_curr_1]):
-					surf.add_triangle(r_curr_0, l_next_0, r_curr_1)
+			# Si ya comparten vértices en ambos pasos, la costura está perfectamente unida
+			if r_curr_0 == l_next_0 and r_curr_1 == l_next_1:
+				continue
+
+			var v_r0: Vector3 = surf.vertices[r_curr_0]
+			var v_l0: Vector3 = surf.vertices[l_next_0]
+			var v_r1: Vector3 = surf.vertices[r_curr_1]
+			var v_l1: Vector3 = surf.vertices[l_next_1]
+
+			# Si se unen en el paso m+1 (apice convergente)
+			if r_curr_1 == l_next_1 or v_r1.distance_to(v_l1) < 0.05:
+				if r_curr_0 != l_next_0 and v_r0.distance_to(v_l0) >= 0.05:
+					if _triangle_is_valid(v_l0, v_r0, v_r1):
+						surf.add_triangle(l_next_0, r_curr_0, r_curr_1)
 			else:
-				# Quad completo en la horquilla de convergencia
-				if _triangle_is_valid(surf.vertices[r_curr_0], surf.vertices[l_next_0], surf.vertices[r_curr_1]):
-					surf.add_triangle(r_curr_0, l_next_0, r_curr_1)
-				if _triangle_is_valid(surf.vertices[l_next_0], surf.vertices[l_next_1], surf.vertices[r_curr_1]):
-					surf.add_triangle(l_next_0, l_next_1, r_curr_1)
+				# Cuña trapezoidal completa entre afluentes separados
+				if r_curr_0 != l_next_0 and _junction_quad_is_valid(v_l0, v_r0, v_l1, v_r1):
+					surf.add_triangle(l_next_0, r_curr_0, l_next_1)
+					surf.add_triangle(r_curr_0, r_curr_1, l_next_1)
+				else:
+					push_warning("RiverMeshBuilder: Junction crook quad rejected by validator between branches %d and %d, step %d" % [k, k + 1, m])
 
 	return surf
+
+static func _junction_quad_is_valid(l0: Vector3, r0: Vector3, l1: Vector3, r1: Vector3) -> bool:
+	# 1. Base quad
+	if not _quad_is_valid(l0, r0, l1, r1):
+		# print("REJECT: base_quad_invalid")
+		return false
+
+	# 2. Inversión
+	var signed_area_1: float = (r0.x - l0.x) * (l1.z - l0.z) - (r0.z - l0.z) * (l1.x - l0.x)
+	var signed_area_2: float = (r1.x - r0.x) * (l1.z - r0.z) - (r1.z - r0.z) * (l1.x - r0.x)
+	var cross_a: Vector3 = (r0 - l0).cross(l1 - l0)
+	var cross_b: Vector3 = (r1 - r0).cross(l1 - r0)
+	if cross_a.dot(cross_b) <= 0.00001 or (signed_area_1 * signed_area_2) <= 0.00001:
+		return false
+
+	# 3. Continuidad
+	var y0: float = (l0.y + r0.y) * 0.5
+	var y1: float = (l1.y + r1.y) * 0.5
+	if absf(y1 - y0) > 1.5:
+		return false
+
+	# 4. Ancho
+	var w0: float = l0.distance_to(r0)
+	var w1: float = l1.distance_to(r1)
+	if w0 < 0.05 or w1 < 0.05:
+		return false
+	var ratio: float = w1 / w0
+	if ratio < 0.25 or ratio > 4.0:
+		return false
+
+	# 5. Desplazamiento
+	var mid0 := Vector2(l0.x + r0.x, l0.z + r0.z) * 0.5
+	var mid1 := Vector2(l1.x + r1.x, l1.z + r1.z) * 0.5
+	var step_dist: float = mid0.distance_to(mid1)
+	if step_dist < 0.001 or step_dist > 10.0:
+		return false
+
+	var disp := mid1 - mid0
+	var lateral0 := Vector2(r0.x - l0.x, r0.z - l0.z)
+	var fwd0 := Vector2(-lateral0.y, lateral0.x)
+	if fwd0.dot(disp) <= 0.0:
+		return false
+
+	return true
 
 static func build_confluence_patch(
 	conf: Dictionary,
@@ -775,7 +894,12 @@ static func _generate_explicit_junction_stations(
 		return []
 
 	var cell_size: float = maxf(profile.cell_size, 0.01)
-	var down_st: Dictionary = _get_river_boundary_station(down_river, true, cell_size, result)
+	var conf_grid_pos: Vector2i = conf.get("position", Vector2i(-1, -1))
+	var conf_world: Vector3 = Vector3.INF
+	if conf_grid_pos.x >= 0 and conf_grid_pos.y >= 0:
+		conf_world = Vector3(conf_grid_pos.x * cell_size, 0.0, conf_grid_pos.y * cell_size)
+
+	var down_st: Dictionary = _get_river_boundary_station(down_river, true, cell_size, result, conf_world)
 	if down_st.is_empty():
 		return []
 
@@ -841,11 +965,20 @@ static func _generate_explicit_junction_stations(
 				p_l = target_down_l
 				p_r = target_down_r
 			else:
-				p_l = center + norm * half_w
-				p_r = center - norm * half_w
+				var cand_l: Vector3 = center + norm * half_w
+				var cand_r: Vector3 = center - norm * half_w
+				var prev_l: Vector3 = grid[k][m - 1]["left"]
+				var prev_r: Vector3 = grid[k][m - 1]["right"]
+				if _junction_quad_is_valid(prev_l, prev_r, cand_l, cand_r):
+					p_l = cand_l
+					p_r = cand_r
+				else:
+					p_l = u.left.lerp(target_down_l, tm)
+					p_r = u.right.lerp(target_down_r, tm)
 
 			var target_y: float = lerpf(u.water_y, down_st.water_y, tm)
 			grid[k][m] = {
+				"river_id": u.get("river_id", -1),
 				"center": center,
 				"dir": dir_blend,
 				"normal": norm,
@@ -855,6 +988,22 @@ static func _generate_explicit_junction_stations(
 				"right": p_r,
 				"water_y": target_y
 			}
+
+	# Cierre de costura entre ramas adyacentes
+	for m in range(1, m_steps + 1):
+		for k in range(n_branches - 1):
+			var r_pt: Vector3 = grid[k][m]["right"]
+			var l_pt: Vector3 = grid[k + 1][m]["left"]
+			var diff: Vector3 = r_pt - l_pt
+			var lateral_check: float = diff.x * down_st.normal.x + diff.z * down_st.normal.z
+			if m == m_steps or r_pt.distance_to(l_pt) < 0.05 or lateral_check <= 0.0:
+				var seam_pt: Vector3 = (r_pt + l_pt) * 0.5
+				grid[k][m]["right"] = seam_pt
+				grid[k + 1][m]["left"] = seam_pt
+				grid[k][m]["width"] = grid[k][m]["left"].distance_to(grid[k][m]["right"])
+				grid[k][m]["half_width"] = grid[k][m]["width"] * 0.5
+				grid[k + 1][m]["width"] = grid[k + 1][m]["left"].distance_to(grid[k + 1][m]["right"])
+				grid[k + 1][m]["half_width"] = grid[k + 1][m]["width"] * 0.5
 
 	return grid
 
@@ -895,11 +1044,21 @@ static func _extract_confluence_boundaries(
 		"transition_length": max_w * 1.25
 	}
 
+static func get_river_boundary_station(
+	river: Variant,
+	is_start: bool,
+	cell_size: float,
+	result: WorldResult,
+	near_world_pos: Vector3 = Vector3.INF
+) -> Dictionary:
+	return _get_river_boundary_station(river, is_start, cell_size, result, near_world_pos)
+
 static func _get_river_boundary_station(
 	river: Variant,
 	is_start: bool,
 	cell_size: float,
-	result: WorldResult
+	result: WorldResult,
+	near_world_pos: Vector3 = Vector3.INF
 ) -> Dictionary:
 	var raw_pts: Array = []
 	var raw_widths: Array = []
@@ -931,27 +1090,52 @@ static func _get_river_boundary_station(
 		has_upstream = not river.get("upstream_rivers", []).is_empty()
 		has_downstream = (river.get("downstream_river", -1) != -1)
 
-	if is_start:
+	var trim_len: float = 0.75
+	var min_seg: float = trim_len * (2.5 if (has_downstream and has_upstream) else 1.5)
+	if is_finite(near_world_pos.x) and is_start:
+		var best_idx: int = 0
+		var best_d2: float = INF
+		for j in range(raw_pts.size()):
+			var d2: float = Vector2(raw_pts[j].x - near_world_pos.x, raw_pts[j].z - near_world_pos.z).length_squared()
+			if d2 < best_d2:
+				best_d2 = d2
+				best_idx = j
+
+		if best_idx < raw_pts.size() - 1:
+			p = raw_pts[best_idx]
+			dir = (raw_pts[best_idx + 1] - raw_pts[best_idx]).normalized()
+			var p_next: Vector3 = raw_pts[best_idx + 1]
+			var seg_d: float = p.distance_to(p_next)
+			if seg_d > 0.1:
+				var t_trim: float = clampf(trim_len / seg_d, 0.05, 0.7)
+				p = p.lerp(p_next, t_trim)
+			w = _get_array_value(raw_widths, best_idx, 1.0)
+			d = _get_array_value(raw_depths, best_idx, 0.2)
+		else:
+			p = raw_pts[-1]
+			dir = (raw_pts[-1] - raw_pts[-2]).normalized()
+			var last_idx: int = raw_pts.size() - 1
+			w = _get_array_value(raw_widths, last_idx, 1.0)
+			d = _get_array_value(raw_depths, last_idx, 0.2)
+	elif is_start:
 		p = raw_pts[0]
 		dir = (raw_pts[1] - raw_pts[0]).normalized()
-		if has_upstream and raw_pts.size() >= 3:
-			var trim_len: float = 0.75
+		if has_upstream and raw_pts.size() >= 2:
 			var p_next: Vector3 = raw_pts[1]
 			var seg_d: float = p.distance_to(p_next)
-			if seg_d > trim_len * 1.5:
-				var t_trim: float = clampf(trim_len / seg_d, 0.05, 0.5)
+			if seg_d > 0.1:
+				var t_trim: float = clampf(trim_len / seg_d, 0.05, 0.7)
 				p = p.lerp(p_next, t_trim)
 		w = _get_array_value(raw_widths, 0, 1.0)
 		d = _get_array_value(raw_depths, 0, 0.2)
 	else:
 		p = raw_pts[-1]
 		dir = (raw_pts[-1] - raw_pts[-2]).normalized()
-		if has_downstream and raw_pts.size() >= 3:
-			var trim_len: float = 0.75
+		if has_downstream and raw_pts.size() >= 2:
 			var p_prev: Vector3 = raw_pts[-2]
 			var seg_d: float = p.distance_to(p_prev)
-			if seg_d > trim_len * 1.5:
-				var t_trim: float = clampf(1.0 - (trim_len / seg_d), 0.5, 0.95)
+			if seg_d > 0.1:
+				var t_trim: float = clampf(1.0 - (trim_len / seg_d), 0.3, 0.95)
 				p = p_prev.lerp(p, t_trim)
 		var last_idx: int = raw_pts.size() - 1
 		w = _get_array_value(raw_widths, last_idx, 1.0)
@@ -977,7 +1161,14 @@ static func _get_river_boundary_station(
 	right.y = clampf(bed_r + maxf(d, 0.05), bed_r + 0.015, bank_r + 0.02)
 	var water_y: float = (left.y + right.y) * 0.5
 
+	var r_id: int = -1
+	if river is River:
+		r_id = river.id
+	elif river is Dictionary:
+		r_id = river.get("id", -1)
+
 	return {
+		"river_id": r_id,
 		"center": p,
 		"dir": dir,
 		"normal": normal,

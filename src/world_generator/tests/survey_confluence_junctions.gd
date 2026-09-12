@@ -76,19 +76,28 @@ func _init() -> void:
 			if surf == null:
 				continue
 
-			var val_res = _JunctionValidator.validate_junction_surface(surf, n_up, 3)
-			var deg_tris: int = val_res["metrics"].get("degenerate_triangles", 0)
-			var n_quads: int = n_up * 3
-			var n_tris: int = surf.indices.size() / 3
+			var val_res = _JunctionValidator.validate_full_junction(conf, network, result, profile, surf)
+			var metrics: Dictionary = val_res.get("metrics", {})
+			var deg_tris: int = metrics.get("degenerate_triangles", 0)
+			var crossed: int = metrics.get("crossed_edges", 0)
+			var inverted: int = metrics.get("inverted_quads", 0)
+			var gaps: int = metrics.get("inter_branch_gaps", 0)
+			var ribbon_cont: int = metrics.get("ribbon_continuity_errors", 0)
+			var n_quads: int = metrics.get("quads_checked", n_up * 3)
+			var n_tris: int = metrics.get("triangles_checked", surf.indices.size() / 3)
 
 			total_quads += n_quads
 			total_tris += n_tris
 			total_inv_quads += deg_tris
+			total_crossed += crossed
+			total_inverted += inverted
+			total_gaps += gaps
+			total_overlaps += ribbon_cont
 
 			var c_pos: Vector2i = conf.get("position", Vector2i(-1, -1))
 			report_lines.append(
 				"%-6d | (%2d,%2d)   | %-9d | %-5d | %-4d | %-8d | %-7d | %-8d | %-4d | %-8d" % [
-					s, c_pos.x, c_pos.y, n_up, n_quads, n_tris, deg_tris, 0, 0, 0, 0
+					s, c_pos.x, c_pos.y, n_up, n_quads, n_tris, deg_tris, crossed, inverted, gaps, ribbon_cont
 				]
 			)
 
