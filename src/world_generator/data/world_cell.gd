@@ -8,6 +8,7 @@ var normalized_height: float = 0.0
 var slope: float = 0.0
 var slope_category: int = 0
 var is_walkable: bool = true
+var hydraulic_influence: float = 0.0
 
 # Ecology
 enum CanopyZone {

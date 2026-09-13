@@ -22,5 +22,10 @@ func _init() -> void:
 		assert(surf.vertices.size() >= 3, "Must have vertices")
 		for v in surf.vertices:
 			assert(is_equal_approx(v.y, float(lake["water_height"])), "All lake vertices must be planar at lake water_height")
+			var gx: int = clampi(int(round(v.x / profile.cell_size)), 0, profile.width - 1)
+			var gz: int = clampi(int(round(v.z / profile.cell_size)), 0, profile.height - 1)
+			var cell = result.get_cell(Vector2i(gx, gz))
+			if cell != null:
+				assert(cell.height <= float(lake["water_height"]) + 0.50, "Lake vertex at (%f, %f) must not penetrate into terrain high above water plane (cell_h=%.2f, water=%.2f)" % [v.x, v.z, cell.height, float(lake["water_height"])])
 	print("Test LakeMeshBuilder: PASSED")
 	quit(0)

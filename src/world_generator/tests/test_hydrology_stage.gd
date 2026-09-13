@@ -46,8 +46,8 @@ func _init() -> void:
 			var c_data: Dictionary = hydro.get_cell_data(c_pos)
 			assert(c_data["type"] == "lake", "Cell must be classified as lake")
 			assert(is_equal_approx(c_data["water_height"], lake_h), "All lake cells must share planar spillway height")
-			assert(c_data["water_height"] >= c_data["terrain_height"] - 0.001, "Water must be at or above depression floor")
-			assert(c_data["depth"] >= 0.0, "Depth must be non-negative")
+			assert(c_data["water_height"] >= c_data["bed_height"] + 0.10, "Lake bed must be strictly below water_height by at least minimum depth")
+			assert(c_data["depth"] >= 0.10, "Depth must be strictly positive")
 
 	# H11: Lake accumulation must propagate downstream of spillway
 	print(" [CHECK] H11. Lake Contribution Propagates Downstream...")

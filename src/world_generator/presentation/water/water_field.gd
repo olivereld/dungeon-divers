@@ -276,7 +276,9 @@ func get_water_data_at(x: float, z: float, _result: WorldResult = null, _profile
 	var depth: float = maxf(lerpf(d0, d1, best_t), 0.05)
 	var f_bank: float = maxf(depth * 0.75, 0.25)
 	var centerline_y: float = lerpf(p0_3d.y, p1_3d.y, best_t)
-	var elev: float = centerline_y - f_bank
+	var water_h: float = centerline_y - f_bank
+	var bed_h: float = water_h - depth
+	var shoreline_h: float = centerline_y
 
 	var dir_3d: Vector3 = (p1_3d - p0_3d)
 	var dir_2d := Vector2(dir_3d.x, dir_3d.z)
@@ -286,7 +288,10 @@ func get_water_data_at(x: float, z: float, _result: WorldResult = null, _profile
 	var ord: int = best_seg.order if "order" in best_seg else best_seg.get("order", 1)
 
 	return {
-		"elevation": elev,
+		"elevation": water_h,
+		"water_height": water_h,
+		"bed_height": bed_h,
+		"shoreline_height": shoreline_h,
 		"flow": flow,
 		"depth": depth,
 		"river_id": rid,

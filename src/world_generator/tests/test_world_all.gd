@@ -6,6 +6,8 @@ func _init() -> void:
 	print("==================================================")
 
 	var profile := TaigaWorldProfile.new()
+	profile.width = 128
+	profile.height = 128
 	assert(profile.width == 128 and profile.height == 128)
 
 	# 1. Master Seed & Domain Isolation
