@@ -5,6 +5,8 @@ extends RefCounted
 ## Water is rendered as independent overlay meshes with dedicated water materials,
 ## keeping TerrainMesh 100% free of water colors and logic.
 
+const _RiverRendererScript = preload("res://src/world_renderer/river_renderer.gd")
+
 static func build_hydrology_node(result: WorldResult, profile: WorldProfile = null) -> Node3D:
 	var hydro = result.hydrology
 	if hydro == null:
@@ -30,9 +32,13 @@ static func build_hydrology_node(result: WorldResult, profile: WorldProfile = nu
 			hydro_root.add_child(lake_mi)
 
 	# 2. Build Rivers & Banks Mesh
-	var river_node := RiverRenderer.build_river_node(result, profile)
+	var river_node := _RiverRendererScript.build_river_node(result, profile)
 	if river_node != null:
-		hydro_root.add_child(river_node)
+		while river_node.get_child_count() > 0:
+			var child = river_node.get_child(0)
+			river_node.remove_child(child)
+			hydro_root.add_child(child)
+		river_node.free()
 
 	return hydro_root
 

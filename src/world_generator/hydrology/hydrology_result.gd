@@ -7,8 +7,11 @@ extends RefCounted
 ## Map from Vector2i grid position to cell hydrological data:
 ## {
 ##   "type": "lake" | "river",
-##   "water_height": float,
-##   "terrain_height": float,
+##   "raw_height": float,        # 1. Cota del terreno natural original intacto
+##   "shoreline_height": float,  # 2. Cota de la orilla / cresta del talud de ribera
+##   "water_height": float,      # 3. Cota de la lámina de agua pura
+##   "bed_height": float,        # 4. Cota del lecho o fondo sumergido excavado
+##   "terrain_height": float,    # Alias de compatibilidad (apunta a bed_height)
 ##   "depth": float,
 ##   "flow_dir": Vector2,
 ##   "river_index": int,
@@ -75,6 +78,24 @@ func get_water_height(pos: Vector2i, default_val: float = 0.0) -> float:
 		return water_cells[pos].get("water_height", default_val)
 	return default_val
 
+func get_bed_height(pos: Vector2i, default_val: float = 0.0) -> float:
+	if water_cells.has(pos):
+		if water_cells[pos].has("bed_height"):
+			return float(water_cells[pos]["bed_height"])
+		if water_cells[pos].has("terrain_height"):
+			return float(water_cells[pos]["terrain_height"])
+	return default_val
+
+func get_shoreline_height(pos: Vector2i, default_val: float = 0.0) -> float:
+	if water_cells.has(pos):
+		return float(water_cells[pos].get("shoreline_height", default_val))
+	return default_val
+
+func get_raw_height(pos: Vector2i, default_val: float = 0.0) -> float:
+	if water_cells.has(pos):
+		return float(water_cells[pos].get("raw_height", default_val))
+	return default_val
+
 func get_water_depth(pos: Vector2i) -> float:
 	if water_cells.has(pos):
 		return water_cells[pos].get("depth", 0.0)
@@ -108,6 +129,13 @@ enum HydrologyZone {
 
 ## Mapeo por celda Vector2i -> HydrologyZone (int)
 var zones: Dictionary = {}
+
+## Mapeo continuo de influencia hidráulica Vector2i -> float en [0.0, 1.0]
+## 0.0 = terreno intacto, 0.0 -> 1.0 = transición / talud, 1.0 = cuenca / cauce sumergido
+var hydraulic_influence: Dictionary = {}
+
+func get_hydraulic_influence(pos: Vector2i, default_val: float = 0.0) -> float:
+	return float(hydraulic_influence.get(pos, default_val))
 
 ## Máscara booleana rápida de exclusión para vegetación Vector2i -> bool (true = excluido)
 var exclusion_mask: Dictionary = {}

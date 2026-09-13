@@ -41,7 +41,8 @@ static func build_river_node(result: WorldResult, profile: WorldProfile = null) 
 		river_root.add_child(river_mi)
 
 	# 2. Maya de orillas físicas (River Banks) si bank_width > 0.0
-	var bank_width: float = float(profile.get("river_bank_width", 0.0))
+	var bank_val = profile.get("river_bank_width")
+	var bank_width: float = float(bank_val) if bank_val != null else 0.0
 	if bank_width > 0.0:
 		var bank_mat := _create_bank_material(profile)
 		var bank_mesh := build_bank_mesh(result, profile)
@@ -240,15 +241,16 @@ static func build_bank_mesh(result: WorldResult, profile: WorldProfile = null) -
 	var bank_inner_col := Color(0.24, 0.18, 0.12, 0.70)  # Fango húmedo en contacto con el agua
 	var bank_outer_col := Color(0.38, 0.32, 0.22, 0.0)   # Desvanecimiento al terreno circundante
 
-	var bank_width: float = float(profile.get("river_bank_width", 0.0))
+	var bank_val = profile.get("river_bank_width")
+	var bank_width: float = float(bank_val) if bank_val != null else 0.0
 	var bank_w_extra: float = (bank_width * 0.5) / maxf(profile.cell_size, 0.01)
 
 	for river in rivers:
-		var raw_pts: Array = river.points if (river is River or "points" in river) else river.get("points", [])
+		var raw_pts: Array = river.points if (river is River or "points" in river) else (river.get("points") if river.get("points") != null else [])
 		if raw_pts.size() < 2:
 			continue
 
-		var raw_widths: Array = river.widths if (river is River or "widths" in river) else river.get("widths", [])
+		var raw_widths: Array = river.widths if (river is River or "widths" in river) else (river.get("widths") if river.get("widths") != null else [])
 		var spline_data := _generate_catmull_rom_with_widths(raw_pts, raw_widths, 4)
 		var smooth_pts: Array[Vector3] = spline_data["points"]
 		var smooth_widths: Array[float] = spline_data["widths"]

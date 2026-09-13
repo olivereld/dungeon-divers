@@ -12,6 +12,7 @@ static func build_lake_surface(lake: Dictionary, result: WorldResult, profile: W
 	if lake_cells.is_empty():
 		return null
 
+	var lake_id: int = int(lake.get("id", -1))
 	var water_y: float = float(lake.get("water_height", 0.0))
 	var lake_set: Dictionary = {}
 	for c in lake_cells:
@@ -47,16 +48,12 @@ static func build_lake_surface(lake: Dictionary, result: WorldResult, profile: W
 		if not in_basin:
 			continue
 
-		var h0: float = result.get_cell(c0).height
-		var h1: float = result.get_cell(c1).height
-		var h2: float = result.get_cell(c2).height
-		var h3: float = result.get_cell(c3).height
-
-		# Distancia del terreno a la lámina de agua (d <= 0 sumergido, d > 0 tierra seca)
-		var d0: float = (h0 - water_y) if lake_set.has(c0) else maxf(h0 - water_y, 0.001)
-		var d1: float = (h1 - water_y) if lake_set.has(c1) else maxf(h1 - water_y, 0.001)
-		var d2: float = (h2 - water_y) if lake_set.has(c2) else maxf(h2 - water_y, 0.001)
-		var d3: float = (h3 - water_y) if lake_set.has(c3) else maxf(h3 - water_y, 0.001)
+		# Evaluar distancia signada a la lámina de agua combinando:
+		# terrain_height + water_height + lake membership
+		var d0: float = _calculate_corner_water_dist(c0, water_y, lake_id, lake_set, result)
+		var d1: float = _calculate_corner_water_dist(c1, water_y, lake_id, lake_set, result)
+		var d2: float = _calculate_corner_water_dist(c2, water_y, lake_id, lake_set, result)
+		var d3: float = _calculate_corner_water_dist(c3, water_y, lake_id, lake_set, result)
 
 		# Si todos los vértices son tierra seca, no hay agua en esta celda
 		if d0 > 0.0 and d1 > 0.0 and d2 > 0.0 and d3 > 0.0:
@@ -135,3 +132,42 @@ static func _get_or_add_lake_vertex(
 	var idx: int = surf.add_vertex(v_pos, Vector3.UP, p2, flow, col)
 	vertex_cache[key] = idx
 	return idx
+
+static func _calculate_corner_water_dist(
+	c: Vector2i,
+	water_y: float,
+	lake_id: int,
+	lake_set: Dictionary,
+	result: WorldResult
+) -> float:
+	var cell: WorldCell = result.get_cell(c)
+	if cell == null:
+		return 1.0
+
+	var h: float = cell.height
+	var diff: float = h - water_y
+
+	# 1. Pertenencia directa a las celdas del lago
+	if lake_set.has(c):
+		return diff
+
+	# 2. Comprobar si pertenece a otro lago diferente
+	if result.hydrology != null and result.hydrology.has_method("is_lake") and result.hydrology.is_lake(c):
+		var other_lake_id: int = int(result.hydrology.get_cell_data(c).get("lake_id", -1))
+		if other_lake_id != -1 and other_lake_id != lake_id:
+			return maxf(diff, 0.10)
+
+	# 3. Talud contenedor exterior de la orilla de este lago:
+	# Si la celda está por encima del agua (diff >= 0.0), diff representa exactamente
+	# la pendiente ascendente real del talud, permitiendo calcular el punto de corte continuo
+	# sin deformar la fracción de interpolación de Marching Squares.
+	if diff >= 0.0:
+		return diff
+
+	# 4. Celda adyacente con cota inferior a water_y:
+	# Si es un río conectado (desembocadura o desagüe del lago), permite continuidad hídrica.
+	if result.hydrology != null and result.hydrology.has_method("is_river") and result.hydrology.is_river(c):
+		return diff
+
+	# Si es terreno exterior sin membresía hídrica, confinar el lago evitando fugas
+	return maxf(diff, 0.10)
