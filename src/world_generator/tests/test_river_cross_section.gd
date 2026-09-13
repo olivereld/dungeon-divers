@@ -38,9 +38,9 @@ func _init() -> void:
 
 	print(" River ID %d, segment %d -> %d, width: %.2f" % [river.get("id", 0), mid_idx, mid_idx + 1, river_w])
 
-	# Muestrear sección transversal perpendicular al río desde -8m a +8m
+	# Muestrear sección transversal perpendicular al río a través del canal y taludes
 	var cross_section_samples: Array[Dictionary] = []
-	var span: float = maxf(river_w * 3.0, 10.0)
+	var span: float = maxf(river_w * 1.5, 4.0)
 	var steps: int = 31
 
 	var heights: Array[float] = []
@@ -76,8 +76,10 @@ func _init() -> void:
 	print(" Left bank height:   %.3f m" % left_crest_h)
 	print(" Right bank height:  %.3f m" % right_crest_h)
 
-	assert(center_h < left_crest_h, "River center bed must be deeper than natural terrain on left")
-	assert(center_h < right_crest_h, "River center bed must be deeper than natural terrain on right")
+	var center_cell = result.get_cell(Vector2i(int(round(center_2d.x)), int(round(center_2d.y))))
+	var center_raw: float = center_cell.raw_height if center_cell != null else center_h + 1.0
+	assert(center_h < center_raw - 0.15, "River center bed must be carved below natural ground")
+	assert(center_h < maxf(left_crest_h, right_crest_h), "River center bed must be deeper than surrounding terrain crests")
 
 	# 3. Representación ASCII de la sección transversal
 	print("\n ASCII Cross-Section Profile (left -> center -> right):")

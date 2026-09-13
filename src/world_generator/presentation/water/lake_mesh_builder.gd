@@ -170,4 +170,4 @@ static func _calculate_corner_water_dist(
 		return diff
 
 	# Si es terreno exterior sin membresía hídrica, confinar el lago evitando fugas
-	return maxf(diff, 0.10)
+	return maxf(diff, 0.02)

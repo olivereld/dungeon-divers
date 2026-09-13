@@ -6,9 +6,9 @@ func _init() -> void:
 	height = 64
 	cell_size = 1.0
 
-	# Taiga Physical Terrain Scale (Hierarchy: Macro 140m, Medium 45m, Detail 10m)
-	macro_wavelength = 140.0
-	macro_amplitude = 14.0
+	# Taiga Physical Terrain Scale (Hierarchy: Macro 200m, Medium 45m, Detail 10m)
+	macro_wavelength = 200.0
+	macro_amplitude = 15.0
 	medium_wavelength = 45.0
 	medium_amplitude = 4.5
 	detail_wavelength = 10.0
@@ -66,18 +66,18 @@ func _init() -> void:
 
 	# Hydrology Defaults
 	hydrology_enabled = true
-	lake_threshold = 0.22
+	lake_threshold = 0.16
 	lake_minimum_area = 4
 	lake_merge_distance = 4.0
-	max_rivers = 3
-	river_source_min_height = 0.65
-	river_source_min_slope = 4.0
-	min_river_length = 12.0
-	max_river_length = 180.0
-	river_max_steps = 250
-	river_min_width = 1.35
-	river_max_width = 3.85
-	river_meander_strength = 0.18
+	max_rivers = 4
+	river_source_min_height = 0.40
+	river_source_min_slope = 2.0
+	min_river_length = 28.0
+	max_river_length = 350.0
+	river_max_steps = 450
+	river_min_width = 1.40
+	river_max_width = 4.00
+	river_meander_strength = 0.35
 	river_channel_depth = 0.22
 	river_min_depth = 0.08
 	river_max_depth = 0.45
