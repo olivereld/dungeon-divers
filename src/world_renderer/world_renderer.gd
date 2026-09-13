@@ -68,7 +68,7 @@ func _spawn_vegetation_multimeshes(parent: Node3D, result: WorldResult) -> void:
 	var conifer_offset := 0.0 if not (conifer_mesh is CylinderMesh) else 1.95
 	_create_multimesh(parent, "Conifers", conifer_mesh, conifers, conifer_offset)
 	_create_multimesh(parent, "Shrubs", _create_shrub_mesh(), shrubs, 0.30)
-	_create_multimesh(parent, "Rocks", _create_rock_mesh(), rocks, 0.20)
+	_spawn_rock_multimeshes(parent, rocks)
 
 func _create_multimesh(parent: Node3D, name_id: String, base_mesh: Mesh, items: Array[WorldVegetationItem], base_y_offset: float = 0.0) -> void:
 	if items.is_empty():
@@ -219,10 +219,99 @@ func _create_shrub_mesh() -> SphereMesh:
 	mesh.material = mat
 	return mesh
 
-func _create_rock_mesh() -> BoxMesh:
+func _create_rock_mesh() -> Mesh:
+	var meshes := _get_or_load_rock_meshes()
+	if not meshes.is_empty():
+		return meshes[0]
+	return _create_fallback_rock_mesh()
+
+func _create_fallback_rock_mesh() -> BoxMesh:
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(1.2, 0.8, 1.0)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.42, 0.42, 0.45)
 	mesh.material = mat
 	return mesh
+
+const ROCKS_DIR: String = "res://models/nature/rocks/"
+static var _cached_rock_meshes: Array[Mesh] = []
+
+func _spawn_rock_multimeshes(parent: Node3D, rocks: Array[WorldVegetationItem]) -> void:
+	if rocks.is_empty():
+		return
+
+	var rocks_root := Node3D.new()
+	rocks_root.name = "Rocks"
+	parent.add_child(rocks_root)
+
+	var rock_meshes := _get_or_load_rock_meshes()
+	if rock_meshes.is_empty():
+		_create_multimesh(rocks_root, "Default", _create_fallback_rock_mesh(), rocks, 0.20)
+		return
+
+	var num_variants: int = rock_meshes.size()
+	var buckets: Array[Array] = []
+	for k in range(num_variants):
+		var arr: Array[WorldVegetationItem] = []
+		buckets.append(arr)
+
+	for item in rocks:
+		# Hash determinista de coordenadas espaciales para seleccionar variante de roca
+		var h_val: int = int(round(item.position.x * 73.0)) ^ int(round(item.position.z * 179.0))
+		var bucket_idx: int = absi(h_val) % num_variants
+		buckets[bucket_idx].append(item)
+
+	for k in range(num_variants):
+		var items_in_bucket: Array = buckets[k]
+		if not items_in_bucket.is_empty():
+			var typed_items: Array[WorldVegetationItem] = []
+			for it in items_in_bucket:
+				typed_items.append(it)
+			# -0.05m para que la base quede firmemente enterrada en el lecho o ladera rocosa
+			_create_multimesh(rocks_root, "Variant_%d" % (k + 1), rock_meshes[k], typed_items, -0.05)
+
+func _get_or_load_rock_meshes() -> Array[Mesh]:
+	if not _cached_rock_meshes.is_empty():
+		return _cached_rock_meshes
+
+	var rock_colors: Array[Color] = [
+		Color("#4e5154"), # Granito oscuro
+		Color("#5c5f62"), # Granito clásico
+		Color("#66696c"), # Granito gris medio
+		Color("#484b4d"), # Pizarra boreal
+		Color("#545856"), # Granito con toque musgoso
+		Color("#5d6063"), # Roca erosionada
+		Color("#4a4c4e"), # Basalto frío
+		Color("#626569")  # Granito claro
+	]
+
+	for i in range(1, 9):
+		var path := "%srock%d.glb" % [ROCKS_DIR, i]
+		var tex_path := "%sRock_%d.png" % [ROCKS_DIR, i]
+		if ResourceLoader.exists(path):
+			var glb: PackedScene = load(path)
+			if glb != null:
+				var inst: Node = glb.instantiate()
+				var mi: MeshInstance3D = null
+				for child in inst.get_children():
+					if child is MeshInstance3D and child.mesh != null:
+						mi = child
+						break
+				if mi != null:
+					var m: Mesh = mi.mesh.duplicate()
+					var mat := StandardMaterial3D.new()
+					if ResourceLoader.exists(tex_path):
+						var tex: Texture2D = load(tex_path)
+						mat.albedo_texture = tex
+						mat.albedo_color = Color.WHITE
+					else:
+						mat.albedo_color = rock_colors[(i - 1) % rock_colors.size()]
+					mat.roughness = 0.90
+					mat.metallic = 0.05
+					mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+					mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+					m.surface_set_material(0, mat)
+					_cached_rock_meshes.append(m)
+				inst.queue_free()
+
+	return _cached_rock_meshes

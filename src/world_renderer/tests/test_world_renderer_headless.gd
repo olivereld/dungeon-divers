@@ -18,7 +18,7 @@ func _init() -> void:
 	var array_mesh: ArrayMesh = mesh_inst.mesh
 	var arrays := array_mesh.surface_get_arrays(0)
 	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
-	assert(colors.size() == 128 * 128, "Must have 1 color per vertex")
+	assert(colors.size() == profile.width * profile.height, "Must have 1 color per vertex")
 
 	# Verify all colors are valid non-NaN albedo values with alpha = 1.0
 	for col in colors:
@@ -28,9 +28,27 @@ func _init() -> void:
 		assert(col.g >= 0.0 and col.g <= 1.0)
 		assert(col.b >= 0.0 and col.b <= 1.0)
 
-	# Check for HydrologyRoot presence
+	# Check for WaterRoot presence
 	if result.hydrology != null and (not result.hydrology.lakes.is_empty() or not result.hydrology.rivers.is_empty()):
-		assert(node.has_node("HydrologyRoot"), "HydrologyRoot node must be generated when water exists")
+		assert(node.has_node("WaterRoot") or node.has_node("HydrologyRoot"), "WaterRoot node must be generated when water exists")
+
+	# Check for Rock MultiMeshes presence
+	var has_rocks := false
+	for veg_item in result.vegetation:
+		if veg_item.type == WorldVegetationItem.Type.ROCK:
+			has_rocks = true
+			break
+	if has_rocks:
+		assert(node.has_node("Rocks"), "Rocks root must exist when rocks are spawned")
+		var rocks_node: Node = node.get_node("Rocks")
+		assert(rocks_node.get_child_count() > 0, "Rocks must contain variant MultiMeshes")
+		for child in rocks_node.get_children():
+			if child is MultiMeshInstance3D and child.multimesh != null and child.multimesh.mesh != null:
+				var m: Mesh = child.multimesh.mesh
+				var mat = m.surface_get_material(0)
+				assert(mat is StandardMaterial3D, "Rock variant must use StandardMaterial3D")
+				assert((mat as StandardMaterial3D).albedo_texture != null, "Rock variant must have albedo texture assigned")
+		print(" [PASS] Rock MultiMeshes verified with %d textured variant nodes" % rocks_node.get_child_count())
 
 	node.free()
 	renderer.free()
