@@ -1,74 +1,73 @@
 class_name WaterRenderer
 extends RefCounted
 
-## Orquestador dedicado de presentación de agua.
-## Unifica ríos, lagos y confluencias en una única malla optimizada y calcula
-## la máscara de proximidad a la ribera (distance_to_water).
+## Orquestador dedicado de presentación de agua (BLOQUE 10).
+## Convierte WaterRenderer en un orquestador simple y desacoplado de la geometría.
+## Flujo canónico:
+##   WorldRenderer -> WaterRenderer -> WaterMeshBuilder -> ArrayMesh -> MeshInstance3D
+##
+## No contiene ninguna lógica geométrica propia ni dependencias productivas de
+## RiverMeshBuilder, LakeMeshBuilder o WaterField.
 
-const _WaterSurfaceDataScript = preload("res://src/world_generator/presentation/water/water_surface_data.gd")
-const _RiverMeshBuilderScript = preload("res://src/world_generator/presentation/water/river_mesh_builder.gd")
-const _LakeMeshBuilderScript = preload("res://src/world_generator/presentation/water/lake_mesh_builder.gd")
+const _WaterMeshBuilderScript = preload("res://src/world_generator/presentation/water/water_mesh_builder.gd")
 const _WaterMaterialScript = preload("res://src/world_generator/presentation/water/water_material.gd")
 
+## API canónica de presentación: crea el nodo 3D de agua para WorldRenderer
 static func build_water_node(result: WorldResult, profile: WorldProfile = null, show_wireframe: bool = false) -> Node3D:
 	if result == null or result.hydrology == null:
 		return null
 	if profile == null:
 		profile = WorldProfile.new()
 
-	# Flujo canónico: Hydrology -> RiverNetwork -> RiverMeshBuilder -> WaterSurfaceData -> Presentation
-	var hydro = result.hydrology
-	var combined_surf = _WaterSurfaceDataScript.new()
-
-	# 1. Hydrology -> RiverNetwork -> RiverMeshBuilder -> WaterSurfaceData (Generación Única)
-	var river_surf: WaterSurfaceData = null
-	if "cached_water_surface" in result and result.cached_water_surface != null and result.cached_water_surface is _WaterSurfaceDataScript:
-		river_surf = result.cached_water_surface as WaterSurfaceData
-	else:
-		var river_network = hydro.get_river_network()
-		river_surf = _RiverMeshBuilderScript.build_network_mesh(river_network, result, profile)
-		if "cached_water_surface" in result:
-			result.cached_water_surface = river_surf
-	if river_surf != null:
-		combined_surf.append_surface(river_surf)
-
-	# 2. Construir lagos
-	for lake in hydro.lakes:
-		var l_surf = _LakeMeshBuilderScript.build_lake_surface(lake, result, profile)
-		if l_surf != null:
-			combined_surf.append_surface(l_surf)
-
-	var mesh: ArrayMesh = combined_surf.to_array_mesh()
-	if mesh == null:
+	# Orquestación pura: delega exclusivamente la geometría a WaterMeshBuilder
+	var mesh: ArrayMesh = _WaterMeshBuilderScript.build_mesh(result, profile)
+	if mesh == null or mesh.get_surface_count() == 0:
 		return null
 
 	var root := Node3D.new()
 	root.name = "WaterRoot"
 
+	# Único MeshInstance3D para toda la masa de agua unificada del mundo
 	var mi := MeshInstance3D.new()
 	mi.name = "UnifiedWaterSurface"
 	mi.mesh = mesh
 	mi.set_surface_override_material(0, _WaterMaterialScript.create_water_material(profile, true))
 	root.add_child(mi)
 
-	# 3. Malla Wireframe de inspección de aristas y vértices (Ríos y Lagos)
-	var wire_overlay = build_wireframe_node(combined_surf)
-	if wire_overlay != null:
-		wire_overlay.visible = show_wireframe
-		root.add_child(wire_overlay)
+	# Overlay opcional de depuración wireframe
+	if show_wireframe:
+		var wire_overlay = build_wireframe_node(mesh)
+		if wire_overlay != null:
+			root.add_child(wire_overlay)
 
 	return root
 
-## Construye una malla de alambre y puntos de inspección para visualizar la triangulación y vértices del agua
-static func build_wireframe_node(combined_surf: RefCounted) -> Node3D:
-	if combined_surf == null or combined_surf.vertices.is_empty() or combined_surf.indices.is_empty():
+## Construye una malla de alambre y puntos de inspección a partir de ArrayMesh o WaterSurfaceData
+static func build_wireframe_node(mesh_or_surf: RefCounted) -> Node3D:
+	if mesh_or_surf == null:
+		return null
+
+	var verts: PackedVector3Array
+	var indices: PackedInt32Array
+
+	if mesh_or_surf is ArrayMesh:
+		if mesh_or_surf.get_surface_count() == 0:
+			return null
+		var arrays: Array = mesh_or_surf.surface_get_arrays(0)
+		verts = arrays[Mesh.ARRAY_VERTEX]
+		indices = arrays[Mesh.ARRAY_INDEX]
+	elif "vertices" in mesh_or_surf and "indices" in mesh_or_surf:
+		verts = mesh_or_surf.vertices
+		indices = mesh_or_surf.indices
+	else:
+		return null
+
+	if verts.is_empty() or indices.is_empty():
 		return null
 
 	var wire_root := Node3D.new()
 	wire_root.name = "WaterWireframeOverlay"
 
-	var verts: PackedVector3Array = combined_surf.vertices
-	var indices: PackedInt32Array = combined_surf.indices
 	var num_tris: int = indices.size() / 3
 
 	# 1. Malla de aristas (PRIMITIVE_LINES)

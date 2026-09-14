@@ -1396,8 +1396,8 @@ func _build_river_geometry(
 		widths.append(base_w)
 		depths.append(base_d)
 
-		# Registrar celda de río si no es lago
-		if not hydro.is_lake(pos):
+		# Registrar celda de río si no es lago ni celda de confluencia con río receptor
+		if not hydro.is_lake(pos) and not (river_obj.downstream_river != -1 and i == total_pts - 1):
 			var flow_d: Vector2 = Vector2.ZERO
 			if i < total_pts - 1:
 				var nxt_c: Vector2i = path[i + 1]
@@ -1432,6 +1432,16 @@ func _build_river_geometry(
 			if points[j].y < points[j + 1].y:
 				points[j].y = points[j + 1].y
 
+	# Continuidad de cota en confluencia con río receptor: el agua del afluente
+	# empalma con continuidad C0 en la cota exacta de la lámina de agua del río receptor
+	if river_obj.downstream_river != -1 and hydro.water_cells.has(path[-1]):
+		var target_h: float = float(hydro.water_cells[path[-1]].get("water_height", points[-1].y))
+		var f_b_end: float = maxf(depths[-1] * 0.75, 0.25)
+		points[-1].y = target_h + f_b_end
+		for j in range(points.size() - 2, -1, -1):
+			if points[j].y < points[j + 1].y:
+				points[j].y = points[j + 1].y
+
 	# Continuidad de cota en nacimiento desde spillway: el río que nace del lago
 	# parte a la cota exacta spill_h del espejo de agua del lago
 	if river_obj.is_outflow and hydro.is_lake(path[0]):
@@ -1444,15 +1454,29 @@ func _build_river_geometry(
 				points[j].y = points[j - 1].y
 
 	# Sincronizar water_cells con las cotas definitivas de points[i].y
+	var prev_w_h: float = INF
 	for i in range(total_pts):
 		var pos: Vector2i = path[i]
 		if not hydro.is_lake(pos) and hydro.water_cells.has(pos):
-			var f_b: float = maxf(depths[i] * 0.75, 0.25)
-			var w_h: float = points[i].y - f_b
-			var b_h: float = w_h - depths[i]
-			hydro.water_cells[pos]["water_height"] = w_h
-			hydro.water_cells[pos]["bed_height"] = b_h
-			hydro.water_cells[pos]["shoreline_height"] = points[i].y
+			var is_confluence_outlet: bool = (river_obj.downstream_river != -1 and i == total_pts - 1)
+			if is_confluence_outlet:
+				# La celda de confluencia ya pertenece al río receptor; solo profundizamos el lecho si este afluente es más profundo
+				var existing_w_h: float = float(hydro.water_cells[pos].get("water_height", points[i].y))
+				var b_h: float = existing_w_h - depths[i]
+				var existing_b_h: float = float(hydro.water_cells[pos].get("bed_height", b_h))
+				hydro.water_cells[pos]["bed_height"] = minf(existing_b_h, b_h)
+				hydro.water_cells[pos]["depth"] = existing_w_h - float(hydro.water_cells[pos]["bed_height"])
+			else:
+				var f_b: float = maxf(depths[i] * 0.75, 0.25)
+				var w_h: float = points[i].y - f_b
+				if w_h > prev_w_h:
+					w_h = prev_w_h
+				prev_w_h = w_h
+				var b_h: float = w_h - depths[i]
+				hydro.water_cells[pos]["water_height"] = w_h
+				hydro.water_cells[pos]["bed_height"] = b_h
+				hydro.water_cells[pos]["depth"] = depths[i]
+				hydro.water_cells[pos]["shoreline_height"] = points[i].y
 
 	river_obj.points = points
 	river_obj.widths = widths
@@ -1531,8 +1555,8 @@ func _carve_river_channels(
 		for j in range(num_pts - 1):
 			var p0_3d: Vector3 = pts_arr[j]
 			var p1_3d: Vector3 = pts_arr[j + 1]
-			var p0 := Vector2(p0_3d.x, p0_3d.z)
-			var p1 := Vector2(p1_3d.x, p1_3d.z)
+			var p0 := Vector2(p0_3d.x, p0_3d.z) * cell_size
+			var p1 := Vector2(p1_3d.x, p1_3d.z) * cell_size
 			var v := p1 - p0
 			var len_sq: float = v.length_squared()
 			var inv_len_sq: float = 1.0 / len_sq if len_sq > 0.00001 else 0.0
