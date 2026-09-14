@@ -31,6 +31,7 @@ const _HydraulicCarvingProfileScript = preload("res://src/world_generator/hydrol
 const _RiverEndpointScript = preload("res://src/world_generator/hydrology/river_endpoint.gd")
 const _LakeCandidateScript = preload("res://src/world_generator/hydrology/lake_candidate.gd")
 const _HydraulicDestinationResolverScript = preload("res://src/world_generator/hydrology/hydraulic_destination_resolver.gd")
+const _HydraulicBasinClassifierScript = preload("res://src/world_generator/hydrology/hydraulic_basin_classifier.gd")
 
 # Constantes del Pipeline Hidrológico (Fase 7)
 const FLOW_FLAT_TOLERANCE: float = 0.0001
@@ -263,7 +264,8 @@ func execute(context: WorldGenerationContext) -> void:
 	# -------------------------------------------------------------------------
 	var river_network_result := _trace_river_network(
 		headwaters, flow_to, accumulation, channel_mask,
-		hydro, width, height, profile, main_channel_threshold
+		hydro, width, height, profile, main_channel_threshold,
+		cells, filled_height
 	)
 	var network_rivers: Array = river_network_result["rivers"]
 	hydro.confluences = river_network_result["confluences"]
@@ -451,6 +453,20 @@ func _resolve_river_endpoints_and_lakes(
 			dest = _RiverEndpointScript.DestinationType.JOIN_RIVER
 			endpoint.destination_type = dest
 			endpoint.target_river_id = r.downstream_river
+		elif hydro.is_lake(end_pos):
+			var existing_lake_id: int = int(hydro.water_cells[end_pos].get("lake_id", -1))
+			dest = _RiverEndpointScript.DestinationType.LAKE
+			endpoint.destination_type = dest
+			endpoint.target_lake_id = existing_lake_id
+			for lk_dict in hydro.lakes:
+				if lk_dict.get("id", -1) == existing_lake_id:
+					if not lk_dict.get("source_river_ids", []).has(r.id):
+						lk_dict["source_river_ids"].append(r.id)
+					if lk_dict.has("outflow_river_id") and lk_dict["outflow_river_id"] != -1:
+						r.downstream_river = lk_dict["outflow_river_id"]
+					break
+			r.destination_type = dest
+			continue
 		else:
 			dest = resolver.resolve_destination(
 				endpoint, width, height, river_cell_owner, cells, flow_to, basins, filled_height
@@ -1071,7 +1087,9 @@ func _trace_river_network(
 	width: int,
 	height: int,
 	profile: WorldProfile,
-	main_channel_threshold: float
+	main_channel_threshold: float,
+	cells: Dictionary = {},
+	filled_height: Dictionary = {}
 ) -> Dictionary:
 	var rivers: Array = []
 	var confluences: Array = []
@@ -1081,6 +1099,7 @@ func _trace_river_network(
 	var lakes_with_inflow: Dictionary = {} # lake_id -> incoming_river_id
 	var current_river_id: int = 0
 	var min_acceptable_pts: int = mini(10, maxi(6, int(profile.min_river_length * 0.4)))
+	var basin_classifier = _HydraulicBasinClassifierScript.new()
 
 	# 1. Trazar ríos desde las cabeceras aprobadas
 	for head in headwaters:
@@ -1116,6 +1135,23 @@ func _trace_river_network(
 				downstream_id = river_cell_owner[nxt]
 				confluence_pos = nxt
 				break
+
+			# Intercepción 1: Depresión topográfica cerrada (candidato a lago)
+			if not cells.is_empty() and basin_classifier.is_local_depression(nxt, cells, filled_height, 0.05):
+				if path.size() >= min_acceptable_pts:
+					path.append(nxt)
+					rendered_edges[edge_key] = true
+					break
+
+			# Intercepción 2: Zona de convergencia en valle plano (múltiples ríos convergiendo)
+			if not cells.is_empty() and cells.has(nxt):
+				var nxt_cell: WorldCell = cells[nxt]
+				var nxt_slope: float = nxt_cell.slope if nxt_cell != null else 10.0
+				if basin_classifier.detect_convergence_zone(river_cell_owner, nxt, nxt_slope, 3, 2.0):
+					if path.size() >= min_acceptable_pts:
+						path.append(nxt)
+						rendered_edges[edge_key] = true
+						break
 
 			path.append(nxt)
 			rendered_edges[edge_key] = true
