@@ -119,8 +119,8 @@ func _init() -> void:
 	for pos in hydro.water_cells:
 		var data: Dictionary = hydro.water_cells[pos]
 		var water_h: float = float(data.get("water_height", 0.0))
-		var terrain_h: float = float(data.get("terrain_height", 0.0))
-		assert(water_h >= terrain_h - 0.01, "H20: Water at %s (%.3f) below terrain (%.3f)" % [str(pos), water_h, terrain_h])
+		var bed_h: float = float(data.get("bed_height", 0.0))
+		assert(water_h >= bed_h - 0.01, "H20: Water at %s (%.3f) below bed (%.3f)" % [str(pos), water_h, bed_h])
 
 	# H21: Meander displacement zero at source and outlet
 	print(" [CHECK] H21. Meander Taper at Endpoints...")
@@ -470,8 +470,8 @@ static func validate_lakes_and_geometry(result: WorldResult) -> void:
 	for pos in hydro.water_cells:
 		var data: Dictionary = hydro.water_cells[pos]
 		var water_h: float = float(data.get("water_height", 0.0))
-		var terrain_h: float = float(data.get("terrain_height", 0.0))
-		assert(water_h >= terrain_h - 0.01, "Water must be at or above terrain")
+		var bed_h: float = float(data.get("bed_height", 0.0))
+		assert(water_h >= bed_h - 0.01, "Water must be at or above bed")
 
 
 static func validate_watershed_integrity(result: WorldResult, profile: WorldProfile) -> void:

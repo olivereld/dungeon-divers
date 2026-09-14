@@ -561,11 +561,9 @@ func _generate_lakes(
 
 			hydro.water_cells[pos] = {
 				"type": "lake",
-				"raw_height": c_h,
 				"shoreline_height": spillway_height + 0.05,
 				"water_height": spillway_height,
 				"bed_height": bed_h,
-				"terrain_height": bed_h,
 				"depth": effective_depth,
 				"lake_id": lake_id,
 				"flow_dir": Vector2.ZERO
@@ -1411,11 +1409,9 @@ func _build_river_geometry(
 			var b_h: float = w_h - base_d
 			hydro.water_cells[pos] = {
 				"type": "river",
-				"raw_height": c_h,
 				"shoreline_height": c_h,
 				"water_height": w_h,
 				"bed_height": b_h,
-				"terrain_height": b_h,
 				"depth": base_d,
 				"flow_dir": flow_d,
 				"river_index": river_id
@@ -1457,7 +1453,6 @@ func _build_river_geometry(
 			var b_h: float = w_h - depths[i]
 			hydro.water_cells[pos]["water_height"] = w_h
 			hydro.water_cells[pos]["bed_height"] = b_h
-			hydro.water_cells[pos]["terrain_height"] = b_h
 			hydro.water_cells[pos]["shoreline_height"] = points[i].y
 
 	river_obj.points = points
@@ -1616,7 +1611,6 @@ func _carve_river_channels(
 			cell.hydraulic_influence = float(hydro.hydraulic_influence.get(pos, 0.0))
 		if hydro != null and hydro.water_cells.has(pos):
 			hydro.water_cells[pos]["bed_height"] = cell.height
-			hydro.water_cells[pos]["terrain_height"] = cell.height
 			var cur_w_h: float = float(hydro.water_cells[pos].get("water_height", cell.height))
 			if cur_w_h < cell.height:
 				hydro.water_cells[pos]["water_height"] = cell.height
@@ -1764,7 +1758,6 @@ func _carve_lake_basins(
 			cell.hydraulic_influence = float(hydro.hydraulic_influence.get(pos, 0.0))
 		if hydro != null and hydro.water_cells.has(pos):
 			hydro.water_cells[pos]["bed_height"] = cell.height
-			hydro.water_cells[pos]["terrain_height"] = cell.height
 			if hydro.water_cells[pos].get("type") == "lake":
 				hydro.water_cells[pos]["water_height"] = w_y
 				hydro.water_cells[pos]["shoreline_height"] = w_y + 0.30

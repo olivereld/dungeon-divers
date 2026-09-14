@@ -2,7 +2,12 @@ class_name WorldCell
 extends RefCounted
 
 var position: Vector2i
+## Cota final del terreno (H_terrain_final) tras todas las modificaciones geomorfológicas y tallado hidráulico.
+## Inicialmente igual a raw_height; modificable únicamente por etapas autorizadas de deformación.
 var height: float = 0.0
+
+## Cota original del terreno (H_raw) producida por TerrainStage.
+## Inmutable tras TerrainStage: Hidrología nunca debe modificarla.
 var raw_height: float = 0.0
 var normalized_height: float = 0.0
 var slope: float = 0.0

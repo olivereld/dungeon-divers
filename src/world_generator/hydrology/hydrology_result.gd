@@ -7,12 +7,10 @@ extends RefCounted
 ## Map from Vector2i grid position to cell hydrological data:
 ## {
 ##   "type": "lake" | "river",
-##   "raw_height": float,        # 1. Cota del terreno natural original intacto
-##   "shoreline_height": float,  # 2. Cota de la orilla / cresta del talud de ribera
-##   "water_height": float,      # 3. Cota de la lámina de agua pura
-##   "bed_height": float,        # 4. Cota del lecho o fondo sumergido excavado
-##   "terrain_height": float,    # Alias de compatibilidad (apunta a bed_height)
-##   "depth": float,
+##   "water_height": float,      # H_water: Cota absoluta de la lámina de agua pura (verdad hidráulica)
+##   "bed_height": float,        # H_bed: Cota absoluta del fondo del lecho hidráulico
+##   "depth": float,             # Valor derivado: water_height - bed_height
+##   "shoreline_height": float,  # Cota de referencia independiente de orilla / coronación
 ##   "flow_dir": Vector2,
 ##   "river_index": int,
 ##   "lake_id": int
@@ -80,20 +78,12 @@ func get_water_height(pos: Vector2i, default_val: float = 0.0) -> float:
 
 func get_bed_height(pos: Vector2i, default_val: float = 0.0) -> float:
 	if water_cells.has(pos):
-		if water_cells[pos].has("bed_height"):
-			return float(water_cells[pos]["bed_height"])
-		if water_cells[pos].has("terrain_height"):
-			return float(water_cells[pos]["terrain_height"])
+		return float(water_cells[pos].get("bed_height", default_val))
 	return default_val
 
 func get_shoreline_height(pos: Vector2i, default_val: float = 0.0) -> float:
 	if water_cells.has(pos):
 		return float(water_cells[pos].get("shoreline_height", default_val))
-	return default_val
-
-func get_raw_height(pos: Vector2i, default_val: float = 0.0) -> float:
-	if water_cells.has(pos):
-		return float(water_cells[pos].get("raw_height", default_val))
 	return default_val
 
 func get_water_depth(pos: Vector2i) -> float:
