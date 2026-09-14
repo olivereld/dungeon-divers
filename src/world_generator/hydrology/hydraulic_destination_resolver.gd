@@ -137,6 +137,16 @@ func expand_lake_from_endpoint(
 	lake.spillway_height = true_rim_h if not is_inf(true_rim_h) else target_spillway_h
 	lake.water_height = minf(target_spillway_h, lake.spillway_height)
 
+	# Filtrar solo celdas que realmente quedan sumergidas bajo el agua (depth >= 0.04m)
+	var submerged_cells: Array[Vector2i] = []
+	for c_pos in lake.cells:
+		if cells.has(c_pos) and cells[c_pos].raw_height <= lake.water_height - 0.04:
+			submerged_cells.append(c_pos)
+
+	if submerged_cells.size() < min_area:
+		return null
+
+	lake.cells = submerged_cells
 	return lake
 
 ## Emite y traza un río efluente saliente desde el vertedero de un lago
@@ -145,29 +155,48 @@ func trace_lake_outflow(
 	flow_to: Dictionary,
 	accumulation: Dictionary,
 	outflow_river_id: int,
-	max_steps: int = 350
+	max_steps: int = 350,
+	river_cell_owner: Dictionary = {}
 ) -> RefCounted:
 	var spill: Vector2i = lake.spillway_pos
 	if spill == Vector2i(-1, -1):
 		return null
 
+	# Si el vertedero ya está sobre una celda de un río existente, se conecta directamente como confluencia
+	if river_cell_owner.has(spill):
+		var target_id: int = river_cell_owner[spill]
+		lake.outflow_river_id = target_id
+		return null
+
 	var outflow_path: Array[Vector2i] = [spill]
 	var curr: Vector2i = spill
+	var downstream_id: int = -1
+	var confluence_pos: Vector2i = Vector2i(-1, -1)
 
 	for _step in range(max_steps):
 		var nxt: Vector2i = flow_to.get(curr, curr)
 		if nxt == curr:
 			break
+
+		if river_cell_owner.has(nxt):
+			outflow_path.append(nxt)
+			downstream_id = river_cell_owner[nxt]
+			confluence_pos = nxt
+			break
+
 		outflow_path.append(nxt)
 		curr = nxt
 
-	if outflow_path.size() < 4:
+	if outflow_path.size() < 2:
 		return null
 
 	var outflow = _RiverScript.new(outflow_river_id, spill, outflow_path)
 	outflow.is_outflow = true
 	outflow.accumulation_start = float(accumulation.get(spill, 1.0))
 	outflow.accumulation_end = float(accumulation.get(outflow_path[-1], 1.0))
+	outflow.downstream_river = downstream_id
+	if downstream_id != -1:
+		outflow.outlet = confluence_pos
 
 	for src_id in lake.source_river_ids:
 		outflow.upstream_rivers.append(src_id)

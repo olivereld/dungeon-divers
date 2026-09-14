@@ -329,6 +329,31 @@ func execute(context: WorldGenerationContext) -> void:
 				r.widths[-1] = maxf(r.widths[-1], parent_r.widths[k_parent] * 0.8)
 				r.depths[-1] = parent_r.depths[k_parent]
 
+				# Suavizar gradiente vertical en los últimos puntos del afluente hacia la confluencia
+				var blend_steps: int = mini(4, r.points.size() - 1)
+				for b in range(1, blend_steps):
+					var idx: int = r.points.size() - 1 - b
+					var frac: float = float(b) / float(blend_steps)
+					r.points[idx].y = lerpf(target_pt.y, r.points[idx].y, frac)
+
+				# Garantizar monotonía descendente hacia el receptor sin caídas en retroceso
+				for b in range(r.points.size() - 2, -1, -1):
+					if r.points[b].y < r.points[b + 1].y:
+						r.points[b].y = r.points[b + 1].y
+
+				# Resincronizar water_cells en la confluencia
+				for b in range(blend_steps + 1):
+					var idx: int = r.points.size() - 1 - b
+					if idx < r.path.size():
+						var p_cell: Vector2i = r.path[idx]
+						if hydro.water_cells.has(p_cell):
+							var f_b: float = maxf(r.depths[idx] * 0.75, 0.25)
+							var w_h: float = r.points[idx].y - f_b
+							var b_h: float = w_h - r.depths[idx]
+							hydro.water_cells[p_cell]["water_height"] = w_h
+							hydro.water_cells[p_cell]["bed_height"] = b_h
+							hydro.water_cells[p_cell]["shoreline_height"] = r.points[idx].y
+
 	# -------------------------------------------------------------------------
 	# BLOQUE 10: ESCULPIDO DEL CAUCE EN EL TERRENO (RIVER CARVING SOBRE H_raw)
 	# -------------------------------------------------------------------------
@@ -442,12 +467,36 @@ func _resolve_river_endpoints_and_lakes(
 
 				# Emisión causal del río saliente desde el vertedero
 				var outflow = resolver.trace_lake_outflow(
-					lake, flow_to, accumulation, next_river_id, profile.river_max_steps
+					lake, flow_to, accumulation, next_river_id, profile.river_max_steps, river_cell_owner
 				)
 				if outflow != null:
 					r.downstream_river = next_river_id
 					additional_outflows.append(outflow)
+					for p_out in outflow.path:
+						river_cell_owner[p_out] = next_river_id
 					next_river_id += 1
+				elif lake.outflow_river_id != -1:
+					r.downstream_river = lake.outflow_river_id
+			else:
+				# Si no califica como lago (depresión menor o paso angosto),
+				# el río continúa su curso por flow_to hasta confluir con otro río o salir del mapa
+				var curr_pos: Vector2i = end_pos
+				var max_extra_steps: int = maxi(profile.river_max_steps, (width + height) * 2)
+				for _st in range(max_extra_steps):
+					var nxt_pos: Vector2i = flow_to.get(curr_pos, curr_pos)
+					if nxt_pos == curr_pos:
+						break
+					if river_cell_owner.has(nxt_pos):
+						var parent_id: int = river_cell_owner[nxt_pos]
+						if parent_id != r.id:
+							r.path.append(nxt_pos)
+							r.downstream_river = parent_id
+							r.outlet = nxt_pos
+							break
+					r.path.append(nxt_pos)
+					river_cell_owner[nxt_pos] = r.id
+					curr_pos = nxt_pos
+				r.accumulation_end = float(accumulation.get(r.path[-1], 1.0))
 
 	for out_r in additional_outflows:
 		network_rivers.append(out_r)
