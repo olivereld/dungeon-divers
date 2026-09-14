@@ -138,3 +138,35 @@ func _test_seed(seed_val: int) -> void:
 
 	print("    Dry cells verified: %d" % dry_count)
 	assert(dry_count > 0, "There must be dry cells in the world")
+
+	# Invariant 6: TerrainMeshBuilder Consumption Verification
+	print("  [CHECK] Invariant 6: TerrainMeshBuilder exclusively renders cell.height (never raw_height)...")
+	var terrain_mesh: ArrayMesh = TerrainMeshBuilder.build_mesh(result, 1.0, profile)
+	assert(terrain_mesh != null and terrain_mesh.get_surface_count() > 0, "TerrainMeshBuilder must produce valid mesh")
+	var mesh_arrays: Array = terrain_mesh.surface_get_arrays(0)
+	var mesh_vertices: PackedVector3Array = mesh_arrays[Mesh.ARRAY_VERTEX]
+	assert(mesh_vertices.size() == profile.width * profile.height, "Mesh vertex count must match world grid dimensions")
+
+	var carved_mesh_verified: int = 0
+	for y in range(profile.height):
+		for x in range(profile.width):
+			var idx: int = y * profile.width + x
+			var v: Vector3 = mesh_vertices[idx]
+			var c: WorldCell = result.get_cell(Vector2i(x, y))
+
+			# Mesh vertex X and Z must match grid coordinates
+			assert(is_equal_approx(v.x, float(x)), "Mesh vertex X at (%d, %d) mismatch" % [x, y])
+			assert(is_equal_approx(v.z, float(y)), "Mesh vertex Z at (%d, %d) mismatch" % [x, y])
+
+			# Mesh vertex Y must strictly match final cell.height
+			assert(is_equal_approx(v.y, c.height),
+				"Mesh vertex Y at (%d, %d) mismatch: mesh_y=%.4f != cell.height=%.4f" % [x, y, v.y, c.height])
+
+			# On meaningfully carved cells (at least 5cm carving depth), verify mesh vertex Y reflects carved height and NOT raw_height
+			if c.height < c.raw_height - 0.05:
+				assert(absf(v.y - c.raw_height) > 0.01,
+					"Mesh vertex Y at (%d, %d) incorrectly matches virgin raw_height instead of carved height! v.y=%.4f, raw=%.4f, height=%.4f" % [x, y, v.y, c.raw_height, c.height])
+				carved_mesh_verified += 1
+
+	print("    Verified %d carved vertices rendered at cell.height" % carved_mesh_verified)
+	assert(carved_mesh_verified > 0, "At least one carved vertex must be verified in the mesh")

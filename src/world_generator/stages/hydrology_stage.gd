@@ -155,9 +155,8 @@ func execute(context: WorldGenerationContext) -> void:
 			var cell: WorldCell = cells.get(pos)
 			if cell == null:
 				continue
-			if cell.raw_height == 0.0 and cell.height != 0.0:
-				cell.raw_height = cell.height
-			debug_raw_height[pos] = cell.raw_height
+			var raw_h: float = cell.raw_height if cell.raw_height != 0.0 else cell.height
+			debug_raw_height[pos] = raw_h
 			debug_slope[pos] = cell.slope
 
 			var sample_x: float = float(x) * profile.cell_size

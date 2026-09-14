@@ -93,3 +93,5 @@ func execute(context: WorldGenerationContext) -> void:
 			var dy := (h_down - h_up) / (2.0 * profile.cell_size)
 			var gradient := sqrt(dx * dx + dy * dy)
 			cell.slope = rad_to_deg(atan(gradient))
+
+			assert(is_equal_approx(cell.raw_height, cell.height), "TerrainStage invariant violated: raw_height != height at %s" % str(cell.position))
