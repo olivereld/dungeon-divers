@@ -38,13 +38,20 @@ uniform float sparkle_strength : hint_range(0.0, 3.0) = 1.6;
 
 varying vec3 v_world_pos;
 varying vec2 v_flow_dir;
+varying float v_water_mask;
 
 void vertex() {
 	v_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_flow_dir = UV2;
+	v_water_mask = COLOR.a;
 }
 
 void fragment() {
+	// 0. Máscara de agua: descartar completamente celdas secas
+	if (v_water_mask < 0.5) {
+		discard;
+	}
+
 	// 1. Reconstrucción de profundidad lineal del fondo submarino
 	float depth_raw = textureLod(depth_texture, SCREEN_UV, 0.0).r;
 	vec3 ndc = vec3(SCREEN_UV * 2.0 - 1.0, depth_raw);

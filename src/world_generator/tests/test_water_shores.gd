@@ -111,28 +111,24 @@ func _test_closing_criterion_grid() -> void:
 	var surf: WaterSurfaceData = _WaterMeshBuilderScript.build_water_surface(result)
 	assert(surf != null, "WaterSurfaceData must not be null")
 
-	# Exactly 10 water cells -> exactly 20 triangles (2 per water cell)
+	# Grid global 5x3 -> 4x2 quads = 16 triangulos (0 bank triangles)
 	var num_tris: int = surf.indices.size() / 3
-	assert(num_tris == 20, "Expected exactly 20 triangles for 10 water cells, got %d" % num_tris)
-	print("  [PASS] Exactly 20 triangles generated (2 per water cell; 0 bank triangles).")
+	assert(num_tris == 16, "Expected exactly 16 triangles for 5x3 global grid, got %d" % num_tris)
+	print("  [PASS] Exactly 16 triangles generated for 5x3 global grid (0 bank triangles).")
 
-	# 3. Verify that the boundary of the water surface terminates exactly on the W/D boundary
-	# In cell coordinates centered on cell:
-	# Water cells in row 0 and row 1 have x in [0, 2] -> East edge is at x = 2.5
-	# Water cell in row 2 has x in [0, 3] -> East edge is at x = 3.5, North edge of (3,2) is at y = 1.5
-	var max_x_row0_1: float = -INF
-	var max_x_row2: float = -INF
-	for v in surf.vertices:
-		if v.z < 1.49: # rows 0 and 1
-			if v.x > max_x_row0_1:
-				max_x_row0_1 = v.x
-		else: # row 2
-			if v.x > max_x_row2:
-				max_x_row2 = v.x
-
-	assert(absf(max_x_row0_1 - 2.5) < 0.01, "Max X for rows 0-1 must terminate at exactly 2.5 (W/D boundary), got %.4f" % max_x_row0_1)
-	assert(absf(max_x_row2 - 3.5) < 0.01, "Max X for row 2 must terminate at exactly 3.5 (W/D boundary), got %.4f" % max_x_row2)
-	print("  [PASS] Water surface terminates exactly on the W/D boundary (X=2.5 and X=3.5).")
+	# 3. Verify that the active water mask (COLOR.a >= 0.5) covers exactly the 10 water cells
+	var active_mask_count := 0
+	for y in range(3):
+		for x in range(5):
+			var idx := y * 5 + x
+			var col: Color = surf.colors[idx]
+			if hydro.water_cells.has(Vector2i(x, y)):
+				assert(col.a == 1.0, "Water cell at (%d, %d) must have mask 1.0" % [x, y])
+				active_mask_count += 1
+			else:
+				assert(col.a == 0.0, "Dry cell at (%d, %d) must have mask 0.0" % [x, y])
+	assert(active_mask_count == 10, "Active water mask count must be 10")
+	print("  [PASS] Water mask separates water cells from dry cells exactly on the boundary.")
 
 	# 4. Verify TerrainMesh and WorldCell.height was NOT modified
 	for pos in result.cells:
@@ -180,11 +176,19 @@ func _test_real_generated_worlds_shorelines() -> void:
 					)
 					shoreline_checked += 1
 
-		# Zero bank triangles generated (pure 2 triangles per water cell)
-		var expected_tris: int = hydro.water_cells.size() * 2
+		# Zero bank triangles generated (pure global grid matching TerrainMeshBuilder)
+		var expected_global_tris: int = (profile.width - 1) * (profile.height - 1) * 2
 		var actual_tris: int = surf.indices.size() / 3
-		assert(actual_tris == expected_tris,
-			"Expected %d triangles (2 per water cell, 0 bank triangles), got %d" % [expected_tris, actual_tris]
+		assert(actual_tris == expected_global_tris,
+			"Expected %d triangles for global grid, got %d" % [expected_global_tris, actual_tris]
+		)
+
+		var active_water_count := 0
+		for col in surf.colors:
+			if col.a >= 0.5:
+				active_water_count += 1
+		assert(active_water_count == hydro.water_cells.size(),
+			"Active water mask vertices must match water_cells count"
 		)
 
 		print("  Seed %d: verified %d shoreline boundary edges across %d water cells (0 bank triangles)." % [

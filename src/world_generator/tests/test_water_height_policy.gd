@@ -183,10 +183,16 @@ func _test_seed(seed_val: int) -> void:
 		if wh > max_wh:
 			max_wh = wh
 
+	var water_v_checked := 0
 	for i in range(v_count):
 		var v_pos: Vector3 = surf.vertices[i]
+		var col: Color = surf.colors[i]
 		assert(is_finite(v_pos.y), "Vertex %d Y must be finite" % i)
-		assert(v_pos.y >= min_wh - 0.001 and v_pos.y <= max_wh + 0.001,
-			"Vertex %d Y=%.4f outside [min_wh=%.4f, max_wh=%.4f]" % [i, v_pos.y, min_wh, max_wh]
-		)
-	print("    All %d vertices verified bounded by water_cells water_height!" % v_count)
+		if col.a >= 0.5:
+			assert(v_pos.y >= min_wh - 0.001 and v_pos.y <= max_wh + 0.001,
+				"Vertex %d Y=%.4f outside [min_wh=%.4f, max_wh=%.4f]" % [i, v_pos.y, min_wh, max_wh]
+			)
+			water_v_checked += 1
+		else:
+			assert(is_finite(v_pos.y), "Dry cell vertex Y must be finite datum")
+	print("    All %d water-masked vertices verified bounded by water_cells water_height!" % water_v_checked)

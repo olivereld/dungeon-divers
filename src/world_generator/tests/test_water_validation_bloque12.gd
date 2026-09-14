@@ -118,31 +118,20 @@ func _test_2_source_of_truth_validation() -> void:
 	var arrays: Array = mesh.surface_get_arrays(0)
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 
-	var cell_size: float = profile.cell_size
-	for v in verts:
-		# Los vértices de quads de celda están en esquinas [x-0.5, x+0.5] * cell_size
-		var gx: float = v.x / cell_size
-		var gz: float = v.z / cell_size
-
-		# Buscar celdas de agua circundantes a esta esquina
-		var min_wh: float = INF
-		var max_wh: float = -INF
-		var found_water: bool = false
-
-		for dx in [-0.5, 0.5]:
-			for dz in [-0.5, 0.5]:
-				var cx: int = int(round(gx + dx))
-				var cz: int = int(round(gz + dz))
-				var c_pos := Vector2i(cx, cz)
-				if water_cells.has(c_pos):
-					found_water = true
-					var wh: float = float(water_cells[c_pos]["water_height"])
-					min_wh = minf(min_wh, wh)
-					max_wh = maxf(max_wh, wh)
-
-		assert(found_water, "Vertice en (%f, %f) no tiene celdas de agua circundantes!" % [v.x, v.z])
-		assert(v.y >= min_wh - 0.001 and v.y <= max_wh + 0.001,
-			"Vertice Y=%.4f fuera del rango de water_cells [%.4f, %.4f]" % [v.y, min_wh, max_wh])
+	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	for i in range(verts.size()):
+		var v: Vector3 = verts[i]
+		var col: Color = colors[i]
+		var c_pos := Vector2i(int(round(v.x)), int(round(v.z)))
+		if col.a >= 0.5:
+			# Vértice de agua gobernado 100% por water_cells
+			assert(water_cells.has(c_pos), "Vertice con mascara de agua debe pertenecer a water_cells: %s" % str(c_pos))
+			var expected_wh: float = float(water_cells[c_pos]["water_height"])
+			assert(is_equal_approx(v.y, expected_wh), "Vertice Y=%.4f no coincide con water_cells [%.4f]" % [v.y, expected_wh])
+		else:
+			# Vértice de celda seca: respaldo geométrico
+			assert(not water_cells.has(c_pos), "Vertice con mascara 0 no debe ser water_cell: %s" % str(c_pos))
+			assert(is_finite(v.y), "Vertice seco debe tener cota de respaldo finita")
 
 	# B) Inmutabilidad frente a mutaciones del terreno:
 	# Si mutamos arbitrariamente WorldCell.height, la malla de agua debe permanecer 100% IDÉNTICA
@@ -293,6 +282,7 @@ func _validate_archetype(arch_name: String, water_cells: Dictionary, w: int, h: 
 
 	# Construir malla sintética para el arquetipo
 	var dummy_result = WorldResult.new()
+	dummy_result.dimensions = Vector2i(w, h)
 	dummy_result.hydrology = hydro
 	for pos in water_cells:
 		var c = WorldCell.new(pos)
@@ -311,8 +301,18 @@ func _validate_archetype(arch_name: String, water_cells: Dictionary, w: int, h: 
 	var arrays: Array = mesh.surface_get_arrays(0)
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	assert(indices.size() == water_cells.size() * 6,
-		"Arquetipo '%s': indices esperados %d, obtenidos %d" % [arch_name, water_cells.size() * 6, indices.size()])
+	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var expected_indices: int = (w - 1) * (h - 1) * 6
+	assert(indices.size() == expected_indices,
+		"Arquetipo '%s': indices esperados %d, obtenidos %d" % [arch_name, expected_indices, indices.size()])
+
+	# Verificar que el número de vértices con máscara de agua coincide exactamente con water_cells
+	var active_mask_count := 0
+	for col in colors:
+		if col.a >= 0.5:
+			active_mask_count += 1
+	assert(active_mask_count == water_cells.size(),
+		"Arquetipo '%s': mascara activa esperada %d, obtenida %d" % [arch_name, water_cells.size(), active_mask_count])
 
 	# Verificar que no hay caras duplicadas
 	var tri_set: Dictionary = {}
@@ -326,8 +326,8 @@ func _validate_archetype(arch_name: String, water_cells: Dictionary, w: int, h: 
 		assert(not tri_set.has(tri_key), "Cara duplicada detectada en arquetipo '%s': %s" % [arch_name, tri_key])
 		tri_set[tri_key] = true
 
-	print("  [PASS] Arquetipo '%s': %d celdas -> %d triangulos, 0 errores, 0 duplicados." % [
-		arch_name, water_cells.size(), indices.size() / 3
+	print("  [PASS] Arquetipo '%s': %d celdas activas en malla global %dx%d (%d triangulos), 0 errores, 0 duplicados." % [
+		arch_name, water_cells.size(), w, h, indices.size() / 3
 	])
 
 
@@ -358,12 +358,13 @@ func _test_4_terrain_water_relationship() -> void:
 	print("  Celdas de agua con Terreno < Agua (visibles): %d" % visible_count)
 	assert(visible_count > 0, "Debe haber celdas de agua visibles tras el tallado")
 
-	# Construir malla de agua y verificar que TODAS las celdas generan geometría
+	# Construir malla de agua y verificar que la grilla global coincide 1:1 con el mundo
 	var water_mesh: ArrayMesh = _WaterMeshBuilderScript.build_mesh(result, profile)
 	var w_arrays: Array = water_mesh.surface_get_arrays(0)
 	var w_indices: PackedInt32Array = w_arrays[Mesh.ARRAY_INDEX]
-	assert(w_indices.size() == hydro.water_cells.size() * 6,
-		"Cada celda de agua debe generar exactamente 2 triangulos (6 indices), independientemente de c.height")
+	var expected_global_indices: int = (profile.width - 1) * (profile.height - 1) * 6
+	assert(w_indices.size() == expected_global_indices,
+		"La superficie de agua global debe contener exactamente la grilla completa del mundo (6 indices por quad)")
 
 	print("  [PASS] Agua debajo del terreno existe fisicamente sin ser descartada.")
 	print("  [PASS] Visibilidad resulta naturalmente de la oclusion 3D por la malla del terreno.")

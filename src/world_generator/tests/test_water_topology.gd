@@ -78,7 +78,17 @@ func _test_seed_topology(seed_val: int) -> void:
 	assert(surf != null, "WaterSurfaceData must be valid")
 
 	var triangle_count: int = surf.indices.size() / 3
-	assert(triangle_count == water_cells.size() * 2,
-		"Cada celda de agua debe generar exactamente 2 triángulos en la superficie continua")
+	var expected_tris: int = (profile.width - 1) * (profile.height - 1) * 2
+	assert(triangle_count == expected_tris,
+		"La superficie global debe generar exactamente (W-1)*(H-1)*2 triangulos")
 
-	print("    Superficie continua verificada: %d triángulos, %d vértices" % [triangle_count, surf.vertices.size()])
+	var active_water_mask := 0
+	for col in surf.colors:
+		if col.a >= 0.5:
+			active_water_mask += 1
+	assert(active_water_mask == water_cells.size(),
+		"Vertices con mascara de agua activa deben coincidir con water_cells")
+
+	print("    Superficie global continua verificada: %d triangulos, %d vertices (%d activos en mascara)" % [
+		triangle_count, surf.vertices.size(), active_water_mask
+	])
