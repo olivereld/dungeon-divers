@@ -9,6 +9,8 @@ const _WaterSurfaceDataScript = preload("res://src/world_generator/presentation/
 const _RiverMeshBuilderScript = preload("res://src/world_generator/presentation/water/river_mesh_builder.gd")
 const _LakeMeshBuilderScript = preload("res://src/world_generator/presentation/water/lake_mesh_builder.gd")
 const _WaterMaterialScript = preload("res://src/world_generator/presentation/water/water_material.gd")
+const _WaterTopologyBuilderScript = preload("res://src/world_generator/presentation/water/water_topology_builder.gd")
+const _WaterMeshBuilderScript = preload("res://src/world_generator/presentation/water/water_mesh_builder.gd")
 
 static func build_water_node(result: WorldResult, profile: WorldProfile = null, show_wireframe: bool = false) -> Node3D:
 	if result == null or result.hydrology == null:
@@ -16,29 +18,18 @@ static func build_water_node(result: WorldResult, profile: WorldProfile = null, 
 	if profile == null:
 		profile = WorldProfile.new()
 
-	# Flujo canónico: Hydrology -> RiverNetwork -> RiverMeshBuilder -> WaterSurfaceData -> Presentation
-	var hydro = result.hydrology
-	var combined_surf = _WaterSurfaceDataScript.new()
-
-	# 1. Hydrology -> RiverNetwork -> RiverMeshBuilder -> WaterSurfaceData (Generación Única)
-	var river_surf: WaterSurfaceData = null
+	# Flujo canónico unificado:
+	# Hydrology -> WaterTopologyBuilder (WaterRegions) -> WaterMeshBuilder -> UnifiedWaterSurface
+	var combined_surf: WaterSurfaceData = null
 	if "cached_water_surface" in result and result.cached_water_surface != null and result.cached_water_surface is _WaterSurfaceDataScript:
-		river_surf = result.cached_water_surface as WaterSurfaceData
+		combined_surf = result.cached_water_surface as WaterSurfaceData
 	else:
-		var river_network = hydro.get_river_network()
-		river_surf = _RiverMeshBuilderScript.build_network_mesh(river_network, result, profile)
+		var regions: Array = _WaterTopologyBuilderScript.build_regions(result, profile)
+		combined_surf = _WaterMeshBuilderScript.build_mesh_surface(regions, result, profile) as WaterSurfaceData
 		if "cached_water_surface" in result:
-			result.cached_water_surface = river_surf
-	if river_surf != null:
-		combined_surf.append_surface(river_surf)
+			result.cached_water_surface = combined_surf
 
-	# 2. Construir lagos
-	for lake in hydro.lakes:
-		var l_surf = _LakeMeshBuilderScript.build_lake_surface(lake, result, profile)
-		if l_surf != null:
-			combined_surf.append_surface(l_surf)
-
-	var mesh: ArrayMesh = combined_surf.to_array_mesh()
+	var mesh: ArrayMesh = combined_surf.to_array_mesh() if combined_surf != null else null
 	if mesh == null:
 		return null
 
