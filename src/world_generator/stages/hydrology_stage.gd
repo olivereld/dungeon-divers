@@ -506,6 +506,8 @@ func _resolve_river_endpoints_and_lakes(
 					cells, filled_height, basin_classifier
 				)
 				if outflow != null:
+					lake.outflow_river_id = next_river_id
+					hydro.lakes[-1]["outflow_river_id"] = next_river_id
 					r.downstream_river = next_river_id
 					network_rivers.append(outflow)
 					for p_out in outflow.path:
@@ -524,6 +526,73 @@ func _resolve_river_endpoints_and_lakes(
 					"upstream_rivers": [r.id],
 					"downstream_river": endpoint.target_river_id
 				})
+
+		# Si el río quedó sin desembocadura conectada (TERMINATE), buscar si hay un cuerpo de agua contiguo a <= 2.5 celdas
+		if endpoint.destination_type == _RiverEndpointScript.DestinationType.TERMINATE and r.downstream_river == -1:
+			# 1. Buscar si hay un lago adyacente o cercano (radio 2, distancia <= 2.5) para conectar
+			var near_lake_id: int = -1
+			var near_lake_pos := Vector2i(-1, -1)
+			var min_lake_dist: float = 999.0
+			for dx in range(-2, 3):
+				for dy in range(-2, 3):
+					var cp := end_pos + Vector2i(dx, dy)
+					if hydro.is_lake(cp):
+						var d: float = Vector2(end_pos).distance_to(Vector2(cp))
+						if d <= 2.5 and d < min_lake_dist:
+							min_lake_dist = d
+							near_lake_pos = cp
+							near_lake_id = int(hydro.water_cells[cp].get("lake_id", -1))
+
+			if near_lake_id != -1 and near_lake_pos != Vector2i(-1, -1):
+				var bridge: Array[Vector2i] = _trace_grid_line(end_pos, near_lake_pos)
+				for bp in bridge:
+					if bp != end_pos:
+						r.path.append(bp)
+						river_cell_owner[bp] = r.id
+				r.length = float(r.path.size())
+				end_pos = near_lake_pos
+				r.outlet = end_pos
+				endpoint.destination_type = _RiverEndpointScript.DestinationType.LAKE
+				endpoint.target_lake_id = near_lake_id
+				for lk_dict in hydro.lakes:
+					if lk_dict.get("id", -1) == near_lake_id:
+						if not lk_dict.get("source_river_ids", []).has(r.id):
+							lk_dict["source_river_ids"].append(r.id)
+						if lk_dict.has("outflow_river_id") and lk_dict["outflow_river_id"] != -1:
+							r.downstream_river = lk_dict["outflow_river_id"]
+						break
+			else:
+				# 2. Buscar si hay otro río cercano (radio 2, distancia <= 2.5) para fusionar
+				var near_river_id: int = -1
+				var near_river_pos := Vector2i(-1, -1)
+				var min_riv_dist: float = 999.0
+				for dx in range(-2, 3):
+					for dy in range(-2, 3):
+						var cp := end_pos + Vector2i(dx, dy)
+						if river_cell_owner.has(cp) and river_cell_owner[cp] != r.id:
+							var d: float = Vector2(end_pos).distance_to(Vector2(cp))
+							if d <= 2.5 and d < min_riv_dist:
+								min_riv_dist = d
+								near_river_pos = cp
+								near_river_id = river_cell_owner[cp]
+
+				if near_river_id != -1 and near_river_pos != Vector2i(-1, -1):
+					var bridge: Array[Vector2i] = _trace_grid_line(end_pos, near_river_pos)
+					for bp in bridge:
+						if bp != end_pos:
+							r.path.append(bp)
+							river_cell_owner[bp] = r.id
+					r.length = float(r.path.size())
+					end_pos = near_river_pos
+					r.downstream_river = near_river_id
+					r.outlet = end_pos
+					endpoint.destination_type = _RiverEndpointScript.DestinationType.JOIN_RIVER
+					endpoint.target_river_id = near_river_id
+					hydro.confluences.append({
+						"position": end_pos,
+						"upstream_rivers": [r.id],
+						"downstream_river": near_river_id
+					})
 
 		r.destination_type = endpoint.destination_type
 
@@ -1138,6 +1207,23 @@ func _trace_river_network(
 				confluence_pos = nxt
 				break
 
+			# Fusión lateral inmediata con río contiguo a 1 celda de distancia en valles
+			var lateral_merged: bool = false
+			for offset in D8_OFFSETS:
+				var adj: Vector2i = nxt + offset
+				if river_cell_owner.has(adj):
+					var other_id: int = river_cell_owner[adj]
+					if other_id != current_river_id:
+						path.append(nxt)
+						path.append(adj)
+						rendered_edges[edge_key] = true
+						downstream_id = other_id
+						confluence_pos = adj
+						lateral_merged = true
+						break
+			if lateral_merged:
+				break
+
 			# Intercepción 1: Depresión topográfica cerrada (candidato a lago)
 			if not cells.is_empty() and basin_classifier.is_local_depression(nxt, cells, filled_height, 0.05):
 				if path.size() >= min_acceptable_pts:
@@ -1153,6 +1239,26 @@ func _trace_river_network(
 					if path.size() >= min_acceptable_pts:
 						path.append(nxt)
 						rendered_edges[edge_key] = true
+						# Empalmar formalmente con el río existente más cercano en radio 2
+						var best_p := Vector2i(-1, -1)
+						var best_dist: float = 999.0
+						var best_id: int = -1
+						for dx in range(-2, 3):
+							for dy in range(-2, 3):
+								var cp := nxt + Vector2i(dx, dy)
+								if river_cell_owner.has(cp) and river_cell_owner[cp] != current_river_id:
+									var d: float = Vector2(nxt).distance_to(Vector2(cp))
+									if d < best_dist:
+										best_dist = d
+										best_p = cp
+										best_id = river_cell_owner[cp]
+						if best_p != Vector2i(-1, -1):
+							var connector: Array[Vector2i] = _trace_grid_line(nxt, best_p)
+							for step_p in connector:
+								if step_p != nxt:
+									path.append(step_p)
+							downstream_id = best_id
+							confluence_pos = best_p
 						break
 
 			path.append(nxt)
@@ -1441,7 +1547,9 @@ func _build_river_geometry(
 		points[-1] = Vector3(points[-1].x, end_y, points[-1].z)
 		for j in range(points.size() - 2, -1, -1):
 			if points[j].y < points[j + 1].y:
-				points[j] = Vector3(points[j].x, points[j + 1].y, points[j].z)
+				var c_raw: float = cells[path[j]].raw_height if cells.has(path[j]) else points[j + 1].y
+				var f_b_j: float = maxf(depths[j] * 0.75, 0.25)
+				points[j] = Vector3(points[j].x, minf(points[j + 1].y, c_raw + f_b_j * 0.90), points[j].z)
 
 	# Continuidad de cota en nacimiento desde spillway: el río que nace del lago
 	# parte a la cota exacta spill_h del espejo de agua del lago

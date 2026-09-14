@@ -142,11 +142,14 @@ func expand_lake_from_endpoint(
 	lake.spillway_height = true_rim_h
 	lake.water_height = true_rim_h
 
-	# Filtrar solo celdas que realmente quedan sumergidas bajo el agua (depth >= 0.04m)
+	# Filtrar solo celdas que realmente quedan sumergidas bajo el agua
 	var submerged_cells: Array[Vector2i] = []
 	for c_pos in lake.cells:
-		if cells.has(c_pos) and cells[c_pos].raw_height <= lake.water_height - 0.04:
+		if cells.has(c_pos) and cells[c_pos].raw_height <= lake.water_height + 0.001:
 			submerged_cells.append(c_pos)
+
+	if not submerged_cells.has(seed_pos):
+		submerged_cells.append(seed_pos)
 
 	if submerged_cells.size() < min_area:
 		return null
@@ -192,6 +195,21 @@ func trace_lake_outflow(
 			confluence_pos = nxt
 			break
 
+		# Fusión lateral inmediata con río contiguo a 1 celda de distancia
+		var lateral_merged: bool = false
+		for offset in D8_OFFSETS:
+			var adj: Vector2i = nxt + offset
+			if river_cell_owner.has(adj):
+				var other_id: int = river_cell_owner[adj]
+				outflow_path.append(nxt)
+				outflow_path.append(adj)
+				downstream_id = other_id
+				confluence_pos = adj
+				lateral_merged = true
+				break
+		if lateral_merged:
+			break
+
 		# Intercepción 1: Depresión topográfica cerrada aguas abajo
 		if basin_classifier != null and not cells.is_empty() and basin_classifier.is_local_depression(nxt, cells, filled_height, 0.05):
 			if outflow_path.size() >= 10:
@@ -205,6 +223,22 @@ func trace_lake_outflow(
 			if basin_classifier.detect_convergence_zone(river_cell_owner, nxt, nxt_slope, 3, 2.0):
 				if outflow_path.size() >= 10:
 					outflow_path.append(nxt)
+					var best_p := Vector2i(-1, -1)
+					var best_dist: float = 999.0
+					var best_id: int = -1
+					for dx in range(-2, 3):
+						for dy in range(-2, 3):
+							var cp := nxt + Vector2i(dx, dy)
+							if river_cell_owner.has(cp):
+								var d: float = Vector2(nxt).distance_to(Vector2(cp))
+								if d < best_dist:
+									best_dist = d
+									best_p = cp
+									best_id = river_cell_owner[cp]
+					if best_p != Vector2i(-1, -1):
+						outflow_path.append(best_p)
+						downstream_id = best_id
+						confluence_pos = best_p
 					break
 
 		outflow_path.append(nxt)

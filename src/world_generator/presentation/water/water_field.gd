@@ -391,7 +391,21 @@ func _get_or_add_surface_vertex(
 		return vertex_cache[key]
 
 	var dat: Dictionary = get_water_data_at(wx, wz, result, profile)
-	var v_pos := Vector3(wx, float(dat.elevation), wz)
+	var final_y: float = float(dat.elevation)
+	if result != null:
+		var c_pos := Vector2i(int(floor(wx)), int(floor(wz)))
+		var c = result.get_cell(c_pos)
+		if c != null and result.hydrology != null and not result.hydrology.is_lake(c_pos):
+			var max_allowed: float = c.raw_height + 0.045
+			for dx in range(-2, 3):
+				for dy in range(-2, 3):
+					var n_pos := Vector2i(c_pos.x + dx, c_pos.y + dy)
+					if result.hydrology.is_lake(n_pos):
+						var l_data: Dictionary = result.hydrology.get_cell_data(n_pos)
+						max_allowed = maxf(max_allowed, float(l_data.get("water_height", 0.0)) + 0.15)
+			final_y = minf(final_y, max_allowed)
+
+	var v_pos := Vector3(wx, final_y, wz)
 	var col: Color = profile.water_color_river
 	var idx: int = surf.add_vertex(v_pos, Vector3.UP, Vector2(wx, wz), dat.flow, col)
 	vertex_cache[key] = idx

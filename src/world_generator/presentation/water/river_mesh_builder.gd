@@ -790,9 +790,23 @@ static func smooth_surface_elevation(
 		next_y = tmp_y
 
 	# Asignar cotas suavizadas a los vértices sin tocar coordenadas X y Z
+	# y asegurar que ningún vértice quede flotando en el aire sobre el terreno natural
 	for i in range(num_verts):
 		var v: Vector3 = surf.vertices[i]
-		surf.vertices[i] = Vector3(v.x, current_y[i], v.z)
+		var final_y: float = current_y[i]
+		if _result != null:
+			var c_pos := Vector2i(int(floor(v.x)), int(floor(v.z)))
+			var c = _result.get_cell(c_pos)
+			if c != null and _result.hydrology != null and not _result.hydrology.is_lake(c_pos):
+				var max_allowed: float = c.raw_height + 0.045
+				for dx in range(-2, 3):
+					for dy in range(-2, 3):
+						var n_pos := Vector2i(c_pos.x + dx, c_pos.y + dy)
+						if _result.hydrology.is_lake(n_pos):
+							var l_data: Dictionary = _result.hydrology.get_cell_data(n_pos)
+							max_allowed = maxf(max_allowed, float(l_data.get("water_height", 0.0)) + 0.15)
+				final_y = minf(final_y, max_allowed)
+		surf.vertices[i] = Vector3(v.x, final_y, v.z)
 
 ## Versión funcional desacoplada para suavizar cotas de un arreglo de vértices 3D
 ## manteniendo estrictamente intactas las posiciones X/Z y la topología original.
