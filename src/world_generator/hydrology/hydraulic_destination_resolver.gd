@@ -18,7 +18,8 @@ func resolve_destination(
 	river_cell_owner: Dictionary,
 	cells: Dictionary,
 	flow_to: Dictionary,
-	_basins: Dictionary
+	_basins: Dictionary,
+	filled_height: Dictionary = {}
 ) -> int:
 	var p: Vector2i = endpoint.position
 
@@ -41,21 +42,15 @@ func resolve_destination(
 		endpoint.destination_type = _RiverEndpointScript.DestinationType.LAKE
 		return endpoint.destination_type
 
-	# 4. Verificar si es un mínimo local relativo (depresión)
-	var curr_h: float = cells[p].raw_height if cells.has(p) else endpoint.elevation
-	var is_local_depression: bool = true
-	for offset in D8_OFFSETS:
-		var nb: Vector2i = p + offset
-		if cells.has(nb):
-			if cells[nb].raw_height < curr_h - 0.01:
-				is_local_depression = false
-				break
-
-	if is_local_depression:
+	# 4. Depresión topográfica en Priority-Flood (H_filled > H_raw)
+	var curr_raw: float = cells[p].raw_height if cells.has(p) else endpoint.elevation
+	var curr_filled: float = float(filled_height.get(p, curr_raw))
+	if curr_filled > curr_raw + 0.02:
 		endpoint.destination_type = _RiverEndpointScript.DestinationType.LAKE
 		return endpoint.destination_type
 
-	endpoint.destination_type = _RiverEndpointScript.DestinationType.LAKE
+	# 5. Terminación natural en terreno (TERMINATE)
+	endpoint.destination_type = _RiverEndpointScript.DestinationType.TERMINATE
 	return endpoint.destination_type
 
 ## Inunda la topografía desde el seed endpoint para construir un LakeCandidate contenido por su vertedero
@@ -75,21 +70,23 @@ func expand_lake_from_endpoint(
 
 	var seed_raw: float = cells[seed_pos].raw_height
 	var target_spillway_h: float = float(filled_height.get(seed_pos, seed_raw))
-	if target_spillway_h <= seed_raw:
-		target_spillway_h = seed_raw + 0.60
+
+	# Condición física estricta: si H_filled <= H_raw, no existe depresión topográfica contenedora
+	if target_spillway_h <= seed_raw + 0.02:
+		return null
 
 	var lake = _LakeCandidateScript.new(lake_id, endpoint)
 	var visited: Dictionary = {}
 	var queue: Array[Vector2i] = [seed_pos]
 	visited[seed_pos] = true
 
-	var spill_pos: Vector2i = Vector2i(-1, -1)
-	var min_rim_rank: int = 999999999
-	var min_rim_h: float = INF
-
+	# Expansión topográfica BFS contenida bajo target_spillway_h (sin límites artificiales de celdas)
+	var max_lake_cells: int = width * height
 	while not queue.is_empty():
 		var curr: Vector2i = queue.pop_front()
 		lake.add_cell(curr)
+		if lake.cells.size() >= max_lake_cells:
+			break
 
 		for offset in D8_OFFSETS:
 			var nb: Vector2i = curr + offset
@@ -102,26 +99,23 @@ func expand_lake_from_endpoint(
 			if nc == null:
 				continue
 
-			if nc.raw_height <= target_spillway_h + 0.001 and lake.cells.size() < 120:
+			# La celda pertenece a la cuenca si su terreno natural está contenido bajo el nivel de vertedero
+			if nc.raw_height < target_spillway_h - 0.001:
 				visited[nb] = true
 				queue.append(nb)
-			else:
-				var r_val: int = flood_rank.get(nb, 999999999)
-				if r_val < min_rim_rank:
-					min_rim_rank = r_val
-					spill_pos = nb
-					min_rim_h = nc.raw_height
 
 	if lake.cells.size() < min_area:
 		return null
 
-	# Encontrar el spillway de cota mínima en el perímetro circundante
+	# Encontrar el vertedero real (spillway) de cota mínima en el perímetro circundante
 	var lake_set: Dictionary = {}
 	for c in lake.cells:
 		lake_set[c] = true
 
 	var true_rim_h: float = INF
 	var true_spill: Vector2i = Vector2i(-1, -1)
+	var min_spill_rank: int = 999999999
+
 	for pos in lake.cells:
 		for offset in D8_OFFSETS:
 			var nb: Vector2i = pos + offset
@@ -129,13 +123,24 @@ func expand_lake_from_endpoint(
 				continue
 			if not lake_set.has(nb):
 				var nc: WorldCell = cells.get(nb)
-				if nc != null and nc.raw_height < true_rim_h:
-					true_rim_h = nc.raw_height
-					true_spill = nb
+				if nc != null:
+					var r_val: int = flood_rank.get(nb, 999999999)
+					if nc.raw_height < true_rim_h - 0.001:
+						true_rim_h = nc.raw_height
+						true_spill = nb
+						min_spill_rank = r_val
+					elif absf(nc.raw_height - true_rim_h) <= 0.001 and r_val < min_spill_rank:
+						# Desempate por orden hidrológico Priority-Flood
+						true_rim_h = nc.raw_height
+						true_spill = nb
+						min_spill_rank = r_val
 
-	lake.spillway_pos = true_spill if true_spill != Vector2i(-1, -1) else spill_pos
-	lake.spillway_height = true_rim_h if not is_inf(true_rim_h) else target_spillway_h
-	lake.water_height = minf(target_spillway_h, lake.spillway_height)
+	if true_spill == Vector2i(-1, -1):
+		return null
+
+	lake.spillway_pos = true_spill
+	lake.spillway_height = true_rim_h
+	lake.water_height = true_rim_h
 
 	# Filtrar solo celdas que realmente quedan sumergidas bajo el agua (depth >= 0.04m)
 	var submerged_cells: Array[Vector2i] = []

@@ -140,6 +140,20 @@ func _init() -> void:
 	assert(is_equal_approx(raw_sample, 24.0), "Far field must be exactly raw_high (24.0), got %.3f" % raw_sample)
 	print("   Strict water_y vs bed_y Separation: PASSED")
 
+	# 5. Test Strictly Destructive Carving Invariant (H_carved <= H_raw)
+	print(" [CHECK] 5. Strictly Destructive Carving Invariant (H_carved <= H_raw)...")
+	var raw_low: float = 10.0
+	var water_high: float = 14.0
+
+	for d in [0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0]:
+		var res_river: float = river_prof.evaluate_centerline(d, water_high, raw_low)
+		assert(res_river <= raw_low + 0.0001, "River carving at d=%.2f must never exceed raw_low (got %.3f > %.3f)" % [d, res_river, raw_low])
+
+	for sd in [-3.0, -1.5, 0.0, 1.0, 2.5, 5.0]:
+		var res_lake: float = lake_prof.evaluate_boundary(sd, water_high, raw_low)
+		assert(res_lake <= raw_low + 0.0001, "Lake carving at sd=%.2f must never exceed raw_low (got %.3f > %.3f)" % [sd, res_lake, raw_low])
+	print("   Strictly Destructive Carving Invariant: PASSED")
+
 	print("==================================================")
 	print(" ALL HYDRAULIC CARVING PROFILE TESTS PASSED!")
 	print("==================================================")

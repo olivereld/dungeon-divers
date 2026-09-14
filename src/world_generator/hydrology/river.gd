@@ -21,6 +21,7 @@ var accumulation_start: float = 1.0
 var accumulation_end: float = 1.0
 var outlet: Vector2i = Vector2i(-1, -1)
 var is_outflow: bool = false
+var destination_type: int = 0
 
 # Representación geométrica calculada (Bloque 9)
 var points: Array = []
@@ -52,6 +53,7 @@ func to_dict() -> Dictionary:
 		"accumulation_end": accumulation_end,
 		"outlet": outlet,
 		"is_outflow": is_outflow,
+		"destination_type": destination_type,
 		"points": points,
 		"widths": widths,
 		"depths": depths,

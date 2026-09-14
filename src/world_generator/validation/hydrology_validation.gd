@@ -1,6 +1,8 @@
 class_name HydrologyValidation
 extends RefCounted
 
+const _RiverEndpointScript = preload("res://src/world_generator/hydrology/river_endpoint.gd")
+
 ## Validador formal estructural para la red hidrológica y ríos.
 ## Verifica las garantías topológicas, hidrológicas y contratos de lagos.
 
@@ -137,15 +139,17 @@ static func validate(result: WorldResult, profile: WorldProfile = null) -> Dicti
 				errors.append("River %d contains non-positive depth: %f" % [r_id, d])
 				break
 
-		# 8. No internal dead ends: terminal node must reach border, lake, or valid confluence
+		# 8. No internal dead ends: terminal node must reach border, lake, valid confluence, or be explicitly terminated
 		var term_pos: Vector2i = r_path[-1]
 		var is_at_border: bool = (term_pos.x <= 0 or term_pos.x >= dims.x - 1 or term_pos.y <= 0 or term_pos.y >= dims.y - 1)
 		var is_at_lake: bool = hydro.is_lake(term_pos)
 		var has_confluence: bool = (r_downstream != -1 and rivers_by_id.has(r_downstream))
+		var r_dest_type: int = r.destination_type if (r is River or "destination_type" in r) else r.get("destination_type", 0)
+		var is_terminated: bool = (r_dest_type == _RiverEndpointScript.DestinationType.TERMINATE)
 
-		if not is_at_border and not is_at_lake and not has_confluence:
+		if not is_at_border and not is_at_lake and not has_confluence and not is_terminated:
 			dead_end_failures += 1
-			errors.append("River %d has internal dead-end at %s (not at border, not at lake, no downstream river)" % [r_id, str(term_pos)])
+			errors.append("River %d has internal dead-end at %s (not at border, not at lake, no downstream river, not terminated)" % [r_id, str(term_pos)])
 
 		# 9. Acyclic DAG check (follow downstream chain)
 		var visited_chain: Dictionary = {r_id: true}

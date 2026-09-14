@@ -140,23 +140,23 @@ func evaluate_carved_height_boundary(signed_distance: float, water_y: float, cus
 	return water_y
 
 ## Evaluación para ríos: distance es la distancia perpendicular al eje del río (d >= 0).
-## Aplica: final_height = lerp(raw_height, carved_height, influence)
+## Aplica autoridad destructiva estricta: target = lerp(raw, carved, influence), final = min(raw, target).
+## Invariante obligatorio: final_height <= raw_height en toda celda (carving destructivo, nunca elevación de terreno).
 func evaluate_centerline(distance: float, water_y: float, raw_y: float) -> float:
 	var influence: float = evaluate_influence_centerline(distance)
 	if influence <= 0.0:
 		return raw_y
 	var carved_h: float = evaluate_carved_height_centerline(distance, water_y)
-	if influence >= 1.0:
-		return carved_h
-	return lerpf(raw_y, carved_h, influence)
+	var target_h: float = carved_h if influence >= 1.0 else lerpf(raw_y, carved_h, influence)
+	return minf(raw_y, target_h)
 
 ## Evaluación para lagos: signed_distance es la distancia signada a la orilla.
-## Aplica: final_height = lerp(raw_height, carved_height, influence)
+## Aplica autoridad destructiva estricta: target = lerp(raw, carved, influence), final = min(raw, target).
+## Invariante obligatorio: final_height <= raw_height en toda celda (carving destructivo, nunca elevación de terreno).
 func evaluate_boundary(signed_distance: float, water_y: float, raw_y: float, custom_depth: float = -1.0) -> float:
 	var influence: float = evaluate_influence_boundary(signed_distance)
 	if influence <= 0.0:
 		return raw_y
 	var carved_h: float = evaluate_carved_height_boundary(signed_distance, water_y, custom_depth)
-	if influence >= 1.0:
-		return carved_h
-	return lerpf(raw_y, carved_h, influence)
+	var target_h: float = carved_h if influence >= 1.0 else lerpf(raw_y, carved_h, influence)
+	return minf(raw_y, target_h)
