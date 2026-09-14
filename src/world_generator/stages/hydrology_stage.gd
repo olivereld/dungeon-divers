@@ -1359,7 +1359,14 @@ func _build_river_geometry(
 		var order_d_mult: float = 1.0 + float(river_order - 1) * 0.20
 		var slope_w_factor: float = clampf(1.0 - (cell.slope / 45.0) * 0.25, 0.75, 1.0)
 
-		var base_w: float = lerpf(profile.river_min_width, profile.river_max_width, pow(acc_norm, profile.river_width_response)) * order_w_mult * slope_w_factor
+		var min_c: float = float(profile.river_min_cells) if "river_min_cells" in profile else 3.0
+		var max_c: float = float(profile.river_max_cells) if "river_max_cells" in profile else 8.0
+		var w_cells: float = clampf(
+			lerpf(min_c, max_c, pow(acc_norm, profile.river_width_response)) * order_w_mult * slope_w_factor,
+			min_c,
+			max_c
+		)
+		var base_w: float = w_cells * profile.cell_size
 		var base_d: float = lerpf(profile.river_min_depth, minf(profile.river_max_depth, 0.45), pow(acc_norm, profile.river_depth_response)) * order_d_mult
 
 		var pt := Vector3(float(pos.x), c_h, float(pos.y))
@@ -1396,7 +1403,7 @@ func _build_river_geometry(
 		widths.append(base_w)
 		depths.append(base_d)
 
-		# Registrar celda de río si no es lago ni celda de confluencia con río receptor
+		# Registrar celda de eje si no es lago ni celda de confluencia con río receptor
 		if not hydro.is_lake(pos) and not (river_obj.downstream_river != -1 and i == total_pts - 1):
 			var flow_d: Vector2 = Vector2.ZERO
 			if i < total_pts - 1:
@@ -1453,30 +1460,128 @@ func _build_river_geometry(
 			if points[j].y > points[j - 1].y:
 				points[j].y = points[j - 1].y
 
-	# Sincronizar water_cells con las cotas definitivas de points[i].y
+	# Sincronizar water_cells con las cotas definitivas de points[i].y y ensanchar a 3-8 celdas
+	var pt_w_h: Array[float] = []
 	var prev_w_h: float = INF
 	for i in range(total_pts):
+		var f_b: float = maxf(depths[i] * 0.75, 0.25)
+		var wh: float = points[i].y - f_b
+		if wh > prev_w_h:
+			wh = prev_w_h
+		prev_w_h = wh
+		pt_w_h.append(wh)
+
+	# 1. Asegurar que las celdas directas del eje discreto path[i] están actualizadas
+	var path_indices: Dictionary = {}
+	for i in range(total_pts):
 		var pos: Vector2i = path[i]
-		if not hydro.is_lake(pos) and hydro.water_cells.has(pos):
+		path_indices[pos] = i
+		if not hydro.is_lake(pos):
 			var is_confluence_outlet: bool = (river_obj.downstream_river != -1 and i == total_pts - 1)
-			if is_confluence_outlet:
-				# La celda de confluencia ya pertenece al río receptor; solo profundizamos el lecho si este afluente es más profundo
-				var existing_w_h: float = float(hydro.water_cells[pos].get("water_height", points[i].y))
+			if is_confluence_outlet and hydro.water_cells.has(pos):
+				var existing_w_h: float = float(hydro.water_cells[pos].get("water_height", pt_w_h[i]))
 				var b_h: float = existing_w_h - depths[i]
 				var existing_b_h: float = float(hydro.water_cells[pos].get("bed_height", b_h))
 				hydro.water_cells[pos]["bed_height"] = minf(existing_b_h, b_h)
 				hydro.water_cells[pos]["depth"] = existing_w_h - float(hydro.water_cells[pos]["bed_height"])
 			else:
-				var f_b: float = maxf(depths[i] * 0.75, 0.25)
-				var w_h: float = points[i].y - f_b
-				if w_h > prev_w_h:
-					w_h = prev_w_h
-				prev_w_h = w_h
-				var b_h: float = w_h - depths[i]
-				hydro.water_cells[pos]["water_height"] = w_h
-				hydro.water_cells[pos]["bed_height"] = b_h
-				hydro.water_cells[pos]["depth"] = depths[i]
-				hydro.water_cells[pos]["shoreline_height"] = points[i].y
+				var b_h: float = pt_w_h[i] - depths[i]
+				hydro.water_cells[pos] = {
+					"type": "river",
+					"shoreline_height": points[i].y,
+					"water_height": pt_w_h[i],
+					"bed_height": b_h,
+					"depth": depths[i],
+					"flow_dir": Vector2.ZERO if i == total_pts - 1 else Vector2(float(path[i + 1].x - pos.x), float(path[i + 1].y - pos.y)).normalized(),
+					"river_index": river_id
+				}
+
+	# 2. Rasterizar el corredor transversal de la cápsula para cada segmento (P_j -> P_{j+1})
+	for j in range(total_pts - 1):
+		var p0_2d := Vector2(points[j].x, points[j].z)
+		var p1_2d := Vector2(points[j + 1].x, points[j + 1].z)
+		var seg_v := p1_2d - p0_2d
+		var seg_len_sq: float = seg_v.length_squared()
+		var seg_inv_len: float = 1.0 / seg_len_sq if seg_len_sq > 0.0001 else 0.0
+		var seg_dir: Vector2 = seg_v.normalized() if seg_len_sq > 0.0001 else Vector2.DOWN
+
+		var w_c0: float = widths[j] / maxf(profile.cell_size, 0.001)
+		var w_c1: float = widths[j + 1] / maxf(profile.cell_size, 0.001)
+		# Semiancho en celdas: para ancho 3 celdas radio = 1.0, para 8 celdas radio = 3.5
+		var r0: float = (w_c0 - 1.0) * 0.5
+		var r1: float = (w_c1 - 1.0) * 0.5
+		var max_r: float = maxf(r0, r1)
+
+		var min_cx: int = clampi(int(floor(minf(p0_2d.x, p1_2d.x) - max_r - 1.0)), 0, profile.width - 1)
+		var max_cx: int = clampi(int(ceil(maxf(p0_2d.x, p1_2d.x) + max_r + 1.0)), 0, profile.width - 1)
+		var min_cy: int = clampi(int(floor(minf(p0_2d.y, p1_2d.y) - max_r - 1.0)), 0, profile.height - 1)
+		var max_cy: int = clampi(int(ceil(maxf(p0_2d.y, p1_2d.y) + max_r + 1.0)), 0, profile.height - 1)
+
+		for cy in range(min_cy, max_cy + 1):
+			for cx in range(min_cx, max_cx + 1):
+				var c_pos := Vector2i(cx, cy)
+				if hydro.is_lake(c_pos):
+					continue
+
+				var q := Vector2(float(cx), float(cy))
+				var t: float = clampf((q - p0_2d).dot(seg_v) * seg_inv_len, 0.0, 1.0)
+				var proj: Vector2 = p0_2d + seg_v * t
+				var dist: float = q.distance_to(proj)
+
+				var cur_r: float = lerpf(r0, r1, t)
+				if dist > cur_r:
+					continue
+
+				# Cota de agua transversalmente horizontal en la sección
+				var cur_wh: float = lerpf(pt_w_h[j], pt_w_h[j + 1], t)
+				var cur_base_d: float = lerpf(depths[j], depths[j + 1], t)
+
+				# Perfil batimétrico parabólico en el lecho (máximo al centro, suave hacia orilla)
+				var dist_ratio: float = dist / maxf(cur_r + 0.1, 0.1)
+				var depth_factor: float = clampf(1.0 - (dist_ratio * dist_ratio) * 0.65, 0.35, 1.0)
+				var cur_d: float = maxf(cur_base_d * depth_factor, 0.08)
+				var cur_bed: float = cur_wh - cur_d
+				var cur_shoreline: float = lerpf(points[j].y, points[j + 1].y, t)
+
+				if hydro.water_cells.has(c_pos):
+					var existing: Dictionary = hydro.water_cells[c_pos]
+					if existing.get("type") == "lake":
+						continue
+					var existing_river_id: int = int(existing.get("river_index", -1))
+					if existing_river_id != -1 and existing_river_id != river_id:
+						# Celda perteneciente a otro río (ej. río receptor en confluencia)
+						# Respetar la cota de agua del río receptor; solo profundizar el lecho si este afluente es más profundo
+						var ex_wh: float = float(existing.get("water_height", cur_wh))
+						var b_h: float = ex_wh - cur_d
+						var ex_bed: float = float(existing.get("bed_height", b_h))
+						existing["bed_height"] = minf(ex_bed, b_h)
+						existing["depth"] = ex_wh - float(existing["bed_height"])
+					elif path_indices.has(c_pos):
+						# Nodo del eje del mismo río: su cota de agua está blindada por pt_w_h[i]
+						# Solo profundizamos el lecho si este segmento excava más hondo
+						var ex_wh: float = float(existing.get("water_height", cur_wh))
+						var new_bed: float = minf(float(existing.get("bed_height", cur_bed)), cur_bed)
+						existing["bed_height"] = new_bed
+						existing["depth"] = ex_wh - new_bed
+					else:
+						# Celda lateral del mismo río (segmento superpuesto)
+						var new_wh: float = minf(float(existing.get("water_height", cur_wh)), cur_wh)
+						var new_bed: float = minf(float(existing.get("bed_height", cur_bed)), cur_bed)
+						existing["water_height"] = new_wh
+						existing["bed_height"] = new_bed
+						existing["depth"] = new_wh - new_bed
+						if existing.get("flow_dir", Vector2.ZERO) == Vector2.ZERO:
+							existing["flow_dir"] = seg_dir
+				else:
+					hydro.water_cells[c_pos] = {
+						"type": "river",
+						"shoreline_height": cur_shoreline,
+						"water_height": cur_wh,
+						"bed_height": cur_bed,
+						"depth": cur_d,
+						"flow_dir": seg_dir,
+						"river_index": river_id
+					}
 
 	river_obj.points = points
 	river_obj.widths = widths
@@ -1633,11 +1738,10 @@ func _carve_river_channels(
 		if hydro != null:
 			cell.hydraulic_influence = float(hydro.hydraulic_influence.get(pos, 0.0))
 		if hydro != null and hydro.water_cells.has(pos):
-			hydro.water_cells[pos]["bed_height"] = cell.height
 			var cur_w_h: float = float(hydro.water_cells[pos].get("water_height", cell.height))
-			if cur_w_h < cell.height:
-				hydro.water_cells[pos]["water_height"] = cell.height
-			hydro.water_cells[pos]["depth"] = maxf(0.0, float(hydro.water_cells[pos].get("water_height", cell.height)) - cell.height)
+			var b_h: float = minf(cell.height, cur_w_h)
+			hydro.water_cells[pos]["bed_height"] = b_h
+			hydro.water_cells[pos]["depth"] = cur_w_h - b_h
 
 	# Recalcular pendientes para celdas modificadas
 	for pos in carved_cells:
@@ -1780,16 +1884,17 @@ func _carve_lake_basins(
 		if hydro != null:
 			cell.hydraulic_influence = float(hydro.hydraulic_influence.get(pos, 0.0))
 		if hydro != null and hydro.water_cells.has(pos):
-			hydro.water_cells[pos]["bed_height"] = cell.height
 			if hydro.water_cells[pos].get("type") == "lake":
+				var b_h: float = minf(cell.height, w_y)
+				hydro.water_cells[pos]["bed_height"] = b_h
 				hydro.water_cells[pos]["water_height"] = w_y
 				hydro.water_cells[pos]["shoreline_height"] = w_y + 0.30
-				hydro.water_cells[pos]["depth"] = maxf(0.0, w_y - cell.height)
+				hydro.water_cells[pos]["depth"] = w_y - b_h
 			else:
 				var cur_w_h: float = float(hydro.water_cells[pos].get("water_height", cell.height))
-				if cur_w_h < cell.height:
-					hydro.water_cells[pos]["water_height"] = cell.height
-				hydro.water_cells[pos]["depth"] = maxf(0.0, float(hydro.water_cells[pos].get("water_height", cell.height)) - cell.height)
+				var b_h: float = minf(cell.height, cur_w_h)
+				hydro.water_cells[pos]["bed_height"] = b_h
+				hydro.water_cells[pos]["depth"] = cur_w_h - b_h
 
 	# Recalcular pendientes para celdas modificadas
 	for pos in carved_lake_cells:

@@ -31,7 +31,9 @@ static func build_water_node(result: WorldResult, profile: WorldProfile = null, 
 	var mi := MeshInstance3D.new()
 	mi.name = "UnifiedWaterSurface"
 	mi.mesh = mesh
-	mi.set_surface_override_material(0, _WaterMaterialScript.create_water_material(profile, true))
+	var water_mat = _WaterMaterialScript.create_water_material(profile, true)
+	mi.material_override = water_mat
+	mi.set_surface_override_material(0, water_mat)
 	root.add_child(mi)
 
 	# Overlay opcional de depuración wireframe
