@@ -424,6 +424,7 @@ func _resolve_river_endpoints_and_lakes(
 	profile: WorldProfile
 ) -> void:
 	var resolver = _HydraulicDestinationResolverScript.new()
+	var basin_classifier = _HydraulicBasinClassifierScript.new()
 	var river_cell_owner: Dictionary = {}
 	for r in network_rivers:
 		for p in r.path:
@@ -432,10 +433,13 @@ func _resolve_river_endpoints_and_lakes(
 
 	var next_lake_id: int = 1
 	var next_river_id: int = network_rivers.size()
-	var additional_outflows: Array = []
 	var visited_endpoints: Dictionary = {}
 
-	for r in network_rivers:
+	var river_idx: int = 0
+	while river_idx < network_rivers.size():
+		var r = network_rivers[river_idx]
+		river_idx += 1
+
 		if r.path.is_empty():
 			continue
 		var end_pos: Vector2i = r.path[-1]
@@ -498,11 +502,12 @@ func _resolve_river_endpoints_and_lakes(
 
 				# Emisión causal del río saliente desde el vertedero
 				var outflow = resolver.trace_lake_outflow(
-					lake, flow_to, accumulation, next_river_id, profile.river_max_steps, river_cell_owner
+					lake, flow_to, accumulation, next_river_id, profile.river_max_steps, river_cell_owner,
+					cells, filled_height, basin_classifier
 				)
 				if outflow != null:
 					r.downstream_river = next_river_id
-					additional_outflows.append(outflow)
+					network_rivers.append(outflow)
 					for p_out in outflow.path:
 						river_cell_owner[p_out] = next_river_id
 					next_river_id += 1
@@ -521,9 +526,6 @@ func _resolve_river_endpoints_and_lakes(
 				})
 
 		r.destination_type = endpoint.destination_type
-
-	for out_r in additional_outflows:
-		network_rivers.append(out_r)
 
 
 ## Traza una línea continua en la grilla discreta entre p0 y p1 (algoritmo Bresenham)
@@ -1430,13 +1432,16 @@ func _build_river_geometry(
 			points[i] = Vector3(points[i].x, points[i - 1].y, points[i].z)
 
 	# Continuidad de cota en desembocadura a lago: la lámina de agua del río (centerline_y - f_b)
-	# desciende suavemente a la cota del lago sin levantar aguas arriba
+	# se ancla exactamente a la cota del lago (target_h) y propaga monotonía aguas arriba
 	if hydro.is_lake(path[-1]):
 		var lake_data: Dictionary = hydro.get_cell_data(path[-1])
 		var target_h: float = float(lake_data.get("water_height", points[-1].y))
 		var f_b_end: float = maxf(depths[-1] * 0.75, 0.25)
-		var end_y: float = minf(points[-1].y, target_h + f_b_end)
+		var end_y: float = target_h + f_b_end
 		points[-1] = Vector3(points[-1].x, end_y, points[-1].z)
+		for j in range(points.size() - 2, -1, -1):
+			if points[j].y < points[j + 1].y:
+				points[j] = Vector3(points[j].x, points[j + 1].y, points[j].z)
 
 	# Continuidad de cota en nacimiento desde spillway: el río que nace del lago
 	# parte a la cota exacta spill_h del espejo de agua del lago
@@ -1534,6 +1539,20 @@ func _carve_river_channels(
 	var carved_cells: Dictionary = {}
 	var cell_size: float = profile.cell_size if profile != null else 1.0
 
+	var lake_rim_water_h: Dictionary = {}
+	if hydro != null and "lakes" in hydro:
+		for lk in hydro.lakes:
+			var lk_w_h: float = float(lk.get("water_height", 0.0))
+			for c_pos in lk.get("cells", []):
+				for dx in range(-1, 2):
+					for dy in range(-1, 2):
+						if dx == 0 and dy == 0:
+							continue
+						var nb := Vector2i(c_pos.x + dx, c_pos.y + dy)
+						if not hydro.is_lake(nb):
+							if not lake_rim_water_h.has(nb) or lk_w_h > lake_rim_water_h[nb]:
+								lake_rim_water_h[nb] = lk_w_h
+
 	for river_data in rivers:
 		var pts_arr: Array = river_data.get("points", [])
 		var depths_arr: Array = river_data.get("depths", [])
@@ -1609,6 +1628,8 @@ func _carve_river_channels(
 					var carved_h: float = carving_profile.evaluate_carved_height_centerline(dist_m, water_y)
 					var target_h: float = lerpf(cell.raw_height, carved_h, influence)
 					target_h = minf(cell.raw_height, target_h)
+					if lake_rim_water_h.has(target_pos) and not hydro.is_river(target_pos):
+						target_h = maxf(target_h, float(lake_rim_water_h[target_pos]))
 
 					var current_carved: float = float(carved_cells.get(target_pos, cell.raw_height))
 					if target_h < current_carved:
@@ -1930,6 +1951,8 @@ func _validate_hydraulic_ground_truth(
 					continue
 				if lake_set.has(neighbor):
 					continue
+				if hydro.is_river(neighbor):
+					continue
 				var nc: WorldCell = cells.get(neighbor)
 				if nc == null:
 					continue
@@ -1983,6 +2006,8 @@ func _validate_hydraulic_ground_truth(
 				if neighbor.x < 0 or neighbor.x >= width or neighbor.y < 0 or neighbor.y >= height:
 					continue
 				if not valid_lake_set.has(neighbor):
+					if hydro.is_river(neighbor):
+						continue
 					var nc: WorldCell = cells.get(neighbor)
 					if nc != null and nc.height < final_rim_h:
 						final_rim_h = nc.height

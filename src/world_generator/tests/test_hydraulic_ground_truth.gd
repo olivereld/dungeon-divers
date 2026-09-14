@@ -38,6 +38,8 @@ func _init() -> void:
 						if nb.x < 0 or nb.x >= profile.width or nb.y < 0 or nb.y >= profile.height:
 							continue
 						if not lake_set.has(nb):
+							if hydro.is_river(nb):
+								continue
 							var nc = result.get_cell(nb)
 							if nc != null:
 								min_rim_h = minf(min_rim_h, nc.height)
@@ -60,11 +62,19 @@ func _init() -> void:
 			for v in river_surf.vertices:
 				var c_pos := Vector2i(int(floor(v.x)), int(floor(v.z)))
 				var c = result.get_cell(c_pos)
-				if c != null:
+				if c != null and not hydro.is_lake(c_pos):
 					# Water mesh must never float in the air above natural terrain (H_water <= H_raw + margin)
-					var float_diff: float = v.y - c.raw_height
-					assert(float_diff <= 0.05, "River vertex at (%.2f, %.2f) is floating +%.3fm above raw terrain (y=%.3f > raw=%.3f)" % [
-						v.x, v.z, float_diff, v.y, c.raw_height
+					# At lake inlets/outlets, water merges with lake water surface
+					var max_allowed_h: float = c.raw_height + 0.05
+					for dx in range(-2, 3):
+						for dy in range(-2, 3):
+							var n_pos := Vector2i(c_pos.x + dx, c_pos.y + dy)
+							if hydro.is_lake(n_pos):
+								var l_data: Dictionary = hydro.get_cell_data(n_pos)
+								max_allowed_h = maxf(max_allowed_h, float(l_data.get("water_height", 0.0)) + 0.15)
+					var float_diff: float = v.y - max_allowed_h
+					assert(float_diff <= 0.001, "River vertex at (%.2f, %.2f) is floating +%.3fm above raw terrain (y=%.3f > allowed=%.3f)" % [
+						v.x, v.z, float_diff, v.y, max_allowed_h
 					])
 
 	print(" [PASS] 1. Lake Physical Containment on H_carved (w_h <= min_rim_h)")

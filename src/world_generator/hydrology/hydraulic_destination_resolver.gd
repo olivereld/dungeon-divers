@@ -161,7 +161,10 @@ func trace_lake_outflow(
 	accumulation: Dictionary,
 	outflow_river_id: int,
 	max_steps: int = 350,
-	river_cell_owner: Dictionary = {}
+	river_cell_owner: Dictionary = {},
+	cells: Dictionary = {},
+	filled_height: Dictionary = {},
+	basin_classifier: RefCounted = null
 ) -> RefCounted:
 	var spill: Vector2i = lake.spillway_pos
 	if spill == Vector2i(-1, -1):
@@ -188,6 +191,21 @@ func trace_lake_outflow(
 			downstream_id = river_cell_owner[nxt]
 			confluence_pos = nxt
 			break
+
+		# Intercepción 1: Depresión topográfica cerrada aguas abajo
+		if basin_classifier != null and not cells.is_empty() and basin_classifier.is_local_depression(nxt, cells, filled_height, 0.05):
+			if outflow_path.size() >= 10:
+				outflow_path.append(nxt)
+				break
+
+		# Intercepción 2: Zona de convergencia en valle plano
+		if basin_classifier != null and not cells.is_empty() and cells.has(nxt):
+			var nxt_cell: WorldCell = cells[nxt]
+			var nxt_slope: float = nxt_cell.slope if nxt_cell != null else 10.0
+			if basin_classifier.detect_convergence_zone(river_cell_owner, nxt, nxt_slope, 3, 2.0):
+				if outflow_path.size() >= 10:
+					outflow_path.append(nxt)
+					break
 
 		outflow_path.append(nxt)
 		curr = nxt
