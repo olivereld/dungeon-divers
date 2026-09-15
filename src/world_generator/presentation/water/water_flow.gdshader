@@ -47,13 +47,6 @@ void vertex() {
 }
 
 void fragment() {
-	// 0. Máscara de agua: descartar celdas completamente en tierra lejana.
-	// La transición de orilla penetra suavemente en el talud del terreno adyacente
-	// para que la profundidad Z (water_depth = 0.0) resuelva el contacto orgánico con espuma.
-	if (v_water_mask <= 0.1) {
-		discard;
-	}
-
 	// 1. Reconstrucción de profundidad lineal del fondo submarino
 	float depth_raw = textureLod(depth_texture, SCREEN_UV, 0.0).r;
 	vec3 ndc = vec3(SCREEN_UV * 2.0 - 1.0, depth_raw);

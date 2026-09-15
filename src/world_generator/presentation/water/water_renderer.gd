@@ -88,10 +88,6 @@ static func build_wireframe_node(mesh_or_surf: RefCounted) -> Node3D:
 		var i1: int = indices[t * 3 + 1]
 		var i2: int = indices[t * 3 + 2]
 
-		# Filtrar triángulos completamente secos: mostrar únicamente donde hay agua
-		if has_colors:
-			if colors[i0].a < 0.5 and colors[i1].a < 0.5 and colors[i2].a < 0.5:
-				continue
 
 		var v0: Vector3 = verts[i0] + Vector3(0.0, 0.035, 0.0)
 		var v1: Vector3 = verts[i1] + Vector3(0.0, 0.035, 0.0)
@@ -144,10 +140,9 @@ static func build_wireframe_node(mesh_or_surf: RefCounted) -> Node3D:
 	var dot_col := Color(1.0, 0.85, 0.20, 1.0)
 
 	for p_idx in range(num_pts):
-		if has_colors and colors[p_idx].a < 0.5:
-			continue
 		pt_verts.append(verts[p_idx] + Vector3(0.0, 0.040, 0.0))
-		pt_colors.append(dot_col)
+		var is_water_pt: bool = (not has_colors) or (colors[p_idx].a >= 0.5)
+		pt_colors.append(dot_col if is_water_pt else Color(0.12, 0.75, 0.95, 0.60))
 
 	if not pt_verts.is_empty():
 		var pt_arr := []

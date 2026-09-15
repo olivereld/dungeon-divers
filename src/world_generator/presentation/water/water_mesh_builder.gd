@@ -159,7 +159,11 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 					sum_h += height_grid[idx + w]
 					count += 1
 				if count > 0:
-					height_grid[idx] = sum_h / float(count)
+					var relaxed: float = sum_h / float(count)
+					if result.cells.has(Vector2i(x, y)):
+						height_grid[idx] = minf(relaxed, result.cells[Vector2i(x, y)].height - 0.08)
+					else:
+						height_grid[idx] = relaxed
 
 	# 2. Generar grilla de vértices global: W * H vértices (1:1 con TerrainMeshBuilder)
 	for y in range(h):
