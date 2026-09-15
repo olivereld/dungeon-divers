@@ -471,13 +471,14 @@ func _generate_lakes(
 			merged_groups[best_root].append(bp)
 
 	# 3. CONSOLIDACIÓN DE LAGOS FINALES
+	var global_claimed_lake_cells: Dictionary = {}
 	for root in merged_groups:
 		var raw_list: Array = merged_groups[root]
-		# Eliminar celdas duplicadas mediante diccionario
+		# Eliminar celdas duplicadas y celdas ya absorbidas por un lago anterior
 		var unique_dict: Dictionary = {}
 		var cluster: Array[Vector2i] = []
 		for p in raw_list:
-			if not unique_dict.has(p):
+			if not unique_dict.has(p) and not global_claimed_lake_cells.has(p):
 				unique_dict[p] = true
 				cluster.append(p)
 
@@ -539,6 +540,29 @@ func _generate_lakes(
 		if max_cluster_h > spillway_height:
 			spillway_height = max_cluster_h
 
+		# 3b. Inundación hidrológica completa de la cuenca (Depression Inundation):
+		# Toda celda contigua de la depresión que Priority-Flood llenó a esta cota y cuya
+		# cota de terreno quede sumergida bajo el spillway es parte física del lago.
+		var flood_queue: Array[Vector2i] = []
+		flood_queue.append_array(cluster)
+		while not flood_queue.is_empty():
+			var curr: Vector2i = flood_queue.pop_front()
+			for offset in D8_OFFSETS:
+				var neighbor: Vector2i = curr + offset
+				if neighbor.x < 0 or neighbor.x >= width or neighbor.y < 0 or neighbor.y >= height:
+					continue
+				if cluster_set.has(neighbor):
+					continue
+				var n_cell: WorldCell = cells.get(neighbor)
+				if n_cell == null:
+					continue
+				var n_h: float = n_cell.raw_height if n_cell.raw_height != 0.0 else n_cell.height
+				var n_filled: float = float(filled_height.get(neighbor, 0.0))
+				if absf(n_filled - spillway_height) < 0.05 and n_h < spillway_height - 0.01:
+					cluster_set[neighbor] = true
+					cluster.append(neighbor)
+					flood_queue.append(neighbor)
+
 		var min_pos := cluster[0]
 		var max_pos := cluster[0]
 		for pos in cluster:
@@ -582,6 +606,9 @@ func _generate_lakes(
 			"min_pos": min_pos,
 			"max_pos": max_pos
 		})
+
+		for p in cluster:
+			global_claimed_lake_cells[p] = true
 
 
 ## Traza una línea continua en la grilla discreta entre p0 y p1 (algoritmo Bresenham)

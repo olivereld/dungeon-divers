@@ -8,6 +8,8 @@ extends RefCounted
 ##   WaterTopology  ->  aristas de frontera
 ##                  ->  polilineas encadenadas orientadas
 ##                  ->  suavizado Chaikin (curvas organicas)
+##                  ->  desplazamiento organico determinista (Block B)
+##                  ->  signo geometrico via Winding Number (Block A)
 ##                  ->  segmentos finales con indexacion espacial (bucketing)
 ##                  ->  PackedFloat32Array  (1 float por vertice de grilla)
 ##
@@ -18,29 +20,52 @@ extends RefCounted
 ##     < 0.5  ->  tierra seca bajo el talud
 
 const MAX_QUERY_DIST: float = 3.0
+const DEFAULT_ORGANIC_AMPLITUDE: float = 0.12
+
+class ContourResult:
+	var segments: Array[PackedVector2Array] = []
+	var closed_polylines: Array[PackedVector2Array] = []
+	var seg_is_closed: PackedByteArray = PackedByteArray()
 
 ## Punto de entrada publico: devuelve el SDF completo de la grilla W x H.
 static func compute(
 		water_cells: Dictionary,
 		topo: WaterTopology,
 		w: int,
-		h: int
+		h: int,
+		seed_val: int = 0,
+		displacement_amplitude: float = DEFAULT_ORGANIC_AMPLITUDE
 	) -> PackedFloat32Array:
-
-	var segments: Array[PackedVector2Array] = _build_smoothed_segments(topo)
-	var buckets: Dictionary = _build_buckets(segments)
-	var max_dist_sq: float = MAX_QUERY_DIST * MAX_QUERY_DIST
 
 	var sdf: PackedFloat32Array = PackedFloat32Array()
 	sdf.resize(w * h)
 
+	if water_cells.is_empty():
+		sdf.fill(0.0)
+		return sdf
+
+	var contour: ContourResult = _build_contour_data(topo, seed_val, displacement_amplitude)
+	var segments: Array[PackedVector2Array] = contour.segments
+	var closed_polylines: Array[PackedVector2Array] = contour.closed_polylines
+	var seg_is_closed: PackedByteArray = contour.seg_is_closed
+
+	if segments.is_empty():
+		for y in range(h):
+			for x in range(w):
+				sdf[y * w + x] = 1.0 if water_cells.has(Vector2i(x, y)) else 0.0
+		return sdf
+
+	var buckets: Dictionary = _build_buckets(segments)
+	var max_dist_sq: float = MAX_QUERY_DIST * MAX_QUERY_DIST
+
 	for y in range(h):
 		for x in range(w):
 			var pos2i := Vector2i(x, y)
-			var is_water: bool = water_cells.has(pos2i)
 			var v2d := Vector2(float(x), float(y))
 
 			var min_dist_sq: float = max_dist_sq
+			var nearest_seg_idx: int = -1
+
 			var bkey := Vector2i(int(floor(v2d.x / 4.0)), int(floor(v2d.y / 4.0)))
 			if buckets.has(bkey):
 				for s_idx: int in buckets[bkey]:
@@ -48,19 +73,37 @@ static func compute(
 					var d_sq: float = _dist_sq_point_to_seg(v2d, seg[0], seg[1])
 					if d_sq < min_dist_sq:
 						min_dist_sq = d_sq
+						nearest_seg_idx = s_idx
 
-			var signed_dist: float = sqrt(min_dist_sq) * (1.0 if is_water else -1.0)
+			var sign_val: float = 1.0
+			if nearest_seg_idx != -1 and min_dist_sq < max_dist_sq:
+				sign_val = _compute_sign(v2d, pos2i, closed_polylines, segments[nearest_seg_idx], seg_is_closed[nearest_seg_idx] == 1, water_cells)
+			else:
+				sign_val = 1.0 if water_cells.has(pos2i) else -1.0
+
+			var signed_dist: float = sqrt(min_dist_sq) * sign_val
 			sdf[y * w + x] = clampf(0.5 + signed_dist / (2.0 * MAX_QUERY_DIST), 0.0, 1.0)
 
 	return sdf
 
+## Compatibilidad: expone los segmentos suavizados
+static func _build_smoothed_segments(topo: WaterTopology) -> Array[PackedVector2Array]:
+	var res: ContourResult = _build_contour_data(topo, 0, 0.0)
+	return res.segments
+
 # ---------------------------------------------------------------------------
-# Privados: encadenamiento de polilineas + suavizado Chaikin
+# Privados: encadenamiento de polilineas + Chaikin + Desplazamiento Organico
 # ---------------------------------------------------------------------------
 
-static func _build_smoothed_segments(topo: WaterTopology) -> Array[PackedVector2Array]:
+static func _build_contour_data(
+		topo: WaterTopology,
+		seed_val: int,
+		amplitude: float
+	) -> ContourResult:
+
+	var res := ContourResult.new()
 	if topo == null:
-		return []
+		return res
 
 	var directed: Array[PackedVector2Array] = []
 	for pos in topo.cell_edges:
@@ -77,7 +120,7 @@ static func _build_smoothed_segments(topo: WaterTopology) -> Array[PackedVector2
 			directed.append(PackedVector2Array([Vector2(px - 0.5, py + 0.5), Vector2(px - 0.5, py - 0.5)]))
 
 	if directed.is_empty():
-		return []
+		return res
 
 	var start_map: Dictionary = {}
 	for i in range(directed.size()):
@@ -88,7 +131,6 @@ static func _build_smoothed_segments(topo: WaterTopology) -> Array[PackedVector2
 
 	var used: PackedByteArray = PackedByteArray()
 	used.resize(directed.size())
-	var result: Array[PackedVector2Array] = []
 
 	for start_idx: int in range(directed.size()):
 		if used[start_idx] == 1:
@@ -116,24 +158,130 @@ static func _build_smoothed_segments(topo: WaterTopology) -> Array[PackedVector2
 			else:
 				break
 
+		var smooth: Array[Vector2]
 		if chain.size() >= 3:
-			var smooth: Array[Vector2] = _chaikin(chain, is_closed, 2)
-			var m: int = smooth.size()
-			var seg_count: int = m if is_closed else m - 1
-			for j: int in range(seg_count):
-				var pA: Vector2 = smooth[j]
-				var pB: Vector2 = smooth[(j + 1) % m] if is_closed else smooth[j + 1]
-				result.append(PackedVector2Array([pA, pB]))
+			smooth = _chaikin(chain, is_closed, 2)
 		else:
-			for pt_idx: int in range(chain.size() - 1):
-				result.append(PackedVector2Array([chain[pt_idx], chain[pt_idx + 1]]))
-			if is_closed and chain.size() >= 2:
-				result.append(PackedVector2Array([chain[chain.size() - 1], chain[0]]))
+			smooth = chain.duplicate()
+
+		if amplitude > 0.001 and smooth.size() >= 2:
+			smooth = _displace_organically(smooth, is_closed, amplitude, seed_val)
+
+		var m: int = smooth.size()
+		if is_closed and m >= 3:
+			res.closed_polylines.append(PackedVector2Array(smooth))
+			for j: int in range(m):
+				var pA: Vector2 = smooth[j]
+				var pB: Vector2 = smooth[(j + 1) % m]
+				res.segments.append(PackedVector2Array([pA, pB]))
+				res.seg_is_closed.append(1)
+		else:
+			for j: int in range(m - 1):
+				var pA: Vector2 = smooth[j]
+				var pB: Vector2 = smooth[j + 1]
+				res.segments.append(PackedVector2Array([pA, pB]))
+				res.seg_is_closed.append(0)
+
+	return res
+
+## Block B: Desplazamiento organico determinista a lo largo de las normales de la curva
+static func _displace_organically(
+		pts: Array[Vector2],
+		is_closed: bool,
+		amplitude: float,
+		seed_val: int
+	) -> Array[Vector2]:
+
+	var n: int = pts.size()
+	if amplitude <= 0.0001 or n < 2:
+		return pts
+
+	var result: Array[Vector2] = []
+	result.resize(n)
+
+	var seed_f: float = float((seed_val * 1664525 + 1013904223) & 0x7FFFFFFF) * 0.000001
+
+	for i in range(n):
+		var p: Vector2 = pts[i]
+
+		var tangent: Vector2
+		if is_closed:
+			var prev_p: Vector2 = pts[(i - 1 + n) % n]
+			var next_p: Vector2 = pts[(i + 1) % n]
+			tangent = (next_p - prev_p).normalized()
+		else:
+			if i == 0:
+				tangent = (pts[1] - pts[0]).normalized()
+			elif i == n - 1:
+				tangent = (pts[n - 1] - pts[n - 2]).normalized()
+			else:
+				tangent = (pts[i + 1] - pts[i - 1]).normalized()
+
+		var normal := Vector2(-tangent.y, tangent.x)
+
+		# Taper en extremos de polilineas abiertas para mantener bordes anclados
+		var taper: float = 1.0
+		if not is_closed:
+			if i == 0 or i == n - 1:
+				taper = 0.0
+			elif i == 1 or i == n - 2:
+				taper = 0.5
+
+		var s: float = p.x * 0.618 + p.y * 0.786 + seed_f
+		var disp: float = (sin(s * 1.85) * 0.65 + cos(s * 3.41 + 1.1) * 0.35) * amplitude * taper
+		result[i] = p + normal * disp
 
 	return result
 
 # ---------------------------------------------------------------------------
-# Privados: indexacion espacial
+# Block A: Determinacion de signo via Winding Number y orientacion de aristas
+# ---------------------------------------------------------------------------
+
+static func _compute_sign(
+		point: Vector2,
+		pos2i: Vector2i,
+		closed_polylines: Array[PackedVector2Array],
+		nearest_seg: PackedVector2Array,
+		is_closed_seg: bool,
+		water_cells: Dictionary
+	) -> float:
+
+	if not closed_polylines.is_empty():
+		var total_wn: int = 0
+		for poly in closed_polylines:
+			total_wn += _winding_number(point, poly)
+
+		if total_wn != 0:
+			return 1.0 # Dentro de un bucle cerrado de agua
+		elif is_closed_seg:
+			return -1.0 # Fuera de todos los bucles cerrados y cerca de un contorno de lago cerrado
+
+	# Para contornos abiertos (e.g. rios que cruzan la grilla), usar orientacion local de la arista
+	var d: Vector2 = nearest_seg[1] - nearest_seg[0]
+	var cross: float = d.x * (point.y - nearest_seg[0].y) - d.y * (point.x - nearest_seg[0].x)
+	if absf(cross) > 0.0001:
+		return 1.0 if cross > 0.0 else -1.0
+
+	return 1.0 if water_cells.has(pos2i) else -1.0
+
+static func _winding_number(point: Vector2, poly: PackedVector2Array) -> int:
+	var wn: int = 0
+	var n: int = poly.size()
+	for i in range(n):
+		var p1: Vector2 = poly[i]
+		var p2: Vector2 = poly[(i + 1) % n]
+		if p1.y <= point.y:
+			if p2.y > point.y:
+				if (p2.x - p1.x) * (point.y - p1.y) - (point.x - p1.x) * (p2.y - p1.y) > 0.0:
+					wn += 1
+		else:
+			if p2.y <= point.y:
+				if (p2.x - p1.x) * (point.y - p1.y) - (point.x - p1.x) * (p2.y - p1.y) < 0.0:
+					wn -= 1
+	return wn
+
+# ---------------------------------------------------------------------------
+# Privados: indexacion espacial y matematicas
 # ---------------------------------------------------------------------------
 
 static func _build_buckets(segments: Array[PackedVector2Array]) -> Dictionary:
@@ -151,10 +299,6 @@ static func _build_buckets(segments: Array[PackedVector2Array]) -> Dictionary:
 					buckets[bkey] = []
 				buckets[bkey].append(seg_idx)
 	return buckets
-
-# ---------------------------------------------------------------------------
-# Privados: matematica
-# ---------------------------------------------------------------------------
 
 static func _dist_sq_point_to_seg(p: Vector2, a: Vector2, b: Vector2) -> float:
 	var ab: Vector2 = b - a

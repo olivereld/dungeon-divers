@@ -14,6 +14,7 @@ const _TerrainColorResolverScript = preload("res://src/world_generator/presentat
 const _LabColors = preload("res://src/dungeon_generator/debug/lab/ui/lab_colors.gd")
 const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
 const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
+const _TerrainMeshBuilderScript = preload("res://src/world_renderer/terrain_mesh_builder.gd")
 
 @export var world_seed: int = 12345
 
@@ -29,6 +30,8 @@ var is_player_active: bool = true
 var player_toggle_btn: Button = null
 var is_water_wireframe_active: bool = false
 var water_wireframe_btn: Button = null
+var is_terrain_wireframe_active: bool = false
+var terrain_wireframe_btn: Button = null
 
 # Camera & Navigation
 var camera_rig: IsometricCameraRig = null
@@ -397,6 +400,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_player()
 		elif ke.keycode == KEY_M:
 			_toggle_water_wireframe()
+		elif ke.keycode == KEY_T:
+			_toggle_terrain_wireframe()
 		elif ke.keycode == KEY_F11:
 			_toggle_fullscreen()
 		elif ke.keycode == KEY_TAB or ke.keycode == KEY_H:
@@ -426,7 +431,7 @@ func generate_world(reset_camera: bool = false) -> void:
 	current_result = _WorldPipelineScript.generate(world_seed, profile)
 
 	var renderer := _WorldRendererScript.new()
-	current_world_node = renderer.render_world(current_result, profile, is_water_wireframe_active)
+	current_world_node = renderer.render_world(current_result, profile, is_water_wireframe_active, is_terrain_wireframe_active)
 	world_container.add_child(current_world_node)
 	renderer.queue_free()
 
@@ -983,6 +988,14 @@ func _build_top_bar() -> void:
 	water_wireframe_btn.pressed.connect(_toggle_water_wireframe)
 	hbox.add_child(water_wireframe_btn)
 
+	# Terrain Wireframe Toggle Button (Relieve y Topografía)
+	terrain_wireframe_btn = Button.new()
+	terrain_wireframe_btn.text = "🏔️ Malla Terreno: OFF"
+	terrain_wireframe_btn.add_theme_font_size_override("font_size", 11)
+	_update_terrain_wireframe_button_style()
+	terrain_wireframe_btn.pressed.connect(_toggle_terrain_wireframe)
+	hbox.add_child(terrain_wireframe_btn)
+
 	# Generate Button
 	gen_btn = Button.new()
 	gen_btn.text = "⚡ GENERAR MUNDO"
@@ -1044,6 +1057,38 @@ func _toggle_water_wireframe() -> void:
 					if new_wire != null:
 						new_wire.visible = true
 						water_root.add_child(new_wire)
+
+func _update_terrain_wireframe_button_style() -> void:
+	if terrain_wireframe_btn == null:
+		return
+	if is_terrain_wireframe_active:
+		terrain_wireframe_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.98, 0.45, 0.09, 0.22), Color("#f97316"), 4, 1))
+		terrain_wireframe_btn.add_theme_color_override("font_color", Color("#fb923c"))
+		terrain_wireframe_btn.text = "🏔️ Malla Terreno: ON"
+	else:
+		terrain_wireframe_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
+		terrain_wireframe_btn.add_theme_color_override("font_color", Color("#94a3b8"))
+		terrain_wireframe_btn.text = "🏔️ Malla Terreno: OFF"
+
+func _toggle_terrain_wireframe() -> void:
+	is_terrain_wireframe_active = not is_terrain_wireframe_active
+	_update_terrain_wireframe_button_style()
+
+	if world_container != null:
+		var wire_node = world_container.find_child("TerrainWireframeOverlay", true, false)
+		if wire_node != null:
+			wire_node.visible = is_terrain_wireframe_active
+		elif is_terrain_wireframe_active:
+			var mi = world_container.find_child("TerrainMesh", true, false) as MeshInstance3D
+			if mi != null and mi.mesh != null:
+				var new_wire = _TerrainMeshBuilderScript.build_wireframe_node(mi.mesh)
+				if new_wire != null:
+					new_wire.visible = true
+					var rendered_world = world_container.find_child("RenderedWorld", true, false)
+					if rendered_world != null:
+						rendered_world.add_child(new_wire)
+					else:
+						world_container.add_child(new_wire)
 
 func _build_left_panel() -> void:
 	left_panel = PanelContainer.new()

@@ -4,7 +4,12 @@ extends Node3D
 const _TerrainMaterialScript = preload("res://src/world_generator/presentation/terrain_material.gd")
 const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
 
-func render_world(result: WorldResult, profile_or_cell_size: Variant = 1.0, show_water_wireframe: bool = false) -> Node3D:
+func render_world(
+		result: WorldResult,
+		profile_or_cell_size: Variant = 1.0,
+		show_water_wireframe: bool = false,
+		show_terrain_wireframe: bool = false
+	) -> Node3D:
 	var profile: WorldProfile = null
 	var cell_size: float = 1.0
 
@@ -24,6 +29,12 @@ func render_world(result: WorldResult, profile_or_cell_size: Variant = 1.0, show
 	terrain_mi.mesh = mesh
 	terrain_mi.set_surface_override_material(0, _TerrainMaterialScript.create_material())
 	root.add_child(terrain_mi)
+
+	# Overlay de depuracion wireframe para terreno
+	var terrain_wire = TerrainMeshBuilder.build_wireframe_node(mesh)
+	if terrain_wire != null:
+		terrain_wire.visible = show_terrain_wireframe
+		root.add_child(terrain_wire)
 
 	# Static collision
 	var static_body := StaticBody3D.new()
