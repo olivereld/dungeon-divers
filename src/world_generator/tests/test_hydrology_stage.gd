@@ -1,7 +1,7 @@
 extends SceneTree
 
 const _HydrologyStageScript = preload("res://src/world_generator/stages/hydrology_stage.gd")
-const _HydrologyRendererScript = preload("res://src/world_renderer/hydrology_renderer.gd")
+const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
 const _TerrainColorResolverScript = preload("res://src/world_generator/presentation/terrain_color_resolver.gd")
 const _WatershedIntegrityCheckerScript = preload("res://src/world_generator/diagnostics/watershed_integrity_checker.gd")
 const _OutletValidatorScript = preload("res://src/world_generator/diagnostics/outlet_validator.gd")
@@ -119,8 +119,8 @@ func _init() -> void:
 	for pos in hydro.water_cells:
 		var data: Dictionary = hydro.water_cells[pos]
 		var water_h: float = float(data.get("water_height", 0.0))
-		var terrain_h: float = float(data.get("terrain_height", 0.0))
-		assert(water_h >= terrain_h - 0.01, "H20: Water at %s (%.3f) below terrain (%.3f)" % [str(pos), water_h, terrain_h])
+		var bed_h: float = float(data.get("bed_height", 0.0))
+		assert(water_h >= bed_h - 0.01, "H20: Water at %s (%.3f) below bed (%.3f)" % [str(pos), water_h, bed_h])
 
 	# H21: Meander displacement zero at source and outlet
 	print(" [CHECK] H21. Meander Taper at Endpoints...")
@@ -172,16 +172,14 @@ func _init() -> void:
 			var depth: float = hydro.get_water_depth(grid_pos)
 			assert(depth < 0.1, "Vegetation item %s cannot be placed deep underwater (depth=%.2f)!" % [str(item.type), depth])
 
-	# 5. Test Hydrology 3D Mesh Construction
-	print(" [CHECK] 5. HydrologyRenderer Overlay Generation...")
-	var hydro_node: Node3D = _HydrologyRendererScript.build_hydrology_node(result, profile)
-	assert(hydro_node != null, "Hydrology node must be created")
-	if not hydro.lakes.is_empty():
-		assert(hydro_node.has_node("LakesMesh"), "LakesMesh must exist when lakes are present")
-	if not hydro.rivers.is_empty():
-		assert(hydro_node.has_node("RiversMesh"), "RiversMesh must exist when rivers are present")
+	# 5. Test Unified Water Surface Construction (WaterRenderer / WaterMeshBuilder)
+	print(" [CHECK] 5. Unified Water Surface Generation...")
+	var water_node: Node3D = _WaterRendererScript.build_water_node(result, profile)
+	assert(water_node != null, "Water node must be created")
+	if not hydro.water_cells.is_empty():
+		assert(water_node.has_node("UnifiedWaterSurface"), "UnifiedWaterSurface must exist when water cells are present")
 
-	hydro_node.free()
+	water_node.free()
 
 	# 6. Test Debug Layers Populated in HydrologyResult
 	print(" [CHECK] 6. Debug Layers Integrity (Noise, Potentials, Drainage, Flow Dir)...")
@@ -470,8 +468,8 @@ static func validate_lakes_and_geometry(result: WorldResult) -> void:
 	for pos in hydro.water_cells:
 		var data: Dictionary = hydro.water_cells[pos]
 		var water_h: float = float(data.get("water_height", 0.0))
-		var terrain_h: float = float(data.get("terrain_height", 0.0))
-		assert(water_h >= terrain_h - 0.01, "Water must be at or above terrain")
+		var bed_h: float = float(data.get("bed_height", 0.0))
+		assert(water_h >= bed_h - 0.01, "Water must be at or above bed")
 
 
 static func validate_watershed_integrity(result: WorldResult, profile: WorldProfile) -> void:

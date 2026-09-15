@@ -13,6 +13,7 @@ const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometr
 const _TerrainColorResolverScript = preload("res://src/world_generator/presentation/terrain_color_resolver.gd")
 const _LabColors = preload("res://src/dungeon_generator/debug/lab/ui/lab_colors.gd")
 const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
+const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
 
 @export var world_seed: int = 12345
 
@@ -1033,6 +1034,16 @@ func _toggle_water_wireframe() -> void:
 		var wire_node = world_container.find_child("WaterWireframeOverlay", true, false)
 		if wire_node != null:
 			wire_node.visible = is_water_wireframe_active
+		elif is_water_wireframe_active:
+			# Si el wireframe no fue generado inicialmente por haber estado desactivado, crearlo ahora
+			var water_root = world_container.find_child("WaterRoot", true, false)
+			if water_root != null:
+				var mi = water_root.find_child("UnifiedWaterSurface", true, false) as MeshInstance3D
+				if mi != null and mi.mesh != null:
+					var new_wire = _WaterRendererScript.build_wireframe_node(mi.mesh)
+					if new_wire != null:
+						new_wire.visible = true
+						water_root.add_child(new_wire)
 
 func _build_left_panel() -> void:
 	left_panel = PanelContainer.new()

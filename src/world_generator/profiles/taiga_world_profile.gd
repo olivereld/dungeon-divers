@@ -75,8 +75,10 @@ func _init() -> void:
 	min_river_length = 12.0
 	max_river_length = 180.0
 	river_max_steps = 250
-	river_min_width = 1.35
-	river_max_width = 3.85
+	river_min_width = 3.0
+	river_max_width = 8.0
+	river_min_cells = 3
+	river_max_cells = 8
 	river_meander_strength = 0.18
 	river_channel_depth = 0.22
 	river_min_depth = 0.08
