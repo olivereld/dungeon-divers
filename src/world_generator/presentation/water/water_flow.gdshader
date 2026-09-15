@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_always, cull_disabled;
+render_mode blend_mix, depth_draw_opaque, cull_disabled;
 
 // =============================================================================
 // SHADER ESTILIZADO DE AGUA  (Zelda / Genshin / Anime Watercolor)
