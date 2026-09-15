@@ -47,8 +47,10 @@ void vertex() {
 }
 
 void fragment() {
-	// 0. Máscara de agua: descartar completamente celdas secas
-	if (v_water_mask < 0.5) {
+	// 0. Máscara de agua: descartar celdas completamente en tierra lejana.
+	// La transición de orilla penetra suavemente en el talud del terreno adyacente
+	// para que la profundidad Z (water_depth = 0.0) resuelva el contacto orgánico con espuma.
+	if (v_water_mask <= 0.1) {
 		discard;
 	}
 

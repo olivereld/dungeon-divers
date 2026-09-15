@@ -63,19 +63,103 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 		if "water_color_lake" in profile:
 			col_deep = profile.water_color_lake
 
-	# 1. Determinar cota geométrica de respaldo estructural (datum)
-	# Extraída puramente como cota base de referencia para celdas secas sin contacto con agua
-	var datum_y: float = 0.0
-	var min_water_h: float = INF
+	# 1. Resolver el campo continuo de cotas de agua (BLOQUE — Regularizar WaterMesh)
+	# Principio: Dirichlet boundary condition.
+	# - Celdas de agua: altura estrictamente fija = hydro.water_cells[pos]["water_height"].
+	# - Celdas secas: extension suave continua via propagacion BFS + relajacion armonica de Laplace.
+	# Garantiza continuidad C0, pendientes controladas y ausencia total de picos o saltos bruscos a datum.
+	var height_grid: PackedFloat32Array = PackedFloat32Array()
+	height_grid.resize(w * h)
+	var is_water_grid: PackedByteArray = PackedByteArray()
+	is_water_grid.resize(w * h)
+
+	var bfs_queue: Array[Vector2i] = []
 	for pos in hydro.water_cells.keys():
 		var wh: float = float(hydro.water_cells[pos].get("water_height", 0.0))
-		if wh < min_water_h:
-			min_water_h = wh
+		var idx: int = pos.y * w + pos.x
+		height_grid[idx] = wh
+		is_water_grid[idx] = 1
+		bfs_queue.append(pos)
 
-	if min_water_h != INF:
-		datum_y = min_water_h - 1.0
-	elif profile != null and "base_height" in profile:
-		datum_y = float(profile.base_height) - 1.0
+	# Propagacion BFS inicial hacia celdas secas (O(N))
+	var head: int = 0
+	while head < bfs_queue.size():
+		var curr: Vector2i = bfs_queue[head]
+		head += 1
+		var curr_h: float = height_grid[curr.y * w + curr.x]
+		for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nx: int = curr.x + offset.x
+			var ny: int = curr.y + offset.y
+			if nx >= 0 and nx < w and ny >= 0 and ny < h:
+				var nidx: int = ny * w + nx
+				if is_water_grid[nidx] == 0 and height_grid[nidx] == 0.0:
+					height_grid[nidx] = curr_h
+					bfs_queue.append(Vector2i(nx, ny))
+
+	# 2. Interpolar visualmente la geometría de ríos (BLOQUE — Optimizar WaterMesh sin alterar datos hidráulicos)
+	# Principio: Separar datos hidráulicos de geometría.
+	# - hydro.water_cells es inmutable (contrato hidráulico preservado al 100%).
+	# - Lagos: rigurosamente planos (altura constante de vertedero).
+	# - Ríos: la geometría interpola suavemente entre los valores hidráulicos de celdas vecinas para eliminar "picos" y surcos en V.
+	var orig_water_h: PackedFloat32Array = height_grid.duplicate()
+	var next_h: PackedFloat32Array = height_grid.duplicate()
+
+	for it in range(3):
+		for y in range(h):
+			for x in range(w):
+				var idx: int = y * w + x
+				var pos := Vector2i(x, y)
+				if is_water_grid[idx] == 1:
+					var cdata: Dictionary = hydro.water_cells[pos]
+					if cdata.get("type") == "lake":
+						next_h[idx] = orig_water_h[idx]
+						continue
+
+					# Células de río: interpolar visualmente con vecinos de agua
+					var sum_h: float = 0.0
+					var count: float = 0.0
+					var min_local: float = orig_water_h[idx]
+					var max_local: float = orig_water_h[idx]
+					for dy in range(-1, 2):
+						for dx in range(-1, 2):
+							var npos := Vector2i(x + dx, y + dy)
+							if hydro.water_cells.has(npos):
+								var nidx: int = npos.y * w + npos.x
+								var n_orig: float = orig_water_h[nidx]
+								min_local = minf(min_local, n_orig)
+								max_local = maxf(max_local, n_orig)
+								var weight: float = 2.0 if (dx == 0 and dy == 0) else (1.0 if (dx == 0 or dy == 0) else 0.707)
+								sum_h += height_grid[nidx] * weight
+								count += weight
+					if count > 0.0:
+						var smoothed: float = sum_h / count
+						next_h[idx] = clampf(smoothed, min_local, max_local)
+		height_grid = next_h.duplicate()
+
+	# 3. Relajación armónica de Laplace en celdas secas (extensión continua ultra-suave)
+	for it in range(10):
+		for y in range(h):
+			var row_idx: int = y * w
+			for x in range(w):
+				var idx: int = row_idx + x
+				if is_water_grid[idx] == 1:
+					continue
+				var sum_h: float = 0.0
+				var count: int = 0
+				if x > 0:
+					sum_h += height_grid[idx - 1]
+					count += 1
+				if x < w - 1:
+					sum_h += height_grid[idx + 1]
+					count += 1
+				if y > 0:
+					sum_h += height_grid[idx - w]
+					count += 1
+				if y < h - 1:
+					sum_h += height_grid[idx + w]
+					count += 1
+				if count > 0:
+					height_grid[idx] = sum_h / float(count)
 
 	# 2. Generar grilla de vértices global: W * H vértices (1:1 con TerrainMeshBuilder)
 	for y in range(h):
@@ -83,33 +167,16 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 			var pos2i := Vector2i(x, y)
 			var is_water: bool = hydro.water_cells.has(pos2i)
 
-			var water_y: float = datum_y
+			var water_y: float = height_grid[y * w + x]
 			var mask: float = 0.0
 			var flow: Vector2 = Vector2.ZERO
 			var depth: float = 0.0
 
 			if is_water:
 				var cdata: Dictionary = hydro.water_cells[pos2i]
-				water_y = float(cdata.get("water_height", datum_y))
 				mask = 1.0
 				flow = Vector2(cdata.get("flow_dir", Vector2.ZERO))
 				depth = float(cdata.get("depth", 0.5))
-			else:
-				# Celda seca: extensión plana de orilla en frontera inmediata si toca agua
-				var neighbor_water_h: float = 0.0
-				var neighbor_count: int = 0
-				for dy in range(-1, 2):
-					for dx in range(-1, 2):
-						if dx == 0 and dy == 0:
-							continue
-						var npos := Vector2i(x + dx, y + dy)
-						if hydro.water_cells.has(npos):
-							neighbor_water_h += float(hydro.water_cells[npos].get("water_height", datum_y))
-							neighbor_count += 1
-				if neighbor_count > 0:
-					water_y = neighbor_water_h / float(neighbor_count)
-				else:
-					water_y = datum_y
 
 			var v_pos := Vector3(float(x), water_y, float(y))
 			var uv := Vector2(float(x) / float(w), float(y) / float(h))

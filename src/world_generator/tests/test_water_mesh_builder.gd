@@ -88,7 +88,21 @@ func _init() -> void:
 
 			if hydro.water_cells.has(pos2i):
 				var expected_h := float(hydro.water_cells[pos2i]["water_height"])
-				assert(is_equal_approx(wv.y, expected_h), "Cota de agua en (%d, %d) debe ser %f, es %f" % [x, y, expected_h, wv.y])
+				var c_type: String = str(hydro.water_cells[pos2i].get("type", "river"))
+				if c_type == "lake":
+					assert(is_equal_approx(wv.y, expected_h), "Cota de agua en (%d, %d) debe ser %f, es %f" % [x, y, expected_h, wv.y])
+				else:
+					var min_local: float = INF
+					var max_local: float = -INF
+					for dy in range(-1, 2):
+						for dx in range(-1, 2):
+							var np := Vector2i(x + dx, y + dy)
+							if hydro.water_cells.has(np):
+								var nwh := float(hydro.water_cells[np]["water_height"])
+								min_local = minf(min_local, nwh)
+								max_local = maxf(max_local, nwh)
+					assert(wv.y >= min_local - 0.01 and wv.y <= max_local + 0.01,
+						"Interpolacion de rio en (%d, %d) fuera de rango [%f, %f]: %f" % [x, y, min_local, max_local, wv.y])
 				assert(col.a == 1.0, "Mascara de agua debe ser 1.0 en water cell")
 				water_verified += 1
 			else:
