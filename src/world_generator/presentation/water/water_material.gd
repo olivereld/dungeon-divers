@@ -35,7 +35,11 @@ static func create_water_material(profile: WorldProfile, use_shader: bool = true
 	if use_shader and _ShaderRes != null:
 		var mat := ShaderMaterial.new()
 		mat.shader = _ShaderRes
+		var col_shore: Color = profile.water_color_shallow.lightened(0.15)
+		col_shore.a = 0.85
+		mat.set_shader_parameter("color_shore", col_shore)
 		mat.set_shader_parameter("color_shallow", profile.water_color_shallow)
+		mat.set_shader_parameter("color_mid", profile.water_color_medium)
 		mat.set_shader_parameter("color_deep", profile.water_color_lake)
 		mat.set_shader_parameter("roughness", profile.water_roughness)
 		mat.set_shader_parameter("noise_texture", _get_or_create_noise_texture())

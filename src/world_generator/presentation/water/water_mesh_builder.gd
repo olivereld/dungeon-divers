@@ -154,7 +154,7 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 	# PASO 4: SDF de orilla — delegado a ShorelineResolver (SRP)
 	# -------------------------------------------------------------------------
 	var topo: WaterTopology = _WaterTopologyScript.analyze(hydro.water_cells, w, h)
-	var shore_sdf: PackedFloat32Array = _ShorelineResolverScript.compute(hydro.water_cells, topo, w, h)
+	var shore_sdf: PackedFloat32Array = _ShorelineResolverScript.compute(hydro.water_cells, topo, w, h, result.master_seed)
 
 	# -------------------------------------------------------------------------
 	# PASO 5: Generar grilla de vertices global W*H (1:1 con TerrainMeshBuilder)
@@ -192,19 +192,3 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 			surf.add_triangle(i1, i3, i2)
 
 	return surf
-
-	# 3. Triangulación global: (W - 1) * (H - 1) quads (1:1 con TerrainMeshBuilder)
-	for y in range(h - 1):
-		for x in range(w - 1):
-			var i0 := y * w + x
-			var i1 := y * w + (x + 1)
-			var i2 := (y + 1) * w + x
-			var i3 := (y + 1) * w + (x + 1)
-
-			# Triángulo 1 (CCW para normal +Y)
-			surf.add_triangle(i0, i1, i2)
-			# Triángulo 2 (CCW para normal +Y)
-			surf.add_triangle(i1, i3, i2)
-
-	return surf
- 
