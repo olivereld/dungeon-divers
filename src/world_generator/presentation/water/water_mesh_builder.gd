@@ -1,8 +1,8 @@
 class_name WaterMeshBuilder
 extends RefCounted
 
-## Builder canónico y unificado de mallas de agua global (BLOQUE — WaterMesh Global).
-## Genera un único ArrayMesh global que comparte el contrato espacial 1:1 con TerrainMeshBuilder.
+## Builder canonico y unificado de mallas de agua global (BLOQUE — WaterMesh Global).
+## Genera un unico ArrayMesh global que comparte el contrato espacial 1:1 con TerrainMeshBuilder.
 ##
 ## Principios:
 ## 1. Contrato espacial 1:1 con TerrainMesh:
@@ -10,34 +10,34 @@ extends RefCounted
 ##    - WaterMesh.extent == TerrainMesh.extent (X in [0, W-1], Z in [0, H-1])
 ##    - WaterMesh.resolution == TerrainMesh.resolution (W * H vertices)
 ##    - WaterMesh.indices == TerrainMesh.indices ((W-1) * (H-1) * 2 triangles)
-## 2. Separación de Geometría y Estado Hidráulico:
-##    - La geometría existe para toda la grilla del mundo (W * H).
-##    - water_cells actúa exclusivamente como máscara hidráulica (COLOR.a = 1.0 agua, 0.0 seco).
-## 3. Altura de celdas secas (Respaldo Geométrico sin invención hidráulica):
+## 2. Separacion de responsabilidades:
+##    - ShorelineResolver: todo el calculo del SDF (curvas, distancias, signo)
+##    - WaterMeshBuilder:  solo geometria y empaquetado en ArrayMesh
+##    - water_flow.gdshader: 4 capas independientes (silueta / depth / noise / foam)
+## 3. Altura de celdas secas (Respaldo Geometrico sin invencion hidraulica):
 ##    - Water cells: vertex.y = water_cells[pos]["water_height"].
-##    - Dry cells: NO se inventa water_height ni se alteran water_cells.
-##      Adopta una cota geométrica de respaldo estructural (datum global y extensión de orilla plana).
-## 4. Independencia del TerrainMesh:
-##    - No copia cell.height ni calcula offsets sobre el terreno.
-##    - Coincidencia puramente espacial, nunca hidráulica.
+##    - Dry cells: extension armonica de Laplace (datum suave, nunca dato inventado).
+## 4. Invarianza hidraulica estricta:
+##    - hydro.water_cells permanece 100% inmutable durante toda la construccion.
 
 const _WaterSurfaceDataScript = preload("res://src/world_generator/presentation/water/water_surface_data.gd")
-const _WaterTopologyScript = preload("res://src/world_generator/presentation/water/water_topology.gd")
+const _WaterTopologyScript    = preload("res://src/world_generator/presentation/water/water_topology.gd")
+const _ShorelineResolverScript = preload("res://src/world_generator/presentation/water/shoreline_resolver.gd")
 
-## API canónica de entrada para construir la malla de agua global
+## API canonica: construye el ArrayMesh global del agua
 static func build_mesh(result: WorldResult, profile = null) -> ArrayMesh:
 	var surf: WaterSurfaceData = build_water_surface(result, profile)
 	if surf == null:
 		return null
 	return surf.to_array_mesh()
 
-## Analiza y retorna la topología hidráulica formal de water_cells (BLOQUE 6)
+## Analiza y retorna la topologia hidraulica formal de water_cells
 static func build_topology(result: WorldResult) -> WaterTopology:
 	if result == null or result.hydrology == null:
 		return null
 	return _WaterTopologyScript.analyze(result.hydrology.water_cells, result.dimensions.x, result.dimensions.y)
 
-## Construye la superficie global del agua cubriendo la grilla completa del mundo (1:1 con TerrainMesh)
+## Construye la superficie global del agua cubriendo la grilla completa (1:1 con TerrainMesh)
 static func build_water_surface(result: WorldResult, profile = null) -> WaterSurfaceData:
 	if result == null or result.hydrology == null:
 		return null
@@ -48,26 +48,22 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 
 	if w <= 1 or h <= 1:
 		return null
-
-	# Si el mundo no tiene ninguna celda de agua definida, no se instancia malla
 	if hydro.water_cells.is_empty():
 		return null
 
 	var surf := _WaterSurfaceDataScript.new()
 
 	var col_shallow: Color = Color(0.20, 0.55, 0.70, 1.0)
-	var col_deep: Color = Color(0.05, 0.25, 0.45, 1.0)
+	var col_deep: Color    = Color(0.05, 0.25, 0.45, 1.0)
 	if profile != null:
 		if "water_color_shallow" in profile:
 			col_shallow = profile.water_color_shallow
 		if "water_color_lake" in profile:
 			col_deep = profile.water_color_lake
 
-	# 1. Resolver el campo continuo de cotas de agua (BLOQUE — Regularizar WaterMesh)
-	# Principio: Dirichlet boundary condition.
-	# - Celdas de agua: altura estrictamente fija = hydro.water_cells[pos]["water_height"].
-	# - Celdas secas: extension suave continua via propagacion BFS + relajacion armonica de Laplace.
-	# Garantiza continuidad C0, pendientes controladas y ausencia total de picos o saltos bruscos a datum.
+	# -------------------------------------------------------------------------
+	# PASO 1: Campo de cotas de agua — Dirichlet + BFS + Laplace
+	# -------------------------------------------------------------------------
 	var height_grid: PackedFloat32Array = PackedFloat32Array()
 	height_grid.resize(w * h)
 	var is_water_grid: PackedByteArray = PackedByteArray()
@@ -81,7 +77,7 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 		is_water_grid[idx] = 1
 		bfs_queue.append(pos)
 
-	# Propagacion BFS inicial hacia celdas secas (O(N))
+	# Propagacion BFS hacia celdas secas
 	var head: int = 0
 	while head < bfs_queue.size():
 		var curr: Vector2i = bfs_queue[head]
@@ -96,15 +92,13 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 					height_grid[nidx] = curr_h
 					bfs_queue.append(Vector2i(nx, ny))
 
-	# 2. Interpolar visualmente la geometría de ríos (BLOQUE — Optimizar WaterMesh sin alterar datos hidráulicos)
-	# Principio: Separar datos hidráulicos de geometría.
-	# - hydro.water_cells es inmutable (contrato hidráulico preservado al 100%).
-	# - Lagos: rigurosamente planos (altura constante de vertedero).
-	# - Ríos: la geometría interpola suavemente entre los valores hidráulicos de celdas vecinas para eliminar "picos" y surcos en V.
+	# -------------------------------------------------------------------------
+	# PASO 2: Suavizado visual de rios (sin alterar datos hidraulicos)
+	# -------------------------------------------------------------------------
 	var orig_water_h: PackedFloat32Array = height_grid.duplicate()
 	var next_h: PackedFloat32Array = height_grid.duplicate()
 
-	for it in range(3):
+	for _it in range(3):
 		for y in range(h):
 			for x in range(w):
 				var idx: int = y * w + x
@@ -114,8 +108,6 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 					if cdata.get("type") == "lake":
 						next_h[idx] = orig_water_h[idx]
 						continue
-
-					# Células de río: interpolar visualmente con vecinos de agua
 					var sum_h: float = 0.0
 					var count: float = 0.0
 					var min_local: float = orig_water_h[idx]
@@ -132,12 +124,13 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 								sum_h += height_grid[nidx] * weight
 								count += weight
 					if count > 0.0:
-						var smoothed: float = sum_h / count
-						next_h[idx] = clampf(smoothed, min_local, max_local)
+						next_h[idx] = clampf(sum_h / count, min_local, max_local)
 		height_grid = next_h.duplicate()
 
-	# 3. Relajación armónica de Laplace en celdas secas (extensión continua ultra-suave)
-	for it in range(10):
+	# -------------------------------------------------------------------------
+	# PASO 3: Relajacion armonica de Laplace en celdas secas
+	# -------------------------------------------------------------------------
+	for _it in range(10):
 		for y in range(h):
 			var row_idx: int = y * w
 			for x in range(w):
@@ -146,18 +139,10 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 					continue
 				var sum_h: float = 0.0
 				var count: int = 0
-				if x > 0:
-					sum_h += height_grid[idx - 1]
-					count += 1
-				if x < w - 1:
-					sum_h += height_grid[idx + 1]
-					count += 1
-				if y > 0:
-					sum_h += height_grid[idx - w]
-					count += 1
-				if y < h - 1:
-					sum_h += height_grid[idx + w]
-					count += 1
+				if x > 0:          sum_h += height_grid[idx - 1]; count += 1
+				if x < w - 1:      sum_h += height_grid[idx + 1]; count += 1
+				if y > 0:          sum_h += height_grid[idx - w]; count += 1
+				if y < h - 1:      sum_h += height_grid[idx + w]; count += 1
 				if count > 0:
 					var relaxed: float = sum_h / float(count)
 					if result.cells.has(Vector2i(x, y)):
@@ -165,29 +150,48 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 					else:
 						height_grid[idx] = relaxed
 
-	# 2. Generar grilla de vértices global: W * H vértices (1:1 con TerrainMeshBuilder)
+	# -------------------------------------------------------------------------
+	# PASO 4: SDF de orilla — delegado a ShorelineResolver (SRP)
+	# -------------------------------------------------------------------------
+	var topo: WaterTopology = _WaterTopologyScript.analyze(hydro.water_cells, w, h)
+	var shore_sdf: PackedFloat32Array = _ShorelineResolverScript.compute(hydro.water_cells, topo, w, h)
+
+	# -------------------------------------------------------------------------
+	# PASO 5: Generar grilla de vertices global W*H (1:1 con TerrainMeshBuilder)
+	# -------------------------------------------------------------------------
 	for y in range(h):
 		for x in range(w):
 			var pos2i := Vector2i(x, y)
 			var is_water: bool = hydro.water_cells.has(pos2i)
-
 			var water_y: float = height_grid[y * w + x]
-			var mask: float = 0.0
 			var flow: Vector2 = Vector2.ZERO
 			var depth: float = 0.0
 
 			if is_water:
 				var cdata: Dictionary = hydro.water_cells[pos2i]
-				mask = 1.0
-				flow = Vector2(cdata.get("flow_dir", Vector2.ZERO))
+				flow  = Vector2(cdata.get("flow_dir", Vector2.ZERO))
 				depth = float(cdata.get("depth", 0.5))
 
 			var v_pos := Vector3(float(x), water_y, float(y))
-			var uv := Vector2(float(x) / float(w), float(y) / float(h))
+			var uv    := Vector2(float(x) / float(w), float(y) / float(h))
 			var col: Color = col_shallow.lerp(col_deep, clampf(depth / 3.0, 0.0, 1.0))
-			col.a = mask
+			col.a = shore_sdf[y * w + x]   # SDF empaquetado en COLOR.a
 
 			surf.add_vertex(v_pos, Vector3.UP, uv, flow, col)
+
+	# -------------------------------------------------------------------------
+	# PASO 6: Triangulacion global (W-1)*(H-1) quads (1:1 con TerrainMeshBuilder)
+	# -------------------------------------------------------------------------
+	for y in range(h - 1):
+		for x in range(w - 1):
+			var i0 := y * w + x
+			var i1 := y * w + (x + 1)
+			var i2 := (y + 1) * w + x
+			var i3 := (y + 1) * w + (x + 1)
+			surf.add_triangle(i0, i1, i2)
+			surf.add_triangle(i1, i3, i2)
+
+	return surf
 
 	# 3. Triangulación global: (W - 1) * (H - 1) quads (1:1 con TerrainMeshBuilder)
 	for y in range(h - 1):
@@ -203,3 +207,4 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 			surf.add_triangle(i1, i3, i2)
 
 	return surf
+ 

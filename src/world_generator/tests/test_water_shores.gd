@@ -123,10 +123,10 @@ func _test_closing_criterion_grid() -> void:
 			var idx := y * 5 + x
 			var col: Color = surf.colors[idx]
 			if hydro.water_cells.has(Vector2i(x, y)):
-				assert(col.a == 1.0, "Water cell at (%d, %d) must have mask 1.0" % [x, y])
+				assert(col.a >= 0.5, "Water cell at (%d, %d) must have SDF mask >= 0.5" % [x, y])
 				active_mask_count += 1
 			else:
-				assert(col.a == 0.0, "Dry cell at (%d, %d) must have mask 0.0" % [x, y])
+				assert(col.a < 0.5, "Dry cell at (%d, %d) must have SDF mask < 0.5" % [x, y])
 	assert(active_mask_count == 10, "Active water mask count must be 10")
 	print("  [PASS] Water mask separates water cells from dry cells exactly on the boundary.")
 

@@ -103,16 +103,16 @@ func _init() -> void:
 								max_local = maxf(max_local, nwh)
 					assert(wv.y >= min_local - 0.01 and wv.y <= max_local + 0.01,
 						"Interpolacion de rio en (%d, %d) fuera de rango [%f, %f]: %f" % [x, y, min_local, max_local, wv.y])
-				assert(col.a == 1.0, "Mascara de agua debe ser 1.0 en water cell")
+				assert(col.a >= 0.5, "SDF de agua debe ser >= 0.5 en water cell")
 				water_verified += 1
 			else:
-				assert(col.a == 0.0, "Mascara de agua debe ser 0.0 en dry cell")
+				assert(col.a < 0.5, "SDF de agua debe ser < 0.5 en dry cell")
 				assert(is_finite(wv.y), "Cota de celda seca debe ser finita")
 				dry_verified += 1
 
 	assert(water_verified == water_cell_count, "Todas las water_cells deben ser verificadas")
 	assert(dry_verified == (w * h) - water_cell_count, "Todas las dry_cells deben ser verificadas")
-	print("  [PASS] Invariante 4: Mascara y cotas verificadas (%d agua @ 1.0, %d secas @ 0.0)" % [water_verified, dry_verified])
+	print("  [PASS] Invariante 4: Mascara SDF y cotas verificadas (%d agua @ >=0.5, %d secas @ <0.5)" % [water_verified, dry_verified])
 
 	# Invariante 5: Aislamiento hidráulico (cero invención de celdas en hydro.water_cells)
 	assert(hydro.water_cells.size() == water_cell_count,
