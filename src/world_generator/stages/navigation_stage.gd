@@ -10,16 +10,22 @@ enum SlopeCategory {
 
 func execute(context: WorldGenerationContext) -> void:
 	var profile: WorldProfile = context.profile
+	var core_bounds: Rect2i = context.get_core_bounds() if context.has_method("get_core_bounds") else Rect2i(0, 0, profile.width, profile.height)
+	var is_chunk: bool = context.has_method("is_chunk_context") and context.is_chunk_context()
+
 	var walkable_count: int = 0
-	var total_cells: int = profile.width * profile.height
+	var total_cells: int = core_bounds.size.x * core_bounds.size.y
 
 	var best_spawn_pos := Vector2i(-1, -1)
 	var min_spawn_slope := INF
 	var center := Vector2(float(profile.width) * 0.5, float(profile.height) * 0.5)
 
-	for y in range(profile.height):
-		for x in range(profile.width):
-			var cell := context.result.get_cell(Vector2i(x, y))
+	for y in range(core_bounds.position.y, core_bounds.end.y):
+		for x in range(core_bounds.position.x, core_bounds.end.x):
+			var pos := Vector2i(x, y)
+			var cell := context.result.get_cell(pos)
+			if cell == null:
+				continue
 
 			if cell.slope < 10.0:
 				cell.slope_category = SlopeCategory.FLAT
@@ -31,7 +37,6 @@ func execute(context: WorldGenerationContext) -> void:
 				cell.slope_category = SlopeCategory.CLIFF
 
 			var is_walkable := (cell.slope <= profile.max_walkable_slope)
-			var pos := Vector2i(x, y)
 			var hydro = context.result.hydrology
 			var in_water := false
 			if hydro != null and hydro.has_method("is_water") and hydro.is_water(pos):
@@ -43,18 +48,19 @@ func execute(context: WorldGenerationContext) -> void:
 			if cell.is_walkable:
 				walkable_count += 1
 
-				# Prefer spawn near center with lowest slope on dry land
-				if not in_water:
+				# Prefer spawn near center with lowest slope on dry land (solo para contexto mundial)
+				if not is_chunk and not in_water:
 					var dist_to_center := Vector2(float(x), float(y)).distance_to(center)
 					var score := cell.slope + (dist_to_center * 0.2)
 					if score < min_spawn_slope:
 						min_spawn_slope = score
 						best_spawn_pos = pos
 
-	if best_spawn_pos != Vector2i(-1, -1):
-		var spawn_cell := context.result.get_cell(best_spawn_pos)
-		context.result.spawn_position = Vector3(float(best_spawn_pos.x), spawn_cell.height, float(best_spawn_pos.y))
+	if not is_chunk:
+		if best_spawn_pos != Vector2i(-1, -1):
+			var spawn_cell := context.result.get_cell(best_spawn_pos)
+			context.result.spawn_position = Vector3(float(best_spawn_pos.x), spawn_cell.height, float(best_spawn_pos.y))
 
-	context.result.metadata["walkable_ratio"] = float(walkable_count) / float(total_cells)
-	context.result.metadata["walkable_cells"] = walkable_count
-	context.result.metadata["total_cells"] = total_cells
+		context.result.metadata["walkable_ratio"] = float(walkable_count) / float(total_cells)
+		context.result.metadata["walkable_cells"] = walkable_count
+		context.result.metadata["total_cells"] = total_cells

@@ -15,9 +15,14 @@ func execute(context: WorldGenerationContext) -> void:
 	moisture_noise.seed = eco_seed + 101
 	moisture_noise.frequency = profile.get_moisture_frequency()
 
-	for y in range(profile.height):
-		for x in range(profile.width):
-			var cell := context.result.get_cell(Vector2i(x, y))
+	var core_bounds: Rect2i = context.get_core_bounds() if context.has_method("get_core_bounds") else Rect2i(0, 0, profile.width, profile.height)
+
+	for y in range(core_bounds.position.y, core_bounds.end.y):
+		for x in range(core_bounds.position.x, core_bounds.end.x):
+			var pos := Vector2i(x, y)
+			var cell: WorldCell = context.result.get_cell(pos)
+			if cell == null:
+				continue
 			var sample_x: float = float(x) * profile.cell_size
 			var sample_y: float = float(y) * profile.cell_size
 			var raw_forest := (forest_noise.get_noise_2d(sample_x, sample_y) + 1.0) * 0.5
@@ -46,7 +51,6 @@ func execute(context: WorldGenerationContext) -> void:
 				else:
 					cell.canopy_zone = WorldCell.CanopyZone.SPARSE_FOREST
 
-			var pos := Vector2i(x, y)
 			var base_moisture: float = raw_moisture
 
 			# Riparian boost near lakes and rivers
