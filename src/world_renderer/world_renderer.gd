@@ -3,6 +3,7 @@ extends Node3D
 
 const _TerrainMaterialScript = preload("res://src/world_generator/presentation/terrain_material.gd")
 const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
+const _ProceduralRockGeneratorScript = preload("res://src/world_renderer/procedural_rock_generator.gd")
 
 func render_world(
 		result: WorldResult,
@@ -27,7 +28,7 @@ func render_world(
 	var terrain_mi := MeshInstance3D.new()
 	terrain_mi.name = "TerrainMesh"
 	terrain_mi.mesh = mesh
-	terrain_mi.set_surface_override_material(0, _TerrainMaterialScript.create_material())
+	terrain_mi.set_surface_override_material(0, _TerrainMaterialScript.create_material(profile))
 	root.add_child(terrain_mi)
 
 	# Overlay de depuracion wireframe para terreno
@@ -79,7 +80,7 @@ func _spawn_vegetation_multimeshes(parent: Node3D, result: WorldResult) -> void:
 	var conifer_offset := 0.0 if not (conifer_mesh is CylinderMesh) else 1.95
 	_create_multimesh(parent, "Conifers", conifer_mesh, conifers, conifer_offset)
 	_create_multimesh(parent, "Shrubs", _create_shrub_mesh(), shrubs, 0.30)
-	_create_multimesh(parent, "Rocks", _create_rock_mesh(), rocks, 0.20)
+	_spawn_rock_multimeshes(parent, rocks)
 
 func _create_multimesh(parent: Node3D, name_id: String, base_mesh: Mesh, items: Array[WorldVegetationItem], base_y_offset: float = 0.0) -> void:
 	if items.is_empty():
@@ -230,10 +231,81 @@ func _create_shrub_mesh() -> SphereMesh:
 	mesh.material = mat
 	return mesh
 
-func _create_rock_mesh() -> BoxMesh:
+func _create_rock_mesh() -> Mesh:
+	var variants: Array[Mesh] = _ProceduralRockGeneratorScript.get_rock_variants()
+	if not variants.is_empty():
+		return variants[0]
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(1.2, 0.8, 1.0)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.42, 0.42, 0.45)
 	mesh.material = mat
 	return mesh
+
+func _spawn_rock_multimeshes(parent: Node3D, items: Array[WorldVegetationItem]) -> void:
+	if items.is_empty():
+		return
+
+	var variants: Array[Mesh] = _ProceduralRockGeneratorScript.get_rock_variants()
+	if variants.is_empty():
+		_create_multimesh(parent, "Rocks", _create_rock_mesh(), items, 0.20)
+		return
+
+	var num_variants: int = variants.size()
+	var buckets: Array = []
+	for i in range(num_variants):
+		var b: Array[WorldVegetationItem] = []
+		buckets.append(b)
+
+	# Distribuir rocas en las variantes mediante hash espacial consistente
+	for item in items:
+		var h: int = int(abs(item.position.x * 73.0 + item.position.z * 179.0))
+		var v_idx: int = h % num_variants
+		buckets[v_idx].append(item)
+
+	var rocks_container := Node3D.new()
+	rocks_container.name = "Rocks"
+	parent.add_child(rocks_container)
+
+	for v in range(num_variants):
+		var bucket_items: Array[WorldVegetationItem] = buckets[v]
+		if bucket_items.is_empty():
+			continue
+
+		var mesh: Mesh = variants[v]
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "RockVariant_%d" % v
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = bucket_items.size()
+
+		for i in range(bucket_items.size()):
+			var item := bucket_items[i]
+			var seed_hash: int = int(abs(item.position.x * 311.0 + item.position.z * 617.0)) & 0x7FFFFFFF
+			var rng := RandomNumberGenerator.new()
+			rng.seed = seed_hash
+
+			# Variación individual no uniforme de escala (aspectos únicos: achatado, alargado o compacto)
+			var sx: float = rng.randf_range(0.85, 1.20)
+			var sy: float = rng.randf_range(0.75, 1.18)
+			var sz: float = rng.randf_range(0.85, 1.20)
+			var base_scale: float = item.scale
+
+			var t := Transform3D()
+			t = t.scaled(Vector3(base_scale * sx, base_scale * sy, base_scale * sz))
+
+			# Rotación 3D natural completa: guiñada yaw 0-360° más leves inclinaciones pitch/roll (-12° a +12°)
+			var pitch: float = rng.randf_range(-0.20, 0.20)
+			var roll: float = rng.randf_range(-0.20, 0.20)
+			t = t.rotated(Vector3.RIGHT, pitch)
+			t = t.rotated(Vector3.FORWARD, roll)
+			t = t.rotated(Vector3.UP, item.rotation_y)
+
+			# Arraigo: base descansando firmemente sobre el terreno
+			var base_y_offset: float = 0.12
+			t.origin = item.position + Vector3(0.0, base_y_offset * base_scale, 0.0)
+			mm.set_instance_transform(i, t)
+
+		mmi.multimesh = mm
+		rocks_container.add_child(mmi)

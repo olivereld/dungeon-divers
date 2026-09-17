@@ -148,6 +148,9 @@ func get_hydrology_noise_frequency() -> float:
 @export_range(0.05, 0.80, 0.02) var river_channel_depth: float = 0.20
 @export_range(0.05, 2.0, 0.02) var river_min_depth: float = 0.08
 @export_range(0.1, 5.0, 0.05) var river_max_depth: float = 0.50
+@export_range(0.0, 0.50, 0.01) var river_freeboard: float = 0.08
+@export_range(0.0, 0.50, 0.01) var shoreline_bank_bevel: float = 0.18
+@export_range(-0.50, 0.50, 0.02) var shoreline_offset: float = 0.0
 @export_range(0.2, 1.0, 0.05) var river_depth_response: float = 0.45
 @export_range(0.2, 1.0, 0.05) var river_width_response: float = 0.42
 
@@ -176,4 +179,16 @@ func get_hydrology_noise_frequency() -> float:
 @export var water_color_lake: Color = Color("#073b5e")
 @export_range(0.0, 1.0, 0.02) var water_roughness: float = 0.08
 @export_range(0.1, 1.0, 0.05) var water_transparency: float = 0.85
+
+# Hydrology - Shoreline Textures (Rocas de Río y Franja de Arena)
+@export_group("Hydrology - Shoreline Textures")
+@export_range(-1.5, 1.5, 0.05) var shoreline_rock_offset: float = 0.35
+@export_range(0.05, 1.0, 0.05) var shoreline_rock_fade: float = 0.25
+@export_range(-3.0, 0.0, 0.05) var shoreline_sand_offset: float = -0.55
+@export_range(0.05, 1.0, 0.05) var shoreline_sand_fade: float = 0.35
+@export_range(0.05, 2.0, 0.05) var riverbed_uv_scale: float = 0.35
+@export_range(0.05, 2.0, 0.05) var sand_uv_scale: float = 0.40
+@export_range(0.05, 2.0, 0.05) var grass_uv_scale: float = 0.35
+@export_range(0.05, 2.0, 0.05) var forest_grass_uv_scale: float = 0.35
+@export_range(0.05, 2.0, 0.05) var forest_dirt_uv_scale: float = 0.35
 

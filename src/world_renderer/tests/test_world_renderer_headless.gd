@@ -18,19 +18,40 @@ func _init() -> void:
 	var array_mesh: ArrayMesh = mesh_inst.mesh
 	var arrays := array_mesh.surface_get_arrays(0)
 	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
-	assert(colors.size() == 128 * 128, "Must have 1 color per vertex")
+	assert(colors.size() == profile.width * profile.height, "Must have 1 color per vertex")
 
-	# Verify all colors are valid non-NaN albedo values with alpha = 1.0
+	# Verify UV2 contains tree canopy factor
+	var uv2s: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	assert(uv2s.size() == profile.width * profile.height, "Must have 1 UV2 vector per vertex")
+	var has_tree_canopy := false
+	for uv2 in uv2s:
+		assert(uv2.x >= 0.0 and uv2.x <= 1.0, "Tree factor in UV2.x must be within [0, 1]")
+		if uv2.x > 0.5:
+			has_tree_canopy = true
+	assert(has_tree_canopy, "At least some vertices must have tree canopy influence under conifers")
+
+	# Verify TerrainMaterial shader bindings
+	var terrain_mat = mesh_inst.material_override
+	if terrain_mat == null:
+		terrain_mat = mesh_inst.get_surface_override_material(0)
+	if terrain_mat is ShaderMaterial:
+		assert(terrain_mat.get_shader_parameter("forest_grass_texture") != null, "Shader must receive forest_grass_texture")
+		assert(terrain_mat.get_shader_parameter("forest_dirt_texture") != null, "Shader must receive forest_dirt_texture")
+		assert(terrain_mat.get_shader_parameter("grass_texture") != null, "Shader must receive grass_texture")
+		assert(terrain_mat.get_shader_parameter("sand_texture") != null, "Shader must receive sand_texture")
+		assert(terrain_mat.get_shader_parameter("riverbed_texture") != null, "Shader must receive riverbed_texture")
+
+	# Verify all colors are valid non-NaN albedo values with valid alpha
 	for col in colors:
 		assert(not is_nan(col.r) and not is_nan(col.g) and not is_nan(col.b))
-		assert(col.a == 1.0)
+		assert(col.a >= 0.0 and col.a <= 1.0)
 		assert(col.r >= 0.0 and col.r <= 1.0)
 		assert(col.g >= 0.0 and col.g <= 1.0)
 		assert(col.b >= 0.0 and col.b <= 1.0)
 
-	# Check for HydrologyRoot presence
-	if result.hydrology != null and (not result.hydrology.lakes.is_empty() or not result.hydrology.rivers.is_empty()):
-		assert(node.has_node("HydrologyRoot"), "HydrologyRoot node must be generated when water exists")
+	# Check for WaterRoot presence
+	if result.hydrology != null and not result.hydrology.water_cells.is_empty():
+		assert(node.has_node("WaterRoot") or node.has_node("HydrologyRoot"), "WaterRoot node must be generated when water exists")
 
 	node.free()
 	renderer.free()

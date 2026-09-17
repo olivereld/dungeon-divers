@@ -34,7 +34,8 @@ static func compute(
 		w: int,
 		h: int,
 		seed_val: int = 0,
-		displacement_amplitude: float = DEFAULT_ORGANIC_AMPLITUDE
+		displacement_amplitude: float = DEFAULT_ORGANIC_AMPLITUDE,
+		shoreline_offset: float = -0.3
 	) -> PackedFloat32Array:
 
 	var sdf: PackedFloat32Array = PackedFloat32Array()
@@ -82,6 +83,7 @@ static func compute(
 				sign_val = 1.0 if water_cells.has(pos2i) else -1.0
 
 			var signed_dist: float = sqrt(min_dist_sq) * sign_val
+			signed_dist += shoreline_offset
 			sdf[y * w + x] = clampf(0.5 + signed_dist / (2.0 * MAX_QUERY_DIST), 0.0, 1.0)
 
 	return sdf
@@ -259,10 +261,18 @@ static func _compute_sign(
 	# Para contornos abiertos (e.g. rios que cruzan la grilla), usar orientacion local de la arista
 	var d: Vector2 = nearest_seg[1] - nearest_seg[0]
 	var cross: float = d.x * (point.y - nearest_seg[0].y) - d.y * (point.x - nearest_seg[0].x)
-	if absf(cross) > 0.0001:
+	var seg_len: float = d.length()
+	var normalized_cross: float = cross / maxf(seg_len, 0.0001)
+
+	# La celda de grilla es la autoridad final: si water_cells dice que es agua,
+	# nunca debe salir signo negativo (nunca debe descartarse en el shader).
+	if water_cells.has(pos2i):
+		return 1.0
+
+	if absf(normalized_cross) > 0.05:
 		return 1.0 if cross > 0.0 else -1.0
 
-	return 1.0 if water_cells.has(pos2i) else -1.0
+	return -1.0
 
 static func _winding_number(point: Vector2, poly: PackedVector2Array) -> int:
 	var wn: int = 0

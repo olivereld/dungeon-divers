@@ -83,6 +83,9 @@ func _init() -> void:
 	river_channel_depth = 0.22
 	river_min_depth = 0.08
 	river_max_depth = 0.45
+	river_freeboard = 0.08
+	shoreline_bank_bevel = 0.18
+	shoreline_offset = 0.0
 	river_depth_response = 0.45
 	river_width_response = 0.42
 	water_field_resolution = 224
@@ -102,5 +105,16 @@ func _init() -> void:
 	water_color_lake = Color("#073b5e")
 	water_roughness = 0.08
 	water_transparency = 0.90
+
+	# Texturas de Ribera y Lecho
+	shoreline_rock_offset = 0.35
+	shoreline_rock_fade = 0.25
+	shoreline_sand_offset = -0.55
+	shoreline_sand_fade = 0.35
+	riverbed_uv_scale = 0.35
+	sand_uv_scale = 0.40
+	grass_uv_scale = 0.35
+	forest_grass_uv_scale = 0.35
+	forest_dirt_uv_scale = 0.35
 
 
