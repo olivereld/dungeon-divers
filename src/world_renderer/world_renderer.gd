@@ -27,7 +27,7 @@ func render_world(
 	var terrain_mi := MeshInstance3D.new()
 	terrain_mi.name = "TerrainMesh"
 	terrain_mi.mesh = mesh
-	terrain_mi.set_surface_override_material(0, _TerrainMaterialScript.create_material())
+	terrain_mi.set_surface_override_material(0, _TerrainMaterialScript.create_material(profile))
 	root.add_child(terrain_mi)
 
 	# Overlay de depuracion wireframe para terreno

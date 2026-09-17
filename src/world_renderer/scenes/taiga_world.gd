@@ -28,10 +28,23 @@ var profile: TaigaWorldProfile = null
 var test_player: CharacterBody3D = null
 var is_player_active: bool = true
 var player_toggle_btn: Button = null
+
+# Water Ripple & Interaction State
+var _active_ripples: Array[Vector4] = []
+var _ripple_index: int = 0
+var _last_ripple_pos: Vector3 = Vector3.ZERO
+var _last_ripple_time: float = -10.0
+var _cached_water_material: ShaderMaterial = null
+
+# Visibility & Wireframe Toggles
+var is_terrain_visible: bool = true
+var terrain_toggle_btn: Button = null
+var is_water_visible: bool = true
+var water_toggle_btn: Button = null
+var is_wireframe_active: bool = false
+var wireframe_toggle_btn: Button = null
 var is_water_wireframe_active: bool = false
-var water_wireframe_btn: Button = null
 var is_terrain_wireframe_active: bool = false
-var terrain_wireframe_btn: Button = null
 
 # Camera & Navigation
 var camera_rig: IsometricCameraRig = null
@@ -58,7 +71,13 @@ var auto_gen_btn: Button = null
 var is_auto_gen: bool = true
 var gen_btn: Button = null
 
-# LeftPanel Sliders
+# LeftPanel Tabs & Sliders
+enum LeftTab { TERRAIN, WATER }
+var active_left_tab: LeftTab = LeftTab.TERRAIN
+var tab_btn_left_terrain: Button = null
+var tab_btn_left_water: Button = null
+var panel_terrain_vbox: VBoxContainer = null
+var panel_water_vbox: VBoxContainer = null
 var _sliders: Dictionary = {}
 
 # RightPanel Tabs & Containers
@@ -318,6 +337,8 @@ func _setup_3d_environment() -> void:
 	camera_rig.set_follow_enabled(true)
 
 func _process(delta: float) -> void:
+	_update_water_interaction(delta)
+
 	if camera_rig == null or focus_target == null:
 		return
 
@@ -347,6 +368,99 @@ func _process(delta: float) -> void:
 			var max_h := float(profile.height)
 			focus_target.global_position.x = clampf(focus_target.global_position.x, 0.0, max_w)
 			focus_target.global_position.z = clampf(focus_target.global_position.z, 0.0, max_h)
+
+func _update_water_interaction(delta: float) -> void:
+	if world_container == null or not is_water_visible:
+		return
+
+	if _cached_water_material == null or not is_instance_valid(_cached_water_material):
+		var mi = world_container.find_child("UnifiedWaterSurface", true, false) as MeshInstance3D
+		if mi != null:
+			var mat = mi.material_override
+			if mat == null:
+				mat = mi.get_surface_override_material(0)
+			if mat is ShaderMaterial:
+				_cached_water_material = mat
+
+	if _cached_water_material == null:
+		return
+
+	# 1. Expandir y atenuar los ripples activos frame a frame en GDScript (sin desfase con TIME)
+	if _active_ripples.size() < 8:
+		_active_ripples.resize(8)
+		for i in range(8):
+			_active_ripples[i] = Vector4(0.0, 0.0, 0.0, 0.0)
+
+	for i in range(8):
+		var rip: Vector4 = _active_ripples[i]
+		if rip.w > 0.005:
+			var new_r: float = rip.z + 1.25 * delta # Expansión suave a 1.25 m/s
+			var new_a: float = rip.w - 1.20 * delta # Se disuelve en ~0.83s
+			if new_a <= 0.0:
+				new_a = 0.0
+			_active_ripples[i] = Vector4(rip.x, rip.y, new_r, new_a)
+
+	if not is_player_active or test_player == null or not is_instance_valid(test_player):
+		_cached_water_material.set_shader_parameter("player_in_water", 0.0)
+		_cached_water_material.set_shader_parameter("player_speed", 0.0)
+		_cached_water_material.set_shader_parameter("ripples", _active_ripples)
+		return
+
+	var p_pos: Vector3 = test_player.global_position
+	var p_vel: Vector3 = test_player.velocity
+	var p_speed: float = Vector2(p_vel.x, p_vel.z).length()
+
+	# Determinar si los pies del jugador están en el agua
+	var is_in_water: bool = false
+	var water_h: float = -999.0
+	if current_result != null and current_result.hydrology != null:
+		var c_pos := Vector2i(roundi(p_pos.x), roundi(p_pos.z))
+		var hydro: HydrologyResult = current_result.hydrology
+		if hydro.water_cells.has(c_pos):
+			var cdata: Dictionary = hydro.water_cells[c_pos]
+			water_h = float(cdata.get("water_height", -999.0))
+		elif not hydro.water_cells.is_empty():
+			var min_wh: float = INF
+			for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]:
+				var np: Vector2i = c_pos + off
+				if hydro.water_cells.has(np):
+					var wh: float = float(hydro.water_cells[np].get("water_height", -999.0))
+					if wh != -999.0 and wh < min_wh:
+						min_wh = wh
+			if min_wh != INF:
+				water_h = min_wh
+
+	if water_h != -999.0 and p_pos.y <= water_h + 0.30 and p_pos.y >= water_h - 2.5:
+		is_in_water = true
+
+	var now: float = float(Time.get_ticks_msec()) / 1000.0
+
+	_cached_water_material.set_shader_parameter("player_pos", p_pos)
+	_cached_water_material.set_shader_parameter("player_speed", p_speed)
+	_cached_water_material.set_shader_parameter("player_in_water", 1.0 if is_in_water else 0.0)
+
+	# 2. Emitir anillos inmediatamente en las pisadas cuando camina en el agua (cero delay)
+	if is_in_water and p_speed > 0.35:
+		var dist_moved: float = Vector2(p_pos.x - _last_ripple_pos.x, p_pos.z - _last_ripple_pos.z).length()
+		var time_since_last: float = now - _last_ripple_time
+		if dist_moved >= 0.38 or (p_speed > 1.2 and time_since_last >= 0.16):
+			var amp: float = clampf(0.65 + p_speed / 7.0, 0.65, 1.0)
+			_spawn_water_ripple(Vector2(p_pos.x, p_pos.z), 0.12, amp)
+			_last_ripple_pos = p_pos
+			_last_ripple_time = now
+
+	_cached_water_material.set_shader_parameter("ripples", _active_ripples)
+
+func _spawn_water_ripple(pos_xz: Vector2, initial_radius: float = 0.12, initial_alpha: float = 1.0) -> void:
+	if _active_ripples.size() < 8:
+		_active_ripples.resize(8)
+		for i in range(8):
+			_active_ripples[i] = Vector4(0.0, 0.0, 0.0, 0.0)
+
+	_active_ripples[_ripple_index] = Vector4(pos_xz.x, pos_xz.y, initial_radius, initial_alpha)
+	_ripple_index = (_ripple_index + 1) % 8
+	if _cached_water_material != null and is_instance_valid(_cached_water_material):
+		_cached_water_material.set_shader_parameter("ripples", _active_ripples)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if camera_rig == null or focus_target == null:
@@ -399,9 +513,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif ke.keycode == KEY_P:
 			_toggle_player()
 		elif ke.keycode == KEY_M:
-			_toggle_water_wireframe()
+			_toggle_water_visibility()
 		elif ke.keycode == KEY_T:
-			_toggle_terrain_wireframe()
+			_toggle_terrain_visibility()
 		elif ke.keycode == KEY_F11:
 			_toggle_fullscreen()
 		elif ke.keycode == KEY_TAB or ke.keycode == KEY_H:
@@ -425,6 +539,7 @@ func generate_world(reset_camera: bool = false) -> void:
 	if current_world_node != null and is_instance_valid(current_world_node):
 		current_world_node.queue_free()
 		current_world_node = null
+	_cached_water_material = null
 
 	_read_ui_to_profile()
 
@@ -434,6 +549,14 @@ func generate_world(reset_camera: bool = false) -> void:
 	current_world_node = renderer.render_world(current_result, profile, is_water_wireframe_active, is_terrain_wireframe_active)
 	world_container.add_child(current_world_node)
 	renderer.queue_free()
+
+	# Aplicar visibilidad de mallas elegida por el usuario
+	var terrain_mi = current_world_node.find_child("TerrainMesh", true, false)
+	if terrain_mi != null:
+		terrain_mi.visible = is_terrain_visible
+	var water_root = current_world_node.find_child("WaterRoot", true, false)
+	if water_root != null:
+		water_root.visible = is_water_visible
 
 	var duration_ms: float = float(Time.get_ticks_usec() - start_usec) / 1000.0
 
@@ -830,52 +953,40 @@ func _build_top_bar() -> void:
 	top_bar.add_child(margin)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 10)
+	hbox.add_theme_constant_override("separation", 5)
 	margin.add_child(hbox)
 
-	# Logo
+	# Logo Badge
 	var logo_box := HBoxContainer.new()
-	logo_box.add_theme_constant_override("separation", 6)
+	logo_box.add_theme_constant_override("separation", 4)
 	var hex_lbl := Label.new()
 	hex_lbl.text = "⬡"
 	hex_lbl.add_theme_color_override("font_color", Color("#22c55e"))
+	hex_lbl.add_theme_font_size_override("font_size", 12)
 	logo_box.add_child(hex_lbl)
 
 	var brand_lbl := Label.new()
-	brand_lbl.text = "TAIGA WORLD LAB"
+	brand_lbl.text = "TAIGA LAB"
 	brand_lbl.add_theme_color_override("font_color", Color("#c8d4e8"))
-	brand_lbl.add_theme_font_size_override("font_size", 12)
+	brand_lbl.add_theme_font_size_override("font_size", 11)
 	logo_box.add_child(brand_lbl)
-
-	var sep_lbl := Label.new()
-	sep_lbl.text = "//"
-	sep_lbl.add_theme_color_override("font_color", Color("#334155"))
-	logo_box.add_child(sep_lbl)
-
-	var sub_lbl := Label.new()
-	sub_lbl.text = "PROCEDURAL EXPLORER"
-	sub_lbl.add_theme_color_override("font_color", Color("#4a6a8a"))
-	sub_lbl.add_theme_font_size_override("font_size", 11)
-	logo_box.add_child(sub_lbl)
 	hbox.add_child(logo_box)
 
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hbox.add_child(spacer)
-
-	# Seed
+	# Seed Box
 	var seed_box := HBoxContainer.new()
-	seed_box.add_theme_constant_override("separation", 6)
+	seed_box.add_theme_constant_override("separation", 4)
 	var seed_tag := Label.new()
 	seed_tag.text = "Seed:"
 	seed_tag.add_theme_color_override("font_color", Color("#64748b"))
-	seed_tag.add_theme_font_size_override("font_size", 11)
+	seed_tag.add_theme_font_size_override("font_size", 10)
 	seed_box.add_child(seed_tag)
 
 	seed_spin = SpinBox.new()
 	seed_spin.min_value = 1
 	seed_spin.max_value = 99999999
 	seed_spin.value = world_seed
+	seed_spin.custom_minimum_size = Vector2(72, 0)
+	seed_spin.add_theme_font_size_override("font_size", 10)
 	seed_spin.value_changed.connect(func(v):
 		world_seed = int(v)
 		if is_auto_gen: generate_world(false)
@@ -883,7 +994,9 @@ func _build_top_bar() -> void:
 	seed_box.add_child(seed_spin)
 
 	var rand_btn := Button.new()
-	rand_btn.text = "⟳ Aleatorio"
+	rand_btn.text = "⟳"
+	rand_btn.tooltip_text = "Semilla Aleatoria"
+	rand_btn.custom_minimum_size = Vector2(26, 0)
 	rand_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
 	rand_btn.add_theme_color_override("font_color", Color("#94a3b8"))
 	rand_btn.add_theme_font_size_override("font_size", 11)
@@ -895,16 +1008,20 @@ func _build_top_bar() -> void:
 	seed_box.add_child(rand_btn)
 	hbox.add_child(seed_box)
 
-	# Preset
+	# Preset Box
 	var preset_box := HBoxContainer.new()
-	preset_box.add_theme_constant_override("separation", 6)
+	preset_box.add_theme_constant_override("separation", 4)
 	var pre_tag := Label.new()
 	pre_tag.text = "Preset:"
 	pre_tag.add_theme_color_override("font_color", Color("#64748b"))
-	pre_tag.add_theme_font_size_override("font_size", 11)
+	pre_tag.add_theme_font_size_override("font_size", 10)
 	preset_box.add_child(pre_tag)
 
 	preset_option = OptionButton.new()
+	preset_option.fit_to_longest_item = false
+	preset_option.custom_minimum_size = Vector2(130, 0)
+	preset_option.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	preset_option.add_theme_font_size_override("font_size", 10)
 	for p_id in PRESETS.keys():
 		preset_option.add_item(PRESETS[p_id]["name"], p_id)
 	preset_option.select(0)
@@ -914,21 +1031,23 @@ func _build_top_bar() -> void:
 
 	# Map Size Selector
 	var size_box := HBoxContainer.new()
-	size_box.add_theme_constant_override("separation", 6)
+	size_box.add_theme_constant_override("separation", 4)
 	var size_tag := Label.new()
-	size_tag.text = "Tamaño:"
+	size_tag.text = "Dim:"
 	size_tag.add_theme_color_override("font_color", Color("#64748b"))
-	size_tag.add_theme_font_size_override("font_size", 11)
+	size_tag.add_theme_font_size_override("font_size", 10)
 	size_box.add_child(size_tag)
 
 	map_size_option = OptionButton.new()
-	map_size_option.add_item("32 x 32 (Compacto)", 32)
-	map_size_option.add_item("48 x 48 (Pequeño)", 48)
-	map_size_option.add_item("64 x 64 (Estándar)", 64)
-	map_size_option.add_item("96 x 96 (Medio)", 96)
-	map_size_option.add_item("128 x 128 (Grande)", 128)
-	map_size_option.add_item("160 x 160 (Muy Grande)", 160)
-	map_size_option.add_item("256 x 256 (Épico)", 256)
+	map_size_option.custom_minimum_size = Vector2(75, 0)
+	map_size_option.add_theme_font_size_override("font_size", 10)
+	map_size_option.add_item("32×32", 32)
+	map_size_option.add_item("48×48", 48)
+	map_size_option.add_item("64×64", 64)
+	map_size_option.add_item("96×96", 96)
+	map_size_option.add_item("128×128", 128)
+	map_size_option.add_item("160×160", 160)
+	map_size_option.add_item("256×256", 256)
 
 	var initial_size_idx := 2
 	for i in range(map_size_option.item_count):
@@ -953,55 +1072,71 @@ func _build_top_bar() -> void:
 
 	# Auto-Gen Button
 	auto_gen_btn = Button.new()
-	auto_gen_btn.text = "◉ Auto-Gen" if is_auto_gen else "○ Auto-Gen"
-	auto_gen_btn.add_theme_font_size_override("font_size", 11)
+	auto_gen_btn.text = "◉ Auto" if is_auto_gen else "○ Auto"
+	auto_gen_btn.tooltip_text = "Auto-Generar al cambiar sliders"
+	auto_gen_btn.add_theme_font_size_override("font_size", 10)
 	_update_auto_gen_button_style()
 	auto_gen_btn.pressed.connect(func():
 		is_auto_gen = not is_auto_gen
-		auto_gen_btn.text = "◉ Auto-Gen" if is_auto_gen else "○ Auto-Gen"
+		auto_gen_btn.text = "◉ Auto" if is_auto_gen else "○ Auto"
 		_update_auto_gen_button_style()
 	)
 	hbox.add_child(auto_gen_btn)
 
-	# Fullscreen Button
+	# Spacer
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(spacer)
+
+	# Terrain Mesh Toggle Button (Malla Terreno ON/OFF)
+	terrain_toggle_btn = Button.new()
+	terrain_toggle_btn.tooltip_text = "Mostrar/Ocultar Malla del Terreno (T)"
+	terrain_toggle_btn.add_theme_font_size_override("font_size", 10)
+	_update_terrain_button_style()
+	terrain_toggle_btn.pressed.connect(_toggle_terrain_visibility)
+	hbox.add_child(terrain_toggle_btn)
+
+	# Water Mesh Toggle Button (Malla Agua ON/OFF)
+	water_toggle_btn = Button.new()
+	water_toggle_btn.tooltip_text = "Mostrar/Ocultar Malla del Agua (M)"
+	water_toggle_btn.add_theme_font_size_override("font_size", 10)
+	_update_water_button_style()
+	water_toggle_btn.pressed.connect(_toggle_water_visibility)
+	hbox.add_child(water_toggle_btn)
+
+	# Wireframe Debug Overlay Toggle Button
+	wireframe_toggle_btn = Button.new()
+	wireframe_toggle_btn.tooltip_text = "Mostrar/Ocultar Malla de Alambre (Debug Wireframe)"
+	wireframe_toggle_btn.add_theme_font_size_override("font_size", 10)
+	_update_wireframe_button_style()
+	wireframe_toggle_btn.pressed.connect(_toggle_wireframe)
+	hbox.add_child(wireframe_toggle_btn)
+
+	# Player Testing Toggle Button
+	player_toggle_btn = Button.new()
+	player_toggle_btn.tooltip_text = "Alternar Jugador de Pruebas (P)"
+	player_toggle_btn.add_theme_font_size_override("font_size", 10)
+	_update_player_button_style()
+	player_toggle_btn.pressed.connect(_toggle_player)
+	hbox.add_child(player_toggle_btn)
+
+	# Fullscreen Button (Icon Only)
 	var btn_fs := Button.new()
-	btn_fs.text = "⛶ Pantalla Completa"
+	btn_fs.text = "⛶"
+	btn_fs.tooltip_text = "Pantalla Completa (F11)"
+	btn_fs.custom_minimum_size = Vector2(28, 0)
 	btn_fs.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
 	btn_fs.add_theme_color_override("font_color", Color("#94a3b8"))
 	btn_fs.add_theme_font_size_override("font_size", 11)
 	btn_fs.pressed.connect(_toggle_fullscreen)
 	hbox.add_child(btn_fs)
 
-	# Player Testing Toggle Button (Scale comparison & ground navigation)
-	player_toggle_btn = Button.new()
-	player_toggle_btn.text = "👤 Jugador: ACTIVO" if is_player_active else "👤 Jugador: OFF"
-	player_toggle_btn.add_theme_font_size_override("font_size", 11)
-	_update_player_button_style()
-	player_toggle_btn.pressed.connect(_toggle_player)
-	hbox.add_child(player_toggle_btn)
-
-	# Water Wireframe Toggle Button (Ríos y Lagos)
-	water_wireframe_btn = Button.new()
-	water_wireframe_btn.text = "🌐 Malla Agua: OFF"
-	water_wireframe_btn.add_theme_font_size_override("font_size", 11)
-	_update_water_wireframe_button_style()
-	water_wireframe_btn.pressed.connect(_toggle_water_wireframe)
-	hbox.add_child(water_wireframe_btn)
-
-	# Terrain Wireframe Toggle Button (Relieve y Topografía)
-	terrain_wireframe_btn = Button.new()
-	terrain_wireframe_btn.text = "🏔️ Malla Terreno: OFF"
-	terrain_wireframe_btn.add_theme_font_size_override("font_size", 11)
-	_update_terrain_wireframe_button_style()
-	terrain_wireframe_btn.pressed.connect(_toggle_terrain_wireframe)
-	hbox.add_child(terrain_wireframe_btn)
-
 	# Generate Button
 	gen_btn = Button.new()
-	gen_btn.text = "⚡ GENERAR MUNDO"
+	gen_btn.text = "⚡ GENERAR"
 	gen_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.13, 0.77, 0.36, 0.15), Color("#22c55e"), 4, 1))
 	gen_btn.add_theme_color_override("font_color", Color("#22c55e"))
-	gen_btn.add_theme_font_size_override("font_size", 11)
+	gen_btn.add_theme_font_size_override("font_size", 10)
 	gen_btn.pressed.connect(func(): generate_world(false))
 	hbox.add_child(gen_btn)
 
@@ -1013,7 +1148,7 @@ func _update_player_button_style() -> void:
 	if is_player_active:
 		player_toggle_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.1, 0.75, 0.95, 0.18), Color(0.1, 0.75, 0.95, 0.8), 4, 1))
 		player_toggle_btn.add_theme_color_override("font_color", Color("#38bdf8"))
-		player_toggle_btn.text = "👤 Jugador: ACTIVO"
+		player_toggle_btn.text = "👤 Jugador: ON"
 	else:
 		player_toggle_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
 		player_toggle_btn.add_theme_color_override("font_color", Color("#64748b"))
@@ -1023,62 +1158,76 @@ func _update_auto_gen_button_style() -> void:
 	if is_auto_gen:
 		auto_gen_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.13, 0.77, 0.36, 0.12), Color(0.13, 0.77, 0.36, 0.4), 4, 1))
 		auto_gen_btn.add_theme_color_override("font_color", Color("#22c55e"))
+		auto_gen_btn.text = "◉ Auto"
 	else:
 		auto_gen_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
 		auto_gen_btn.add_theme_color_override("font_color", Color("#64748b"))
+		auto_gen_btn.text = "○ Auto"
 
-func _update_water_wireframe_button_style() -> void:
-	if water_wireframe_btn == null:
+func _update_terrain_button_style() -> void:
+	if terrain_toggle_btn == null:
 		return
-	if is_water_wireframe_active:
-		water_wireframe_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.06, 0.72, 0.83, 0.22), Color("#06b6d4"), 4, 1))
-		water_wireframe_btn.add_theme_color_override("font_color", Color("#22d3ee"))
-		water_wireframe_btn.text = "🌐 Malla Agua: ON"
+	if is_terrain_visible:
+		terrain_toggle_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.15, 0.65, 0.35, 0.22), Color("#22c55e"), 4, 1))
+		terrain_toggle_btn.add_theme_color_override("font_color", Color("#4ade80"))
+		terrain_toggle_btn.text = "🏔️ Terreno: ON"
 	else:
-		water_wireframe_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
-		water_wireframe_btn.add_theme_color_override("font_color", Color("#94a3b8"))
-		water_wireframe_btn.text = "🌐 Malla Agua: OFF"
+		terrain_toggle_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
+		terrain_toggle_btn.add_theme_color_override("font_color", Color("#64748b"))
+		terrain_toggle_btn.text = "🏔️ Terreno: OFF"
 
-func _toggle_water_wireframe() -> void:
-	is_water_wireframe_active = not is_water_wireframe_active
-	_update_water_wireframe_button_style()
+func _toggle_terrain_visibility() -> void:
+	is_terrain_visible = not is_terrain_visible
+	_update_terrain_button_style()
+	if world_container != null:
+		var mi = world_container.find_child("TerrainMesh", true, false)
+		if mi != null:
+			mi.visible = is_terrain_visible
+
+func _update_water_button_style() -> void:
+	if water_toggle_btn == null:
+		return
+	if is_water_visible:
+		water_toggle_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.06, 0.72, 0.83, 0.22), Color("#06b6d4"), 4, 1))
+		water_toggle_btn.add_theme_color_override("font_color", Color("#22d3ee"))
+		water_toggle_btn.text = "🌊 Agua: ON"
+	else:
+		water_toggle_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
+		water_toggle_btn.add_theme_color_override("font_color", Color("#64748b"))
+		water_toggle_btn.text = "🌊 Agua: OFF"
+
+func _toggle_water_visibility() -> void:
+	is_water_visible = not is_water_visible
+	_update_water_button_style()
+	if world_container != null:
+		var water_root = world_container.find_child("WaterRoot", true, false)
+		if water_root != null:
+			water_root.visible = is_water_visible
+
+func _update_wireframe_button_style() -> void:
+	if wireframe_toggle_btn == null:
+		return
+	if is_wireframe_active:
+		wireframe_toggle_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.98, 0.45, 0.09, 0.22), Color("#f97316"), 4, 1))
+		wireframe_toggle_btn.add_theme_color_override("font_color", Color("#fb923c"))
+		wireframe_toggle_btn.text = "📐 Wire: ON"
+	else:
+		wireframe_toggle_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
+		wireframe_toggle_btn.add_theme_color_override("font_color", Color("#64748b"))
+		wireframe_toggle_btn.text = "📐 Wire: OFF"
+
+func _toggle_wireframe() -> void:
+	is_wireframe_active = not is_wireframe_active
+	is_terrain_wireframe_active = is_wireframe_active
+	is_water_wireframe_active = is_wireframe_active
+	_update_wireframe_button_style()
 
 	if world_container != null:
-		var wire_node = world_container.find_child("WaterWireframeOverlay", true, false)
-		if wire_node != null:
-			wire_node.visible = is_water_wireframe_active
-		elif is_water_wireframe_active:
-			# Si el wireframe no fue generado inicialmente por haber estado desactivado, crearlo ahora
-			var water_root = world_container.find_child("WaterRoot", true, false)
-			if water_root != null:
-				var mi = water_root.find_child("UnifiedWaterSurface", true, false) as MeshInstance3D
-				if mi != null and mi.mesh != null:
-					var new_wire = _WaterRendererScript.build_wireframe_node(mi.mesh)
-					if new_wire != null:
-						new_wire.visible = true
-						water_root.add_child(new_wire)
-
-func _update_terrain_wireframe_button_style() -> void:
-	if terrain_wireframe_btn == null:
-		return
-	if is_terrain_wireframe_active:
-		terrain_wireframe_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.98, 0.45, 0.09, 0.22), Color("#f97316"), 4, 1))
-		terrain_wireframe_btn.add_theme_color_override("font_color", Color("#fb923c"))
-		terrain_wireframe_btn.text = "🏔️ Malla Terreno: ON"
-	else:
-		terrain_wireframe_btn.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#0e1726"), Color("#1f293d"), 4, 1))
-		terrain_wireframe_btn.add_theme_color_override("font_color", Color("#94a3b8"))
-		terrain_wireframe_btn.text = "🏔️ Malla Terreno: OFF"
-
-func _toggle_terrain_wireframe() -> void:
-	is_terrain_wireframe_active = not is_terrain_wireframe_active
-	_update_terrain_wireframe_button_style()
-
-	if world_container != null:
-		var wire_node = world_container.find_child("TerrainWireframeOverlay", true, false)
-		if wire_node != null:
-			wire_node.visible = is_terrain_wireframe_active
-		elif is_terrain_wireframe_active:
+		# Terreno Wireframe
+		var terrain_wire = world_container.find_child("TerrainWireframeOverlay", true, false)
+		if terrain_wire != null:
+			terrain_wire.visible = is_wireframe_active
+		elif is_wireframe_active:
 			var mi = world_container.find_child("TerrainMesh", true, false) as MeshInstance3D
 			if mi != null and mi.mesh != null:
 				var new_wire = _TerrainMeshBuilderScript.build_wireframe_node(mi.mesh)
@@ -1090,6 +1239,26 @@ func _toggle_terrain_wireframe() -> void:
 					else:
 						world_container.add_child(new_wire)
 
+		# Agua Wireframe
+		var water_wire = world_container.find_child("WaterWireframeOverlay", true, false)
+		if water_wire != null:
+			water_wire.visible = is_wireframe_active
+		elif is_wireframe_active:
+			var water_root = world_container.find_child("WaterRoot", true, false)
+			if water_root != null:
+				var mi = water_root.find_child("UnifiedWaterSurface", true, false) as MeshInstance3D
+				if mi != null and mi.mesh != null:
+					var new_wire = _WaterRendererScript.build_wireframe_node(mi.mesh)
+					if new_wire != null:
+						new_wire.visible = true
+						water_root.add_child(new_wire)
+
+func _toggle_water_wireframe() -> void:
+	_toggle_water_visibility()
+
+func _toggle_terrain_wireframe() -> void:
+	_toggle_terrain_visibility()
+
 func _build_left_panel() -> void:
 	left_panel = PanelContainer.new()
 	left_panel.name = "LeftPanel"
@@ -1099,84 +1268,161 @@ func _build_left_panel() -> void:
 	left_panel.anchor_bottom = 1.0
 	left_panel.offset_top = 44
 	left_panel.offset_bottom = -28
-	left_panel.offset_right = 260
+	left_panel.offset_right = 265
 	left_panel.grow_horizontal = Control.GROW_DIRECTION_END
 	left_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	left_panel.add_theme_stylebox_override("panel", _LabColors.create_panel_stylebox(Color("#0b1120"), Color("#1a263d"), 0, 1))
 
+	var main_vbox := VBoxContainer.new()
+	main_vbox.add_theme_constant_override("separation", 0)
+	left_panel.add_child(main_vbox)
+
+	# 1. Selector de Pestañas del Panel Izquierdo
+	var tab_bar := HBoxContainer.new()
+	tab_bar.custom_minimum_size = Vector2(0, 30)
+	tab_bar.add_theme_constant_override("separation", 2)
+
+	tab_btn_left_terrain = _create_left_tab_button("🏔️ Terreno", LeftTab.TERRAIN)
+	tab_btn_left_water = _create_left_tab_button("🌊 Agua & Hidrología", LeftTab.WATER)
+	tab_bar.add_child(tab_btn_left_terrain)
+	tab_bar.add_child(tab_btn_left_water)
+	main_vbox.add_child(tab_bar)
+
+	# 2. Contenedor con Scroll
 	var margin := MarginContainer.new()
+	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	margin.add_theme_constant_override("margin_left", 12)
 	margin.add_theme_constant_override("margin_right", 12)
 	margin.add_theme_constant_override("margin_top", 10)
 	margin.add_theme_constant_override("margin_bottom", 10)
-	left_panel.add_child(margin)
+	main_vbox.add_child(margin)
 
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	margin.add_child(scroll)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 14)
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(vbox)
+	# Paneles de Contenido
+	panel_terrain_vbox = VBoxContainer.new()
+	panel_terrain_vbox.add_theme_constant_override("separation", 14)
+	panel_terrain_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(panel_terrain_vbox)
 
-	# 1. TERRENO Y RELIEVE (Metros)
-	_add_left_section(vbox, "TERRENO Y RELIEVE", "⬡", Color("#f59e0b"))
-	_add_slider(vbox, "macro_wavelength", "Long. Onda Macro (m)", profile.macro_wavelength, 20.0, 400.0, 5.0, Color("#f59e0b"))
-	_add_slider(vbox, "macro_amplitude", "Amplitud Macro (m)", profile.macro_amplitude, 0.0, 25.0, 0.5, Color("#f59e0b"))
-	_add_slider(vbox, "medium_wavelength", "Long. Onda Media (m)", profile.medium_wavelength, 10.0, 150.0, 2.0, Color("#f59e0b"))
-	_add_slider(vbox, "medium_amplitude", "Amplitud Media (m)", profile.medium_amplitude, 0.0, 10.0, 0.2, Color("#f59e0b"))
-	_add_slider(vbox, "detail_wavelength", "Long. Onda Detalle (m)", profile.detail_wavelength, 2.0, 30.0, 0.5, Color("#f59e0b"))
-	_add_slider(vbox, "detail_amplitude", "Amplitud Detalle (m)", profile.detail_amplitude, 0.0, 2.0, 0.05, Color("#f59e0b"))
-	_add_slider(vbox, "base_height", "Altura Base (m)", profile.base_height, 0.0, 5.0, 0.05, Color("#f59e0b"))
-	_add_slider(vbox, "height_scale", "Multiplicador Vertical", profile.height_scale, 0.1, 3.0, 0.05, Color("#f59e0b"))
-	_add_slider(vbox, "relief_exponent", "Moldeado (Exp)", profile.relief_exponent, 0.1, 5.0, 0.05, Color("#f59e0b"))
+	panel_water_vbox = VBoxContainer.new()
+	panel_water_vbox.add_theme_constant_override("separation", 14)
+	panel_water_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(panel_water_vbox)
 
-	# 2. DOMAIN WARP (Metros)
-	_add_left_section(vbox, "DOMAIN WARP", "◈", Color("#a855f7"))
-	_add_slider(vbox, "warp_wavelength", "Long. Onda Warp (m)", profile.warp_wavelength, 20.0, 250.0, 5.0, Color("#a855f7"))
-	_add_slider(vbox, "warp_amplitude", "Amplitud Warp (m)", profile.warp_amplitude, 0.0, 40.0, 0.5, Color("#a855f7"))
-	_add_slider(vbox, "warp_octaves", "Octavas Warp", float(profile.warp_octaves), 1.0, 4.0, 1.0, Color("#a855f7"))
+	# =========================================================================
+	# PESTAÑA 1: TERRENO & BIOMA
+	# =========================================================================
+	_add_left_section(panel_terrain_vbox, "TERRENO Y RELIEVE", "⬡", Color("#f59e0b"))
+	_add_slider(panel_terrain_vbox, "macro_wavelength", "Long. Onda Macro (m)", profile.macro_wavelength, 20.0, 400.0, 5.0, Color("#f59e0b"))
+	_add_slider(panel_terrain_vbox, "macro_amplitude", "Amplitud Macro (m)", profile.macro_amplitude, 0.0, 25.0, 0.5, Color("#f59e0b"))
+	_add_slider(panel_terrain_vbox, "medium_wavelength", "Long. Onda Media (m)", profile.medium_wavelength, 10.0, 150.0, 2.0, Color("#f59e0b"))
+	_add_slider(panel_terrain_vbox, "medium_amplitude", "Amplitud Media (m)", profile.medium_amplitude, 0.0, 10.0, 0.2, Color("#f59e0b"))
+	_add_slider(panel_terrain_vbox, "detail_wavelength", "Long. Onda Detalle (m)", profile.detail_wavelength, 2.0, 30.0, 0.5, Color("#f59e0b"))
+	_add_slider(panel_terrain_vbox, "detail_amplitude", "Amplitud Detalle (m)", profile.detail_amplitude, 0.0, 2.0, 0.05, Color("#f59e0b"))
+	_add_slider(panel_terrain_vbox, "base_height", "Altura Base (m)", profile.base_height, 0.0, 5.0, 0.05, Color("#f59e0b"))
+	_add_slider(panel_terrain_vbox, "height_scale", "Multiplicador Vertical", profile.height_scale, 0.1, 3.0, 0.05, Color("#f59e0b"))
+	_add_slider(panel_terrain_vbox, "relief_exponent", "Moldeado (Exp)", profile.relief_exponent, 0.1, 5.0, 0.05, Color("#f59e0b"))
 
-	# 3. ECOLOGÍA & CLAROS
-	_add_left_section(vbox, "ECOLOGÍA & CLAROS", "☵", Color("#22c55e"))
-	_add_slider(vbox, "forest_wavelength", "Long. Onda Bosque (m)", profile.forest_wavelength, 20.0, 200.0, 5.0, Color("#22c55e"))
-	_add_slider(vbox, "clearing_wavelength", "Long. Onda Claros (m)", profile.clearing_wavelength, 10.0, 100.0, 2.0, Color("#22c55e"))
-	_add_slider(vbox, "clearing_threshold", "Umbral de Claros", profile.clearing_threshold, 0.1, 0.95, 0.01, Color("#22c55e"))
+	_add_left_section(panel_terrain_vbox, "DOMAIN WARP", "◈", Color("#a855f7"))
+	_add_slider(panel_terrain_vbox, "warp_wavelength", "Long. Onda Warp (m)", profile.warp_wavelength, 20.0, 250.0, 5.0, Color("#a855f7"))
+	_add_slider(panel_terrain_vbox, "warp_amplitude", "Amplitud Warp (m)", profile.warp_amplitude, 0.0, 40.0, 0.5, Color("#a855f7"))
+	_add_slider(panel_terrain_vbox, "warp_octaves", "Octavas Warp", float(profile.warp_octaves), 1.0, 4.0, 1.0, Color("#a855f7"))
 
-	# 4. VEGETACIÓN
-	_add_left_section(vbox, "VEGETACIÓN", "⚃", Color("#14b8a6"))
-	_add_slider(vbox, "tree_density", "Densidad Árboles", profile.tree_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
-	_add_slider(vbox, "min_tree_spacing", "Espaciado Mínimo", profile.min_tree_spacing, 0.5, 8.0, 0.1, Color("#14b8a6"))
-	_add_slider(vbox, "shrub_density", "Densidad Arbustos", profile.shrub_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
-	_add_slider(vbox, "rock_density", "Densidad Rocas", profile.rock_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
-	_add_slider(vbox, "vegetation_bank_clearance", "Margen Orilla (m)", profile.vegetation_bank_clearance, 0.0, 5.0, 0.25, Color("#14b8a6"))
+	_add_left_section(panel_terrain_vbox, "ECOLOGÍA & CLAROS", "☵", Color("#22c55e"))
+	_add_slider(panel_terrain_vbox, "forest_wavelength", "Long. Onda Bosque (m)", profile.forest_wavelength, 20.0, 200.0, 5.0, Color("#22c55e"))
+	_add_slider(panel_terrain_vbox, "clearing_wavelength", "Long. Onda Claros (m)", profile.clearing_wavelength, 10.0, 100.0, 2.0, Color("#22c55e"))
+	_add_slider(panel_terrain_vbox, "clearing_threshold", "Umbral de Claros", profile.clearing_threshold, 0.1, 0.95, 0.01, Color("#22c55e"))
 
-	# 5. ESCALA DEL MUNDO (1 Godot unit = 1 metro)
-	_add_left_section(vbox, "ESCALA DEL MUNDO", "⛶", Color("#38bdf8"))
-	_add_slider(vbox, "width", "Ancho del Mapa (celdas)", float(profile.width), 32.0, 256.0, 8.0, Color("#38bdf8"))
-	_add_slider(vbox, "height", "Largo del Mapa (celdas)", float(profile.height), 32.0, 256.0, 8.0, Color("#38bdf8"))
-	_add_slider(vbox, "cell_size", "Escala del Mundo (m/celda)", profile.cell_size, 0.5, 3.0, 0.1, Color("#38bdf8"))
+	_add_left_section(panel_terrain_vbox, "VEGETACIÓN", "⚃", Color("#14b8a6"))
+	_add_slider(panel_terrain_vbox, "tree_density", "Densidad Árboles", profile.tree_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
+	_add_slider(panel_terrain_vbox, "min_tree_spacing", "Espaciado Mínimo", profile.min_tree_spacing, 0.5, 8.0, 0.1, Color("#14b8a6"))
+	_add_slider(panel_terrain_vbox, "shrub_density", "Densidad Arbustos", profile.shrub_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
+	_add_slider(panel_terrain_vbox, "rock_density", "Densidad Rocas", profile.rock_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
+	_add_slider(panel_terrain_vbox, "vegetation_bank_clearance", "Margen Orilla (m)", profile.vegetation_bank_clearance, 0.0, 5.0, 0.25, Color("#14b8a6"))
 
-	# 6. HIDROLOGÍA & CUENCAS
-	_add_left_section(vbox, "HIDROLOGÍA & CUENCAS", "💧", Color("#38bdf8"))
-	_add_slider(vbox, "lake_threshold", "Umbral Lagos", profile.lake_threshold, 0.05, 0.50, 0.01, Color("#38bdf8"))
-	_add_slider(vbox, "lake_minimum_area", "Área Mín. Lagos", float(profile.lake_minimum_area), 1.0, 20.0, 1.0, Color("#38bdf8"))
-	_add_slider(vbox, "lake_merge_distance", "Dist. Unión Lagos", profile.lake_merge_distance, 0.0, 10.0, 0.5, Color("#38bdf8"))
-	_add_slider(vbox, "max_rivers", "Cant. Ríos", float(profile.max_rivers), 0.0, 8.0, 1.0, Color("#38bdf8"))
-	_add_slider(vbox, "river_source_min_height", "Altura Cabecera", profile.river_source_min_height, 0.3, 0.95, 0.05, Color("#38bdf8"))
-	_add_slider(vbox, "river_meander_strength", "Meandros / Jitter", profile.river_meander_strength, 0.0, 0.5, 0.02, Color("#38bdf8"))
-	_add_slider(vbox, "hydrology_noise_wavelength", "Long. Onda Ruido Cauce (m)", profile.hydrology_noise_wavelength, 20.0, 200.0, 5.0, Color("#38bdf8"))
-	_add_slider(vbox, "hydrology_noise_strength", "Fuerza Ruido Cauce", profile.hydrology_noise_strength, 0.0, 0.8, 0.05, Color("#38bdf8"))
+	_add_left_section(panel_terrain_vbox, "ESCALA DEL MUNDO", "⛶", Color("#38bdf8"))
+	_add_slider(panel_terrain_vbox, "width", "Ancho del Mapa (celdas)", float(profile.width), 32.0, 256.0, 8.0, Color("#38bdf8"))
+	_add_slider(panel_terrain_vbox, "height", "Largo del Mapa (celdas)", float(profile.height), 32.0, 256.0, 8.0, Color("#38bdf8"))
+	_add_slider(panel_terrain_vbox, "cell_size", "Escala del Mundo (m/celda)", profile.cell_size, 0.5, 3.0, 0.1, Color("#38bdf8"))
 
-	# 7. GEOMETRÍA DE RÍOS (POST-GEOMETRÍA)
-	_add_left_section(vbox, "GEOMETRÍA RÍOS (POST-GEO)", "🌊", Color("#22d3ee"))
-	_add_slider(vbox, "water_field_resolution", "Resolución Campo SDF", float(profile.water_field_resolution), 64.0, 512.0, 16.0, Color("#22d3ee"))
-	_add_slider(vbox, "contour_simplification_tolerance", "Tolerancia RDP (m)", profile.contour_simplification_tolerance, 0.01, 0.50, 0.01, Color("#22d3ee"))
-	_add_slider(vbox, "minimum_contour_edge", "Arista Mínima (m)", profile.minimum_contour_edge, 0.01, 0.30, 0.01, Color("#22d3ee"))
-	_add_slider(vbox, "minimum_polygon_area", "Área Mín. Polígono (m²)", profile.minimum_polygon_area, 0.01, 2.0, 0.05, Color("#22d3ee"))
+	# =========================================================================
+	# PESTAÑA 2: AGUA & HIDROLOGÍA (Nivel, Francobordo, Ríos y Lagos)
+	# =========================================================================
+	_add_left_section(panel_water_vbox, "NIVEL DE AGUA Y ORILLAS", "📏", Color("#06b6d4"))
+	_add_slider(panel_water_vbox, "river_freeboard", "Francobordo de Río (m)", profile.river_freeboard, 0.0, 0.40, 0.01, Color("#06b6d4"))
+	_add_slider(panel_water_vbox, "shoreline_bank_bevel", "Bisel de Ribera (m)", profile.shoreline_bank_bevel, 0.0, 0.40, 0.01, Color("#06b6d4"))
+	_add_slider(panel_water_vbox, "shoreline_offset", "Ajuste Borde SDF (m)", profile.shoreline_offset, -0.50, 0.50, 0.02, Color("#06b6d4"))
 
+	_add_left_section(panel_water_vbox, "RÍOS Y CAUCES", "🌊", Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "max_rivers", "Cant. Ríos", float(profile.max_rivers), 0.0, 8.0, 1.0, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "river_min_width", "Ancho Mín. Río (m)", profile.river_min_width, 1.0, 10.0, 0.5, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "river_max_width", "Ancho Máx. Río (m)", profile.river_max_width, 2.0, 16.0, 0.5, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "river_min_depth", "Profundidad Mínima (m)", profile.river_min_depth, 0.02, 1.0, 0.02, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "river_max_depth", "Profundidad Máxima (m)", profile.river_max_depth, 0.10, 2.0, 0.05, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "river_channel_depth", "Profundidad Canal (m)", profile.river_channel_depth, 0.05, 0.80, 0.02, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "river_source_min_height", "Altura Cabecera", profile.river_source_min_height, 0.30, 0.95, 0.05, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "river_meander_strength", "Meandros / Jitter", profile.river_meander_strength, 0.0, 0.50, 0.02, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "hydrology_noise_wavelength", "Long. Onda Ruido Cauce (m)", profile.hydrology_noise_wavelength, 20.0, 200.0, 5.0, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "hydrology_noise_strength", "Fuerza Ruido Cauce", profile.hydrology_noise_strength, 0.0, 0.80, 0.05, Color("#38bdf8"))
+
+	_add_left_section(panel_water_vbox, "LAGOS Y CUENCAS", "💧", Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "lake_threshold", "Umbral Lagos", profile.lake_threshold, 0.05, 0.50, 0.01, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "lake_minimum_area", "Área Mín. Lagos", float(profile.lake_minimum_area), 1.0, 20.0, 1.0, Color("#38bdf8"))
+	_add_slider(panel_water_vbox, "lake_merge_distance", "Dist. Unión Lagos", profile.lake_merge_distance, 0.0, 10.0, 0.5, Color("#38bdf8"))
+
+	_add_left_section(panel_water_vbox, "GEOMETRÍA RÍOS (POST-GEO)", "⚙️", Color("#22d3ee"))
+	_add_slider(panel_water_vbox, "water_field_resolution", "Resolución Campo SDF", float(profile.water_field_resolution), 64.0, 512.0, 16.0, Color("#22d3ee"))
+	_add_slider(panel_water_vbox, "contour_simplification_tolerance", "Tolerancia RDP (m)", profile.contour_simplification_tolerance, 0.01, 0.50, 0.01, Color("#22d3ee"))
+	_add_slider(panel_water_vbox, "minimum_contour_edge", "Arista Mínima (m)", profile.minimum_contour_edge, 0.01, 0.30, 0.01, Color("#22d3ee"))
+	_add_slider(panel_water_vbox, "minimum_polygon_area", "Área Mín. Polígono (m²)", profile.minimum_polygon_area, 0.01, 2.0, 0.05, Color("#22d3ee"))
+
+	_add_left_section(panel_water_vbox, "TEXTURAS DE ORILLA Y LECHO", "🏖️", Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "shoreline_rock_offset", "Cota Piedra Río (m)", profile.shoreline_rock_offset, -0.5, 1.20, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "shoreline_rock_fade", "Fundido Piedra -> Tierra (m)", profile.shoreline_rock_fade, 0.05, 0.80, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "shoreline_sand_offset", "Extensión Tierra Ribera (m)", profile.shoreline_sand_offset, -2.0, -0.05, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "shoreline_sand_fade", "Fundido Tierra -> Bosque (m)", profile.shoreline_sand_fade, 0.05, 0.80, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "riverbed_uv_scale", "Escala Textura Piedra Río (Stone)", profile.riverbed_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "sand_uv_scale", "Escala Textura Tierra Ribera (Dirt)", profile.sand_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "grass_uv_scale", "Escala Textura Bosque (Grass)", profile.grass_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
+
+	_switch_left_tab(active_left_tab)
 	ui_root.add_child(left_panel)
+
+func _create_left_tab_button(text: String, tab_id: LeftTab) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	btn.add_theme_font_size_override("font_size", 10)
+	btn.pressed.connect(func(): _switch_left_tab(tab_id))
+	return btn
+
+func _switch_left_tab(tab_id: LeftTab) -> void:
+	active_left_tab = tab_id
+	if panel_terrain_vbox != null:
+		panel_terrain_vbox.visible = (tab_id == LeftTab.TERRAIN)
+	if panel_water_vbox != null:
+		panel_water_vbox.visible = (tab_id == LeftTab.WATER)
+
+	if tab_btn_left_terrain != null:
+		if tab_id == LeftTab.TERRAIN:
+			tab_btn_left_terrain.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.96, 0.62, 0.04, 0.18), Color("#f59e0b"), 4, 1))
+			tab_btn_left_terrain.add_theme_color_override("font_color", Color("#fbbf24"))
+		else:
+			tab_btn_left_terrain.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#070b14"), Color("#151f33"), 4, 1))
+			tab_btn_left_terrain.add_theme_color_override("font_color", Color("#64748b"))
+
+	if tab_btn_left_water != null:
+		if tab_id == LeftTab.WATER:
+			tab_btn_left_water.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color(0.06, 0.72, 0.83, 0.18), Color("#06b6d4"), 4, 1))
+			tab_btn_left_water.add_theme_color_override("font_color", Color("#22d3ee"))
+		else:
+			tab_btn_left_water.add_theme_stylebox_override("normal", _LabColors.create_btn_stylebox(Color("#070b14"), Color("#151f33"), 4, 1))
+			tab_btn_left_water.add_theme_color_override("font_color", Color("#64748b"))
 
 func _add_left_section(parent: Control, title: String, icon: String, col: Color) -> void:
 	var sec_box := HBoxContainer.new()
@@ -1254,7 +1500,38 @@ func _add_slider(parent: Control, prop_name: String, label_text: String, default
 		elif prop_name == "hydrology_noise_wavelength":
 			profile.hydrology_noise_frequency = 1.0 / maxf(new_val, 1.0)
 
-		if is_auto_gen:
+		# Actualización instantánea en tiempo real de los parámetros del shader de terreno
+		var is_terrain_texture_param: bool = (
+			prop_name == "shoreline_rock_offset" or
+			prop_name == "shoreline_rock_fade" or
+			prop_name == "shoreline_sand_offset" or
+			prop_name == "shoreline_sand_fade" or
+			prop_name == "riverbed_uv_scale" or
+			prop_name == "sand_uv_scale" or
+			prop_name == "grass_uv_scale"
+		)
+
+		if is_terrain_texture_param and world_container != null:
+			var mi = world_container.find_child("TerrainMesh", true, false) as MeshInstance3D
+			if mi != null:
+				var mat = mi.get_surface_override_material(0) as ShaderMaterial
+				if mat != null:
+					if prop_name == "shoreline_rock_offset":
+						mat.set_shader_parameter("rock_edge_offset", new_val)
+					elif prop_name == "shoreline_rock_fade":
+						mat.set_shader_parameter("rock_to_sand_fade", new_val)
+					elif prop_name == "shoreline_sand_offset":
+						mat.set_shader_parameter("sand_edge_offset", new_val)
+					elif prop_name == "shoreline_sand_fade":
+						mat.set_shader_parameter("sand_to_land_fade", new_val)
+					elif prop_name == "riverbed_uv_scale":
+						mat.set_shader_parameter("riverbed_uv_scale", new_val)
+					elif prop_name == "sand_uv_scale":
+						mat.set_shader_parameter("sand_uv_scale", new_val)
+					elif prop_name == "grass_uv_scale":
+						mat.set_shader_parameter("grass_uv_scale", new_val)
+
+		if is_auto_gen and not is_terrain_texture_param:
 			var reset_cam: bool = (prop_name == "width" or prop_name == "height")
 			generate_world(reset_cam)
 	)
@@ -2156,6 +2433,8 @@ func _build_bottom_bar() -> void:
 	var controls := [
 		"WASD / Flechas · Mover Jugador",
 		"P · Alternar Jugador",
+		"T · Terreno",
+		"M · Agua",
 		"Espacio · Respawn",
 		"Rueda · Zoom",
 		"Click Der + Drag · Desplazar",

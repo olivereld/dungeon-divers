@@ -124,6 +124,9 @@ var zones: Dictionary = {}
 ## 0.0 = terreno intacto, 0.0 -> 1.0 = transición / talud, 1.0 = cuenca / cauce sumergido
 var hydraulic_influence: Dictionary = {}
 
+## Cache del SDF de orilla (Shoreline Distance Field) normalizado en [0.0, 1.0]
+var shoreline_sdf: PackedFloat32Array = PackedFloat32Array()
+
 func get_hydraulic_influence(pos: Vector2i, default_val: float = 0.0) -> float:
 	return float(hydraulic_influence.get(pos, default_val))
 

@@ -300,6 +300,23 @@ func execute(context: WorldGenerationContext) -> void:
 		validated_rivers.append(river_geom)
 		hydro.rivers.append(river_geom)
 
+	# Garantizar monotonicidad no creciente estricta aguas abajo en todos los ríos
+	for river_data in hydro.rivers:
+		var path: Array = river_data.get("path", [])
+		var prev_h: float = INF
+		for pos in path:
+			if hydro.water_cells.has(pos) and not hydro.is_lake(pos):
+				var cur_h: float = float(hydro.water_cells[pos].get("water_height", 0.0))
+				if cur_h > prev_h:
+					cur_h = prev_h
+					hydro.water_cells[pos]["water_height"] = cur_h
+					var b_h: float = float(hydro.water_cells[pos].get("bed_height", cur_h - 0.5))
+					if b_h > cur_h - 0.10:
+						b_h = cur_h - 0.10
+						hydro.water_cells[pos]["bed_height"] = b_h
+					hydro.water_cells[pos]["depth"] = cur_h - b_h
+				prev_h = cur_h
+
 	# -------------------------------------------------------------------------
 	# BLOQUE 10: ESCULPIDO DEL CAUCE EN EL TERRENO (RIVER CARVING SOBRE H_raw)
 	# -------------------------------------------------------------------------
@@ -558,7 +575,7 @@ func _generate_lakes(
 					continue
 				var n_h: float = n_cell.raw_height if n_cell.raw_height != 0.0 else n_cell.height
 				var n_filled: float = float(filled_height.get(neighbor, 0.0))
-				if absf(n_filled - spillway_height) < 0.05 and n_h < spillway_height - 0.01:
+				if absf(n_filled - spillway_height) < 0.05 and (spillway_height - n_h) >= 0.20:
 					cluster_set[neighbor] = true
 					cluster.append(neighbor)
 					flood_queue.append(neighbor)
@@ -609,6 +626,24 @@ func _generate_lakes(
 
 		for p in cluster:
 			global_claimed_lake_cells[p] = true
+
+	# 3c. Poda morfológica de filamentos y espículas de 1 celda en lagos
+	var lake_cells_to_prune: Array[Vector2i] = []
+	for p in hydro.water_cells:
+		if hydro.water_cells[p].get("type") == "lake":
+			var d4_count := 0
+			for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if hydro.water_cells.has(p + off):
+					d4_count += 1
+			if d4_count <= 1:
+				lake_cells_to_prune.append(p)
+
+	for p in lake_cells_to_prune:
+		hydro.water_cells.erase(p)
+		for lk in hydro.lakes:
+			var idx: int = lk["cells"].find(p)
+			if idx != -1:
+				lk["cells"].remove_at(idx)
 
 
 ## Traza una línea continua en la grilla discreta entre p0 y p1 (algoritmo Bresenham)
@@ -1430,26 +1465,6 @@ func _build_river_geometry(
 		widths.append(base_w)
 		depths.append(base_d)
 
-		# Registrar celda de eje si no es lago ni celda de confluencia con río receptor
-		if not hydro.is_lake(pos) and not (river_obj.downstream_river != -1 and i == total_pts - 1):
-			var flow_d: Vector2 = Vector2.ZERO
-			if i < total_pts - 1:
-				var nxt_c: Vector2i = path[i + 1]
-				flow_d = Vector2(float(nxt_c.x - pos.x), float(nxt_c.y - pos.y)).normalized()
-
-			var f_b: float = maxf(base_d * 0.75, 0.25)
-			var w_h: float = c_h - f_b
-			var b_h: float = w_h - base_d
-			hydro.water_cells[pos] = {
-				"type": "river",
-				"shoreline_height": c_h,
-				"water_height": w_h,
-				"bed_height": b_h,
-				"depth": base_d,
-				"flow_dir": flow_d,
-				"river_index": river_id
-			}
-
 	# Monotonía descendente obligatoria para evitar flujo ascendente (Regla A)
 	for i in range(1, points.size()):
 		if points[i].y > points[i - 1].y:
@@ -1457,20 +1472,22 @@ func _build_river_geometry(
 
 	# Continuidad de cota en desembocadura a lago: la lámina de agua del río (centerline_y - f_b)
 	# debe coincidir con exactitud milimétrica con target_h (espejo de agua del lago)
+	var cfg_freeboard: float = profile.river_freeboard if (profile != null and "river_freeboard" in profile) else 0.08
+
 	if hydro.is_lake(path[-1]):
 		var lake_data: Dictionary = hydro.get_cell_data(path[-1])
 		var target_h: float = float(lake_data.get("water_height", points[-1].y))
-		var f_b_end: float = maxf(depths[-1] * 0.75, 0.25)
+		var f_b_end: float = maxf(depths[-1] * 0.50, cfg_freeboard)
 		points[-1].y = target_h + f_b_end
 		for j in range(points.size() - 2, -1, -1):
 			if points[j].y < points[j + 1].y:
 				points[j].y = points[j + 1].y
 
-	# Continuidad de cota en confluencia con río receptor: el agua del afluente
-	# empalma con continuidad C0 en la cota exacta de la lámina de agua del río receptor
-	if river_obj.downstream_river != -1 and hydro.water_cells.has(path[-1]):
+	# Continuidad de cota en confluencia o desembocadura en lago: el agua del río
+	# empalma con continuidad C0 en la cota exacta del cuerpo receptor (río o lago)
+	if (river_obj.downstream_river != -1 or hydro.is_lake(path[-1])) and hydro.water_cells.has(path[-1]):
 		var target_h: float = float(hydro.water_cells[path[-1]].get("water_height", points[-1].y))
-		var f_b_end: float = maxf(depths[-1] * 0.75, 0.25)
+		var f_b_end: float = maxf(depths[-1] * 0.50, cfg_freeboard)
 		points[-1].y = target_h + f_b_end
 		for j in range(points.size() - 2, -1, -1):
 			if points[j].y < points[j + 1].y:
@@ -1481,7 +1498,7 @@ func _build_river_geometry(
 	if river_obj.is_outflow and hydro.is_lake(path[0]):
 		var lake_data: Dictionary = hydro.get_cell_data(path[0])
 		var spill_h: float = float(lake_data.get("water_height", points[0].y))
-		var f_b_start: float = maxf(depths[0] * 0.75, 0.25)
+		var f_b_start: float = maxf(depths[0] * 0.50, cfg_freeboard)
 		points[0].y = spill_h + f_b_start
 		for j in range(1, points.size()):
 			if points[j].y > points[j - 1].y:
@@ -1491,28 +1508,46 @@ func _build_river_geometry(
 	var pt_w_h: Array[float] = []
 	var prev_w_h: float = INF
 	for i in range(total_pts):
-		var f_b: float = maxf(depths[i] * 0.75, 0.25)
+		var f_b: float = maxf(depths[i] * 0.50, cfg_freeboard)
 		var wh: float = points[i].y - f_b
 		if wh > prev_w_h:
 			wh = prev_w_h
 		prev_w_h = wh
 		pt_w_h.append(wh)
 
-	# 1. Asegurar que las celdas directas del eje discreto path[i] están actualizadas
-	var path_indices: Dictionary = {}
+	# 1. Asegurar que las celdas directas del eje discreto path[i] están inicializadas
+	var river_cell_dist: Dictionary = {}
 	for i in range(total_pts):
 		var pos: Vector2i = path[i]
-		path_indices[pos] = i
+		var p_2d := Vector2(points[i].x, points[i].z)
+		var pt_dist: float = (Vector2(float(pos.x), float(pos.y)) - p_2d).length()
+		river_cell_dist[pos] = pt_dist
+
 		if not hydro.is_lake(pos):
+			var b_h: float = pt_w_h[i] - depths[i]
 			var is_confluence_outlet: bool = (river_obj.downstream_river != -1 and i == total_pts - 1)
 			if is_confluence_outlet and hydro.water_cells.has(pos):
 				var existing_w_h: float = float(hydro.water_cells[pos].get("water_height", pt_w_h[i]))
-				var b_h: float = existing_w_h - depths[i]
-				var existing_b_h: float = float(hydro.water_cells[pos].get("bed_height", b_h))
-				hydro.water_cells[pos]["bed_height"] = minf(existing_b_h, b_h)
+				var existing_b_h: float = float(hydro.water_cells[pos].get("bed_height", existing_w_h - depths[i]))
+				hydro.water_cells[pos]["bed_height"] = minf(existing_b_h, existing_w_h - depths[i])
 				hydro.water_cells[pos]["depth"] = existing_w_h - float(hydro.water_cells[pos]["bed_height"])
+			elif hydro.water_cells.has(pos):
+				var existing: Dictionary = hydro.water_cells[pos]
+				var ex_r_id: int = int(existing.get("river_index", -1))
+				if ex_r_id != -1 and ex_r_id != river_id:
+					# Otra confluencia o río cruzado
+					var new_wh: float = minf(float(existing.get("water_height", pt_w_h[i])), pt_w_h[i])
+					var new_bed: float = minf(float(existing.get("bed_height", b_h)), b_h)
+					existing["water_height"] = new_wh
+					existing["bed_height"] = new_bed
+					existing["depth"] = new_wh - new_bed
+				else:
+					existing["water_height"] = pt_w_h[i]
+					existing["bed_height"] = b_h
+					existing["depth"] = depths[i]
+					existing["shoreline_height"] = points[i].y
+					existing["river_index"] = river_id
 			else:
-				var b_h: float = pt_w_h[i] - depths[i]
 				hydro.water_cells[pos] = {
 					"type": "river",
 					"shoreline_height": points[i].y,
@@ -1583,23 +1618,20 @@ func _build_river_geometry(
 						var ex_bed: float = float(existing.get("bed_height", b_h))
 						existing["bed_height"] = minf(ex_bed, b_h)
 						existing["depth"] = ex_wh - float(existing["bed_height"])
-					elif path_indices.has(c_pos):
-						# Nodo del eje del mismo río: su cota de agua está blindada por pt_w_h[i]
-						# Solo profundizamos el lecho si este segmento excava más hondo
-						var ex_wh: float = float(existing.get("water_height", cur_wh))
-						var new_bed: float = minf(float(existing.get("bed_height", cur_bed)), cur_bed)
-						existing["bed_height"] = new_bed
-						existing["depth"] = ex_wh - new_bed
 					else:
-						# Celda lateral del mismo río (segmento superpuesto)
-						var new_wh: float = minf(float(existing.get("water_height", cur_wh)), cur_wh)
-						var new_bed: float = minf(float(existing.get("bed_height", cur_bed)), cur_bed)
-						existing["water_height"] = new_wh
-						existing["bed_height"] = new_bed
-						existing["depth"] = new_wh - new_bed
-						if existing.get("flow_dir", Vector2.ZERO) == Vector2.ZERO:
+						# Mismo río: asignar propiedades del segmento geométrico más cercano
+						# para garantizar lámina de agua transversalmente plana y sin jorobas/crestas
+						var prev_dist: float = float(river_cell_dist.get(c_pos, INF))
+						if dist < prev_dist:
+							river_cell_dist[c_pos] = dist
+							existing["water_height"] = cur_wh
+							existing["shoreline_height"] = cur_shoreline
 							existing["flow_dir"] = seg_dir
+						var new_bed: float = minf(float(existing.get("bed_height", cur_bed)), cur_bed)
+						existing["bed_height"] = new_bed
+						existing["depth"] = float(existing["water_height"]) - new_bed
 				else:
+					river_cell_dist[c_pos] = dist
 					hydro.water_cells[c_pos] = {
 						"type": "river",
 						"shoreline_height": cur_shoreline,
@@ -1726,7 +1758,8 @@ func _carve_river_channels(
 					var cur_w: float = lerpf(w0, w1, t)
 					var cur_d: float = lerpf(d0, d1, t)
 					var cur_w_river: float = cur_w * 0.5
-					var f_bank: float = maxf(cur_d * 0.75, 0.25)
+					var freeboard_base: float = profile.river_freeboard if (profile != null and "river_freeboard" in profile) else 0.08
+					var f_bank: float = maxf(cur_d * 0.50, freeboard_base)
 					var centerline_y: float = lerpf(p0_3d.y, p1_3d.y, t)
 					var water_y: float = centerline_y - f_bank
 
@@ -2011,7 +2044,32 @@ func _relax_hydraulic_banks(
 						visited[v] = true
 						queue.append(v)
 
-	# Recalcular pendientes para celdas relajadas
+	# -------------------------------------------------------------------------
+	# Bisel de Ribera (Shoreline Bank Bevel / Freeboard):
+	# Garantiza que el 100% de las orillas secas queden elevadas (+0.18m sobre el agua adyacente)
+	# para que la tierra quede siempre por encima del flujo del agua, formando una ribera
+	# natural y conteniendo físicamente la superficie del agua.
+	# -------------------------------------------------------------------------
+	for pos in cells:
+		if not hydro.water_cells.has(pos):
+			var max_adj_wh: float = -INF
+			for dx in range(-1, 2):
+				for dy in range(-1, 2):
+					if dx == 0 and dy == 0:
+						continue
+					var np: Vector2i = pos + Vector2i(dx, dy)
+					if hydro.water_cells.has(np):
+						var wh: float = float(hydro.water_cells[np].get("water_height", 0.0))
+						if wh > max_adj_wh:
+							max_adj_wh = wh
+			if max_adj_wh != -INF:
+				var bevel_val: float = profile.shoreline_bank_bevel if (profile != null and "shoreline_bank_bevel" in profile) else 0.18
+				var min_bank_h: float = max_adj_wh + bevel_val
+				if cells[pos].height < min_bank_h:
+					cells[pos].height = min_bank_h
+					modified_cells[pos] = true
+
+	# Recalcular pendientes para celdas relajadas y biseladas
 	for pos in modified_cells:
 		var x: int = pos.x
 		var y: int = pos.y

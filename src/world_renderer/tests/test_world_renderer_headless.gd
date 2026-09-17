@@ -18,19 +18,19 @@ func _init() -> void:
 	var array_mesh: ArrayMesh = mesh_inst.mesh
 	var arrays := array_mesh.surface_get_arrays(0)
 	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
-	assert(colors.size() == 128 * 128, "Must have 1 color per vertex")
+	assert(colors.size() == profile.width * profile.height, "Must have 1 color per vertex")
 
-	# Verify all colors are valid non-NaN albedo values with alpha = 1.0
+	# Verify all colors are valid non-NaN albedo values with valid alpha
 	for col in colors:
 		assert(not is_nan(col.r) and not is_nan(col.g) and not is_nan(col.b))
-		assert(col.a == 1.0)
+		assert(col.a >= 0.0 and col.a <= 1.0)
 		assert(col.r >= 0.0 and col.r <= 1.0)
 		assert(col.g >= 0.0 and col.g <= 1.0)
 		assert(col.b >= 0.0 and col.b <= 1.0)
 
-	# Check for HydrologyRoot presence
-	if result.hydrology != null and (not result.hydrology.lakes.is_empty() or not result.hydrology.rivers.is_empty()):
-		assert(node.has_node("HydrologyRoot"), "HydrologyRoot node must be generated when water exists")
+	# Check for WaterRoot presence
+	if result.hydrology != null and not result.hydrology.water_cells.is_empty():
+		assert(node.has_node("WaterRoot") or node.has_node("HydrologyRoot"), "WaterRoot node must be generated when water exists")
 
 	node.free()
 	renderer.free()

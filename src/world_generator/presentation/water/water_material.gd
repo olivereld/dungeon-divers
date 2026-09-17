@@ -36,13 +36,28 @@ static func create_water_material(profile: WorldProfile, use_shader: bool = true
 		var mat := ShaderMaterial.new()
 		mat.shader = _ShaderRes
 		var col_shore: Color = profile.water_color_shallow.lightened(0.15)
-		col_shore.a = 0.85
+		col_shore.a = 0.45
+		var col_shallow: Color = profile.water_color_shallow
+		col_shallow.a = 0.55
+		var col_mid: Color = profile.water_color_medium
+		col_mid.a = 0.75
+		var col_deep: Color = profile.water_color_lake
+		col_deep.a = 0.88
+
 		mat.set_shader_parameter("color_shore", col_shore)
-		mat.set_shader_parameter("color_shallow", profile.water_color_shallow)
-		mat.set_shader_parameter("color_mid", profile.water_color_medium)
-		mat.set_shader_parameter("color_deep", profile.water_color_lake)
+		mat.set_shader_parameter("color_shallow", col_shallow)
+		mat.set_shader_parameter("color_mid", col_mid)
+		mat.set_shader_parameter("color_deep", col_deep)
 		mat.set_shader_parameter("roughness", profile.water_roughness)
 		mat.set_shader_parameter("noise_texture", _get_or_create_noise_texture())
+
+		var default_ripples: Array[Vector4] = []
+		for i in range(8):
+			default_ripples.append(Vector4(0.0, 0.0, -100.0, 0.0))
+		mat.set_shader_parameter("ripples", default_ripples)
+		mat.set_shader_parameter("player_pos", Vector3(0.0, -100.0, 0.0))
+		mat.set_shader_parameter("player_speed", 0.0)
+		mat.set_shader_parameter("player_in_water", 0.0)
 		return mat
 	else:
 		var mat := StandardMaterial3D.new()

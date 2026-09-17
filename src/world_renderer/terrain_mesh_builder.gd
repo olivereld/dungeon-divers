@@ -2,6 +2,8 @@ class_name TerrainMeshBuilder
 extends RefCounted
 
 const _TerrainColorResolverScript = preload("res://src/world_generator/presentation/terrain_color_resolver.gd")
+const _ShorelineResolverScript = preload("res://src/world_generator/presentation/water/shoreline_resolver.gd")
+const _WaterTopologyScript = preload("res://src/world_generator/presentation/water/water_topology.gd")
 
 static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: WorldProfile = null) -> ArrayMesh:
 	var w := result.dimensions.x
@@ -13,7 +15,22 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
 
-	# Grid vertices (Fixed 1.0 unit per cell for 128x128 level bounds)
+	# Obtener o computar el campo de distancia SDF de la orilla (Shoreline Distance Field)
+	var shore_sdf: PackedFloat32Array = PackedFloat32Array()
+	var hydro: HydrologyResult = result.hydrology
+	if hydro != null and not hydro.water_cells.is_empty():
+		if not hydro.shoreline_sdf.is_empty() and hydro.shoreline_sdf.size() == w * h:
+			shore_sdf = hydro.shoreline_sdf
+		else:
+			var topo: WaterTopology = _WaterTopologyScript.analyze(hydro.water_cells, w, h)
+			var shore_off: float = float(profile.shoreline_offset) if (profile != null and "shoreline_offset" in profile) else 0.0
+			shore_sdf = _ShorelineResolverScript.compute(
+				hydro.water_cells, topo, w, h, result.master_seed,
+				_ShorelineResolverScript.DEFAULT_ORGANIC_AMPLITUDE, shore_off
+			)
+			hydro.shoreline_sdf = shore_sdf
+
+	# Grid vertices (Fixed 1.0 unit per cell for level bounds)
 	for y in range(h):
 		for x in range(w):
 			var cell := result.get_cell(Vector2i(x, y))
@@ -23,6 +40,10 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 
 			# Resolve procedural terrain albedo color from profile and cell ecology/topography
 			var col: Color = _TerrainColorResolverScript.resolve_vertex_color(cell, profile)
+			if not shore_sdf.is_empty():
+				col.a = shore_sdf[y * w + x]
+			else:
+				col.a = 0.0
 			colors.append(col)
 
 	# Compute indices
