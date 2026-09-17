@@ -20,6 +20,27 @@ func _init() -> void:
 	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
 	assert(colors.size() == profile.width * profile.height, "Must have 1 color per vertex")
 
+	# Verify UV2 contains tree canopy factor
+	var uv2s: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	assert(uv2s.size() == profile.width * profile.height, "Must have 1 UV2 vector per vertex")
+	var has_tree_canopy := false
+	for uv2 in uv2s:
+		assert(uv2.x >= 0.0 and uv2.x <= 1.0, "Tree factor in UV2.x must be within [0, 1]")
+		if uv2.x > 0.5:
+			has_tree_canopy = true
+	assert(has_tree_canopy, "At least some vertices must have tree canopy influence under conifers")
+
+	# Verify TerrainMaterial shader bindings
+	var terrain_mat = mesh_inst.material_override
+	if terrain_mat == null:
+		terrain_mat = mesh_inst.get_surface_override_material(0)
+	if terrain_mat is ShaderMaterial:
+		assert(terrain_mat.get_shader_parameter("forest_grass_texture") != null, "Shader must receive forest_grass_texture")
+		assert(terrain_mat.get_shader_parameter("forest_dirt_texture") != null, "Shader must receive forest_dirt_texture")
+		assert(terrain_mat.get_shader_parameter("grass_texture") != null, "Shader must receive grass_texture")
+		assert(terrain_mat.get_shader_parameter("sand_texture") != null, "Shader must receive sand_texture")
+		assert(terrain_mat.get_shader_parameter("riverbed_texture") != null, "Shader must receive riverbed_texture")
+
 	# Verify all colors are valid non-NaN albedo values with valid alpha
 	for col in colors:
 		assert(not is_nan(col.r) and not is_nan(col.g) and not is_nan(col.b))

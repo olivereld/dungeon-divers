@@ -4,6 +4,7 @@ extends RefCounted
 const _TerrainColorResolverScript = preload("res://src/world_generator/presentation/terrain_color_resolver.gd")
 const _ShorelineResolverScript = preload("res://src/world_generator/presentation/water/shoreline_resolver.gd")
 const _WaterTopologyScript = preload("res://src/world_generator/presentation/water/water_topology.gd")
+const _WorldVegetationItemScript = preload("res://src/world_generator/data/world_vegetation_item.gd")
 
 static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: WorldProfile = null) -> ArrayMesh:
 	var w := result.dimensions.x
@@ -12,6 +13,7 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var uv2s := PackedVector2Array()
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
 
@@ -30,6 +32,39 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 			)
 			hydro.shoreline_sdf = shore_sdf
 
+	# Máscara continua de influencia de copas de árboles (bajo árboles: Grass_03 + Dirt_04)
+	var tree_mask := PackedFloat32Array()
+	tree_mask.resize(w * h)
+	tree_mask.fill(0.0)
+
+	if result.vegetation != null and not result.vegetation.is_empty():
+		for item in result.vegetation:
+			var is_tree := false
+			if "type" in item:
+				is_tree = (item.type == _WorldVegetationItemScript.Type.CONIFER)
+			if not is_tree:
+				continue
+
+			var tree_x: float = item.position.x
+			var tree_z: float = item.position.z
+			var tree_scale: float = item.scale if ("scale" in item and item.scale > 0.0) else 1.0
+			var radius: float = 2.6 * tree_scale
+
+			var min_x: int = clampi(int(floor(tree_x - radius)), 0, w - 1)
+			var max_x: int = clampi(int(ceil(tree_x + radius)), 0, w - 1)
+			var min_y: int = clampi(int(floor(tree_z - radius)), 0, h - 1)
+			var max_y: int = clampi(int(ceil(tree_z + radius)), 0, h - 1)
+
+			for gy in range(min_y, max_y + 1):
+				for gx in range(min_x, max_x + 1):
+					var dx: float = float(gx) - tree_x
+					var dy: float = float(gy) - tree_z
+					var dist: float = sqrt(dx * dx + dy * dy)
+					if dist < radius:
+						var infl: float = smoothstep(radius, 0.4 * tree_scale, dist)
+						var idx: int = gy * w + gx
+						tree_mask[idx] = maxf(tree_mask[idx], infl)
+
 	# Grid vertices (Fixed 1.0 unit per cell for level bounds)
 	for y in range(h):
 		for x in range(w):
@@ -37,6 +72,7 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 			var pos := Vector3(float(x), cell.height, float(y))
 			vertices.append(pos)
 			uvs.append(Vector2(float(x) / float(w), float(y) / float(h)))
+			uv2s.append(Vector2(tree_mask[y * w + x], 0.0))
 
 			# Resolve procedural terrain albedo color from profile and cell ecology/topography
 			var col: Color = _TerrainColorResolverScript.resolve_vertex_color(cell, profile)
@@ -85,6 +121,7 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2s
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = indices
 

@@ -189,4 +189,6 @@ func get_hydrology_noise_frequency() -> float:
 @export_range(0.05, 2.0, 0.05) var riverbed_uv_scale: float = 0.35
 @export_range(0.05, 2.0, 0.05) var sand_uv_scale: float = 0.40
 @export_range(0.05, 2.0, 0.05) var grass_uv_scale: float = 0.35
+@export_range(0.05, 2.0, 0.05) var forest_grass_uv_scale: float = 0.35
+@export_range(0.05, 2.0, 0.05) var forest_dirt_uv_scale: float = 0.35
 

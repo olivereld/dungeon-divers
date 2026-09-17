@@ -114,5 +114,7 @@ func _init() -> void:
 	riverbed_uv_scale = 0.35
 	sand_uv_scale = 0.40
 	grass_uv_scale = 0.35
+	forest_grass_uv_scale = 0.35
+	forest_dirt_uv_scale = 0.35
 
 

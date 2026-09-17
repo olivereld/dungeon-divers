@@ -1385,9 +1385,11 @@ func _build_left_panel() -> void:
 	_add_slider(panel_water_vbox, "shoreline_rock_fade", "Fundido Piedra -> Tierra (m)", profile.shoreline_rock_fade, 0.05, 0.80, 0.02, Color("#f59e0b"))
 	_add_slider(panel_water_vbox, "shoreline_sand_offset", "Extensión Tierra Ribera (m)", profile.shoreline_sand_offset, -2.0, -0.05, 0.02, Color("#f59e0b"))
 	_add_slider(panel_water_vbox, "shoreline_sand_fade", "Fundido Tierra -> Bosque (m)", profile.shoreline_sand_fade, 0.05, 0.80, 0.02, Color("#f59e0b"))
-	_add_slider(panel_water_vbox, "riverbed_uv_scale", "Escala Textura Piedra Río (Stone)", profile.riverbed_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
-	_add_slider(panel_water_vbox, "sand_uv_scale", "Escala Textura Tierra Ribera (Dirt)", profile.sand_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
-	_add_slider(panel_water_vbox, "grass_uv_scale", "Escala Textura Bosque (Grass)", profile.grass_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "riverbed_uv_scale", "Escala Piedra Río (Stone_01)", profile.riverbed_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "sand_uv_scale", "Escala Tierra Ribera (Dirt_01)", profile.sand_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "grass_uv_scale", "Escala Césped Abierto (Grass_01)", profile.grass_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "forest_grass_uv_scale", "Escala Césped Bajo Árboles (Grass_03)", profile.forest_grass_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
+	_add_slider(panel_water_vbox, "forest_dirt_uv_scale", "Escala Tierra Bajo Árboles (Dirt_04)", profile.forest_dirt_uv_scale, 0.10, 1.0, 0.02, Color("#f59e0b"))
 
 	_switch_left_tab(active_left_tab)
 	ui_root.add_child(left_panel)
@@ -1508,7 +1510,9 @@ func _add_slider(parent: Control, prop_name: String, label_text: String, default
 			prop_name == "shoreline_sand_fade" or
 			prop_name == "riverbed_uv_scale" or
 			prop_name == "sand_uv_scale" or
-			prop_name == "grass_uv_scale"
+			prop_name == "grass_uv_scale" or
+			prop_name == "forest_grass_uv_scale" or
+			prop_name == "forest_dirt_uv_scale"
 		)
 
 		if is_terrain_texture_param and world_container != null:
@@ -1530,6 +1534,10 @@ func _add_slider(parent: Control, prop_name: String, label_text: String, default
 						mat.set_shader_parameter("sand_uv_scale", new_val)
 					elif prop_name == "grass_uv_scale":
 						mat.set_shader_parameter("grass_uv_scale", new_val)
+					elif prop_name == "forest_grass_uv_scale":
+						mat.set_shader_parameter("forest_grass_uv_scale", new_val)
+					elif prop_name == "forest_dirt_uv_scale":
+						mat.set_shader_parameter("forest_dirt_uv_scale", new_val)
 
 		if is_auto_gen and not is_terrain_texture_param:
 			var reset_cam: bool = (prop_name == "width" or prop_name == "height")

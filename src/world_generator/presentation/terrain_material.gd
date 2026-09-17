@@ -8,11 +8,15 @@ const TERRAIN_SHADER_PATH: String = "res://src/world_renderer/shaders/terrain.gd
 const RIVERBED_TEXTURE_PATH: String = "res://assets/texture/world/stone/Stone_01.png"
 const SAND_TEXTURE_PATH: String = "res://assets/texture/world/dirt/Dirt_01.png"
 const GRASS_TEXTURE_PATH: String = "res://assets/texture/world/grass/Grass_01.png"
+const FOREST_GRASS_TEXTURE_PATH: String = "res://assets/texture/world/grass/Grass_03.png"
+const FOREST_DIRT_TEXTURE_PATH: String = "res://assets/texture/world/dirt/Dirt_04.png"
 
 static var _cached_shader: Shader = null
 static var _cached_riverbed_tex: Texture2D = null
 static var _cached_sand_tex: Texture2D = null
 static var _cached_grass_tex: Texture2D = null
+static var _cached_forest_grass_tex: Texture2D = null
+static var _cached_forest_dirt_tex: Texture2D = null
 
 static func _get_shader() -> Shader:
 	if _cached_shader == null and ResourceLoader.exists(TERRAIN_SHADER_PATH):
@@ -34,11 +38,23 @@ static func _get_grass_texture() -> Texture2D:
 		_cached_grass_tex = load(GRASS_TEXTURE_PATH) as Texture2D
 	return _cached_grass_tex
 
+static func _get_forest_grass_texture() -> Texture2D:
+	if _cached_forest_grass_tex == null and ResourceLoader.exists(FOREST_GRASS_TEXTURE_PATH):
+		_cached_forest_grass_tex = load(FOREST_GRASS_TEXTURE_PATH) as Texture2D
+	return _cached_forest_grass_tex
+
+static func _get_forest_dirt_texture() -> Texture2D:
+	if _cached_forest_dirt_tex == null and ResourceLoader.exists(FOREST_DIRT_TEXTURE_PATH):
+		_cached_forest_dirt_tex = load(FOREST_DIRT_TEXTURE_PATH) as Texture2D
+	return _cached_forest_dirt_tex
+
 static func create_material(profile: WorldProfile = null, use_shader: bool = true) -> Material:
 	var shader: Shader = _get_shader() if use_shader else null
 	var river_tex: Texture2D = _get_riverbed_texture() if use_shader else null
 	var sand_tex: Texture2D = _get_sand_texture() if use_shader else null
 	var grass_tex: Texture2D = _get_grass_texture() if use_shader else null
+	var forest_grass_tex: Texture2D = _get_forest_grass_texture() if use_shader else null
+	var forest_dirt_tex: Texture2D = _get_forest_dirt_texture() if use_shader else null
 
 	if shader != null and river_tex != null:
 		var mat := ShaderMaterial.new()
@@ -47,6 +63,9 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 		var r_uv: float = float(profile.riverbed_uv_scale) if (profile != null and "riverbed_uv_scale" in profile) else 0.35
 		var s_uv: float = float(profile.sand_uv_scale) if (profile != null and "sand_uv_scale" in profile) else 0.40
 		var g_uv: float = float(profile.grass_uv_scale) if (profile != null and "grass_uv_scale" in profile) else 0.35
+		var fg_uv: float = float(profile.forest_grass_uv_scale) if (profile != null and "forest_grass_uv_scale" in profile) else 0.35
+		var fd_uv: float = float(profile.forest_dirt_uv_scale) if (profile != null and "forest_dirt_uv_scale" in profile) else 0.35
+
 		mat.set_shader_parameter("riverbed_uv_scale", r_uv)
 		if sand_tex != null:
 			mat.set_shader_parameter("sand_texture", sand_tex)
@@ -59,6 +78,18 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 		else:
 			mat.set_shader_parameter("grass_texture", sand_tex)
 		mat.set_shader_parameter("grass_uv_scale", g_uv)
+
+		if forest_grass_tex != null:
+			mat.set_shader_parameter("forest_grass_texture", forest_grass_tex)
+		else:
+			mat.set_shader_parameter("forest_grass_texture", grass_tex if grass_tex != null else river_tex)
+		mat.set_shader_parameter("forest_grass_uv_scale", fg_uv)
+
+		if forest_dirt_tex != null:
+			mat.set_shader_parameter("forest_dirt_texture", forest_dirt_tex)
+		else:
+			mat.set_shader_parameter("forest_dirt_texture", sand_tex if sand_tex != null else river_tex)
+		mat.set_shader_parameter("forest_dirt_uv_scale", fd_uv)
 
 		var rock_off: float = float(profile.shoreline_rock_offset) if (profile != null and "shoreline_rock_offset" in profile) else 0.35
 		var rock_fade: float = float(profile.shoreline_rock_fade) if (profile != null and "shoreline_rock_fade" in profile) else 0.25
