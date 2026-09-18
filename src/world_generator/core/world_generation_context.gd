@@ -4,6 +4,7 @@ extends RefCounted
 var master_seed: int
 var profile: WorldProfile
 var result: WorldResult
+var telemetry: Dictionary = {}
 
 func _init(p_seed: int = 0, p_profile: WorldProfile = null, p_preallocate: bool = true) -> void:
 	master_seed = p_seed

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b8y4vx1qk7d3m"]
+
+[ext_resource type="Script" path="res://src/world_generator/scenes/chunk_world_integration.gd" id="1_chunk_world"]
+
+[node name="ChunkWorldIntegration" type="Node3D"]
+script = ExtResource("1_chunk_world")

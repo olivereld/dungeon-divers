@@ -88,7 +88,11 @@ func execute(context: WorldGenerationContext) -> void:
 	var norm_range := maxf(max_h - min_h, 0.001)
 
 	if is_chunk:
-		if "use_reference_height" in context and context.use_reference_height:
+		var hydro = context.result.hydrology
+		if hydro != null and ("height_max" in hydro) and hydro.height_max > hydro.height_min:
+			norm_min_h = hydro.height_min
+			norm_range = maxf(hydro.height_max - hydro.height_min, 0.001)
+		elif "use_reference_height" in context and context.use_reference_height:
 			norm_min_h = context.reference_min_height
 			norm_range = maxf(context.reference_max_height - context.reference_min_height, 0.001)
 		else:
@@ -105,10 +109,11 @@ func execute(context: WorldGenerationContext) -> void:
 			cell.normalized_height = (cell.height - norm_min_h) / norm_range
 
 			# Central differences for slope (aprovecha las celdas de halo en context.result)
-			var cell_left: WorldCell = context.result.get_cell(Vector2i(x - 1, y))
-			var cell_right: WorldCell = context.result.get_cell(Vector2i(x + 1, y))
-			var cell_up: WorldCell = context.result.get_cell(Vector2i(x, y - 1))
-			var cell_down: WorldCell = context.result.get_cell(Vector2i(x, y + 1))
+			var has_bounds: bool = profile != null and profile.width > 0 and profile.height > 0
+			var cell_left: WorldCell = context.result.get_cell(Vector2i(x - 1, y)) if (not has_bounds or x - 1 >= 0) else null
+			var cell_right: WorldCell = context.result.get_cell(Vector2i(x + 1, y)) if (not has_bounds or x + 1 < profile.width) else null
+			var cell_up: WorldCell = context.result.get_cell(Vector2i(x, y - 1)) if (not has_bounds or y - 1 >= 0) else null
+			var cell_down: WorldCell = context.result.get_cell(Vector2i(x, y + 1)) if (not has_bounds or y + 1 < profile.height) else null
 
 			var h_left: float = cell_left.height if cell_left != null else cell.height
 			var h_right: float = cell_right.height if cell_right != null else cell.height

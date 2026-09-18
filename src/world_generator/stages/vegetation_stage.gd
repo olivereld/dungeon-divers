@@ -24,25 +24,102 @@ func execute(context: WorldGenerationContext) -> void:
 	var tree_candidates: Array[Dictionary] = []
 	var hydro = context.result.hydrology
 
+	var scoped_lakes: Array = []
+	var scoped_rivers: Variant = null
+	if hydro != null and hydro.spatial_index != null:
+		var clearance_val: float = profile.vegetation_bank_clearance if "vegetation_bank_clearance" in profile else 1.5
+		var margin_val: int = clampi(int(ceil(12.0 + clearance_val)), 1, 20)
+		var veg_query_bounds: Rect2i = eval_bounds.grow(margin_val)
+		var raw_lakes: Array = hydro.spatial_index.query_lakes(veg_query_bounds)
+		var raw_segs: Array = hydro.spatial_index.query_river_segments(veg_query_bounds)
+
+		var eval_min_x := float(eval_bounds.position.x)
+		var eval_max_x := float(eval_bounds.end.x)
+		var eval_min_y := float(eval_bounds.position.y)
+		var eval_max_y := float(eval_bounds.end.y)
+
+		var filtered_lakes: Array = []
+		var lake_margin: float = 0.707 + clearance_val
+		for lake in raw_lakes:
+			var min_pos: Vector2i = lake.get("min_pos", Vector2i.ZERO)
+			var max_pos: Vector2i = lake.get("max_pos", Vector2i.ZERO)
+			if float(max_pos.x + 1) + lake_margin < eval_min_x or float(min_pos.x) - lake_margin > eval_max_x or \
+			   float(max_pos.y + 1) + lake_margin < eval_min_y or float(min_pos.y) - lake_margin > eval_max_y:
+				continue
+			filtered_lakes.append(lake)
+		scoped_lakes = filtered_lakes
+
+		var prep_rivers := PackedFloat32Array()
+		for seg in raw_segs:
+			var margin: float = float(seg.get("max_seg_half_w", 1.0)) + clearance_val
+			var s_min_x: float = float(seg.get("min_gx", minf(seg["p0_grid"].x, seg["p1_grid"].x))) - margin
+			var s_max_x: float = float(seg.get("max_gx", maxf(seg["p0_grid"].x, seg["p1_grid"].x))) + margin
+			var s_min_y: float = float(seg.get("min_gy", minf(seg["p0_grid"].y, seg["p1_grid"].y))) - margin
+			var s_max_y: float = float(seg.get("max_gy", maxf(seg["p0_grid"].y, seg["p1_grid"].y))) + margin
+			if s_max_x < eval_min_x or s_min_x > eval_max_x or s_max_y < eval_min_y or s_min_y > eval_max_y:
+				continue
+			prep_rivers.append(s_min_x)
+			prep_rivers.append(s_max_x)
+			prep_rivers.append(s_min_y)
+			prep_rivers.append(s_max_y)
+			prep_rivers.append(float(seg.get("p0_gx", seg["p0_grid"].x)))
+			prep_rivers.append(float(seg.get("p0_gy", seg["p0_grid"].y)))
+			prep_rivers.append(float(seg.get("v_gx", seg["v_grid"].x)))
+			prep_rivers.append(float(seg.get("v_gy", seg["v_grid"].y)))
+			prep_rivers.append(float(seg.get("inv_l_sq_grid", 1.0 / seg["l_sq_grid"] if seg["l_sq_grid"] > 0.00001 else 0.0)))
+			prep_rivers.append(float(seg.get("half_w0", seg["w0"] * 0.5)))
+			prep_rivers.append(float(seg.get("half_delta_w", (seg["w1"] - seg["w0"]) * 0.5)))
+		scoped_rivers = prep_rivers
+
+	var has_nearby_water: bool = (not scoped_lakes.is_empty() or (scoped_rivers != null and not scoped_rivers.is_empty())) if (hydro != null and hydro.spatial_index != null) else true
+
+	var is_profiling: bool = (context.telemetry != null)
+	var t_start := Time.get_ticks_usec() if is_profiling else 0
+
+	var t_cell_iter_us: int = 0
+	var t_sampling_us: int = 0
+	var t_exclusion_us: int = 0
+	var t_excl_cell_us: int = 0
+	var t_excl_geom_us: int = 0
+	var t_candidate_us: int = 0
+	var t_poisson_us: int = 0
+	var t_placement_us: int = 0
+
 	for y in range(eval_bounds.position.y, eval_bounds.end.y):
 		for x in range(eval_bounds.position.x, eval_bounds.end.x):
+			var t_c0 := Time.get_ticks_usec() if is_profiling else 0
+
 			var cell_pos := Vector2i(x, y)
 			var in_core := core_bounds.has_point(cell_pos)
 
 			# En modo Lab (mundo cerrado), omitir el perímetro exterior
 			if not is_chunk:
 				if x <= 0 or x >= profile.width - 1 or y <= 0 or y >= profile.height - 1:
+					if is_profiling:
+						t_cell_iter_us += (Time.get_ticks_usec() - t_c0)
 					continue
 
 			# 1. Filtro rápido de autoridad hidrológica
 			if hydro != null:
-				if hydro.has_method("is_vegetation_excluded") and hydro.is_vegetation_excluded(cell_pos):
-					continue
-				elif hydro.has_method("is_water") and hydro.is_water(cell_pos):
+				var t_ex0 := Time.get_ticks_usec() if is_profiling else 0
+				var excl: bool = false
+				if hydro.is_vegetation_excluded(cell_pos):
+					excl = true
+				elif hydro.is_water(cell_pos):
+					excl = true
+				if is_profiling:
+					var dt := Time.get_ticks_usec() - t_ex0
+					t_excl_cell_us += dt
+					t_exclusion_us += dt
+				if excl:
+					if is_profiling:
+						t_cell_iter_us += (Time.get_ticks_usec() - t_c0)
 					continue
 
 			var cell := context.result.get_cell(cell_pos)
 			if cell == null:
+				if is_profiling:
+					t_cell_iter_us += (Time.get_ticks_usec() - t_c0)
 				continue
 
 			# Hash deterministic sub-seed for cell
@@ -55,8 +132,15 @@ func execute(context: WorldGenerationContext) -> void:
 			var world_x := float(x) + jitter_x
 			var world_z := float(y) + jitter_z
 
+			if is_profiling:
+				t_cell_iter_us += (Time.get_ticks_usec() - t_c0)
+
 			# Sample exact triangulated surface height and slope matching TerrainMeshBuilder
+			var t_s0 := Time.get_ticks_usec() if is_profiling else 0
 			var surface := _sample_surface(context.result, world_x, world_z, 1.0)
+			if is_profiling:
+				t_sampling_us += (Time.get_ticks_usec() - t_s0)
+
 			var world_y: float = surface["height"]
 			var local_slope: float = surface["slope"]
 
@@ -68,10 +152,19 @@ func execute(context: WorldGenerationContext) -> void:
 				continue
 
 			# 2. Filtro geométrico continuo preciso contra cuerpos de agua y orillas
+			var t_ex1 := Time.get_ticks_usec() if is_profiling else 0
 			var bank_clearance: float = profile.vegetation_bank_clearance if "vegetation_bank_clearance" in profile else 1.5
-			if hydro != null and hydro.has_method("is_position_excluded") and hydro.is_position_excluded(pos_2d, bank_clearance):
+			var pos_excl: bool = false
+			if has_nearby_water and hydro != null and hydro.is_position_excluded(pos_2d, bank_clearance, scoped_lakes, scoped_rivers):
+				pos_excl = true
+			if is_profiling:
+				var dt1 := Time.get_ticks_usec() - t_ex1
+				t_excl_geom_us += dt1
+				t_exclusion_us += dt1
+			if pos_excl:
 				continue
 
+			var t_cand0 := Time.get_ticks_usec() if is_profiling else 0
 			# 1. Conifer Candidates (recolectados en eval_bounds para thinning determinista)
 			if cell.forest_density > 0.05 and cell.is_walkable and cell.slope_category <= NavigationStage.SlopeCategory.GENTLE and local_slope <= 22.0:
 				var spawn_chance := cell.forest_density * profile.tree_density
@@ -108,9 +201,13 @@ func execute(context: WorldGenerationContext) -> void:
 						WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, pos_3d, rot_y, sc)
 					)
 
+			if is_profiling:
+				t_candidate_us += (Time.get_ticks_usec() - t_cand0)
+
 	# -------------------------------------------------------------------------
 	# RESOLUCIÓN POISSON DETERMINISTA (Orden-Independiente / Luby's Thinning)
 	# -------------------------------------------------------------------------
+	var t_p0 := Time.get_ticks_usec() if is_profiling else 0
 	# Indexar candidatos en spatial grid para búsqueda espacial rápida O(N)
 	var spatial_grid: Dictionary = {}
 	for i in range(tree_candidates.size()):
@@ -122,6 +219,7 @@ func execute(context: WorldGenerationContext) -> void:
 		spatial_grid[bk].append(i)
 
 	# Poda determinista por prioridad intrínseca
+	var winning_indices: Array[int] = []
 	for i in range(tree_candidates.size()):
 		var cand: Dictionary = tree_candidates[i]
 		var p: Vector2 = cand["pos_2d"]
@@ -159,9 +257,33 @@ func execute(context: WorldGenerationContext) -> void:
 				break
 
 		if not suppressed:
-			context.result.vegetation.append(
-				WorldVegetationItem.new(WorldVegetationItem.Type.CONIFER, cand["pos_3d"], cand["rot_y"], cand["scale"])
-			)
+			winning_indices.append(i)
+
+	if is_profiling:
+		t_poisson_us += (Time.get_ticks_usec() - t_p0)
+
+	var t_pl0 := Time.get_ticks_usec() if is_profiling else 0
+	for win_idx in winning_indices:
+		var cand: Dictionary = tree_candidates[win_idx]
+		context.result.vegetation.append(
+			WorldVegetationItem.new(WorldVegetationItem.Type.CONIFER, cand["pos_3d"], cand["rot_y"], cand["scale"])
+		)
+	if is_profiling:
+		t_placement_us += (Time.get_ticks_usec() - t_pl0)
+
+	if is_profiling:
+		var t_end := Time.get_ticks_usec()
+		var total_ms := float(t_end - t_start) / 1000.0
+		context.telemetry["veg_cell_iteration_ms"] = float(t_cell_iter_us) / 1000.0
+		context.telemetry["veg_surface_sampling_ms"] = float(t_sampling_us) / 1000.0
+		context.telemetry["veg_exclusion_queries_ms"] = float(t_exclusion_us) / 1000.0
+		context.telemetry["vegetation_exclusion_ms"] = float(t_exclusion_us) / 1000.0
+		context.telemetry["veg_cell_exclusion_ms"] = float(t_excl_cell_us) / 1000.0
+		context.telemetry["veg_geom_exclusion_ms"] = float(t_excl_geom_us) / 1000.0
+		context.telemetry["veg_candidate_collection_ms"] = float(t_candidate_us) / 1000.0
+		context.telemetry["veg_poisson_thinning_ms"] = float(t_poisson_us) / 1000.0
+		context.telemetry["veg_final_placement_ms"] = float(t_placement_us) / 1000.0
+		context.telemetry["veg_total_ms"] = total_ms
 
 ## Samples exact elevation and slope angle on the triangulated mesh quad matching TerrainMeshBuilder.
 func _sample_surface(result: WorldResult, world_x: float, world_z: float, cell_size: float) -> Dictionary:

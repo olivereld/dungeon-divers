@@ -107,13 +107,77 @@ class PriorityQueue:
 		return _data.size()
 
 
-func execute(context: WorldGenerationContext) -> void:
-	var profile: WorldProfile = context.profile
-	var hydro = _HydrologyResultScript.new()
-	context.result.hydrology = hydro
+static func solve_global(context: WorldGenerationContext) -> HydrologyResult:
+	var stage := HydrologyStage.new()
+	return stage._solve_global_impl(context)
 
+
+static func apply_local(context: WorldGenerationContext, hydro: HydrologyResult) -> void:
+	var stage := HydrologyStage.new()
+	stage._apply_local_impl(context, hydro)
+
+
+func execute(context: WorldGenerationContext) -> void:
+	var is_chunk: bool = context.has_method("is_chunk_context") and context.is_chunk_context()
+	var hydro: HydrologyResult = context.result.hydrology
+
+	if is_chunk and hydro != null:
+		apply_local(context, hydro)
+		return
+
+	hydro = solve_global(context)
+	context.result.hydrology = hydro
+	apply_local(context, hydro)
+
+
+func _apply_local_impl(context: WorldGenerationContext, hydro: HydrologyResult) -> void:
+	if hydro == null:
+		return
+	var profile: WorldProfile = context.profile
 	if not profile.hydrology_enabled:
 		return
+
+	var is_profiling: bool = (context.telemetry != null and not context.telemetry.is_empty())
+	var t_start := Time.get_ticks_usec() if is_profiling else 0
+
+	var cells: Dictionary = context.result.cells
+	var validated_rivers: Array = hydro.rivers
+	var accumulation: Dictionary = hydro.accumulation
+	var context_bounds: Rect2i = context.get_generation_bounds() if context.has_method("get_generation_bounds") else Rect2i(0, 0, profile.width, profile.height)
+
+	var t0 := Time.get_ticks_usec() if is_profiling else 0
+	var slope_river_us: int = _carve_river_channels(cells, validated_rivers, accumulation, profile, hydro, is_profiling, context_bounds)
+	var t1 := Time.get_ticks_usec() if is_profiling else 0
+
+	var slope_lake_us: int = _carve_lake_basins(cells, hydro.lakes, profile, hydro, is_profiling)
+	var t2 := Time.get_ticks_usec() if is_profiling else 0
+
+	_relax_hydraulic_banks(cells, profile, hydro)
+	var t3 := Time.get_ticks_usec() if is_profiling else 0
+
+	if is_profiling:
+		var total_ms := float(t3 - t_start) / 1000.0
+		var river_raw_ms := float((t1 - t0) - slope_river_us) / 1000.0
+		var lake_raw_ms := float((t2 - t1) - slope_lake_us) / 1000.0
+		var banks_ms := float(t3 - t2) / 1000.0
+		var slope_ms := float(slope_river_us + slope_lake_us) / 1000.0
+		var sub_sum := river_raw_ms + lake_raw_ms + banks_ms + slope_ms
+		var other_ms := maxf(total_ms - sub_sum, 0.0)
+
+		context.telemetry["hydro_river_ms"] = river_raw_ms
+		context.telemetry["hydro_lake_ms"] = lake_raw_ms
+		context.telemetry["hydro_banks_ms"] = banks_ms
+		context.telemetry["hydro_slope_ms"] = slope_ms
+		context.telemetry["hydro_other_ms"] = other_ms
+		context.telemetry["hydro_total_ms"] = total_ms
+
+
+func _solve_global_impl(context: WorldGenerationContext) -> HydrologyResult:
+	var profile: WorldProfile = context.profile
+	var hydro = _HydrologyResultScript.new()
+
+	if not profile.hydrology_enabled:
+		return hydro
 
 	var width: int = profile.width
 	var height: int = profile.height
@@ -318,13 +382,6 @@ func execute(context: WorldGenerationContext) -> void:
 				prev_h = cur_h
 
 	# -------------------------------------------------------------------------
-	# BLOQUE 10: ESCULPIDO DEL CAUCE EN EL TERRENO (RIVER CARVING SOBRE H_raw)
-	# -------------------------------------------------------------------------
-	_carve_river_channels(cells, validated_rivers, accumulation, width, height, profile, hydro)
-	_carve_lake_basins(cells, hydro.lakes, width, height, profile, hydro)
-	_relax_hydraulic_banks(cells, width, height, profile, hydro)
-
-	# -------------------------------------------------------------------------
 	# BLOQUE 10C: ZONIFICACIÓN HIDROLÓGICA Y MÁSCARA DE EXCLUSIÓN PARA VEGETACIÓN
 	# -------------------------------------------------------------------------
 	_build_hydrology_zones(width, height, profile, hydro)
@@ -348,6 +405,28 @@ func execute(context: WorldGenerationContext) -> void:
 	hydro.set_debug_grid("hydrology_zones", hydro.zones)
 	hydro.set_debug_grid("exclusion_mask", hydro.exclusion_mask)
 	hydro.set_debug_grid("hydraulic_influence", hydro.hydraulic_influence)
+
+	# Acumulación y extremos regionales de elevación para normalización determinista
+	hydro.accumulation = accumulation
+
+	var h_min: float = INF
+	var h_max: float = -INF
+	for cell in cells.values():
+		if cell.raw_height < h_min:
+			h_min = cell.raw_height
+		if cell.raw_height > h_max:
+			h_max = cell.raw_height
+	hydro.height_min = h_min
+	hydro.height_max = h_max
+
+	# Construir índice espacial acelerador derivado
+	var t_build_start := Time.get_ticks_usec()
+	hydro.build_spatial_index(profile.cell_size)
+	var t_build_end := Time.get_ticks_usec()
+	if context.telemetry != null:
+		context.telemetry["spatial_index_build_ms"] = float(t_build_end - t_build_start) / 1000.0
+
+	return hydro
 
 
 # =============================================================================
@@ -605,6 +684,7 @@ func _generate_lakes(
 				"water_height": spillway_height,
 				"bed_height": bed_h,
 				"depth": effective_depth,
+				"initial_depth": effective_depth,
 				"lake_id": lake_id,
 				"flow_dir": Vector2.ZERO
 			}
@@ -1699,46 +1779,46 @@ func _carve_river_channels(
 	cells: Dictionary,
 	rivers: Array,
 	_accumulation: Dictionary,
-	width: int,
-	height: int,
 	profile: WorldProfile,
-	hydro: RefCounted
-) -> void:
+	hydro: RefCounted,
+	record_slope: bool = false,
+	context_bounds: Rect2i = Rect2i()
+) -> int:
 	var carved_cells: Dictionary = {}
 	var cell_size: float = profile.cell_size if profile != null else 1.0
+	var freeboard_base: float = profile.river_freeboard if (profile != null and "river_freeboard" in profile) else 0.08
 
-	for river_data in rivers:
-		var pts_arr: Array = river_data.get("points", [])
-		var depths_arr: Array = river_data.get("depths", [])
-		var widths_arr: Array = river_data.get("widths", [])
-		var num_pts: int = pts_arr.size()
+	var has_spatial_index: bool = (hydro != null and hydro.spatial_index != null and context_bounds.size != Vector2i.ZERO)
 
-		if num_pts < 2:
-			continue
+	if has_spatial_index:
+		var candidate_segments: Array[Dictionary] = hydro.spatial_index.query_river_segments(context_bounds)
+		for seg in candidate_segments:
+			var p0_3d: Vector3 = seg["p0_3d"]
+			var p1_3d: Vector3 = seg["p1_3d"]
+			var p0: Vector2 = seg["p0"]
+			var p1: Vector2 = seg["p1"]
+			var v: Vector2 = seg["v"]
+			var inv_len_sq: float = seg["inv_len_sq"]
+			var w0: float = seg["w0"]
+			var w1: float = seg["w1"]
+			var d0: float = seg["d0"]
+			var d1: float = seg["d1"]
+			var delta_w: float = seg.get("delta_w", w1 - w0)
+			var delta_d: float = seg.get("delta_d", d1 - d0)
+			var delta_y: float = seg.get("delta_y", p1_3d.y - p0_3d.y)
+			var p0_y: float = seg.get("p0_y", p0_3d.y)
+			var max_w_river: float = seg["max_w_river"]
+			var max_w_bank_slope: float = seg["max_w_bank_slope"]
+			var max_w_bank: float = seg["max_w_bank"]
 
-		for j in range(num_pts - 1):
-			var p0_3d: Vector3 = pts_arr[j]
-			var p1_3d: Vector3 = pts_arr[j + 1]
-			var p0 := Vector2(p0_3d.x, p0_3d.z) * cell_size
-			var p1 := Vector2(p1_3d.x, p1_3d.z) * cell_size
-			var v := p1 - p0
-			var len_sq: float = v.length_squared()
-			var inv_len_sq: float = 1.0 / len_sq if len_sq > 0.00001 else 0.0
+			# Intersección directa entre el AABB del segmento y los bounds de generación del contexto (BLOQUE 13D)
+			var min_cx: int = maxi(seg["min_cx"], context_bounds.position.x)
+			var max_cx: int = mini(seg["max_cx"], context_bounds.end.x - 1)
+			var min_cy: int = maxi(seg["min_cy"], context_bounds.position.y)
+			var max_cy: int = mini(seg["max_cy"], context_bounds.end.y - 1)
 
-			var w0: float = float(widths_arr[j])
-			var w1: float = float(widths_arr[j + 1])
-			var d0: float = float(depths_arr[j])
-			var d1: float = float(depths_arr[j + 1])
-
-			var max_w: float = maxf(w0, w1)
-			var max_w_river: float = max_w * 0.5
-			var max_w_bank_slope: float = maxf(max_w_river * 1.5, cell_size * 6.0)
-			var max_w_bank: float = max_w_river + max_w_bank_slope
-
-			var min_cx: int = clampi(int(floor((minf(p0.x, p1.x) - max_w_bank) / cell_size)), 0, width - 1)
-			var max_cx: int = clampi(int(ceil((maxf(p0.x, p1.x) + max_w_bank) / cell_size)), 0, width - 1)
-			var min_cy: int = clampi(int(floor((minf(p0.y, p1.y) - max_w_bank) / cell_size)), 0, height - 1)
-			var max_cy: int = clampi(int(ceil((maxf(p0.y, p1.y) + max_w_bank) / cell_size)), 0, height - 1)
+			if min_cx > max_cx or min_cy > max_cy:
+				continue
 
 			for cy in range(min_cy, max_cy + 1):
 				for cx in range(min_cx, max_cx + 1):
@@ -1755,12 +1835,11 @@ func _carve_river_channels(
 					var proj: Vector2 = p0 + v * t
 					var dist_m: float = q.distance_to(proj)
 
-					var cur_w: float = lerpf(w0, w1, t)
-					var cur_d: float = lerpf(d0, d1, t)
+					var cur_w: float = w0 + delta_w * t
+					var cur_d: float = d0 + delta_d * t
 					var cur_w_river: float = cur_w * 0.5
-					var freeboard_base: float = profile.river_freeboard if (profile != null and "river_freeboard" in profile) else 0.08
 					var f_bank: float = maxf(cur_d * 0.50, freeboard_base)
-					var centerline_y: float = lerpf(p0_3d.y, p1_3d.y, t)
+					var centerline_y: float = p0_y + delta_y * t
 					var water_y: float = centerline_y - f_bank
 
 					var delta_h: float = maxf(0.0, cell.raw_height - water_y)
@@ -1771,16 +1850,28 @@ func _carve_river_channels(
 					if dist_m > cur_w_bank:
 						continue
 
-					var carving_profile = _HydraulicCarvingProfileScript.create_for_river(
-						cur_d,
-						cur_w_river * 0.45,
-						cur_w_river * 0.55,
-						w_bank_slope,
-						f_bank
-					)
+					# INLINE HYDRAULIC CARVING PROFILE (BLOQUE 13B) - 0 OBJECT ALLOCATIONS
+					var r_water: float = cur_w_river
+					var r_bank: float = cur_w_bank
+					var influence: float = 0.0
+					if dist_m <= r_water:
+						influence = 1.0
+					elif dist_m < r_bank:
+						var denom_b: float = maxf(w_bank_slope, 0.0001)
+						var u: float = clampf((dist_m - r_water) / denom_b, 0.0, 1.0)
+						var s: float = smoothstep(0.0, 1.0, u)
+						influence = 1.0 - s
 
-					var influence: float = carving_profile.evaluate_influence_centerline(dist_m)
-					var carved_h: float = carving_profile.evaluate_carved_height_centerline(dist_m, water_y)
+					var bed_y: float = water_y - maxf(0.01, cur_d)
+					var r_bed: float = cur_w_river * 0.45
+					var carved_h: float = water_y
+					if dist_m <= r_bed:
+						carved_h = bed_y
+					elif dist_m < r_water:
+						var denom_w: float = maxf(cur_w_river * 0.55, 0.0001)
+						var u: float = clampf((dist_m - r_bed) / denom_w, 0.0, 1.0)
+						carved_h = lerpf(bed_y, water_y, u * u)
+
 					var target_h: float = lerpf(cell.raw_height, carved_h, influence)
 					target_h = minf(cell.raw_height, target_h)
 
@@ -1790,6 +1881,106 @@ func _carve_river_channels(
 						if hydro != null:
 							var old_inf: float = float(hydro.hydraulic_influence.get(target_pos, 0.0))
 							hydro.hydraulic_influence[target_pos] = maxf(old_inf, influence)
+	else:
+		for river_data in rivers:
+			var pts_arr: Array = river_data.get("points", [])
+			var depths_arr: Array = river_data.get("depths", [])
+			var widths_arr: Array = river_data.get("widths", [])
+			var num_pts: int = pts_arr.size()
+
+			if num_pts < 2:
+				continue
+
+			for j in range(num_pts - 1):
+				var p0_3d: Vector3 = pts_arr[j]
+				var p1_3d: Vector3 = pts_arr[j + 1]
+				var p0 := Vector2(p0_3d.x, p0_3d.z) * cell_size
+				var p1 := Vector2(p1_3d.x, p1_3d.z) * cell_size
+				var v := p1 - p0
+				var len_sq: float = v.length_squared()
+				var inv_len_sq: float = 1.0 / len_sq if len_sq > 0.00001 else 0.0
+
+				var w0: float = float(widths_arr[j])
+				var w1: float = float(widths_arr[j + 1])
+				var d0: float = float(depths_arr[j])
+				var d1: float = float(depths_arr[j + 1])
+				var delta_w: float = w1 - w0
+				var delta_d: float = d1 - d0
+				var delta_y: float = p1_3d.y - p0_3d.y
+				var p0_y: float = p0_3d.y
+
+				var max_w: float = maxf(w0, w1)
+				var max_w_river: float = max_w * 0.5
+				var max_w_bank_slope: float = maxf(max_w_river * 1.5, cell_size * 10.0)
+				var max_w_bank: float = max_w_river + max_w_bank_slope
+
+				var min_cx: int = int(floor((minf(p0.x, p1.x) - max_w_bank) / cell_size))
+				var max_cx: int = int(ceil((maxf(p0.x, p1.x) + max_w_bank) / cell_size))
+				var min_cy: int = int(floor((minf(p0.y, p1.y) - max_w_bank) / cell_size))
+				var max_cy: int = int(ceil((maxf(p0.y, p1.y) + max_w_bank) / cell_size))
+
+				for cy in range(min_cy, max_cy + 1):
+					for cx in range(min_cx, max_cx + 1):
+						var target_pos := Vector2i(cx, cy)
+						if hydro.is_lake(target_pos):
+							continue
+
+						var cell: WorldCell = cells.get(target_pos)
+						if cell == null:
+							continue
+
+						var q := Vector2(float(cx), float(cy)) * cell_size
+						var t: float = clampf((q - p0).dot(v) * inv_len_sq, 0.0, 1.0)
+						var proj: Vector2 = p0 + v * t
+						var dist_m: float = q.distance_to(proj)
+
+						var cur_w: float = w0 + delta_w * t
+						var cur_d: float = d0 + delta_d * t
+						var cur_w_river: float = cur_w * 0.5
+						var f_bank: float = maxf(cur_d * 0.50, freeboard_base)
+						var centerline_y: float = p0_y + delta_y * t
+						var water_y: float = centerline_y - f_bank
+
+						var delta_h: float = maxf(0.0, cell.raw_height - water_y)
+						var needed_bank_w: float = delta_h / 0.65
+						var w_bank_slope: float = maxf(maxf(cur_w_river * 1.5, cell_size * 4.0), minf(needed_bank_w, cell_size * 10.0))
+						var cur_w_bank: float = cur_w_river + w_bank_slope
+
+						if dist_m > cur_w_bank:
+							continue
+
+						# INLINE HYDRAULIC CARVING PROFILE (BLOQUE 13B) - 0 OBJECT ALLOCATIONS
+						var r_water: float = cur_w_river
+						var r_bank: float = cur_w_bank
+						var influence: float = 0.0
+						if dist_m <= r_water:
+							influence = 1.0
+						elif dist_m < r_bank:
+							var denom_b: float = maxf(w_bank_slope, 0.0001)
+							var u: float = clampf((dist_m - r_water) / denom_b, 0.0, 1.0)
+							var s: float = smoothstep(0.0, 1.0, u)
+							influence = 1.0 - s
+
+						var bed_y: float = water_y - maxf(0.01, cur_d)
+						var r_bed: float = cur_w_river * 0.45
+						var carved_h: float = water_y
+						if dist_m <= r_bed:
+							carved_h = bed_y
+						elif dist_m < r_water:
+							var denom_w: float = maxf(cur_w_river * 0.55, 0.0001)
+							var u: float = clampf((dist_m - r_bed) / denom_w, 0.0, 1.0)
+							carved_h = lerpf(bed_y, water_y, u * u)
+
+						var target_h: float = lerpf(cell.raw_height, carved_h, influence)
+						target_h = minf(cell.raw_height, target_h)
+
+						var current_carved: float = float(carved_cells.get(target_pos, cell.raw_height))
+						if target_h < current_carved:
+							carved_cells[target_pos] = target_h
+							if hydro != null:
+								var old_inf: float = float(hydro.hydraulic_influence.get(target_pos, 0.0))
+								hydro.hydraulic_influence[target_pos] = maxf(old_inf, influence)
+
 
 	# Aplicar el tallado sobre cell.height respetando cell.raw_height intacto
 	for pos in carved_cells:
@@ -1803,20 +1994,31 @@ func _carve_river_channels(
 			hydro.water_cells[pos]["bed_height"] = b_h
 			hydro.water_cells[pos]["depth"] = cur_w_h - b_h
 
+	var t_slope_start := Time.get_ticks_usec() if record_slope else 0
 	# Recalcular pendientes para celdas modificadas
 	for pos in carved_cells:
 		var x: int = pos.x
 		var y: int = pos.y
-		var cell: WorldCell = cells[pos]
+		var cell: WorldCell = cells.get(pos)
+		if cell == null:
+			continue
 
-		var h_left: float = cells[Vector2i(maxi(x - 1, 0), y)].height
-		var h_right: float = cells[Vector2i(mini(x + 1, width - 1), y)].height
-		var h_up: float = cells[Vector2i(x, maxi(y - 1, 0))].height
-		var h_down: float = cells[Vector2i(x, mini(y + 1, height - 1))].height
+		var has_bounds: bool = profile != null and profile.width > 0 and profile.height > 0
+		var c_left: WorldCell = cells.get(Vector2i(x - 1, y), cell) if (not has_bounds or x - 1 >= 0) else cell
+		var c_right: WorldCell = cells.get(Vector2i(x + 1, y), cell) if (not has_bounds or x + 1 < profile.width) else cell
+		var c_up: WorldCell = cells.get(Vector2i(x, y - 1), cell) if (not has_bounds or y - 1 >= 0) else cell
+		var c_down: WorldCell = cells.get(Vector2i(x, y + 1), cell) if (not has_bounds or y + 1 < profile.height) else cell
+
+		var h_left: float = c_left.height if c_left != null else cell.height
+		var h_right: float = c_right.height if c_right != null else cell.height
+		var h_up: float = c_up.height if c_up != null else cell.height
+		var h_down: float = c_down.height if c_down != null else cell.height
 
 		var grad_x := (h_right - h_left) / (2.0 * profile.cell_size)
 		var grad_y := (h_down - h_up) / (2.0 * profile.cell_size)
 		cell.slope = rad_to_deg(atan(sqrt(grad_x * grad_x + grad_y * grad_y)))
+
+	return (Time.get_ticks_usec() - t_slope_start) if record_slope else 0
 
 
 # =============================================================================
@@ -1826,13 +2028,12 @@ func _carve_river_channels(
 func _carve_lake_basins(
 	cells: Dictionary,
 	lakes: Array,
-	width: int,
-	height: int,
 	profile: WorldProfile,
-	hydro: RefCounted
-) -> void:
+	hydro: RefCounted,
+	record_slope: bool = false
+) -> int:
 	if lakes.is_empty():
-		return
+		return 0
 
 	var cell_size: float = profile.cell_size if profile != null else 1.0
 	var w_lake_bank: float = cell_size * 3.5
@@ -1849,14 +2050,22 @@ func _carve_lake_basins(
 		for p in cluster:
 			lake_set[p] = true
 
-		var min_pos: Vector2i = lake.get("min_pos", Vector2i(0, 0))
-		var max_pos: Vector2i = lake.get("max_pos", Vector2i(width - 1, height - 1))
+		var min_pos: Vector2i = lake.get("min_pos", Vector2i.ZERO)
+		var max_pos: Vector2i = lake.get("max_pos", Vector2i.ZERO)
+		if min_pos == Vector2i.ZERO and max_pos == Vector2i.ZERO and not cluster.is_empty():
+			min_pos = cluster[0]
+			max_pos = cluster[0]
+			for p in cluster:
+				min_pos.x = mini(min_pos.x, p.x)
+				min_pos.y = mini(min_pos.y, p.y)
+				max_pos.x = maxi(max_pos.x, p.x)
+				max_pos.y = maxi(max_pos.y, p.y)
 		var search_margin: int = clampi(int(ceil(w_lake_bank / cell_size)) + 1, 1, 6)
 
-		var bx0: int = clampi(min_pos.x - search_margin, 0, width - 1)
-		var bx1: int = clampi(max_pos.x + search_margin, 0, width - 1)
-		var by0: int = clampi(min_pos.y - search_margin, 0, height - 1)
-		var by1: int = clampi(max_pos.y + search_margin, 0, height - 1)
+		var bx0: int = min_pos.x - search_margin
+		var bx1: int = max_pos.x + search_margin
+		var by0: int = min_pos.y - search_margin
+		var by1: int = max_pos.y + search_margin
 
 		# 1. Identificar celdas de contorno / borde del lago (boundary cells)
 		var boundary_cells: Array[Vector2i] = []
@@ -1921,7 +2130,7 @@ func _carve_lake_basins(
 
 				var cell_depth: float = min_bed_depth
 				if is_inside and hydro != null and hydro.water_cells.has(pos):
-					cell_depth = float(hydro.water_cells[pos].get("depth", min_bed_depth))
+					cell_depth = float(hydro.water_cells[pos].get("initial_depth", hydro.water_cells[pos].get("depth", min_bed_depth)))
 
 				var influence: float = lake_carving_profile.evaluate_influence_boundary(signed_d)
 				var carved_h: float = lake_carving_profile.evaluate_carved_height_boundary(signed_d, water_y, cell_depth)
@@ -1956,20 +2165,31 @@ func _carve_lake_basins(
 				hydro.water_cells[pos]["bed_height"] = b_h
 				hydro.water_cells[pos]["depth"] = cur_w_h - b_h
 
+	var t_slope_start := Time.get_ticks_usec() if record_slope else 0
 	# Recalcular pendientes para celdas modificadas
 	for pos in carved_lake_cells:
 		var x: int = pos.x
 		var y: int = pos.y
-		var cell: WorldCell = cells[pos]
+		var cell: WorldCell = cells.get(pos)
+		if cell == null:
+			continue
 
-		var h_left: float = cells[Vector2i(maxi(x - 1, 0), y)].height
-		var h_right: float = cells[Vector2i(mini(x + 1, width - 1), y)].height
-		var h_up: float = cells[Vector2i(x, maxi(y - 1, 0))].height
-		var h_down: float = cells[Vector2i(x, mini(y + 1, height - 1))].height
+		var has_bounds: bool = profile != null and profile.width > 0 and profile.height > 0
+		var c_left: WorldCell = cells.get(Vector2i(x - 1, y), cell) if (not has_bounds or x - 1 >= 0) else cell
+		var c_right: WorldCell = cells.get(Vector2i(x + 1, y), cell) if (not has_bounds or x + 1 < profile.width) else cell
+		var c_up: WorldCell = cells.get(Vector2i(x, y - 1), cell) if (not has_bounds or y - 1 >= 0) else cell
+		var c_down: WorldCell = cells.get(Vector2i(x, y + 1), cell) if (not has_bounds or y + 1 < profile.height) else cell
+
+		var h_left: float = c_left.height if c_left != null else cell.height
+		var h_right: float = c_right.height if c_right != null else cell.height
+		var h_up: float = c_up.height if c_up != null else cell.height
+		var h_down: float = c_down.height if c_down != null else cell.height
 
 		var grad_x := (h_right - h_left) / (2.0 * profile.cell_size)
 		var grad_y := (h_down - h_up) / (2.0 * profile.cell_size)
 		cell.slope = rad_to_deg(atan(sqrt(grad_x * grad_x + grad_y * grad_y)))
+
+	return (Time.get_ticks_usec() - t_slope_start) if record_slope else 0
 
 
 # =============================================================================
@@ -1980,8 +2200,6 @@ func _carve_lake_basins(
 ## de los cauces y masas hidráulicas, distribuyendo el desnivel suavemente hacia H_raw.
 func _relax_hydraulic_banks(
 	cells: Dictionary,
-	width: int,
-	height: int,
 	profile: WorldProfile,
 	hydro: RefCounted
 ) -> void:
@@ -2018,8 +2236,6 @@ func _relax_hydraulic_banks(
 
 		for offset in D8_OFFSETS:
 			var v: Vector2i = u + offset
-			if v.x < 0 or v.x >= width or v.y < 0 or v.y >= height:
-				continue
 			if hydro.is_water(v):
 				continue
 
@@ -2065,20 +2281,29 @@ func _relax_hydraulic_banks(
 			if max_adj_wh != -INF:
 				var bevel_val: float = profile.shoreline_bank_bevel if (profile != null and "shoreline_bank_bevel" in profile) else 0.18
 				var min_bank_h: float = max_adj_wh + bevel_val
-				if cells[pos].height < min_bank_h:
-					cells[pos].height = min_bank_h
+				var cell_p: WorldCell = cells.get(pos)
+				if cell_p != null and cell_p.height < min_bank_h:
+					cell_p.height = min_bank_h
 					modified_cells[pos] = true
 
 	# Recalcular pendientes para celdas relajadas y biseladas
 	for pos in modified_cells:
 		var x: int = pos.x
 		var y: int = pos.y
-		var cell: WorldCell = cells[pos]
+		var cell: WorldCell = cells.get(pos)
+		if cell == null:
+			continue
 
-		var h_left: float = cells[Vector2i(maxi(x - 1, 0), y)].height
-		var h_right: float = cells[Vector2i(mini(x + 1, width - 1), y)].height
-		var h_up: float = cells[Vector2i(x, maxi(y - 1, 0))].height
-		var h_down: float = cells[Vector2i(x, mini(y + 1, height - 1))].height
+		var has_bounds: bool = profile != null and profile.width > 0 and profile.height > 0
+		var c_left: WorldCell = cells.get(Vector2i(x - 1, y), cell) if (not has_bounds or x - 1 >= 0) else cell
+		var c_right: WorldCell = cells.get(Vector2i(x + 1, y), cell) if (not has_bounds or x + 1 < profile.width) else cell
+		var c_up: WorldCell = cells.get(Vector2i(x, y - 1), cell) if (not has_bounds or y - 1 >= 0) else cell
+		var c_down: WorldCell = cells.get(Vector2i(x, y + 1), cell) if (not has_bounds or y + 1 < profile.height) else cell
+
+		var h_left: float = c_left.height if c_left != null else cell.height
+		var h_right: float = c_right.height if c_right != null else cell.height
+		var h_up: float = c_up.height if c_up != null else cell.height
+		var h_down: float = c_down.height if c_down != null else cell.height
 
 		var grad_x := (h_right - h_left) / (2.0 * cell_size)
 		var grad_y := (h_down - h_up) / (2.0 * cell_size)

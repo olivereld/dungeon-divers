@@ -164,5 +164,21 @@ func _init() -> void:
 		assert(chunk_data.core_bounds.has_point(pos), "All remaining cells must be inside core_bounds")
 	print("PASS: 6. trim_to_core removes halo correctly")
 
-	print("\n>>> ALL TESTS IN BLOQUE 2 PASSED SUCCESSFULLY! <<<")
+	# -------------------------------------------------------------------------
+	# 7. Test WorldPipeline.generate_chunk() and WorldPipeline.generate()
+	# -------------------------------------------------------------------------
+	var wp_chunk := WorldPipeline.generate_chunk(12345, Vector2i(0, 0))
+	assert(wp_chunk is ChunkData, "WorldPipeline.generate_chunk must return ChunkData")
+	assert(wp_chunk.cells.size() == 256, "Chunk cells after trim must be 16x16 = 256, got: %d" % wp_chunk.cells.size())
+	assert(wp_chunk.master_seed == 12345, "Master seed match")
+	assert(wp_chunk.coord == Vector2i(0, 0), "Chunk coord match")
+	assert(wp_chunk.dimensions == Vector2i(16, 16), "Chunk dimensions match")
+
+	var wp_world := WorldPipeline.generate(12345)
+	assert(wp_world is WorldResult, "WorldPipeline.generate must return WorldResult")
+	assert(wp_world.cells.size() == 64 * 64, "World cells must match profile size (64x64)")
+	print("PASS: 7. WorldPipeline.generate_chunk() and WorldPipeline.generate() verified")
+
+	print("\n>>> ALL TESTS IN BLOQUE 2 & BLOQUE 3 PASSED SUCCESSFULLY! <<<")
 	quit(0)
+

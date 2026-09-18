@@ -36,7 +36,11 @@ func _init(
 	chunk_data.hydrology = p_shared_hydro
 	result = chunk_data
 
-	if config.use_reference_height_range:
+	if p_shared_hydro != null and ("height_max" in p_shared_hydro) and p_shared_hydro.height_max > p_shared_hydro.height_min:
+		reference_min_height = p_shared_hydro.height_min
+		reference_max_height = p_shared_hydro.height_max
+		use_reference_height = true
+	elif config.use_reference_height_range:
 		reference_min_height = config.reference_min_height
 		reference_max_height = config.reference_max_height
 		use_reference_height = true
