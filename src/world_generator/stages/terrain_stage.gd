@@ -132,3 +132,4 @@ func execute(context: WorldGenerationContext) -> void:
 		var expected_h := profile.base_height + float(cell.elevation_level) * profile.elevation_step_height
 		assert(is_equal_approx(cell.height, expected_h), "TerrainStage invariant violated: height != base + level * step at %s" % str(cell.position))
 		assert(cell.elevation_level >= profile.elevation_min_level and cell.elevation_level <= profile.max_elevation_level, "TerrainStage invariant violated: elevation_level out of bounds at %s" % str(cell.position))
+

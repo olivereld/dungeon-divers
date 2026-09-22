@@ -19,7 +19,7 @@ void fragment() {
 	if (tex_color.a < alpha_scissor_threshold) {
 		discard;
 	}
-	ALBEDO = tex_color.rgb * foliage_tint.rgb;
+	ALBEDO = tex_color.rgb * foliage_tint.rgb * COLOR.rgb;
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;
 	SPECULAR = 0.0;

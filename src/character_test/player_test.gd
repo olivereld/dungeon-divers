@@ -82,6 +82,8 @@ func _physics_process(delta: float) -> void:
 	else:
 		if velocity.y < 0.0:
 			velocity.y = 0.0
+		if Input.is_key_pressed(KEY_SPACE):
+			velocity.y = 7.0
 
 	var vp = get_viewport()
 

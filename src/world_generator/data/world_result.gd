@@ -5,6 +5,7 @@ var dimensions: Vector2i = Vector2i.ZERO
 var master_seed: int = 0
 var cells: Dictionary = {}  # Vector2i -> WorldCell
 var vegetation: Array = []  # Array[WorldVegetationItem]
+var canopy_trees: Array = []  # Array[WorldVegetationItem] within canopy influence range (for seamless tree_mask)
 var spawn_position: Vector3 = Vector3.ZERO
 var hydrology: RefCounted = null  # HydrologyResult
 var cached_water_surface: RefCounted = null  # WaterSurfaceData cache
