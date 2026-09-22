@@ -11,6 +11,8 @@ uniform sampler2D grass_texture : source_color, filter_linear_mipmap, repeat_ena
 // Debajo de los árboles (Césped de sotobosque / Grass_03 y Tierra de pinar / Dirt_04)
 uniform sampler2D forest_grass_texture : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D forest_dirt_texture : source_color, filter_linear_mipmap, repeat_enable;
+// Acantilados / paredes verticales de roca (cliff_02.jpg)
+uniform sampler2D cliff_texture : source_color, filter_linear_mipmap, repeat_enable;
 
 // 2. Escalas de UV (Coordenadas de mundo XZ/YZ/XY)
 uniform float riverbed_uv_scale : hint_range(0.05, 2.0) = 0.35;
@@ -18,6 +20,7 @@ uniform float sand_uv_scale : hint_range(0.05, 2.0) = 0.40;
 uniform float grass_uv_scale : hint_range(0.05, 2.0) = 0.35;
 uniform float forest_grass_uv_scale : hint_range(0.05, 2.0) = 0.35;
 uniform float forest_dirt_uv_scale : hint_range(0.05, 2.0) = 0.35;
+uniform float cliff_uv_scale : hint_range(0.05, 2.0) = 0.25;
 
 // 3. Rangos métricos de orilla (en metros relativos a la línea de agua/espuma)
 // Distancia positiva = dentro del agua; distancia negativa = tierra seca fuera del agua.
@@ -36,6 +39,7 @@ uniform float roughness_forest_grass : hint_range(0.0, 1.0) = 0.86;
 uniform float roughness_forest_dirt : hint_range(0.0, 1.0) = 0.88;
 uniform float roughness_sand : hint_range(0.0, 1.0) = 0.82;
 uniform float roughness_riverbed : hint_range(0.0, 1.0) = 0.58;
+uniform float roughness_cliff : hint_range(0.0, 1.0) = 0.86;
 
 // Tintes opcionales
 uniform vec4 riverbed_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
@@ -43,6 +47,7 @@ uniform vec4 sand_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 grass_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 forest_grass_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 forest_dirt_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+uniform vec4 cliff_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 
 varying vec3 v_world_pos;
 varying vec3 v_normal;
@@ -96,6 +101,14 @@ void fragment() {
 	vec4 fd_z = texture(forest_dirt_texture, v_world_pos.xy * forest_dirt_uv_scale);
 	vec3 forest_dirt_color = (fd_x.rgb * blend_weights.x + fd_y.rgb * blend_weights.y + fd_z.rgb * blend_weights.z) * forest_dirt_tint.rgb;
 
+	// Muestreo Cliff (Roca de acantilado / cliff_02.jpg)
+	// Se invierte la coordenada vertical (-v_world_pos.y) porque en espacio UV el 0.0 está arriba,
+	// alineando la cima iluminada de las rocas con la parte superior de los acantilados (+Y).
+	vec4 c_x = texture(cliff_texture, vec2(v_world_pos.z, -v_world_pos.y) * cliff_uv_scale);
+	vec4 c_y = texture(cliff_texture, v_world_pos.xz * cliff_uv_scale);
+	vec4 c_z = texture(cliff_texture, vec2(v_world_pos.x, -v_world_pos.y) * cliff_uv_scale);
+	vec3 cliff_color = (c_x.rgb * blend_weights.x + c_y.rgb * blend_weights.y + c_z.rgb * blend_weights.z) * cliff_tint.rgb;
+
 	// 3. Combinación orgánica de Grass_03 y Dirt_04 debajo de los árboles:
 	// Patrones de variación espacial / acumulación irregular de acículas y suelo húmedo
 	float patch_noise = sin(v_world_pos.x * 0.75 + sin(v_world_pos.z * 0.5) * 2.0)
@@ -111,10 +124,11 @@ void fragment() {
 	vec3 land_floor = mix(open_grass_color, under_tree_floor, v_tree_factor);
 	float land_floor_roughness = mix(roughness_grass, roughness_under_tree, v_tree_factor);
 
-	// Acantilados muy pronunciados revelan la roca del bioma (land_albedo)
-	float cliff_factor = 1.0 - smoothstep(0.40, 0.72, v_normal.y);
-	vec3 land_surface = mix(land_floor, land_albedo, cliff_factor * 0.85);
-	float land_roughness = mix(land_floor_roughness, roughness_land, cliff_factor);
+	// Acantilados muy pronunciados y paredes verticales revelan la roca de acantilado (cliff_02.jpg)
+	float cliff_factor = 1.0 - smoothstep(0.35, 0.75, v_normal.y);
+	vec3 cliff_blended = mix(cliff_color, land_albedo * cliff_color * 1.35, 0.20);
+	vec3 land_surface = mix(land_floor, cliff_blended, cliff_factor);
+	float land_roughness = mix(land_floor_roughness, roughness_cliff, cliff_factor);
 
 	// 4. Factores de mezcla basados en el campo de distancia métrico (SDF en v_color.a)
 	// v_color.a codifica el SDF normalizado de ShorelineResolver:

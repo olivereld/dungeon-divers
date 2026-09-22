@@ -8,6 +8,23 @@ enum SlopeCategory {
 	CLIFF,     # > 40 deg
 }
 
+## Regla de navegación entre celdas para terreno escalonado:
+## - different level (level_a != level_b) -> no transición caminable (no es una pendiente caminable;
+##   base limpia para conectores explícitos futuros: Ramp, Stairs, Bridge).
+## - same level (level_a == level_b) -> transitable según reglas existentes (ambas celdas transitables).
+static func can_transition(cell_a: WorldCell, cell_b: WorldCell) -> bool:
+	if cell_a == null or cell_b == null:
+		return false
+	if cell_a.elevation_level != cell_b.elevation_level:
+		return false
+	return cell_a.is_walkable and cell_b.is_walkable
+
+static func can_transition_pos(result: WorldResult, pos_a: Vector2i, pos_b: Vector2i) -> bool:
+	if result == null:
+		return false
+	return can_transition(result.get_cell(pos_a), result.get_cell(pos_b))
+
+
 func execute(context: WorldGenerationContext) -> void:
 	var profile: WorldProfile = context.profile
 	var walkable_count: int = 0

@@ -110,47 +110,13 @@ func execute(context: WorldGenerationContext) -> void:
 						WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, pos_3d, rot_y, sc)
 					)
 
-## Samples exact elevation and slope angle on the triangulated mesh quad matching TerrainMeshBuilder.
+	# End of execute
+
+## Samples exact elevation and slope on the stepped terrain mesh matching TerrainMeshBuilder.
 func _sample_surface(result: WorldResult, world_x: float, world_z: float, cell_size: float) -> Dictionary:
-	var w: int = result.dimensions.x
-	var h: int = result.dimensions.y
-	var grid_x: float = world_x / cell_size
-	var grid_z: float = world_z / cell_size
-
-	var x0: int = clampi(int(floor(grid_x)), 0, w - 2)
-	var z0: int = clampi(int(floor(grid_z)), 0, h - 2)
-	var x1: int = x0 + 1
-	var z1: int = z0 + 1
-
-	var u: float = clampf(grid_x - float(x0), 0.0, 1.0)
-	var v: float = clampf(grid_z - float(z0), 0.0, 1.0)
-
-	var c00 := result.get_cell(Vector2i(x0, z0))
-	var c10 := result.get_cell(Vector2i(x1, z0))
-	var c01 := result.get_cell(Vector2i(x0, z1))
-	var c11 := result.get_cell(Vector2i(x1, z1))
-
-	var h00: float = c00.height if c00 != null else 0.0
-	var h10: float = c10.height if c10 != null else 0.0
-	var h01: float = c01.height if c01 != null else 0.0
-	var h11: float = c11.height if c11 != null else 0.0
-
-	var height: float = 0.0
-	var slope_deg: float = 0.0
-
-	# Triangle plane interpolation matching TerrainMeshBuilder indices:
-	# Quad triangles:
-	# T1: (x0, z0) -> (x1, z0) -> (x0, z1) when u + v <= 1.0
-	# T2: (x1, z0) -> (x1, z1) -> (x0, z1) when u + v > 1.0
-	if u + v <= 1.0:
-		height = h00 + u * (h10 - h00) + v * (h01 - h00)
-		var dh_dx: float = (h10 - h00) / cell_size
-		var dh_dz: float = (h01 - h00) / cell_size
-		slope_deg = rad_to_deg(atan(sqrt(dh_dx * dh_dx + dh_dz * dh_dz)))
-	else:
-		height = h11 + (1.0 - u) * (h01 - h11) + (1.0 - v) * (h10 - h11)
-		var dh_dx: float = (h11 - h01) / cell_size
-		var dh_dz: float = (h11 - h10) / cell_size
-		slope_deg = rad_to_deg(atan(sqrt(dh_dx * dh_dx + dh_dz * dh_dz)))
-
-	return {"height": height, "slope": slope_deg}
+	var gx: int = int(floor(world_x / cell_size))
+	var gz: int = int(floor(world_z / cell_size))
+	var cell := result.get_cell(Vector2i(gx, gz))
+	if cell != null:
+		return {"height": cell.height, "slope": cell.slope}
+	return {"height": 0.0, "slope": 0.0}

@@ -10,6 +10,7 @@ const SAND_TEXTURE_PATH: String = "res://assets/texture/world/dirt/Dirt_01.png"
 const GRASS_TEXTURE_PATH: String = "res://assets/texture/world/grass/Grass_01.png"
 const FOREST_GRASS_TEXTURE_PATH: String = "res://assets/texture/world/grass/Grass_03.png"
 const FOREST_DIRT_TEXTURE_PATH: String = "res://assets/texture/world/dirt/Dirt_04.png"
+const CLIFF_TEXTURE_PATH: String = "res://assets/texture/world/cliff/cliff_02.jpg"
 
 static var _cached_shader: Shader = null
 static var _cached_riverbed_tex: Texture2D = null
@@ -17,6 +18,7 @@ static var _cached_sand_tex: Texture2D = null
 static var _cached_grass_tex: Texture2D = null
 static var _cached_forest_grass_tex: Texture2D = null
 static var _cached_forest_dirt_tex: Texture2D = null
+static var _cached_cliff_tex: Texture2D = null
 
 static func _get_shader() -> Shader:
 	if _cached_shader == null and ResourceLoader.exists(TERRAIN_SHADER_PATH):
@@ -48,6 +50,11 @@ static func _get_forest_dirt_texture() -> Texture2D:
 		_cached_forest_dirt_tex = load(FOREST_DIRT_TEXTURE_PATH) as Texture2D
 	return _cached_forest_dirt_tex
 
+static func _get_cliff_texture() -> Texture2D:
+	if _cached_cliff_tex == null and ResourceLoader.exists(CLIFF_TEXTURE_PATH):
+		_cached_cliff_tex = load(CLIFF_TEXTURE_PATH) as Texture2D
+	return _cached_cliff_tex
+
 static func create_material(profile: WorldProfile = null, use_shader: bool = true) -> Material:
 	var shader: Shader = _get_shader() if use_shader else null
 	var river_tex: Texture2D = _get_riverbed_texture() if use_shader else null
@@ -55,6 +62,7 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 	var grass_tex: Texture2D = _get_grass_texture() if use_shader else null
 	var forest_grass_tex: Texture2D = _get_forest_grass_texture() if use_shader else null
 	var forest_dirt_tex: Texture2D = _get_forest_dirt_texture() if use_shader else null
+	var cliff_tex: Texture2D = _get_cliff_texture() if use_shader else null
 
 	if shader != null and river_tex != null:
 		var mat := ShaderMaterial.new()
@@ -91,6 +99,13 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 			mat.set_shader_parameter("forest_dirt_texture", sand_tex if sand_tex != null else river_tex)
 		mat.set_shader_parameter("forest_dirt_uv_scale", fd_uv)
 
+		if cliff_tex != null:
+			mat.set_shader_parameter("cliff_texture", cliff_tex)
+		else:
+			mat.set_shader_parameter("cliff_texture", river_tex)
+		var c_uv: float = float(profile.cliff_uv_scale) if (profile != null and "cliff_uv_scale" in profile) else 0.25
+		mat.set_shader_parameter("cliff_uv_scale", c_uv)
+
 		var rock_off: float = float(profile.shoreline_rock_offset) if (profile != null and "shoreline_rock_offset" in profile) else 0.35
 		var rock_fade: float = float(profile.shoreline_rock_fade) if (profile != null and "shoreline_rock_fade" in profile) else 0.25
 		var sand_off: float = float(profile.shoreline_sand_offset) if (profile != null and "shoreline_sand_offset" in profile) else -0.55
@@ -104,8 +119,28 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 		mat.set_shader_parameter("roughness_land", 0.88)
 		mat.set_shader_parameter("roughness_sand", 0.82)
 		mat.set_shader_parameter("roughness_riverbed", 0.58)
-		mat.set_shader_parameter("riverbed_tint", Color(1.0, 1.0, 1.0, 1.0))
-		mat.set_shader_parameter("sand_tint", Color(1.0, 1.0, 1.0, 1.0))
+
+		var g_tint := Color.WHITE
+		var fg_tint := Color.WHITE
+		var fd_tint := Color.WHITE
+		var s_tint := Color.WHITE
+		var r_tint := Color.WHITE
+		var c_tint := Color.WHITE
+
+		if profile != null:
+			g_tint = profile.terrain_grass_color.lightened(0.20)
+			fg_tint = profile.terrain_moss_color.lightened(0.15)
+			fd_tint = profile.forest_floor_color.lightened(0.30)
+			s_tint = profile.terrain_moss_color.lightened(0.25)
+			r_tint = profile.terrain_rock_color.lightened(0.20)
+			c_tint = profile.terrain_rock_color.lightened(0.10)
+
+		mat.set_shader_parameter("riverbed_tint", r_tint)
+		mat.set_shader_parameter("sand_tint", s_tint)
+		mat.set_shader_parameter("grass_tint", g_tint)
+		mat.set_shader_parameter("forest_grass_tint", fg_tint)
+		mat.set_shader_parameter("forest_dirt_tint", fd_tint)
+		mat.set_shader_parameter("cliff_tint", c_tint)
 		return mat
 
 	# Fallback a StandardMaterial3D

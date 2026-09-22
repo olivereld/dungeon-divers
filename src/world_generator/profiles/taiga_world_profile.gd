@@ -17,6 +17,12 @@ func _init() -> void:
 	height_scale = 1.0
 	relief_exponent = 1.1
 
+	# Stepped Elevation / Terrazas (Calibración rápida de niveles y alturas de escalón)
+	elevation_step_height = 2.0  # Altura métrica de cada escalón
+	elevation_level_count = 6    # Cantidad total de niveles discretos
+	elevation_min_level = 0      # Nivel mínimo (clamping)
+	elevation_max_level = 5      # Nivel máximo (clamping)
+
 	# Legacy parameters synchronized
 	macro_frequency = 1.0 / macro_wavelength
 	macro_strength = macro_amplitude
@@ -42,10 +48,10 @@ func _init() -> void:
 	clearing_threshold = 0.45
 
 	# Vegetation: high conifer presence, dispersed shrubs and granite rocks
-	tree_density = 0.70
-	shrub_density = 0.45
+	tree_density = 0.35
+	shrub_density = 0.35
 	rock_density = 0.20
-	min_tree_spacing = 2.0
+	min_tree_spacing = 3.2
 	vegetation_bank_clearance = 1.5
 	max_walkable_slope = 35.0
 

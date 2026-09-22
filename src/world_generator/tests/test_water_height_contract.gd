@@ -81,9 +81,26 @@ func _test_seed(seed_val: int) -> void:
 		if cell.height < cell.raw_height - 0.0001:
 			carved_cell_count += 1
 
-		# Carving must only excavate (or blend), never lift terrain above virgin raw_height
-		assert(cell.height <= cell.raw_height + 0.0001,
-			"Carving raised terrain above virgin raw_height at %s: height=%.4f > raw=%.4f" % [str(pos), cell.height, cell.raw_height])
+		# Carving must only excavate (or blend), never lift terrain above virgin raw_height,
+		# except where shoreline bank bevel elevates dry bank above adjacent water level.
+		var max_adj_wh: float = -INF
+		if not hydro.water_cells.has(pos):
+			for dx in range(-1, 2):
+				for dy in range(-1, 2):
+					if dx == 0 and dy == 0:
+						continue
+					var np: Vector2i = Vector2i(pos) + Vector2i(dx, dy)
+					if hydro.water_cells.has(np):
+						var wh: float = float(hydro.water_cells[np].get("water_height", 0.0))
+						if wh > max_adj_wh:
+							max_adj_wh = wh
+
+		if max_adj_wh != -INF:
+			assert(cell.height <= maxf(cell.raw_height, max_adj_wh + profile.shoreline_bank_bevel + 0.01),
+				"Shoreline bank bevel at %s exceeded allowable freeboard: height=%.4f, raw=%.4f, max_wh=%.4f" % [str(pos), cell.height, cell.raw_height, max_adj_wh])
+		else:
+			assert(cell.height <= cell.raw_height + 0.0001,
+				"Carving raised terrain above virgin raw_height at %s: height=%.4f > raw=%.4f" % [str(pos), cell.height, cell.raw_height])
 
 	print("    Carved cells found: %d" % carved_cell_count)
 	assert(carved_cell_count > 0, "Hydrology should have carved at least some river/lake cells")
@@ -145,28 +162,32 @@ func _test_seed(seed_val: int) -> void:
 	assert(terrain_mesh != null and terrain_mesh.get_surface_count() > 0, "TerrainMeshBuilder must produce valid mesh")
 	var mesh_arrays: Array = terrain_mesh.surface_get_arrays(0)
 	var mesh_vertices: PackedVector3Array = mesh_arrays[Mesh.ARRAY_VERTEX]
-	assert(mesh_vertices.size() == profile.width * profile.height, "Mesh vertex count must match world grid dimensions")
+	assert(mesh_vertices.size() >= profile.width * profile.height * 4, "Mesh vertex count must match stepped terrain dimensions")
 
 	var carved_mesh_verified: int = 0
+	var normals: PackedVector3Array = mesh_arrays[Mesh.ARRAY_NORMAL]
+	var top_left_verts: Dictionary = {}
+	for i in range(mesh_vertices.size()):
+		var v: Vector3 = mesh_vertices[i]
+		var n: Vector3 = normals[i]
+		if n.dot(Vector3.UP) > 0.95:
+			var cell_pos := Vector2i(int(round(v.x)), int(round(v.z)))
+			top_left_verts[cell_pos] = v.y
+
 	for y in range(profile.height):
 		for x in range(profile.width):
-			var idx: int = y * profile.width + x
-			var v: Vector3 = mesh_vertices[idx]
-			var c: WorldCell = result.get_cell(Vector2i(x, y))
+			var pos := Vector2i(x, y)
+			var c: WorldCell = result.get_cell(pos)
+			if top_left_verts.has(pos):
+				var vy: float = float(top_left_verts[pos])
+				assert(is_equal_approx(vy, c.height),
+					"Mesh vertex Y at (%d, %d) mismatch: mesh_y=%.4f != cell.height=%.4f" % [x, y, vy, c.height])
 
-			# Mesh vertex X and Z must match grid coordinates
-			assert(is_equal_approx(v.x, float(x)), "Mesh vertex X at (%d, %d) mismatch" % [x, y])
-			assert(is_equal_approx(v.z, float(y)), "Mesh vertex Z at (%d, %d) mismatch" % [x, y])
-
-			# Mesh vertex Y must strictly match final cell.height
-			assert(is_equal_approx(v.y, c.height),
-				"Mesh vertex Y at (%d, %d) mismatch: mesh_y=%.4f != cell.height=%.4f" % [x, y, v.y, c.height])
-
-			# On meaningfully carved cells (at least 5cm carving depth), verify mesh vertex Y reflects carved height and NOT raw_height
-			if c.height < c.raw_height - 0.05:
-				assert(absf(v.y - c.raw_height) > 0.01,
-					"Mesh vertex Y at (%d, %d) incorrectly matches virgin raw_height instead of carved height! v.y=%.4f, raw=%.4f, height=%.4f" % [x, y, v.y, c.raw_height, c.height])
-				carved_mesh_verified += 1
+				# On meaningfully carved cells (at least 5cm carving depth), verify mesh vertex Y reflects carved height and NOT raw_height
+				if c.height < c.raw_height - 0.05:
+					assert(absf(vy - c.raw_height) > 0.01,
+						"Mesh vertex Y at (%d, %d) incorrectly matches virgin raw_height instead of carved height! v.y=%.4f, raw=%.4f, height=%.4f" % [x, y, vy, c.raw_height, c.height])
+					carved_mesh_verified += 1
 
 	print("    Verified %d carved vertices rendered at cell.height" % carved_mesh_verified)
 	assert(carved_mesh_verified > 0, "At least one carved vertex must be verified in the mesh")

@@ -207,7 +207,7 @@ const PRESETS: Dictionary = {
 		"base_height": 2.0, "height_scale": 1.0,
 		"warp_wavelength": 90.0, "warp_amplitude": 18.0, "warp_octaves": 2,
 		"forest_wavelength": 65.0, "clearing_wavelength": 30.0, "clearing_threshold": 0.45,
-		"tree_density": 0.70, "min_tree_spacing": 2.0, "shrub_density": 0.45, "rock_density": 0.20,
+		"tree_density": 0.35, "min_tree_spacing": 3.2, "shrub_density": 0.35, "rock_density": 0.20,
 		"cell_size": 1.0, "lake_threshold": 0.22, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0,
 		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},

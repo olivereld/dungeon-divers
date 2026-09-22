@@ -18,8 +18,10 @@ func _init() -> void:
 	assert(mesh != null)
 
 	var arrays := mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var uv2s: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
-	assert(uv2s.size() == profile.width * profile.height, "UV2 array size must match total vertex count")
+	assert(uv2s.size() == verts.size(), "UV2 array size must match total vertex count")
+	assert(verts.size() >= profile.width * profile.height * 4, "Stepped terrain must produce at least 4 vertices per cell")
 
 	# 3. Check that under-tree vertices have tree canopy factor > 0
 	var canopy_vertices := 0

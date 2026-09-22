@@ -15,9 +15,23 @@ extends Resource
 @export_range(0.0, 20.0, 0.2) var medium_amplitude: float = 4.5       # Vertical elevation relief (m)
 @export_range(2.0, 30.0, 0.5) var detail_wavelength: float = 10.0     # Horizontal span of ground ripples/roughness (m)
 @export_range(0.0, 5.0, 0.05) var detail_amplitude: float = 0.6       # Vertical micro-relief (m)
+# Stepped Elevation / Terrazas
+@export_group("Stepped Elevation")
 @export var base_height: float = 2.0
+@export_range(0.5, 10.0, 0.5) var elevation_step_height: float = 2.0      # Altura de cada escalón/terraza (m)
+@export_range(2, 32, 1) var elevation_level_count: int = 6                # Cantidad de niveles discretos de elevación
+@export var elevation_min_level: int = 0                                   # Límite inferior de nivel
+@export var elevation_max_level: int = 5                                   # Límite superior de nivel
 @export_range(0.1, 5.0, 0.1) var height_scale: float = 1.0
 @export_range(0.5, 3.0, 0.05) var relief_exponent: float = 1.1
+
+# Aliases de compatibilidad
+var min_elevation_level: int:
+	get: return elevation_min_level
+	set(v): elevation_min_level = v
+var max_elevation_level: int:
+	get: return elevation_max_level
+	set(v): elevation_max_level = v
 
 # Legacy Frequency & Strength parameters for backwards compatibility
 @export_range(0.001, 0.1, 0.001) var macro_frequency: float = 0.015
@@ -47,10 +61,10 @@ extends Resource
 
 # Vegetation
 @export_group("Vegetation")
-@export_range(0.0, 1.0, 0.01) var tree_density: float = 0.65
-@export_range(0.0, 1.0, 0.01) var shrub_density: float = 0.40
+@export_range(0.0, 1.0, 0.01) var tree_density: float = 0.35
+@export_range(0.0, 1.0, 0.01) var shrub_density: float = 0.35
 @export_range(0.0, 1.0, 0.01) var rock_density: float = 0.15
-@export_range(0.5, 10.0, 0.1) var min_tree_spacing: float = 2.2
+@export_range(0.5, 10.0, 0.1) var min_tree_spacing: float = 3.2
 @export_range(0.0, 5.0, 0.25) var vegetation_bank_clearance: float = 1.5
 
 # Navigation
@@ -191,4 +205,6 @@ func get_hydrology_noise_frequency() -> float:
 @export_range(0.05, 2.0, 0.05) var grass_uv_scale: float = 0.35
 @export_range(0.05, 2.0, 0.05) var forest_grass_uv_scale: float = 0.35
 @export_range(0.05, 2.0, 0.05) var forest_dirt_uv_scale: float = 0.35
+@export_range(0.05, 2.0, 0.05) var cliff_uv_scale: float = 0.25
+
 

@@ -1763,7 +1763,7 @@ func _carve_river_channels(
 					var centerline_y: float = lerpf(p0_3d.y, p1_3d.y, t)
 					var water_y: float = centerline_y - f_bank
 
-					var delta_h: float = maxf(0.0, cell.raw_height - water_y)
+					var delta_h: float = maxf(0.0, cell.height - water_y)
 					var needed_bank_w: float = delta_h / 0.65
 					var w_bank_slope: float = maxf(maxf(cur_w_river * 1.5, cell_size * 4.0), minf(needed_bank_w, cell_size * 10.0))
 					var cur_w_bank: float = cur_w_river + w_bank_slope
@@ -1781,10 +1781,10 @@ func _carve_river_channels(
 
 					var influence: float = carving_profile.evaluate_influence_centerline(dist_m)
 					var carved_h: float = carving_profile.evaluate_carved_height_centerline(dist_m, water_y)
-					var target_h: float = lerpf(cell.raw_height, carved_h, influence)
-					target_h = minf(cell.raw_height, target_h)
+					var target_h: float = lerpf(cell.height, carved_h, influence)
+					target_h = minf(cell.height, target_h)
 
-					var current_carved: float = float(carved_cells.get(target_pos, cell.raw_height))
+					var current_carved: float = float(carved_cells.get(target_pos, cell.height))
 					if target_h < current_carved:
 						carved_cells[target_pos] = target_h
 						if hydro != null:
@@ -1896,7 +1896,7 @@ func _carve_lake_basins(
 				if cell == null:
 					continue
 
-				var raw_h: float = cell.raw_height if cell.raw_height != 0.0 else cell.height
+				var raw_h: float = cell.height
 
 				# Calcular distancia euclidiana mínima a las celdas de borde
 				var min_dist_sq: float = INF
@@ -1925,8 +1925,8 @@ func _carve_lake_basins(
 
 				var influence: float = lake_carving_profile.evaluate_influence_boundary(signed_d)
 				var carved_h: float = lake_carving_profile.evaluate_carved_height_boundary(signed_d, water_y, cell_depth)
-				var target_h: float = lerpf(raw_h, carved_h, influence)
-				target_h = minf(raw_h, target_h)
+				var target_h: float = lerpf(cell.height, carved_h, influence)
+				target_h = minf(cell.height, target_h)
 
 				var current_h: float = float(carved_lake_cells.get(pos, cell.height))
 				if target_h < current_h:
@@ -2033,10 +2033,10 @@ func _relax_hydraulic_banks(
 
 			# Si la celda vecina genera un salto vertical que supera el talud admisible:
 			if v_cell.height > max_allowed_h:
-				var new_h: float = minf(v_cell.raw_height, max_allowed_h)
+				var new_h: float = minf(v_cell.height, max_allowed_h)
 				if new_h < v_cell.height:
 					v_cell.height = new_h
-					var rel_inf: float = clampf((v_cell.raw_height - new_h) / maxf(v_cell.raw_height - u_height, 0.001), 0.0, 1.0)
+					var rel_inf: float = clampf((v_cell.height - new_h) / maxf(v_cell.height - u_height, 0.001), 0.0, 1.0)
 					v_cell.hydraulic_influence = maxf(v_cell.hydraulic_influence, rel_inf)
 					hydro.hydraulic_influence[v] = v_cell.hydraulic_influence
 					modified_cells[v] = true
@@ -2065,8 +2065,12 @@ func _relax_hydraulic_banks(
 			if max_adj_wh != -INF:
 				var bevel_val: float = profile.shoreline_bank_bevel if (profile != null and "shoreline_bank_bevel" in profile) else 0.18
 				var min_bank_h: float = max_adj_wh + bevel_val
-				if cells[pos].height < min_bank_h:
-					cells[pos].height = min_bank_h
+				var cell_p: WorldCell = cells.get(pos)
+				if cell_p != null and cell_p.height < min_bank_h:
+					cell_p.height = min_bank_h
+					cell_p.hydraulic_influence = maxf(cell_p.hydraulic_influence, 0.5)
+					if hydro != null:
+						hydro.hydraulic_influence[pos] = cell_p.hydraulic_influence
 					modified_cells[pos] = true
 
 	# Recalcular pendientes para celdas relajadas y biseladas

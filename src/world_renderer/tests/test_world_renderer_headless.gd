@@ -17,12 +17,28 @@ func _init() -> void:
 	var mesh_inst: MeshInstance3D = node.get_node("TerrainMesh")
 	var array_mesh: ArrayMesh = mesh_inst.mesh
 	var arrays := array_mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
-	assert(colors.size() == profile.width * profile.height, "Must have 1 color per vertex")
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uv2s: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+
+	assert(verts.size() >= profile.width * profile.height * 4, "Stepped terrain must produce at least 4 vertices (TOP quad) per cell")
+	assert(colors.size() == verts.size(), "Must have 1 color per vertex")
+	assert(uv2s.size() == verts.size(), "Must have 1 UV2 vector per vertex")
+	assert(normals.size() == verts.size(), "Must have 1 normal vector per vertex")
+
+	# Verify presence of flat top surfaces (Vector3.UP) and cliff normals (horizontal)
+	var has_up_normal := false
+	var has_cliff_normal := false
+	for n in normals:
+		if n.dot(Vector3.UP) > 0.95:
+			has_up_normal = true
+		elif absf(n.y) < 0.05 and (absf(n.x) > 0.9 or absf(n.z) > 0.9):
+			has_cliff_normal = true
+	assert(has_up_normal, "Terrain mesh must have horizontal plateau surfaces with Vector3.UP normals")
+	assert(has_cliff_normal, "Terrain mesh must have vertical cliff faces with horizontal normals")
 
 	# Verify UV2 contains tree canopy factor
-	var uv2s: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
-	assert(uv2s.size() == profile.width * profile.height, "Must have 1 UV2 vector per vertex")
 	var has_tree_canopy := false
 	for uv2 in uv2s:
 		assert(uv2.x >= 0.0 and uv2.x <= 1.0, "Tree factor in UV2.x must be within [0, 1]")
