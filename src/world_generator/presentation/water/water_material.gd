@@ -6,7 +6,14 @@ extends RefCounted
 ## o StandardMaterial3D de alto rendimiento.
 
 const _ShaderRes = preload("res://src/world_generator/presentation/water/water_flow.gdshader")
+const WATER_TEXTURE_PATH: String = "res://assets/texture/world/water/Water_01.png"
 static var _cached_noise_tex: NoiseTexture2D = null
+static var _cached_water_tex: Texture2D = null
+
+static func _get_water_texture() -> Texture2D:
+	if _cached_water_tex == null and ResourceLoader.exists(WATER_TEXTURE_PATH):
+		_cached_water_tex = load(WATER_TEXTURE_PATH) as Texture2D
+	return _cached_water_tex
 
 static func _get_or_create_noise_texture() -> NoiseTexture2D:
 	if _cached_noise_tex != null:
@@ -50,6 +57,9 @@ static func create_water_material(profile: WorldProfile, use_shader: bool = true
 		mat.set_shader_parameter("color_deep", col_deep)
 		mat.set_shader_parameter("roughness", profile.water_roughness)
 		mat.set_shader_parameter("noise_texture", _get_or_create_noise_texture())
+		var w_tex := _get_water_texture()
+		if w_tex != null:
+			mat.set_shader_parameter("water_texture", w_tex)
 
 		var default_ripples: Array[Vector4] = []
 		for i in range(8):

@@ -52,7 +52,7 @@ func render_world(
 			root.add_child(water_node)
 
 	# 3. Vegetation MultiMeshes
-	_spawn_vegetation_multimeshes(root, result)
+	_spawn_vegetation_multimeshes(root, result, profile)
 
 	return root
 
@@ -60,51 +60,63 @@ const PINO_GLB_PATH: String = "res://assets/models/props/nature/pino.glb"
 const PINO_SHADER_PATH: String = "res://src/world_renderer/shaders/pino_foliage.gdshader"
 static var _cached_conifer_mesh: Mesh = null
 
-func _spawn_vegetation_multimeshes(parent: Node3D, result: WorldResult) -> void:
+func _spawn_vegetation_multimeshes(parent: Node3D, result: WorldResult, p_profile: WorldProfile = null) -> void:
+	spawn_vegetation(parent, result.vegetation, Vector3.ZERO, p_profile)
+
+static func spawn_vegetation(parent: Node3D, items: Array, origin_3d: Vector3 = Vector3.ZERO, profile: WorldProfile = null) -> void:
+	if items.is_empty():
+		return
+
 	var conifers: Array[WorldVegetationItem] = []
 	var shrubs: Array[WorldVegetationItem] = []
 	var rocks: Array[WorldVegetationItem] = []
 
-	for item in result.vegetation:
+	for it in items:
+		var item := it as WorldVegetationItem
+		if item == null:
+			continue
 		match item.type:
 			WorldVegetationItem.Type.CONIFER: conifers.append(item)
 			WorldVegetationItem.Type.SHRUB: shrubs.append(item)
 			WorldVegetationItem.Type.ROCK: rocks.append(item)
 
-	# base_y_offset lifts primitive mesh center so its base is firmly grounded:
-	# - Conifers (Pino GLB model grounded at base or CylinderMesh H=4.5):
-	#   Grounded directly at base for 3D model, or lifted 1.95m for cylinder.
-	# - Shrubs (SphereMesh H=0.8): half-height is 0.40m. Lift by 0.30m to sit 10cm in the soil.
-	# - Rocks (BoxMesh H=0.8): half-height is 0.40m. Lift by 0.20m to keep ~25% buried naturally.
 	var conifer_mesh := _create_conifer_mesh()
 	var conifer_offset := 0.0 if not (conifer_mesh is CylinderMesh) else 1.95
-	_create_multimesh(parent, "Conifers", conifer_mesh, conifers, conifer_offset)
-	_create_multimesh(parent, "Shrubs", _create_shrub_mesh(), shrubs, 0.30)
-	_spawn_rock_multimeshes(parent, rocks)
+	var foliage_variants: Array = profile.foliage_tint_variants if (profile != null and not profile.foliage_tint_variants.is_empty()) else []
+	_create_multimesh(parent, "Conifers", conifer_mesh, conifers, conifer_offset, origin_3d, foliage_variants)
+	_create_multimesh(parent, "Shrubs", _create_shrub_mesh(not foliage_variants.is_empty()), shrubs, 0.30, origin_3d, foliage_variants)
+	_spawn_rock_multimeshes(parent, rocks, origin_3d)
 
-func _create_multimesh(parent: Node3D, name_id: String, base_mesh: Mesh, items: Array[WorldVegetationItem], base_y_offset: float = 0.0) -> void:
-	if items.is_empty():
+static func _create_multimesh(parent: Node3D, name_id: String, base_mesh: Mesh, items: Array, base_y_offset: float = 0.0, origin_3d: Vector3 = Vector3.ZERO, color_variants: Array = []) -> void:
+	if items.is_empty() or base_mesh == null:
 		return
 
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = name_id
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
+	var has_colors: bool = not color_variants.is_empty()
+	if has_colors:
+		mm.use_colors = true
 	mm.mesh = base_mesh
 	mm.instance_count = items.size()
 
 	for i in range(items.size()):
-		var item := items[i]
+		var item: WorldVegetationItem = items[i] as WorldVegetationItem
 		var t := Transform3D()
 		t = t.scaled(Vector3.ONE * item.scale)
 		t = t.rotated(Vector3.UP, item.rotation_y)
-		t.origin = item.position + Vector3(0.0, base_y_offset * item.scale, 0.0)
+		var local_pos: Vector3 = item.position - origin_3d
+		t.origin = local_pos + Vector3(0.0, base_y_offset * item.scale, 0.0)
 		mm.set_instance_transform(i, t)
+		if has_colors:
+			var h: int = (int(absf(item.position.x * 19.0)) ^ int(absf(item.position.z * 37.0))) % color_variants.size()
+			mm.set_instance_color(i, color_variants[h])
 
 	mmi.multimesh = mm
 	parent.add_child(mmi)
 
-func _create_conifer_mesh() -> Mesh:
+static func _create_conifer_mesh() -> Mesh:
 	if _cached_conifer_mesh != null:
 		return _cached_conifer_mesh
 
@@ -222,16 +234,18 @@ static func _bake_pino_mesh(orig_mesh: Mesh, xform: Transform3D, mat: Material, 
 
 	return new_mesh
 
-func _create_shrub_mesh() -> SphereMesh:
+static func _create_shrub_mesh(has_instance_colors: bool = false) -> SphereMesh:
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.6
 	mesh.height = 0.8
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.25, 0.45, 0.20)
+	mat.albedo_color = Color(0.9, 0.9, 0.9) if has_instance_colors else Color(0.25, 0.45, 0.20)
+	if has_instance_colors:
+		mat.vertex_color_use_as_albedo = true
 	mesh.material = mat
 	return mesh
 
-func _create_rock_mesh() -> Mesh:
+static func _create_rock_mesh() -> Mesh:
 	var variants: Array[Mesh] = _ProceduralRockGeneratorScript.get_rock_variants()
 	if not variants.is_empty():
 		return variants[0]
@@ -242,13 +256,13 @@ func _create_rock_mesh() -> Mesh:
 	mesh.material = mat
 	return mesh
 
-func _spawn_rock_multimeshes(parent: Node3D, items: Array[WorldVegetationItem]) -> void:
+static func _spawn_rock_multimeshes(parent: Node3D, items: Array, origin_3d: Vector3 = Vector3.ZERO) -> void:
 	if items.is_empty():
 		return
 
 	var variants: Array[Mesh] = _ProceduralRockGeneratorScript.get_rock_variants()
 	if variants.is_empty():
-		_create_multimesh(parent, "Rocks", _create_rock_mesh(), items, 0.20)
+		_create_multimesh(parent, "Rocks", _create_rock_mesh(), items, 0.20, origin_3d)
 		return
 
 	var num_variants: int = variants.size()
@@ -304,7 +318,8 @@ func _spawn_rock_multimeshes(parent: Node3D, items: Array[WorldVegetationItem]) 
 
 			# Arraigo: base descansando firmemente sobre el terreno
 			var base_y_offset: float = 0.12
-			t.origin = item.position + Vector3(0.0, base_y_offset * base_scale, 0.0)
+			var local_pos := item.position - origin_3d
+			t.origin = local_pos + Vector3(0.0, base_y_offset * base_scale, 0.0)
 			mm.set_instance_transform(i, t)
 
 		mmi.multimesh = mm
