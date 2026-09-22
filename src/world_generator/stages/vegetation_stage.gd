@@ -196,6 +196,7 @@ func execute(context: WorldGenerationContext) -> void:
 			if pos_in_core and ((cell.slope_category in [NavigationStage.SlopeCategory.STEEP, NavigationStage.SlopeCategory.CLIFF] or (cell.slope_category == NavigationStage.SlopeCategory.GENTLE and cell.slope > 15.0) or local_slope > 20.0) and local_slope < 55.0):
 				if rng.randf() < profile.rock_density:
 					var rot_y := rng.randf_range(0.0, TAU)
+					var sc := rng.randf_range(0.6, 1.4)
 					context.result.vegetation.append(
 						WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, pos_3d, rot_y, sc)
 					)

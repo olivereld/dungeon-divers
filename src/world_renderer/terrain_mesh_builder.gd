@@ -10,8 +10,15 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 	var w := result.dimensions.x
 	var h := result.dimensions.y
 
-	var is_chunk: bool = result.has_method("is_chunk") and result.is_chunk()
-	var origin: Vector2i = result.origin if (is_chunk and "origin" in result) else (result.chunk_position if (is_chunk and "chunk_position" in result) else Vector2i.ZERO)
+	var is_chunk: bool = ("seam_cells" in result) or (result.has_method("get_core_bounds")) or (result.has_method("is_chunk") and result.is_chunk())
+	var origin := Vector2i.ZERO
+	if "core_bounds" in result:
+		origin = result.core_bounds.position
+	elif is_chunk and "origin" in result:
+		origin = result.origin
+	elif is_chunk and "chunk_position" in result:
+		origin = result.chunk_position
+
 	var macro_w: int = profile.width if profile != null else w
 	var macro_h: int = profile.height if profile != null else h
 
@@ -21,10 +28,6 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 	var uv2s := PackedVector2Array()
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
-
-	var is_chunk: bool = ("seam_cells" in result) or (result.has_method("get_core_bounds"))
-	var macro_w: int = profile.width if profile != null else w
-	var macro_h: int = profile.height if profile != null else h
 
 	# Obtener o computar el campo de distancia SDF de la orilla (Shoreline Distance Field)
 	var shore_sdf: PackedFloat32Array = PackedFloat32Array()
@@ -42,28 +45,13 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 			)
 			hydro.shoreline_sdf = shore_sdf
 
-<<<<<<< HEAD
 	var cells_w: int = w
 	var cells_h: int = h
 
 	# Máscara continua de influencia de copas de árboles (bajo árboles: Grass_03 + Dirt_04)
 	var tree_mask := PackedFloat32Array()
 	tree_mask.resize(cells_w * cells_h)
-=======
-	var grid_w: int = w + 1 if is_chunk else w
-	var grid_h: int = h + 1 if is_chunk else h
-	var quad_w: int = w if is_chunk else w - 1
-	var quad_h: int = h if is_chunk else h - 1
-
-	# Máscara continua de influencia de copas de árboles (bajo árboles: Grass_03 + Dirt_04)
-	var tree_mask := PackedFloat32Array()
-	tree_mask.resize(grid_w * grid_h)
->>>>>>> origin/main
 	tree_mask.fill(0.0)
-
-	var origin := Vector2i.ZERO
-	if "core_bounds" in result:
-		origin = result.core_bounds.position
 
 	var trees_source: Array = result.canopy_trees if ("canopy_trees" in result and result.canopy_trees != null and not result.canopy_trees.is_empty()) else result.vegetation
 	if trees_source != null and not trees_source.is_empty():
@@ -79,7 +67,6 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 			var tree_scale: float = item.scale if ("scale" in item and item.scale > 0.0) else 1.0
 			var radius: float = 2.6 * tree_scale
 
-<<<<<<< HEAD
 			var min_x: int = clampi(int(floor(tree_x - radius)) - origin.x, 0, cells_w - 1)
 			var max_x: int = clampi(int(ceil(tree_x + radius)) - origin.x, 0, cells_w - 1)
 			var min_y: int = clampi(int(floor(tree_z - radius)) - origin.y, 0, cells_h - 1)
@@ -111,57 +98,6 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 
 			if cell == null:
 				continue
-=======
-			var min_x: int = clampi(int(floor(tree_x - radius)) - origin.x, 0, grid_w - 1)
-			var max_x: int = clampi(int(ceil(tree_x + radius)) - origin.x, 0, grid_w - 1)
-			var min_y: int = clampi(int(floor(tree_z - radius)) - origin.y, 0, grid_h - 1)
-			var max_y: int = clampi(int(ceil(tree_z + radius)) - origin.y, 0, grid_h - 1)
-
-			for gy in range(min_y, max_y + 1):
-				for gx in range(min_x, max_x + 1):
-					var dx: float = float(gx + origin.x) - tree_x
-					var dy: float = float(gy + origin.y) - tree_z
-					var dist: float = sqrt(dx * dx + dy * dy)
-					if dist < radius:
-						var infl: float = smoothstep(radius, 0.4 * tree_scale, dist)
-						var idx: int = gy * grid_w + gx
-						tree_mask[idx] = maxf(tree_mask[idx], infl)
-
-	# Grid vertices
-	for y in range(grid_h):
-		for x in range(grid_w):
-			var pos_2i := origin + Vector2i(x, y)
-			var cell: WorldCell = null
-			if is_chunk and result.has_method("get_cell_or_seam"):
-				cell = result.get_cell_or_seam(pos_2i)
-			else:
-				cell = result.get_cell(pos_2i)
-
-			var h_val: float = cell.height if cell != null else 0.0
-			var pos := Vector3(float(x) * cell_size, h_val, float(y) * cell_size)
-			vertices.append(pos)
-			uvs.append(Vector2(float(x) / float(w), float(y) / float(h)))
-			uv2s.append(Vector2(tree_mask[y * grid_w + x], 0.0))
-
-			# Resolve procedural terrain albedo color from profile and cell ecology/topography
-			var col: Color = _TerrainColorResolverScript.resolve_vertex_color(cell, profile)
-			if is_chunk:
-				col.a = hydro.get_shoreline_sdf_at(pos_2i, macro_w, macro_h) if hydro != null else 0.0
-			else:
-				if not shore_sdf.is_empty() and y < h and x < w:
-					col.a = shore_sdf[y * w + x]
-				else:
-					col.a = 0.0
-			colors.append(col)
-
-	# Compute indices
-	for y in range(quad_h):
-		for x in range(quad_w):
-			var i0 := y * grid_w + x
-			var i1 := y * grid_w + (x + 1)
-			var i2 := (y + 1) * grid_w + x
-			var i3 := (y + 1) * grid_w + (x + 1)
->>>>>>> origin/main
 
 			var h_top: float = cell.height
 			var x0: float = float(x) * cell_size
@@ -188,7 +124,6 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 			normals.append(Vector3.UP)
 			normals.append(Vector3.UP)
 
-<<<<<<< HEAD
 			var uv0 := Vector2(float(pos_2i.x) / float(macro_w), float(pos_2i.y) / float(macro_h))
 			var uv1 := Vector2(float(pos_2i.x + 1) / float(macro_w), float(pos_2i.y) / float(macro_h))
 			var uv2 := Vector2(float(pos_2i.x) / float(macro_w), float(pos_2i.y + 1) / float(macro_h))
