@@ -7,15 +7,17 @@ extends Node3D
 const _ChunkWorldScript = preload("res://src/world_generator/chunks/chunk_world.gd")
 const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
 const _TaigaWorldProfileScript = preload("res://src/world_generator/profiles/taiga_world_profile.gd")
+const _AutumnForestWorldProfileScript = preload("res://src/world_generator/profiles/autumn_forest_world_profile.gd")
+const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometric_camera_rig.gd")
 const _ChunkConfigScript = preload("res://src/world_generator/chunks/chunk_config.gd")
 const _WorldPipelineScript = preload("res://src/world_generator/facade/world_pipeline.gd")
 
 @export var world_seed: int = 12345
-@export var render_distance: int = 1
+@export var render_distance: int = 2
 
 var chunk_world: ChunkWorld = null
 var player: CharacterBody3D = null
-var camera: Camera3D = null
+var camera_rig: IsometricCameraRig = null
 var sun_light: DirectionalLight3D = null
 var world_environment: WorldEnvironment = null
 
@@ -36,12 +38,14 @@ func _ready() -> void:
 
 
 func _setup_environment() -> void:
-	# 1. Luz Solar
+	# 1. Luz Solar (Cálida y dorada para atmósfera de bosque otoñal)
 	sun_light = DirectionalLight3D.new()
 	sun_light.name = "DirectionalLight3D"
-	sun_light.rotation_degrees = Vector3(-45, 35, 0)
-	sun_light.light_energy = 1.15
+	sun_light.rotation_degrees = Vector3(-45, 38, 0)
+	sun_light.light_color = Color(1.0, 0.94, 0.85)
+	sun_light.light_energy = 1.25
 	sun_light.shadow_enabled = true
+	sun_light.shadow_bias = 0.04
 	add_child(sun_light)
 
 	# 2. Entorno y Cielo Procedural
@@ -51,29 +55,31 @@ func _setup_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.35, 0.55, 0.85)
-	sky_mat.sky_horizon_color = Color(0.70, 0.78, 0.85)
-	sky_mat.ground_bottom_color = Color(0.20, 0.22, 0.25)
-	sky_mat.ground_horizon_color = Color(0.55, 0.60, 0.65)
+	sky_mat.sky_top_color = Color(0.38, 0.52, 0.75)
+	sky_mat.sky_horizon_color = Color(0.82, 0.74, 0.65)
+	sky_mat.ground_bottom_color = Color(0.25, 0.20, 0.18)
+	sky_mat.ground_horizon_color = Color(0.65, 0.58, 0.50)
 	sky.sky_material = sky_mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.60
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	world_environment.environment = env
 	add_child(world_environment)
 
 
 func _setup_chunk_world() -> void:
-	profile = _TaigaWorldProfileScript.new()
-	config = _ChunkConfigScript.new(16, render_distance)
+	# Perfil de Bosque Otoñal por defecto con texturas del proyecto
+	profile = _AutumnForestWorldProfileScript.new()
+	config = _ChunkConfigScript.new(16, 1, render_distance)
 	shared_hydrology = _WorldPipelineScript.generate_regional_hydrology(world_seed, profile)
 
 	chunk_world = _ChunkWorldScript.new()
 	chunk_world.name = "ChunkWorld"
+	chunk_world.render_distance = render_distance
 	add_child(chunk_world)
 
-	chunk_world.initialize(world_seed, profile, config, shared_hydrology)
+	chunk_world.initialize(world_seed, profile, config, shared_hydrology, render_distance)
 	# Carga inicial del radio centrado en (0, 0)
 	chunk_world.load_initial_area(Vector2i.ZERO, render_distance)
 
@@ -82,21 +88,28 @@ func _setup_player() -> void:
 	player = _PlayerTestScript.new()
 	player.name = "Player"
 
-	# Cámara de seguimiento en tercera persona
-	camera = Camera3D.new()
-	camera.name = "Camera3D"
-	camera.current = true
-	camera.position = Vector3(0, 10, 12)
-	camera.rotation_degrees = Vector3(-38, 0, 0)
-	camera.fov = 65.0
-	player.add_child(camera)
-
 	# Posicionar al jugador en una cota segura sobre el terreno inicial
 	var start_cell := chunk_world.get_cell_at_world_pos(Vector2i(8, 8))
 	var start_y: float = start_cell.height if start_cell != null else 10.0
 	player.position = Vector3(8.0, start_y + 1.2, 8.0)
-
 	add_child(player)
+
+	# Cámara isométrica orbital de producción (IsometricCameraRig)
+	camera_rig = _IsometricCameraRigScript.new()
+	camera_rig.name = "IsometricCameraRig"
+	camera_rig.yaw_degrees = 45.0
+	camera_rig.pitch_degrees = 35.264 # Ángulo isométrico real
+	camera_rig.zoom_min = 6.0
+	camera_rig.zoom_max = 60.0
+	camera_rig.default_zoom = 20.0
+	camera_rig.zoom_step = 4.0
+	camera_rig.zoom_smoothing = 14.0
+	camera_rig.follow_speed = 12.0
+	add_child(camera_rig)
+
+	camera_rig.set_target(player)
+	camera_rig.set_follow_enabled(true)
+	camera_rig.teleport_to_target()
 
 	# Conectar player como autoridad de streaming
 	chunk_world.set_tracked_target(player)
@@ -155,11 +168,32 @@ func _update_hud() -> void:
 			mgr.stats_discarded
 		]
 	text += "-----------------------------------\n"
-	text += "[WASD / Flechas]: Mover personaje\n"
+	text += "[WASD / Flechas]: Mover personaje (orientado a cámara)\n"
+	text += "[Q / E]: Rotar cámara orbital 45°\n"
+	text += "[Rueda Mouse]: Zoom In / Out\n"
 	text += "[Espacio]: Saltar\n"
 	text += "[R]: Reaparecer en origen (8, 8)\n"
 
 	_info_label.text = text
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if camera_rig == null:
+		return
+
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.is_pressed():
+			camera_rig.zoom_in()
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.is_pressed():
+			camera_rig.zoom_out()
+
+	elif event is InputEventKey and event.is_pressed() and not event.is_echo():
+		var ke := event as InputEventKey
+		if ke.keycode == KEY_Q:
+			camera_rig.yaw_degrees -= 45.0
+		elif ke.keycode == KEY_E:
+			camera_rig.yaw_degrees += 45.0
 
 
 func _handle_debug_inputs() -> void:
@@ -168,3 +202,5 @@ func _handle_debug_inputs() -> void:
 		var start_y: float = start_cell.height if start_cell != null else 10.0
 		player.position = Vector3(8.0, start_y + 1.2, 8.0)
 		player.velocity = Vector3.ZERO
+		if camera_rig != null:
+			camera_rig.teleport_to_target()

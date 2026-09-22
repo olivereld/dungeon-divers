@@ -75,6 +75,38 @@ func build_spatial_index(p_cell_size: float = 1.0) -> void:
 	spatial_index = _HydrologySpatialIndexScript.new(16, p_cell_size)
 	spatial_index.build(rivers, lakes, p_cell_size)
 
+func merge(other: HydrologyResult, cell_size: float = 1.0) -> void:
+	if other == null:
+		return
+	for pos in other.water_cells:
+		water_cells[pos] = other.water_cells[pos]
+	for r in other.rivers:
+		rivers.append(r)
+	for l in other.lakes:
+		lakes.append(l)
+	for b_id in other.basins:
+		basins[b_id] = other.basins[b_id]
+	for c in other.confluences:
+		confluences.append(c)
+	for pos in other.accumulation:
+		accumulation[pos] = other.accumulation[pos]
+	for pos in other.zones:
+		zones[pos] = other.zones[pos]
+	for pos in other.hydraulic_influence:
+		hydraulic_influence[pos] = other.hydraulic_influence[pos]
+	for pos in other.exclusion_mask:
+		exclusion_mask[pos] = other.exclusion_mask[pos]
+
+	if other.height_min != 0.0 or other.height_max != 0.0:
+		if height_min == 0.0 and height_max == 0.0:
+			height_min = other.height_min
+			height_max = other.height_max
+		else:
+			height_min = minf(height_min, other.height_min)
+			height_max = maxf(height_max, other.height_max)
+
+	build_spatial_index(cell_size)
+
 ## Datos globales de terreno para normalización idéntica y determinista
 var height_min: float = 0.0
 var height_max: float = 0.0
@@ -144,6 +176,26 @@ var hydraulic_influence: Dictionary = {}
 
 ## Cache del SDF de orilla (Shoreline Distance Field) normalizado en [0.0, 1.0]
 var shoreline_sdf: PackedFloat32Array = PackedFloat32Array()
+
+## Cache de altura de agua extendida y suavizada hacia tierra firme
+var extended_water_heights: PackedFloat32Array = PackedFloat32Array()
+
+func get_shoreline_sdf_at(pos: Vector2i, macro_w: int = 0, macro_h: int = 0) -> float:
+	if macro_w > 0 and macro_h > 0 and not shoreline_sdf.is_empty() and shoreline_sdf.size() == macro_w * macro_h:
+		if pos.x >= 0 and pos.x < macro_w and pos.y >= 0 and pos.y < macro_h:
+			return shoreline_sdf[pos.y * macro_w + pos.x]
+	# Si no hay SDF macro o pos cae fuera de la grilla macro:
+	if is_water(pos):
+		return 1.0
+	return 0.0
+
+func get_extended_water_height_at(pos: Vector2i, macro_w: int = 0, macro_h: int = 0, default_val: float = 0.0) -> float:
+	if macro_w > 0 and macro_h > 0 and not extended_water_heights.is_empty() and extended_water_heights.size() == macro_w * macro_h:
+		if pos.x >= 0 and pos.x < macro_w and pos.y >= 0 and pos.y < macro_h:
+			return extended_water_heights[pos.y * macro_w + pos.x]
+	if water_cells.has(pos):
+		return float(water_cells[pos].get("water_height", default_val))
+	return default_val
 
 func get_hydraulic_influence(pos: Vector2i, default_val: float = 0.0) -> float:
 	return float(hydraulic_influence.get(pos, default_val))

@@ -51,6 +51,34 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 	if hydro.water_cells.is_empty():
 		return null
 
+	var is_chunk: bool = ("seam_cells" in result) or (result.has_method("get_core_bounds"))
+	var origin := Vector2i.ZERO
+	if "core_bounds" in result:
+		origin = result.core_bounds.position
+
+	var cell_size: float = 1.0
+	if profile != null and "cell_size" in profile:
+		cell_size = float(profile.cell_size)
+
+	var macro_w: int = profile.width if profile != null else w
+	var macro_h: int = profile.height if profile != null else h
+
+	var grid_w: int = w + 1 if is_chunk else w
+	var grid_h: int = h + 1 if is_chunk else h
+	var quad_w: int = w if is_chunk else w - 1
+	var quad_h: int = h if is_chunk else h - 1
+
+	# Si es un chunk, verificar si contiene o colinda con agua (evitar crear mallas vacías en tierra seca)
+	if is_chunk:
+		var has_water_near := false
+		var check_rect := Rect2i(origin - Vector2i(2, 2), Vector2i(w + 5, h + 5))
+		for p in hydro.water_cells.keys():
+			if check_rect.has_point(p):
+				has_water_near = true
+				break
+		if not has_water_near:
+			return null
+
 	var surf := _WaterSurfaceDataScript.new()
 
 	var col_shallow: Color = Color(0.20, 0.55, 0.70, 1.0)
@@ -81,31 +109,40 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 	# -------------------------------------------------------------------------
 	var shore_off: float = float(profile.shoreline_offset) if (profile != null and "shoreline_offset" in profile) else -0.3
 	var shore_sdf: PackedFloat32Array = hydro.shoreline_sdf
-	if shore_sdf.is_empty() or shore_sdf.size() != w * h:
-		var topo: WaterTopology = _WaterTopologyScript.analyze(hydro.water_cells, w, h)
-		shore_sdf = _ShorelineResolverScript.compute(
-			hydro.water_cells, topo, w, h, result.master_seed,
-			_ShorelineResolverScript.DEFAULT_ORGANIC_AMPLITUDE, shore_off
-		)
-		hydro.shoreline_sdf = shore_sdf
+	if not is_chunk:
+		if shore_sdf.is_empty() or shore_sdf.size() != macro_w * macro_h:
+			var topo: WaterTopology = _WaterTopologyScript.analyze(hydro.water_cells, macro_w, macro_h)
+			shore_sdf = _ShorelineResolverScript.compute(
+				hydro.water_cells, topo, macro_w, macro_h, result.master_seed,
+				_ShorelineResolverScript.DEFAULT_ORGANIC_AMPLITUDE, shore_off
+			)
+			hydro.shoreline_sdf = shore_sdf
 
 	# -------------------------------------------------------------------------
 	# PASO 2.5: Extender y suavizar la altura hacia celdas secas (transición 3+ celdas)
 	# -------------------------------------------------------------------------
-	var extended_heights: PackedFloat32Array = _compute_extended_water_heights(
-		hydro.water_cells, w, h, water_datum, 4
-	)
+	var extended_heights: PackedFloat32Array = hydro.extended_water_heights
+	if not is_chunk:
+		if extended_heights.is_empty() or extended_heights.size() != macro_w * macro_h:
+			extended_heights = _compute_extended_water_heights(
+				hydro.water_cells, macro_w, macro_h, water_datum, 4
+			)
+			hydro.extended_water_heights = extended_heights
 
 	# -------------------------------------------------------------------------
-	# PASO 3: Generar grilla de vertices global W*H (1:1 con TerrainMeshBuilder)
-	# Water cells: water_height congelada (sin interpolacion ni deformacion)
-	# Dry cells:   transición suave de al menos 3 celdas para evitar saltos abruptos
+	# PASO 3: Generar grilla de vertices (1:1 con TerrainMeshBuilder)
 	# -------------------------------------------------------------------------
-	for y in range(h):
-		for x in range(w):
-			var pos2i := Vector2i(x, y)
+	for y in range(grid_h):
+		for x in range(grid_w):
+			var pos2i := origin + Vector2i(x, y)
 			var is_water: bool = hydro.water_cells.has(pos2i)
-			var water_y: float = extended_heights[y * w + x]
+			var water_y: float = water_datum
+			if is_chunk:
+				water_y = hydro.get_extended_water_height_at(pos2i, macro_w, macro_h, water_datum)
+			else:
+				if not extended_heights.is_empty() and y < h and x < w:
+					water_y = extended_heights[y * w + x]
+
 			var flow: Vector2 = Vector2.ZERO
 			var depth: float = 0.0
 
@@ -115,22 +152,28 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 				flow  = Vector2(cdata.get("flow_dir", Vector2.ZERO))
 				depth = float(cdata.get("depth", 0.5))
 
-			var v_pos := Vector3(float(x), water_y, float(y))
-			var uv    := Vector2(float(x) / float(w), float(y) / float(h))
+			var v_pos := Vector3(float(x) * cell_size, water_y, float(y) * cell_size)
+			var uv    := Vector2(float(pos2i.x) / float(macro_w), float(pos2i.y) / float(macro_h))
 			var col: Color = col_shallow.lerp(col_deep, clampf(depth / 3.0, 0.0, 1.0))
-			col.a = shore_sdf[y * w + x]   # SDF empaquetado en COLOR.a
+			if is_chunk:
+				col.a = hydro.get_shoreline_sdf_at(pos2i, macro_w, macro_h)
+			else:
+				if not shore_sdf.is_empty() and y < h and x < w:
+					col.a = shore_sdf[y * w + x]
+				else:
+					col.a = 0.0
 
 			surf.add_vertex(v_pos, Vector3.UP, uv, flow, col)
 
 	# -------------------------------------------------------------------------
-	# PASO 4: Triangulacion global (W-1)*(H-1) quads (1:1 con TerrainMeshBuilder)
+	# PASO 4: Triangulacion (quad_w * quad_h quads, 1:1 con TerrainMeshBuilder)
 	# -------------------------------------------------------------------------
-	for y in range(h - 1):
-		for x in range(w - 1):
-			var i0 := y * w + x
-			var i1 := y * w + (x + 1)
-			var i2 := (y + 1) * w + x
-			var i3 := (y + 1) * w + (x + 1)
+	for y in range(quad_h):
+		for x in range(quad_w):
+			var i0 := y * grid_w + x
+			var i1 := y * grid_w + (x + 1)
+			var i2 := (y + 1) * grid_w + x
+			var i3 := (y + 1) * grid_w + (x + 1)
 			surf.add_triangle(i0, i1, i2)
 			surf.add_triangle(i1, i3, i2)
 

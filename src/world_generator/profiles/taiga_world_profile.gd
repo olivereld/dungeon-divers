@@ -118,3 +118,46 @@ func _init() -> void:
 	forest_dirt_uv_scale = 0.35
 
 
+## Configura la paleta cromática completa y los tintes de vegetación del bosque otoñal
+func apply_autumn_preset() -> void:
+	# Terreno otoñal (Taiga Otoñal)
+	terrain_loam_color = Color("#422b1e")   # Humus marrón otoñal
+	terrain_moss_color = Color("#736835")   # Musgo seco / ocre dorado
+	terrain_grass_color = Color("#5a5428")  # Hierba otoñal ámbar/mostaza
+	forest_floor_color = Color("#3d2817")   # Mantillo umbrío de acículas
+	terrain_rock_color = Color("#4e4844")   # Granito cálido
+	terrain_snow_color = Color("#e0dcd4")   # Cumbres pálidas / escarcha ligera
+
+	terrain_low_color = terrain_loam_color
+	terrain_mid_color = terrain_grass_color
+	terrain_high_color = terrain_snow_color
+	terrain_slope_color = terrain_rock_color
+	clearing_color = terrain_moss_color
+	forest_color = forest_floor_color
+
+	color_ground = terrain_loam_color
+	color_grass = terrain_grass_color
+	color_forest = forest_floor_color
+	color_rock = terrain_rock_color
+	color_snow = terrain_snow_color
+	color_sand = terrain_moss_color
+
+	# Agua otoñal (tonos profundos reflejando cielo y bosque otoñal)
+	water_color_shallow = Color("#355568")
+	water_color_medium = Color("#22384a")
+	water_color_deep = Color("#182836")
+	water_color_river = Color("#2c4c5e")
+	water_color_lake = Color("#182836")
+
+	color_water = water_color_shallow
+	color_deep_water = water_color_deep
+
+	# Variantes de tinte cálido para follaje de árboles y arbustos
+	foliage_tint = Color("#d97706") # Ámbar otoñal base
+	foliage_tint_variants = [
+		Color("#d97706"), # Ámbar dorado
+		Color("#ea580c"), # Naranja fuego
+		Color("#ca8a04"), # Amarillo ocre
+		Color("#a16207"), # Castaño dorado
+		Color("#654d24"), # Oliva otoñal
+	]

@@ -15,6 +15,7 @@ func _init() -> void:
 
 	var scene = _ChunkWorldIntegrationScript.new()
 	scene.world_seed = 12345
+	scene.render_distance = 1
 	root.add_child(scene)
 
 	# Esperar un frame para que se ejecute _ready()

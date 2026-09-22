@@ -17,22 +17,26 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
 
+	var is_chunk: bool = ("seam_cells" in result) or (result.has_method("get_core_bounds"))
+	var macro_w: int = profile.width if profile != null else w
+	var macro_h: int = profile.height if profile != null else h
+
 	# Obtener o computar el campo de distancia SDF de la orilla (Shoreline Distance Field)
 	var shore_sdf: PackedFloat32Array = PackedFloat32Array()
 	var hydro: HydrologyResult = result.hydrology
 	if hydro != null and not hydro.water_cells.is_empty():
-		if not hydro.shoreline_sdf.is_empty() and hydro.shoreline_sdf.size() == w * h:
+		if not hydro.shoreline_sdf.is_empty() and hydro.shoreline_sdf.size() == macro_w * macro_h:
 			shore_sdf = hydro.shoreline_sdf
-		else:
-			var topo: WaterTopology = _WaterTopologyScript.analyze(hydro.water_cells, w, h)
+		elif not is_chunk:
+			# Solo en macro Lab calculamos y guardamos el macro SDF global
+			var topo: WaterTopology = _WaterTopologyScript.analyze(hydro.water_cells, macro_w, macro_h)
 			var shore_off: float = float(profile.shoreline_offset) if (profile != null and "shoreline_offset" in profile) else 0.0
 			shore_sdf = _ShorelineResolverScript.compute(
-				hydro.water_cells, topo, w, h, result.master_seed,
+				hydro.water_cells, topo, macro_w, macro_h, result.master_seed,
 				_ShorelineResolverScript.DEFAULT_ORGANIC_AMPLITUDE, shore_off
 			)
 			hydro.shoreline_sdf = shore_sdf
 
-	var is_chunk: bool = ("seam_cells" in result) or (result.has_method("get_core_bounds"))
 	var grid_w: int = w + 1 if is_chunk else w
 	var grid_h: int = h + 1 if is_chunk else h
 	var quad_w: int = w if is_chunk else w - 1
@@ -47,8 +51,9 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 	if "core_bounds" in result:
 		origin = result.core_bounds.position
 
-	if result.vegetation != null and not result.vegetation.is_empty():
-		for item in result.vegetation:
+	var trees_source: Array = result.canopy_trees if ("canopy_trees" in result and result.canopy_trees != null and not result.canopy_trees.is_empty()) else result.vegetation
+	if trees_source != null and not trees_source.is_empty():
+		for item in trees_source:
 			var is_tree := false
 			if "type" in item:
 				is_tree = (item.type == _WorldVegetationItemScript.Type.CONIFER)
@@ -93,10 +98,13 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 
 			# Resolve procedural terrain albedo color from profile and cell ecology/topography
 			var col: Color = _TerrainColorResolverScript.resolve_vertex_color(cell, profile)
-			if not shore_sdf.is_empty() and y < h and x < w:
-				col.a = shore_sdf[y * w + x]
+			if is_chunk:
+				col.a = hydro.get_shoreline_sdf_at(pos_2i, macro_w, macro_h) if hydro != null else 0.0
 			else:
-				col.a = 0.0
+				if not shore_sdf.is_empty() and y < h and x < w:
+					col.a = shore_sdf[y * w + x]
+				else:
+					col.a = 0.0
 			colors.append(col)
 
 	# Compute indices
@@ -129,6 +137,54 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 		normals[indices[i]] += n
 		normals[indices[i + 1]] += n
 		normals[indices[i + 2]] += n
+
+	# BLOQUE 15B: Continuidad C1 de normales en las costuras de chunks.
+	# Para vértices en la frontera del chunk, acumular los triángulos de quads exteriores
+	# utilizando las celdas de halo preservadas en seam_cells.
+	if is_chunk and result.has_method("get_cell_or_seam"):
+		for y in range(grid_h):
+			for x in range(grid_w):
+				var is_boundary := (x == 0 or x == quad_w or y == 0 or y == quad_h)
+				if not is_boundary:
+					continue
+
+				var candidate_quads: Array[Vector2i] = [
+					Vector2i(x, y),
+					Vector2i(x - 1, y),
+					Vector2i(x - 1, y - 1),
+					Vector2i(x, y - 1)
+				]
+				for q in candidate_quads:
+					var gx: int = q.x
+					var gy: int = q.y
+					# Solo procesar quads que estén fuera del chunk
+					if gx >= 0 and gx < quad_w and gy >= 0 and gy < quad_h:
+						continue
+
+					var c0: WorldCell = result.get_cell_or_seam(origin + Vector2i(gx, gy))
+					var c1: WorldCell = result.get_cell_or_seam(origin + Vector2i(gx + 1, gy))
+					var c2: WorldCell = result.get_cell_or_seam(origin + Vector2i(gx, gy + 1))
+					var c3: WorldCell = result.get_cell_or_seam(origin + Vector2i(gx + 1, gy + 1))
+					if c0 == null or c1 == null or c2 == null or c3 == null:
+						continue
+
+					var v0 := Vector3(float(gx) * cell_size, c0.height, float(gy) * cell_size)
+					var v1 := Vector3(float(gx + 1) * cell_size, c1.height, float(gy) * cell_size)
+					var v2 := Vector3(float(gx) * cell_size, c2.height, float(gy + 1) * cell_size)
+					var v3 := Vector3(float(gx + 1) * cell_size, c3.height, float(gy + 1) * cell_size)
+
+					var n_a := (v1 - v0).cross(v2 - v0).normalized()
+					var n_b := (v3 - v1).cross(v2 - v1).normalized()
+
+					var v_idx: int = y * grid_w + x
+					if q == Vector2i(x, y):
+						normals[v_idx] += n_a
+					elif q == Vector2i(x - 1, y):
+						normals[v_idx] += n_a + n_b
+					elif q == Vector2i(x - 1, y - 1):
+						normals[v_idx] += n_b
+					elif q == Vector2i(x, y - 1):
+						normals[v_idx] += n_a + n_b
 
 	for i in range(normals.size()):
 		normals[i] = normals[i].normalized()

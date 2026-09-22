@@ -48,11 +48,13 @@ func execute(context: WorldGenerationContext) -> void:
 	var min_h := INF
 	var max_h := -INF
 
+	var region_origin: Vector2i = context.region_origin if ("region_origin" in context) else Vector2i.ZERO
+
 	# 1. Height computation across generation bounds (core + halo)
 	for y in range(gen_bounds.position.y, gen_bounds.end.y):
 		for x in range(gen_bounds.position.x, gen_bounds.end.x):
-			var sample_x: float = float(x) * profile.cell_size
-			var sample_y: float = float(y) * profile.cell_size
+			var sample_x: float = float(region_origin.x + x) * profile.cell_size
+			var sample_y: float = float(region_origin.y + y) * profile.cell_size
 
 			if profile.warp_enabled:
 				var wx := warp_noise_x.get_noise_2d(sample_x, sample_y) * warp_amp
@@ -99,30 +101,38 @@ func execute(context: WorldGenerationContext) -> void:
 			norm_min_h = profile.base_height
 			norm_range = maxf(total_amplitude * profile.height_scale, 0.001)
 
-	for y in range(core_bounds.position.y, core_bounds.end.y):
-		for x in range(core_bounds.position.x, core_bounds.end.x):
-			var pos := Vector2i(x, y)
-			var cell: WorldCell = context.result.get_cell(pos)
-			if cell == null:
-				continue
+	for pos in context.result.cells.keys():
+		var cell: WorldCell = context.result.cells[pos]
+		if cell == null:
+			continue
+		var x: int = pos.x
+		var y: int = pos.y
 
-			cell.normalized_height = (cell.height - norm_min_h) / norm_range
+		cell.normalized_height = (cell.height - norm_min_h) / norm_range
 
-			# Central differences for slope (aprovecha las celdas de halo en context.result)
-			var has_bounds: bool = profile != null and profile.width > 0 and profile.height > 0
-			var cell_left: WorldCell = context.result.get_cell(Vector2i(x - 1, y)) if (not has_bounds or x - 1 >= 0) else null
-			var cell_right: WorldCell = context.result.get_cell(Vector2i(x + 1, y)) if (not has_bounds or x + 1 < profile.width) else null
-			var cell_up: WorldCell = context.result.get_cell(Vector2i(x, y - 1)) if (not has_bounds or y - 1 >= 0) else null
-			var cell_down: WorldCell = context.result.get_cell(Vector2i(x, y + 1)) if (not has_bounds or y + 1 < profile.height) else null
+		# Central differences for slope (aprovecha las celdas de halo en context.result)
+		var is_bounded: bool = profile != null and profile.width > 0 and profile.height > 0
+		if is_chunk and "config" in context and context.config != null and context.config.is_unbounded:
+			is_bounded = false
 
-			var h_left: float = cell_left.height if cell_left != null else cell.height
-			var h_right: float = cell_right.height if cell_right != null else cell.height
-			var h_up: float = cell_up.height if cell_up != null else cell.height
-			var h_down: float = cell_down.height if cell_down != null else cell.height
+		var clamp_left: bool = is_bounded and (x == 0 if is_chunk else x <= 0)
+		var clamp_right: bool = is_bounded and (x == profile.width - 1 if is_chunk else x >= profile.width - 1)
+		var clamp_up: bool = is_bounded and (y == 0 if is_chunk else y <= 0)
+		var clamp_down: bool = is_bounded and (y == profile.height - 1 if is_chunk else y >= profile.height - 1)
 
-			var dx := (h_right - h_left) / (2.0 * profile.cell_size)
-			var dy := (h_down - h_up) / (2.0 * profile.cell_size)
-			var gradient := sqrt(dx * dx + dy * dy)
-			cell.slope = rad_to_deg(atan(gradient))
+		var cell_left: WorldCell = null if clamp_left else context.result.get_cell(Vector2i(x - 1, y))
+		var cell_right: WorldCell = null if clamp_right else context.result.get_cell(Vector2i(x + 1, y))
+		var cell_up: WorldCell = null if clamp_up else context.result.get_cell(Vector2i(x, y - 1))
+		var cell_down: WorldCell = null if clamp_down else context.result.get_cell(Vector2i(x, y + 1))
 
-			assert(is_equal_approx(cell.raw_height, cell.height), "TerrainStage invariant violated: raw_height != height at %s" % str(cell.position))
+		var h_left: float = cell_left.height if cell_left != null else cell.height
+		var h_right: float = cell_right.height if cell_right != null else cell.height
+		var h_up: float = cell_up.height if cell_up != null else cell.height
+		var h_down: float = cell_down.height if cell_down != null else cell.height
+
+		var dx := (h_right - h_left) / (2.0 * profile.cell_size)
+		var dy := (h_down - h_up) / (2.0 * profile.cell_size)
+		var gradient := sqrt(dx * dx + dy * dy)
+		cell.slope = rad_to_deg(atan(gradient))
+
+		assert(is_equal_approx(cell.raw_height, cell.height), "TerrainStage invariant violated: raw_height != height at %s" % str(cell.position))

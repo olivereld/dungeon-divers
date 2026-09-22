@@ -20,41 +20,41 @@ func execute(context: WorldGenerationContext) -> void:
 	var min_spawn_slope := INF
 	var center := Vector2(float(profile.width) * 0.5, float(profile.height) * 0.5)
 
-	for y in range(core_bounds.position.y, core_bounds.end.y):
-		for x in range(core_bounds.position.x, core_bounds.end.x):
-			var pos := Vector2i(x, y)
-			var cell := context.result.get_cell(pos)
-			if cell == null:
-				continue
+	for pos in context.result.cells.keys():
+		var cell := context.result.get_cell(pos)
+		if cell == null:
+			continue
 
-			if cell.slope < 10.0:
-				cell.slope_category = SlopeCategory.FLAT
-			elif cell.slope < 25.0:
-				cell.slope_category = SlopeCategory.GENTLE
-			elif cell.slope < 40.0:
-				cell.slope_category = SlopeCategory.STEEP
-			else:
-				cell.slope_category = SlopeCategory.CLIFF
+		var in_core: bool = core_bounds.has_point(pos)
 
-			var is_walkable := (cell.slope <= profile.max_walkable_slope)
-			var hydro = context.result.hydrology
-			var in_water := false
-			if hydro != null and hydro.has_method("is_water") and hydro.is_water(pos):
-				in_water = true
-				if hydro.has_method("get_water_depth") and hydro.get_water_depth(pos) > 0.4:
-					is_walkable = false
+		if cell.slope < 10.0:
+			cell.slope_category = SlopeCategory.FLAT
+		elif cell.slope < 25.0:
+			cell.slope_category = SlopeCategory.GENTLE
+		elif cell.slope < 40.0:
+			cell.slope_category = SlopeCategory.STEEP
+		else:
+			cell.slope_category = SlopeCategory.CLIFF
 
-			cell.is_walkable = is_walkable
-			if cell.is_walkable:
-				walkable_count += 1
+		var is_walkable := (cell.slope <= profile.max_walkable_slope)
+		var hydro = context.result.hydrology
+		var in_water := false
+		if hydro != null and hydro.has_method("is_water") and hydro.is_water(pos):
+			in_water = true
+			if hydro.has_method("get_water_depth") and hydro.get_water_depth(pos) > 0.4:
+				is_walkable = false
 
-				# Prefer spawn near center with lowest slope on dry land (solo para contexto mundial)
-				if not is_chunk and not in_water:
-					var dist_to_center := Vector2(float(x), float(y)).distance_to(center)
-					var score := cell.slope + (dist_to_center * 0.2)
-					if score < min_spawn_slope:
-						min_spawn_slope = score
-						best_spawn_pos = pos
+		cell.is_walkable = is_walkable
+		if in_core and cell.is_walkable:
+			walkable_count += 1
+
+			# Prefer spawn near center with lowest slope on dry land (solo para contexto mundial)
+			if not is_chunk and not in_water:
+				var dist_to_center := Vector2(float(pos.x), float(pos.y)).distance_to(center)
+				var score := cell.slope + (dist_to_center * 0.2)
+				if score < min_spawn_slope:
+					min_spawn_slope = score
+					best_spawn_pos = pos
 
 	if not is_chunk:
 		if best_spawn_pos != Vector2i(-1, -1):

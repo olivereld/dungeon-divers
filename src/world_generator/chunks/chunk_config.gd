@@ -17,6 +17,19 @@ var reference_min_height: float = 0.0
 var reference_max_height: float = 0.0
 var use_reference_height_range: bool = false
 
-func _init(p_chunk_size: int = 16, p_margin: int = 1) -> void:
+## Modo de coordenadas globales infinitas (ChunkWorld) vs dominio delimitado (Lab 64x64)
+var is_unbounded: bool = false
+
+## Radio de renderizado / streaming en chunks (por defecto 2 para mantener 12-16 chunks activos)
+var render_distance: int = 2
+
+## Activar streaming circular para mantener 12-16 chunks optimizados
+var circular_streaming: bool = true
+
+## Margen de histéresis de descarga para evitar que caiga el número de chunks mientras se avanza
+var unload_margin: float = 0.65
+
+func _init(p_chunk_size: int = 16, p_margin: int = 1, p_render_dist: int = 1) -> void:
 	chunk_size = p_chunk_size
 	generation_margin = p_margin
+	render_distance = p_render_dist

@@ -145,14 +145,17 @@ func _apply_local_impl(context: WorldGenerationContext, hydro: HydrologyResult) 
 	var accumulation: Dictionary = hydro.accumulation
 	var context_bounds: Rect2i = context.get_generation_bounds() if context.has_method("get_generation_bounds") else Rect2i(0, 0, profile.width, profile.height)
 
+	var is_chunk: bool = context.has_method("is_chunk_context") and context.is_chunk_context()
+	var is_unbounded: bool = is_chunk and "config" in context and context.config != null and context.config.is_unbounded
+
 	var t0 := Time.get_ticks_usec() if is_profiling else 0
-	var slope_river_us: int = _carve_river_channels(cells, validated_rivers, accumulation, profile, hydro, is_profiling, context_bounds)
+	var slope_river_us: int = _carve_river_channels(cells, validated_rivers, accumulation, profile, hydro, is_profiling, context_bounds, is_chunk, is_unbounded)
 	var t1 := Time.get_ticks_usec() if is_profiling else 0
 
-	var slope_lake_us: int = _carve_lake_basins(cells, hydro.lakes, profile, hydro, is_profiling)
+	var slope_lake_us: int = _carve_lake_basins(cells, hydro.lakes, profile, hydro, is_profiling, is_chunk, is_unbounded)
 	var t2 := Time.get_ticks_usec() if is_profiling else 0
 
-	_relax_hydraulic_banks(cells, profile, hydro)
+	_relax_hydraulic_banks(cells, profile, hydro, is_chunk, is_unbounded)
 	var t3 := Time.get_ticks_usec() if is_profiling else 0
 
 	if is_profiling:
@@ -1782,7 +1785,9 @@ func _carve_river_channels(
 	profile: WorldProfile,
 	hydro: RefCounted,
 	record_slope: bool = false,
-	context_bounds: Rect2i = Rect2i()
+	context_bounds: Rect2i = Rect2i(),
+	is_chunk: bool = false,
+	is_unbounded: bool = false
 ) -> int:
 	var carved_cells: Dictionary = {}
 	var cell_size: float = profile.cell_size if profile != null else 1.0
@@ -2003,11 +2008,16 @@ func _carve_river_channels(
 		if cell == null:
 			continue
 
-		var has_bounds: bool = profile != null and profile.width > 0 and profile.height > 0
-		var c_left: WorldCell = cells.get(Vector2i(x - 1, y), cell) if (not has_bounds or x - 1 >= 0) else cell
-		var c_right: WorldCell = cells.get(Vector2i(x + 1, y), cell) if (not has_bounds or x + 1 < profile.width) else cell
-		var c_up: WorldCell = cells.get(Vector2i(x, y - 1), cell) if (not has_bounds or y - 1 >= 0) else cell
-		var c_down: WorldCell = cells.get(Vector2i(x, y + 1), cell) if (not has_bounds or y + 1 < profile.height) else cell
+		var is_bounded: bool = (not is_unbounded) and profile != null and profile.width > 0 and profile.height > 0
+		var clamp_left: bool = is_bounded and (x == 0 if is_chunk else x <= 0)
+		var clamp_right: bool = is_bounded and (x == profile.width - 1 if is_chunk else x >= profile.width - 1)
+		var clamp_up: bool = is_bounded and (y == 0 if is_chunk else y <= 0)
+		var clamp_down: bool = is_bounded and (y == profile.height - 1 if is_chunk else y >= profile.height - 1)
+
+		var c_left: WorldCell = cell if clamp_left else cells.get(Vector2i(x - 1, y), cell)
+		var c_right: WorldCell = cell if clamp_right else cells.get(Vector2i(x + 1, y), cell)
+		var c_up: WorldCell = cell if clamp_up else cells.get(Vector2i(x, y - 1), cell)
+		var c_down: WorldCell = cell if clamp_down else cells.get(Vector2i(x, y + 1), cell)
 
 		var h_left: float = c_left.height if c_left != null else cell.height
 		var h_right: float = c_right.height if c_right != null else cell.height
@@ -2030,7 +2040,9 @@ func _carve_lake_basins(
 	lakes: Array,
 	profile: WorldProfile,
 	hydro: RefCounted,
-	record_slope: bool = false
+	record_slope: bool = false,
+	is_chunk: bool = false,
+	is_unbounded: bool = false
 ) -> int:
 	if lakes.is_empty():
 		return 0
@@ -2174,11 +2186,16 @@ func _carve_lake_basins(
 		if cell == null:
 			continue
 
-		var has_bounds: bool = profile != null and profile.width > 0 and profile.height > 0
-		var c_left: WorldCell = cells.get(Vector2i(x - 1, y), cell) if (not has_bounds or x - 1 >= 0) else cell
-		var c_right: WorldCell = cells.get(Vector2i(x + 1, y), cell) if (not has_bounds or x + 1 < profile.width) else cell
-		var c_up: WorldCell = cells.get(Vector2i(x, y - 1), cell) if (not has_bounds or y - 1 >= 0) else cell
-		var c_down: WorldCell = cells.get(Vector2i(x, y + 1), cell) if (not has_bounds or y + 1 < profile.height) else cell
+		var is_bounded: bool = (not is_unbounded) and profile != null and profile.width > 0 and profile.height > 0
+		var clamp_left: bool = is_bounded and (x == 0 if is_chunk else x <= 0)
+		var clamp_right: bool = is_bounded and (x == profile.width - 1 if is_chunk else x >= profile.width - 1)
+		var clamp_up: bool = is_bounded and (y == 0 if is_chunk else y <= 0)
+		var clamp_down: bool = is_bounded and (y == profile.height - 1 if is_chunk else y >= profile.height - 1)
+
+		var c_left: WorldCell = cell if clamp_left else cells.get(Vector2i(x - 1, y), cell)
+		var c_right: WorldCell = cell if clamp_right else cells.get(Vector2i(x + 1, y), cell)
+		var c_up: WorldCell = cell if clamp_up else cells.get(Vector2i(x, y - 1), cell)
+		var c_down: WorldCell = cell if clamp_down else cells.get(Vector2i(x, y + 1), cell)
 
 		var h_left: float = c_left.height if c_left != null else cell.height
 		var h_right: float = c_right.height if c_right != null else cell.height
@@ -2201,7 +2218,9 @@ func _carve_lake_basins(
 func _relax_hydraulic_banks(
 	cells: Dictionary,
 	profile: WorldProfile,
-	hydro: RefCounted
+	hydro: RefCounted,
+	is_chunk: bool = false,
+	is_unbounded: bool = false
 ) -> void:
 	if hydro == null or hydro.water_cells.is_empty():
 		return
@@ -2294,11 +2313,16 @@ func _relax_hydraulic_banks(
 		if cell == null:
 			continue
 
-		var has_bounds: bool = profile != null and profile.width > 0 and profile.height > 0
-		var c_left: WorldCell = cells.get(Vector2i(x - 1, y), cell) if (not has_bounds or x - 1 >= 0) else cell
-		var c_right: WorldCell = cells.get(Vector2i(x + 1, y), cell) if (not has_bounds or x + 1 < profile.width) else cell
-		var c_up: WorldCell = cells.get(Vector2i(x, y - 1), cell) if (not has_bounds or y - 1 >= 0) else cell
-		var c_down: WorldCell = cells.get(Vector2i(x, y + 1), cell) if (not has_bounds or y + 1 < profile.height) else cell
+		var is_bounded: bool = (not is_unbounded) and profile != null and profile.width > 0 and profile.height > 0
+		var clamp_left: bool = is_bounded and (x == 0 if is_chunk else x <= 0)
+		var clamp_right: bool = is_bounded and (x == profile.width - 1 if is_chunk else x >= profile.width - 1)
+		var clamp_up: bool = is_bounded and (y == 0 if is_chunk else y <= 0)
+		var clamp_down: bool = is_bounded and (y == profile.height - 1 if is_chunk else y >= profile.height - 1)
+
+		var c_left: WorldCell = cell if clamp_left else cells.get(Vector2i(x - 1, y), cell)
+		var c_right: WorldCell = cell if clamp_right else cells.get(Vector2i(x + 1, y), cell)
+		var c_up: WorldCell = cell if clamp_up else cells.get(Vector2i(x, y - 1), cell)
+		var c_down: WorldCell = cell if clamp_down else cells.get(Vector2i(x, y + 1), cell)
 
 		var h_left: float = c_left.height if c_left != null else cell.height
 		var h_right: float = c_right.height if c_right != null else cell.height

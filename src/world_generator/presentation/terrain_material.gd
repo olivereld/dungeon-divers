@@ -101,11 +101,24 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 		mat.set_shader_parameter("sand_edge_offset", sand_off)
 		mat.set_shader_parameter("sand_to_land_fade", sand_fade)
 
-		mat.set_shader_parameter("roughness_land", 0.88)
-		mat.set_shader_parameter("roughness_sand", 0.82)
-		mat.set_shader_parameter("roughness_riverbed", 0.58)
-		mat.set_shader_parameter("riverbed_tint", Color(1.0, 1.0, 1.0, 1.0))
-		mat.set_shader_parameter("sand_tint", Color(1.0, 1.0, 1.0, 1.0))
+		var g_tint := Color.WHITE
+		var fg_tint := Color.WHITE
+		var fd_tint := Color.WHITE
+		var s_tint := Color.WHITE
+		var r_tint := Color.WHITE
+
+		if profile != null:
+			g_tint = profile.terrain_grass_color.lightened(0.20)
+			fg_tint = profile.terrain_moss_color.lightened(0.15)
+			fd_tint = profile.forest_floor_color.lightened(0.30)
+			s_tint = profile.terrain_moss_color.lightened(0.25)
+			r_tint = profile.terrain_rock_color.lightened(0.20)
+
+		mat.set_shader_parameter("riverbed_tint", r_tint)
+		mat.set_shader_parameter("sand_tint", s_tint)
+		mat.set_shader_parameter("grass_tint", g_tint)
+		mat.set_shader_parameter("forest_grass_tint", fg_tint)
+		mat.set_shader_parameter("forest_dirt_tint", fd_tint)
 		return mat
 
 	# Fallback a StandardMaterial3D

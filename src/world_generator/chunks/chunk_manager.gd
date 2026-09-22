@@ -39,6 +39,7 @@ var current_required_chunks: Dictionary = {}
 var scheduler: RefCounted = null
 
 var _next_token: int = 1
+var _generated_macro_regions: Dictionary = {}
 
 # Telemetría de streaming y scheduling (BLOQUE 9 / BLOQUE 12)
 var stats_requested: int = 0
@@ -74,14 +75,49 @@ func _init(
 	profile = p_profile if p_profile != null else TaigaWorldProfile.new()
 	config = p_config if p_config != null else ChunkConfig.new()
 	shared_hydrology = p_shared_hydro
+	if shared_hydrology != null:
+		_generated_macro_regions[Vector2i.ZERO] = true
 	scheduler = _ChunkGenerationSchedulerScript.new()
+
+
+func _ensure_macro_hydrology(coord: Vector2i) -> void:
+	var macro_w: int = maxi(profile.width, 64) if profile != null else 64
+	var macro_h: int = maxi(profile.height, 64) if profile != null else 64
+	var chunk_sz: int = config.chunk_size if config != null else 16
+	var margin: int = config.generation_margin if config != null else 1
+	var gen_bounds: Rect2i = ChunkCoord.get_generation_bounds(coord, chunk_sz, margin)
+
+	var min_mx: int = int(floor(float(gen_bounds.position.x) / float(macro_w)))
+	var max_mx: int = int(floor(float(gen_bounds.end.x - 1) / float(macro_w)))
+	var min_my: int = int(floor(float(gen_bounds.position.y) / float(macro_h)))
+	var max_my: int = int(floor(float(gen_bounds.end.y - 1) / float(macro_h)))
+
+	for my in range(min_my, max_my + 1):
+		for mx in range(min_mx, max_mx + 1):
+			var m_coord := Vector2i(mx, my)
+			if _generated_macro_regions.has(m_coord):
+				continue
+			_generated_macro_regions[m_coord] = true
+			var reg_origin := Vector2i(mx * macro_w, my * macro_h)
+			var reg_hydro := _WorldPipelineScript.generate_regional_hydrology(seed_val, profile, reg_origin)
+			if shared_hydrology == null:
+				shared_hydrology = reg_hydro
+			else:
+				shared_hydrology.merge(reg_hydro, profile.cell_size if profile != null else 1.0)
 
 
 ## Calcula la lista de coordenadas requeridas para un radio rectangular.
 func determine_required_chunks(center_coord: Vector2i, radius: int = 1) -> Array[Vector2i]:
 	var required: Array[Vector2i] = []
+	var use_circular: bool = (config != null and config.circular_streaming and radius >= 2)
+	var r_sq := float(radius) * float(radius) + 0.1
 	for cy in range(center_coord.y - radius, center_coord.y + radius + 1):
 		for cx in range(center_coord.x - radius, center_coord.x + radius + 1):
+			if use_circular:
+				var dx := float(cx - center_coord.x)
+				var dy := float(cy - center_coord.y)
+				if (dx * dx + dy * dy) > r_sq:
+					continue
 			required.append(Vector2i(cx, cy))
 	return required
 
@@ -107,6 +143,7 @@ func load_chunk(coord: Vector2i) -> ChunkData:
 	if loaded_chunks.has(coord):
 		return loaded_chunks[coord]
 
+	_ensure_macro_hydrology(coord)
 	var chunk_data := _WorldPipelineScript.generate_chunk(
 		seed_val,
 		coord,
@@ -140,23 +177,36 @@ func unload_chunk(coord: Vector2i) -> void:
 
 ## Actualiza los chunks requeridos por el streaming de forma asíncrona.
 ## Invalida peticiones obsoletas y encola las nuevas necesarias.
-func update_streaming(center_coord: Vector2i, radius: int = 1) -> void:
-	var required_list := determine_required_chunks(center_coord, radius)
-	keep_loaded(required_list)
+func update_streaming(center_coord: Vector2i, radius: int = -1) -> void:
+	var r: int = (config.render_distance if (config != null and "render_distance" in config) else 2) if radius < 0 else radius
+	var required_list := determine_required_chunks(center_coord, r)
+	keep_loaded(required_list, center_coord, r)
 
 
 ## Sincroniza el conjunto de chunks requeridos:
-## descarga los que salieron del área y encola de forma asíncrona los que faltan.
-func keep_loaded(required_coords: Array[Vector2i]) -> void:
+## descarga los que salieron del área con histéresis y encola de forma asíncrona los que faltan.
+func keep_loaded(required_coords: Array[Vector2i], center_coord: Vector2i = Vector2i.ZERO, radius: int = 2) -> void:
 	current_required_chunks.clear()
 	for c in required_coords:
 		current_required_chunks[c] = true
+
+	# Histéresis de descarga: si radius >= 2, conservamos chunks cercanos mientras se avanza
+	# para garantizar que siempre haya al menos 12 chunks cargados.
+	var use_hysteresis: bool = (radius >= 2 and config != null and config.unload_margin > 0.0)
+	var unload_r: float = float(radius) + (config.unload_margin if config != null else 0.65)
+	var unload_r_sq: float = unload_r * unload_r
 
 	# 1. Identificar y descargar chunks LOADED que ya no se requieren
 	var to_unload: Array[Vector2i] = []
 	for c in loaded_chunks:
 		if not current_required_chunks.has(c):
-			to_unload.append(c)
+			if use_hysteresis:
+				var dx: float = float(c.x - center_coord.x)
+				var dy: float = float(c.y - center_coord.y)
+				if (dx * dx + dy * dy) > unload_r_sq:
+					to_unload.append(c)
+			else:
+				to_unload.append(c)
 
 	for c in to_unload:
 		unload_chunk(c)
@@ -224,6 +274,7 @@ func poll_completed() -> Array[Vector2i]:
 
 
 func _enqueue_chunk_generation(coord: Vector2i) -> void:
+	_ensure_macro_hydrology(coord)
 	_next_token += 1
 	var token := _next_token
 	chunk_tokens[coord] = token

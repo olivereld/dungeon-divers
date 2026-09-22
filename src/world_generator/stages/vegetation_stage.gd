@@ -219,16 +219,23 @@ func execute(context: WorldGenerationContext) -> void:
 		spatial_grid[bk].append(i)
 
 	# Poda determinista por prioridad intrínseca
-	var winning_indices: Array[int] = []
+	var canopy_bounds: Rect2i = core_bounds.grow(4) if is_chunk else core_bounds
+	if "canopy_trees" in context.result and context.result.canopy_trees != null:
+		context.result.canopy_trees.clear()
+
+	var t_pl0 := Time.get_ticks_usec() if is_profiling else 0
+
 	for i in range(tree_candidates.size()):
 		var cand: Dictionary = tree_candidates[i]
 		var p: Vector2 = cand["pos_2d"]
+		var cand_cell := Vector2i(int(floor(p.x)), int(floor(p.y)))
 
-		# Solo nos interesa añadir los árboles cuyo centro caiga estrictamente dentro de core_bounds
-		var in_core: bool = core_bounds.has_point(Vector2i(int(floor(p.x)), int(floor(p.y))))
-		if not in_core:
+		# Evaluar árboles que caen dentro del área de influencia de copa sobre este chunk
+		var in_canopy: bool = canopy_bounds.has_point(cand_cell)
+		if not in_canopy:
 			continue
 
+		var in_core: bool = core_bounds.has_point(cand_cell)
 		var my_prio: float = cand["priority"]
 		var suppressed := false
 
@@ -257,18 +264,14 @@ func execute(context: WorldGenerationContext) -> void:
 				break
 
 		if not suppressed:
-			winning_indices.append(i)
+			var item := WorldVegetationItem.new(WorldVegetationItem.Type.CONIFER, cand["pos_3d"], cand["rot_y"], cand["scale"])
+			if "canopy_trees" in context.result and context.result.canopy_trees != null:
+				context.result.canopy_trees.append(item)
+			if in_core:
+				context.result.vegetation.append(item)
 
 	if is_profiling:
 		t_poisson_us += (Time.get_ticks_usec() - t_p0)
-
-	var t_pl0 := Time.get_ticks_usec() if is_profiling else 0
-	for win_idx in winning_indices:
-		var cand: Dictionary = tree_candidates[win_idx]
-		context.result.vegetation.append(
-			WorldVegetationItem.new(WorldVegetationItem.Type.CONIFER, cand["pos_3d"], cand["rot_y"], cand["scale"])
-		)
-	if is_profiling:
 		t_placement_us += (Time.get_ticks_usec() - t_pl0)
 
 	if is_profiling:

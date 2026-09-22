@@ -121,6 +121,11 @@ func get_hydrology_noise_frequency() -> float:
 @export var color_rock: Color = Color("#5a5a5a")
 @export var color_snow: Color = Color("#dce8f0")
 
+# Vegetation Visuals (Autumn / Biome Tinting)
+@export_group("Vegetation Visuals")
+@export var foliage_tint: Color = Color.WHITE
+@export var foliage_tint_variants: Array[Color] = []
+
 # Hydrology - General
 @export_group("Hydrology - General")
 @export var hydrology_enabled: bool = true

@@ -38,6 +38,9 @@ uniform float depth_max_distance    : hint_range(0.5, 10.0) = 2.8;
 // ---------------------------------------------------------------------------
 uniform sampler2D noise_texture     : filter_linear_mipmap, repeat_enable;
 uniform sampler2D depth_texture     : hint_depth_texture, filter_nearest;
+uniform sampler2D water_texture     : source_color, filter_linear_mipmap, repeat_enable;
+uniform float water_texture_scale   : hint_range(0.01, 1.0) = 0.08;
+uniform float water_texture_blend   : hint_range(0.0, 1.0) = 0.30;
 uniform vec2  noise_scale           = vec2(0.055, 0.055);
 uniform float flow_speed            : hint_range(0.0, 3.0) = 0.40;
 uniform float roughness             : hint_range(0.0, 1.0) = 0.06;
@@ -137,6 +140,12 @@ void fragment() {
 	// Resplandor cian suave cerca de la orilla
 	float rim = smoothstep(0.35, 0.02, water_depth);
 	water_color = mix(water_color, shore_rim_color.rgb, rim * 0.20);
+
+	// Mezcla orgánica de textura hand-painted de agua con flujo multi-capa
+	vec2 wt_uv1 = v_world_pos.xz * water_texture_scale + vec2(TIME * 0.015, TIME * 0.010);
+	vec2 wt_uv2 = v_world_pos.xz * (water_texture_scale * 1.25) + vec2(-TIME * 0.012, TIME * 0.014);
+	vec3 wt_sample = mix(texture(water_texture, wt_uv1).rgb, texture(water_texture, wt_uv2).rgb, 0.5);
+	water_color = mix(water_color, water_color * wt_sample * 1.6, water_texture_blend);
 
 	// =========================================================================
 	// [5] INTERACTION — Anillos de pisadas en el agua (Ripples estacionarios)
