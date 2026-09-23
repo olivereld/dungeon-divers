@@ -13,7 +13,7 @@ const _ChunkConfigScript = preload("res://src/world_generator/chunks/chunk_confi
 const _WorldPipelineScript = preload("res://src/world_generator/facade/world_pipeline.gd")
 
 @export var world_seed: int = 12345
-@export var render_distance: int = 2
+@export var render_distance: int = 4
 
 var chunk_world: ChunkWorld = null
 var player: CharacterBody3D = null
@@ -152,6 +152,24 @@ func _setup_hud() -> void:
 	_water_toggle_btn.pressed.connect(_on_toggle_water_pressed)
 	vbox.add_child(_water_toggle_btn)
 
+	var dist_hbox := HBoxContainer.new()
+	dist_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(dist_hbox)
+
+	var dist_down_btn := Button.new()
+	dist_down_btn.text = "➖ Rango [J]"
+	dist_down_btn.focus_mode = Control.FOCUS_NONE
+	dist_down_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dist_down_btn.pressed.connect(_decrease_render_distance)
+	dist_hbox.add_child(dist_down_btn)
+
+	var dist_up_btn := Button.new()
+	dist_up_btn.text = "➕ Rango [K]"
+	dist_up_btn.focus_mode = Control.FOCUS_NONE
+	dist_up_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dist_up_btn.pressed.connect(_increase_render_distance)
+	dist_hbox.add_child(dist_up_btn)
+
 
 func _on_toggle_water_pressed() -> void:
 	_toggle_water()
@@ -162,6 +180,18 @@ func _toggle_water() -> void:
 		var is_vis: bool = chunk_world.toggle_water_visible()
 		if _water_toggle_btn != null:
 			_water_toggle_btn.text = "💧 Ocultar Malla de Agua [H]" if is_vis else "🌊 Mostrar Malla de Agua [H]"
+
+
+func _increase_render_distance() -> void:
+	if chunk_world != null:
+		render_distance = clampi(render_distance + 1, 1, 8)
+		chunk_world.set_render_distance(render_distance)
+
+
+func _decrease_render_distance() -> void:
+	if chunk_world != null:
+		render_distance = clampi(render_distance - 1, 1, 8)
+		chunk_world.set_render_distance(render_distance)
 
 
 func _process(_delta: float) -> void:
@@ -183,6 +213,7 @@ func _update_hud() -> void:
 	text += "FPS: %d\n" % fps
 	text += "Chunk Activo: (%d, %d)\n" % [active_coord.x, active_coord.y]
 	text += "Posición Jugador: (%.1f, %.1f, %.1f)\n" % [p_pos.x, p_pos.y, p_pos.z]
+	text += "Rango de Chunks: %d (Radio)\n" % chunk_world.render_distance
 	text += "Chunks Cargados: %d\n" % loaded_count
 	if mgr != null:
 		text += "Peticiones: %d | Generados: %d | Descartados: %d\n" % [
@@ -196,6 +227,7 @@ func _update_hud() -> void:
 	text += "[Q / E]: Rotar cámara orbital 45°\n"
 	text += "[Rueda Mouse]: Zoom In / Out\n"
 	text += "[Espacio]: Saltar\n"
+	text += "[J / K] o [+ / -]: Reducir / Aumentar Rango\n"
 	text += "[H]: Ocultar / Mostrar Malla de Agua\n"
 	text += "[R]: Reaparecer en origen (8, 8)\n"
 
@@ -221,6 +253,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			camera_rig.yaw_degrees += 45.0
 		elif ke.keycode == KEY_H:
 			_toggle_water()
+		elif ke.keycode == KEY_J or ke.keycode == KEY_MINUS or ke.keycode == KEY_KP_SUBTRACT:
+			_decrease_render_distance()
+		elif ke.keycode == KEY_K or ke.keycode == KEY_EQUAL or ke.keycode == KEY_PLUS or ke.keycode == KEY_KP_ADD:
+			_increase_render_distance()
 
 
 func _handle_debug_inputs() -> void:

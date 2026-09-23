@@ -57,8 +57,10 @@ func render_world(
 	return root
 
 const PINO_GLB_PATH: String = "res://assets/models/props/nature/pino.glb"
+const BUSH_GLB_PATH: String = "res://models/nature/bush/bush_1.glb"
 const PINO_SHADER_PATH: String = "res://src/world_renderer/shaders/pino_foliage.gdshader"
 static var _cached_conifer_mesh: Mesh = null
+static var _cached_shrub_mesh: Mesh = null
 
 func _spawn_vegetation_multimeshes(parent: Node3D, result: WorldResult, p_profile: WorldProfile = null) -> void:
 	spawn_vegetation(parent, result.vegetation, Vector3.ZERO, p_profile)
@@ -84,7 +86,9 @@ static func spawn_vegetation(parent: Node3D, items: Array, origin_3d: Vector3 = 
 	var conifer_offset := 0.0 if not (conifer_mesh is CylinderMesh) else 1.95
 	var foliage_variants: Array = profile.foliage_tint_variants if (profile != null and not profile.foliage_tint_variants.is_empty()) else []
 	_create_multimesh(parent, "Conifers", conifer_mesh, conifers, conifer_offset, origin_3d, foliage_variants)
-	_create_multimesh(parent, "Shrubs", _create_shrub_mesh(not foliage_variants.is_empty()), shrubs, 0.30, origin_3d, foliage_variants)
+	var shrub_mesh := _create_shrub_mesh(not foliage_variants.is_empty())
+	var shrub_offset := 0.0 if not (shrub_mesh is SphereMesh) else 0.30
+	_create_multimesh(parent, "Shrubs", shrub_mesh, shrubs, shrub_offset, origin_3d, foliage_variants)
 	_spawn_rock_multimeshes(parent, rocks, origin_3d)
 
 static func _create_multimesh(parent: Node3D, name_id: String, base_mesh: Mesh, items: Array, base_y_offset: float = 0.0, origin_3d: Vector3 = Vector3.ZERO, color_variants: Array = []) -> void:
@@ -234,7 +238,30 @@ static func _bake_pino_mesh(orig_mesh: Mesh, xform: Transform3D, mat: Material, 
 
 	return new_mesh
 
-static func _create_shrub_mesh(has_instance_colors: bool = false) -> SphereMesh:
+static func _create_shrub_mesh(has_instance_colors: bool = false) -> Mesh:
+	if _cached_shrub_mesh != null:
+		return _cached_shrub_mesh
+
+	if ResourceLoader.exists(BUSH_GLB_PATH):
+		var glb: PackedScene = load(BUSH_GLB_PATH)
+		if glb != null:
+			var inst: Node = glb.instantiate()
+			var chain: Array[Node3D] = []
+			_find_mesh_instance_chain(inst, chain)
+			if not chain.is_empty() and chain.back() is MeshInstance3D:
+				var mi: MeshInstance3D = chain.back() as MeshInstance3D
+				var accumulated_xf := Transform3D.IDENTITY
+				for node in chain:
+					accumulated_xf = accumulated_xf * node.transform
+				var mat: Material = mi.get_surface_override_material(0) if mi.get_surface_override_material(0) else mi.mesh.surface_get_material(0)
+				var baked := _bake_bush_mesh(mi.mesh, accumulated_xf, mat)
+				inst.queue_free()
+				if baked != null:
+					_cached_shrub_mesh = baked
+					return _cached_shrub_mesh
+			inst.queue_free()
+
+	# Fallback a esfera primitiva si el recurso GLB no estuviera disponible
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.6
 	mesh.height = 0.8
@@ -243,7 +270,97 @@ static func _create_shrub_mesh(has_instance_colors: bool = false) -> SphereMesh:
 	if has_instance_colors:
 		mat.vertex_color_use_as_albedo = true
 	mesh.material = mat
-	return mesh
+	_cached_shrub_mesh = mesh
+	return _cached_shrub_mesh
+
+static func _find_mesh_instance_chain(curr: Node, current_chain: Array[Node3D]) -> bool:
+	if curr is Node3D:
+		current_chain.append(curr)
+	if curr is MeshInstance3D and curr.mesh != null:
+		return true
+	for c in curr.get_children():
+		if _find_mesh_instance_chain(c, current_chain):
+			return true
+	if curr is Node3D:
+		current_chain.pop_back()
+	return false
+
+static func _bake_bush_mesh(orig_mesh: Mesh, xform: Transform3D, mat: Material, scale_factor: float = 1.0) -> ArrayMesh:
+	var new_mesh := ArrayMesh.new()
+	var min_y: float = INF
+	for s in range(orig_mesh.get_surface_count()):
+		var arr: Array = orig_mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		for v in verts:
+			var tv: Vector3 = xform * v
+			min_y = minf(min_y, tv.y)
+	if not is_finite(min_y):
+		min_y = 0.0
+
+	var y_offset: float = -min_y
+
+	for s in range(orig_mesh.get_surface_count()):
+		var arr: Array = orig_mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+		var basis: Basis = xform.basis.orthonormalized()
+
+		for i in range(verts.size()):
+			var tv: Vector3 = xform * verts[i]
+			tv.y += y_offset
+			verts[i] = tv * scale_factor
+
+		if not normals.is_empty():
+			for i in range(normals.size()):
+				var n_trans: Vector3 = (basis * normals[i]).normalized()
+				var v: Vector3 = verts[i]
+				var outward: Vector3 = (v - Vector3(0.0, 0.35 * scale_factor, 0.0)).normalized()
+				normals[i] = n_trans.lerp(outward, 0.60).normalized()
+
+		arr[Mesh.ARRAY_VERTEX] = verts
+		arr[Mesh.ARRAY_NORMAL] = normals
+
+		new_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+
+		var surface_mat: Material = mat
+		if surface_mat == null:
+			surface_mat = orig_mesh.surface_get_material(s)
+
+		var final_mat: Material = null
+		if ResourceLoader.exists(PINO_SHADER_PATH):
+			var shader: Shader = load(PINO_SHADER_PATH)
+			if shader != null:
+				var sm := ShaderMaterial.new()
+				sm.shader = shader
+				if surface_mat is BaseMaterial3D:
+					var bm := surface_mat as BaseMaterial3D
+					if bm.albedo_texture != null:
+						sm.set_shader_parameter("texture_albedo", bm.albedo_texture)
+					if bm.albedo_color != Color.WHITE:
+						sm.set_shader_parameter("foliage_tint", bm.albedo_color)
+				sm.set_shader_parameter("alpha_scissor_threshold", 0.5)
+				sm.set_shader_parameter("shadow_tint", Color(0.18, 0.32, 0.24, 1.0))
+				sm.set_shader_parameter("shadow_wrap", 0.45)
+				sm.set_shader_parameter("direct_light_strength", 0.85)
+				final_mat = sm
+
+		if final_mat == null and surface_mat != null:
+			var bm := surface_mat.duplicate() as BaseMaterial3D
+			if bm != null:
+				bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+				bm.alpha_scissor_threshold = 0.5
+				bm.cull_mode = BaseMaterial3D.CULL_DISABLED
+				bm.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+				bm.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+				bm.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+				bm.roughness = 1.0
+				bm.metallic = 0.0
+				bm.vertex_color_use_as_albedo = true
+				final_mat = bm
+
+		new_mesh.surface_set_material(s, final_mat if final_mat != null else surface_mat)
+
+	return new_mesh
 
 static func _create_rock_mesh() -> Mesh:
 	var variants: Array[Mesh] = _ProceduralRockGeneratorScript.get_rock_variants()

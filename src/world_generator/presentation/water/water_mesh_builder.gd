@@ -132,6 +132,107 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 			)
 			hydro.extended_water_heights = extended_heights
 
+	if is_chunk:
+		# En streaming de chunks, construir quads horizontales desacoplados por celda (100% planos).
+		# Elimina las rampas inclinadas entre niveles y previene los picos triangulares en cascadas y desniveles.
+		var step_h: float = float(profile.elevation_step_height) if profile != null and "elevation_step_height" in profile else 2.0
+		for y in range(h):
+			for x in range(w):
+				var pos2i := origin + Vector2i(x, y)
+				var is_water: bool = hydro.water_cells.has(pos2i)
+
+				var water_y: float = water_datum
+				var flow: Vector2 = Vector2.ZERO
+				var depth: float = 0.5
+
+				if is_water:
+					var cdata: Dictionary = hydro.water_cells[pos2i]
+					water_y = float(cdata.get("water_height", water_datum))
+					flow = Vector2(cdata.get("flow_dir", Vector2.ZERO))
+					depth = float(cdata.get("depth", 0.5))
+				else:
+					var c_cell: WorldCell = result.get_cell_or_seam(pos2i) if result.has_method("get_cell_or_seam") else result.get_cell(pos2i)
+					var c_h: float = c_cell.height if c_cell != null else water_datum
+					var min_d_sq: float = 999.0
+					var nearest_h: float = water_datum
+					for dy in range(-3, 4):
+						for dx in range(-3, 4):
+							var np := pos2i + Vector2i(dx, dy)
+							if hydro.water_cells.has(np):
+								var n_cdata: Dictionary = hydro.water_cells[np]
+								var n_wh: float = float(n_cdata.get("water_height", water_datum))
+								if absf(n_wh - c_h) <= step_h + 0.5:
+									var d_sq := float(dx * dx + dy * dy)
+									if d_sq < min_d_sq:
+										min_d_sq = d_sq
+										nearest_h = n_wh
+					if min_d_sq < 900.0:
+						water_y = nearest_h
+					else:
+						# Tierra seca distante sin influencia de agua
+						continue
+
+				var x0: float = float(x) * cell_size
+				var x1: float = float(x + 1) * cell_size
+				var z0: float = float(y) * cell_size
+				var z1: float = float(y + 1) * cell_size
+
+				var p0 := Vector3(x0, water_y, z0)
+				var p1 := Vector3(x1, water_y, z0)
+				var p2 := Vector3(x0, water_y, z1)
+				var p3 := Vector3(x1, water_y, z1)
+
+				var base_idx: int = surf.vertices.size()
+				for corner in range(4):
+					var c_pos: Vector2i
+					var c_v: Vector3
+					if corner == 0:
+						c_pos = pos2i
+						c_v = p0
+					elif corner == 1:
+						c_pos = pos2i + Vector2i(1, 0)
+						c_v = p1
+					elif corner == 2:
+						c_pos = pos2i + Vector2i(0, 1)
+						c_v = p2
+					else:
+						c_pos = pos2i + Vector2i(1, 1)
+						c_v = p3
+
+					var uv := Vector2(float(c_pos.x) / float(macro_w), float(c_pos.y) / float(macro_h))
+					var corner_sdf: float
+					if hydro.water_cells.has(c_pos):
+						var has_dry := false
+						for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+							if not hydro.water_cells.has(c_pos + off):
+								has_dry = true
+								break
+						corner_sdf = 0.65 if has_dry else 1.0
+					else:
+						var min_c_d_sq: float = 999.0
+						for dy in range(-3, 4):
+							for dx in range(-3, 4):
+								var np := c_pos + Vector2i(dx, dy)
+								if hydro.water_cells.has(np):
+									var d_sq := float(dx * dx + dy * dy)
+									if d_sq < min_c_d_sq:
+										min_c_d_sq = d_sq
+						if min_c_d_sq < 900.0:
+							var dist := sqrt(min_c_d_sq)
+							var signed_dist := -(dist - 0.5)
+							corner_sdf = clampf(0.5 + signed_dist / 6.0, 0.0, 0.49)
+						else:
+							corner_sdf = 0.0
+
+					var col: Color = col_shallow.lerp(col_deep, clampf(depth / 3.0, 0.0, 1.0))
+					col.a = corner_sdf
+					surf.add_vertex(c_v, Vector3.UP, uv, flow, col)
+
+				surf.add_triangle(base_idx + 0, base_idx + 1, base_idx + 2)
+				surf.add_triangle(base_idx + 1, base_idx + 3, base_idx + 2)
+
+		return surf
+
 	# -------------------------------------------------------------------------
 	# PASO 3: Generar grilla de vertices (1:1 con TerrainMeshBuilder)
 	# -------------------------------------------------------------------------

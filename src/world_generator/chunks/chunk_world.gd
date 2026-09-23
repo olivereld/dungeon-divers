@@ -143,6 +143,15 @@ func update_player_streaming() -> void:
 			chunk_manager.update_streaming(active_chunk, render_distance)
 
 
+## Ajusta dinámicamente el radio de chunks cargados en tiempo de ejecución.
+func set_render_distance(p_dist: int) -> void:
+	render_distance = clampi(p_dist, 1, 8)
+	if config != null:
+		config.render_distance = render_distance
+	if chunk_manager != null:
+		chunk_manager.update_streaming(active_chunk, render_distance)
+
+
 func _physics_process(_delta: float) -> void:
 	poll_async_generation()
 	if tracked_target != null:

@@ -83,7 +83,10 @@ static func generate_regional_hydrology(seed_val: int, profile: WorldProfile = n
 	var context := WorldGenerationContext.new(seed_val, profile)
 	context.region_origin = region_origin
 	TerrainStage.new().execute(context)
-	var hydro: HydrologyResult = _HydrologyStageScript.solve_global(context)
+	var stage := _HydrologyStageScript.new()
+	var hydro: HydrologyResult = stage.solve_global(context)
+	context.result.hydrology = hydro
+	stage.apply_local(context, hydro)
 
 	if region_origin != Vector2i.ZERO:
 		_translate_hydrology_to_world(hydro, region_origin, profile.cell_size)

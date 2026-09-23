@@ -1655,7 +1655,9 @@ func _build_river_geometry(
 					var target_h: float = float(ex_cell.get("water_height", reach["wh"]))
 					if absf(target_h - reach["wh"]) < profile.elevation_step_height * 0.5:
 						reach["wh"] = target_h
-						reach["bed_h"] = float(ex_cell.get("bed_height", reach["bed_h"]))
+						var ex_b: float = float(ex_cell.get("bed_height", reach["bed_h"]))
+						if ex_b < target_h and (target_h - ex_b) <= profile.elevation_step_height:
+							reach["bed_h"] = ex_b
 
 	# Continuidad en nacimiento desde spillway si el lago está en la misma terraza:
 	if river_obj.is_outflow and hydro.is_lake(path[0]):
@@ -1704,8 +1706,9 @@ func _build_river_geometry(
 			if is_confluence_outlet and hydro.water_cells.has(pos):
 				var existing_w_h: float = float(hydro.water_cells[pos].get("water_height", pt_w_h[i]))
 				var existing_b_h: float = float(hydro.water_cells[pos].get("bed_height", b_h))
-				hydro.water_cells[pos]["bed_height"] = minf(existing_b_h, b_h)
-				hydro.water_cells[pos]["depth"] = existing_w_h - float(hydro.water_cells[pos]["bed_height"])
+				if absf(existing_w_h - pt_w_h[i]) < 0.1:
+					hydro.water_cells[pos]["bed_height"] = minf(existing_b_h, b_h)
+					hydro.water_cells[pos]["depth"] = existing_w_h - float(hydro.water_cells[pos]["bed_height"])
 			elif hydro.water_cells.has(pos):
 				var existing: Dictionary = hydro.water_cells[pos]
 				var ex_r_id: int = int(existing.get("river_index", -1))
@@ -1713,8 +1716,9 @@ func _build_river_geometry(
 					# Otra confluencia o río cruzado: respetar la cota del río receptor existente
 					var ex_wh: float = float(existing.get("water_height", pt_w_h[i]))
 					var ex_bed: float = float(existing.get("bed_height", b_h))
-					existing["bed_height"] = minf(ex_bed, b_h)
-					existing["depth"] = ex_wh - float(existing["bed_height"])
+					if absf(ex_wh - pt_w_h[i]) < 0.1:
+						existing["bed_height"] = minf(ex_bed, b_h)
+						existing["depth"] = ex_wh - float(existing["bed_height"])
 				else:
 					existing["water_height"] = pt_w_h[i]
 					existing["bed_height"] = b_h
@@ -1815,12 +1819,13 @@ func _build_river_geometry(
 					var existing_river_id: int = int(existing.get("river_index", -1))
 					if existing_river_id != -1 and existing_river_id != river_id:
 						# Celda perteneciente a otro río (ej. río receptor en confluencia)
-						# Respetar la cota de agua del río receptor; solo profundizar el lecho si este afluente es más profundo
+						# Respetar la cota de agua del río receptor; solo profundizar el lecho si este afluente está en la misma cota
 						var ex_wh: float = float(existing.get("water_height", cur_wh))
-						var b_h: float = ex_wh - cur_d
-						var ex_bed: float = float(existing.get("bed_height", b_h))
-						existing["bed_height"] = minf(ex_bed, b_h)
-						existing["depth"] = ex_wh - float(existing["bed_height"])
+						if absf(ex_wh - cur_wh) < 0.1:
+							var b_h: float = ex_wh - cur_d
+							var ex_bed: float = float(existing.get("bed_height", b_h))
+							existing["bed_height"] = minf(ex_bed, b_h)
+							existing["depth"] = ex_wh - float(existing["bed_height"])
 					else:
 						# Mismo río: asignar propiedades del segmento geométrico más cercano
 						# para garantizar lámina de agua transversalmente plana y sin jorobas/crestas
@@ -1830,9 +1835,8 @@ func _build_river_geometry(
 							existing["water_height"] = cur_wh
 							existing["shoreline_height"] = cur_shoreline
 							existing["flow_dir"] = seg_dir
-						var new_bed: float = minf(float(existing.get("bed_height", cur_bed)), cur_bed)
-						existing["bed_height"] = new_bed
-						existing["depth"] = float(existing["water_height"]) - new_bed
+							existing["bed_height"] = cur_bed
+							existing["depth"] = cur_d
 				else:
 					river_cell_dist[c_pos] = dist
 					hydro.water_cells[c_pos] = {
@@ -2149,36 +2153,45 @@ func _carve_lake_basins(
 		for p in cluster:
 			lake_set[p] = true
 
-		# 1. Determinar el nivel de terraza de la orilla circundante
-		var max_shore_level: int = -1
-		for p in cluster:
-			for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-				var np: Vector2i = p + offset
-				if not lake_set.has(np):
-					var nc: WorldCell = cells.get(np)
-					if nc != null and nc.elevation_level > max_shore_level:
-						max_shore_level = nc.elevation_level
+		var shore_h: float
+		var bed_h: float
+		var water_y: float
 
-		if max_shore_level == -1:
+		if is_chunk and lake.has("bed_height") and lake.has("water_height"):
+			bed_h = float(lake["bed_height"])
+			water_y = float(lake["water_height"])
+			shore_h = float(lake.get("shoreline_height", water_y + 1.0))
+		else:
+			# 1. Determinar el nivel de terraza de la orilla circundante
+			var max_shore_level: int = -1
 			for p in cluster:
-				var c: WorldCell = cells.get(p)
-				if c != null and c.elevation_level > max_shore_level:
-					max_shore_level = c.elevation_level
+				for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var np: Vector2i = p + offset
+					if not lake_set.has(np):
+						var nc: WorldCell = cells.get(np)
+						if nc != null and nc.elevation_level > max_shore_level:
+							max_shore_level = nc.elevation_level
 
-		var step: float = profile.elevation_step_height if (profile != null and profile.elevation_step_height > 0.0) else 2.0
-		var base: float = profile.base_height if profile != null else 2.0
+			if max_shore_level == -1:
+				for p in cluster:
+					var c: WorldCell = cells.get(p)
+					if c != null and c.elevation_level > max_shore_level:
+						max_shore_level = c.elevation_level
 
-		var shore_h: float = base + float(max_shore_level) * step
-		var bed_level: int = maxi(0, max_shore_level - 1)
-		var bed_h: float = base + float(bed_level) * step
-		if bed_h >= shore_h:
-			bed_h = maxf(0.0, shore_h - step * 0.5)
+			var step: float = profile.elevation_step_height if (profile != null and profile.elevation_step_height > 0.0) else 2.0
+			var base: float = profile.base_height if profile != null else 2.0
 
-		# H_water centrado verticalmente a mitad de camino del cliff
-		var water_y: float = (shore_h + bed_h) * 0.5
-		lake["water_height"] = water_y
-		lake["bed_height"] = bed_h
-		lake["shoreline_height"] = shore_h
+			shore_h = base + float(max_shore_level) * step
+			var bed_level: int = maxi(0, max_shore_level - 1)
+			bed_h = base + float(bed_level) * step
+			if bed_h >= shore_h:
+				bed_h = maxf(0.0, shore_h - step * 0.5)
+
+			# H_water centrado verticalmente a mitad de camino del cliff
+			water_y = (shore_h + bed_h) * 0.5
+			lake["water_height"] = water_y
+			lake["bed_height"] = bed_h
+			lake["shoreline_height"] = shore_h
 
 		# 2. FLATTEN WATER TERRAIN: Fondo plano uniforme para todo el cuerpo del lago
 		# cell.height recibe la cota plana común bed_h, sin tocar celdas secas exteriores
