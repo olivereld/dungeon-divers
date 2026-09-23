@@ -231,6 +231,83 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 				surf.add_triangle(base_idx + 0, base_idx + 1, base_idx + 2)
 				surf.add_triangle(base_idx + 1, base_idx + 3, base_idx + 2)
 
+				# -------------------------------------------------------------
+				# GENERACIÓN DE CASCADAS (WATERFALL QUADS)
+				# Si la celda es agua, evaluar sus 4 vecinos cardinales.
+				# Si un vecino es celda de agua con cota estrictamente inferior
+				# (water_y - n_wh > WATERFALL_MIN_DROP), emitir exactamente un quad
+				# vertical desplazado hacia la celda inferior y con penetración basal.
+				# -------------------------------------------------------------
+				if is_water:
+					var base_pen: float = 0.05 * cell_size
+					var wf_off: float = 0.04 * cell_size
+					var wf_col := col_shallow
+					wf_col.a = 1.0
+
+					# Vecino Oeste (-X)
+					var pos_w := pos2i + Vector2i(-1, 0)
+					if hydro.water_cells.has(pos_w):
+						var n_wh_w: float = float(hydro.water_cells[pos_w].get("water_height", water_datum))
+						if water_y - n_wh_w > 0.10:
+							var h_hi: float = water_y
+							var h_lo: float = n_wh_w - base_pen
+							var x_wf: float = x0 - wf_off
+							var idx := surf.vertices.size()
+							surf.add_vertex(Vector3(x_wf, h_hi, z1), Vector3.LEFT, Vector2(0.0, 0.0), flow, wf_col)
+							surf.add_vertex(Vector3(x_wf, h_hi, z0), Vector3.LEFT, Vector2(1.0, 0.0), flow, wf_col)
+							surf.add_vertex(Vector3(x_wf, h_lo, z1), Vector3.LEFT, Vector2(0.0, 1.0), flow, wf_col)
+							surf.add_vertex(Vector3(x_wf, h_lo, z0), Vector3.LEFT, Vector2(1.0, 1.0), flow, wf_col)
+							surf.add_triangle(idx + 0, idx + 2, idx + 1)
+							surf.add_triangle(idx + 1, idx + 2, idx + 3)
+
+					# Vecino Este (+X)
+					var pos_e := pos2i + Vector2i(1, 0)
+					if hydro.water_cells.has(pos_e):
+						var n_wh_e: float = float(hydro.water_cells[pos_e].get("water_height", water_datum))
+						if water_y - n_wh_e > 0.10:
+							var h_hi: float = water_y
+							var h_lo: float = n_wh_e - base_pen
+							var x_wf: float = x1 + wf_off
+							var idx := surf.vertices.size()
+							surf.add_vertex(Vector3(x_wf, h_hi, z0), Vector3.RIGHT, Vector2(0.0, 0.0), flow, wf_col)
+							surf.add_vertex(Vector3(x_wf, h_hi, z1), Vector3.RIGHT, Vector2(1.0, 0.0), flow, wf_col)
+							surf.add_vertex(Vector3(x_wf, h_lo, z0), Vector3.RIGHT, Vector2(0.0, 1.0), flow, wf_col)
+							surf.add_vertex(Vector3(x_wf, h_lo, z1), Vector3.RIGHT, Vector2(1.0, 1.0), flow, wf_col)
+							surf.add_triangle(idx + 0, idx + 2, idx + 1)
+							surf.add_triangle(idx + 1, idx + 2, idx + 3)
+
+					# Vecino Norte (-Z)
+					var pos_n := pos2i + Vector2i(0, -1)
+					if hydro.water_cells.has(pos_n):
+						var n_wh_n: float = float(hydro.water_cells[pos_n].get("water_height", water_datum))
+						if water_y - n_wh_n > 0.10:
+							var h_hi: float = water_y
+							var h_lo: float = n_wh_n - base_pen
+							var z_wf: float = z0 - wf_off
+							var idx := surf.vertices.size()
+							surf.add_vertex(Vector3(x0, h_hi, z_wf), Vector3.FORWARD, Vector2(0.0, 0.0), flow, wf_col)
+							surf.add_vertex(Vector3(x1, h_hi, z_wf), Vector3.FORWARD, Vector2(1.0, 0.0), flow, wf_col)
+							surf.add_vertex(Vector3(x0, h_lo, z_wf), Vector3.FORWARD, Vector2(0.0, 1.0), flow, wf_col)
+							surf.add_vertex(Vector3(x1, h_lo, z_wf), Vector3.FORWARD, Vector2(1.0, 1.0), flow, wf_col)
+							surf.add_triangle(idx + 0, idx + 2, idx + 1)
+							surf.add_triangle(idx + 1, idx + 2, idx + 3)
+
+					# Vecino Sur (+Z)
+					var pos_s := pos2i + Vector2i(0, 1)
+					if hydro.water_cells.has(pos_s):
+						var n_wh_s: float = float(hydro.water_cells[pos_s].get("water_height", water_datum))
+						if water_y - n_wh_s > 0.10:
+							var h_hi: float = water_y
+							var h_lo: float = n_wh_s - base_pen
+							var z_wf: float = z1 + wf_off
+							var idx := surf.vertices.size()
+							surf.add_vertex(Vector3(x1, h_hi, z_wf), Vector3.BACK, Vector2(0.0, 0.0), flow, wf_col)
+							surf.add_vertex(Vector3(x0, h_hi, z_wf), Vector3.BACK, Vector2(1.0, 0.0), flow, wf_col)
+							surf.add_vertex(Vector3(x1, h_lo, z_wf), Vector3.BACK, Vector2(0.0, 1.0), flow, wf_col)
+							surf.add_vertex(Vector3(x0, h_lo, z_wf), Vector3.BACK, Vector2(1.0, 1.0), flow, wf_col)
+							surf.add_triangle(idx + 0, idx + 2, idx + 1)
+							surf.add_triangle(idx + 1, idx + 2, idx + 3)
+
 		return surf
 
 	# -------------------------------------------------------------------------

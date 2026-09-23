@@ -29,7 +29,7 @@ func _run_all_tests() -> void:
 	_test_water_material_and_textures()
 	_test_vegetation_autumn_multi_tint()
 	_test_isometric_camera_and_player()
-	_test_chunk_world_integration_scene()
+	await _test_chunk_world_integration_scene()
 
 	print("==================================================")
 	print(" TODOS LOS TESTS OTOÑAL/TEXTURAS/CÁMARA PASARON OK")

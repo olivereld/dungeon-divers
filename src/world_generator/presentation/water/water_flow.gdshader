@@ -65,22 +65,72 @@ uniform float player_in_water       = 0.0; // 1.0 cuando el personaje está en e
 uniform vec4  ripples[8];                  // xy = world_xz, z = current_radius, w = current_alpha
 
 // ---------------------------------------------------------------------------
+// [6] WATERFALL — Cascadas y desniveles verticales
+// ---------------------------------------------------------------------------
+uniform float waterfall_speed          : hint_range(0.5, 6.0) = 3.0;
+uniform float waterfall_width_scale    : hint_range(0.5, 10.0) = 3.0;
+uniform float waterfall_vertical_scale  : hint_range(0.5, 10.0) = 4.0;
+uniform float waterfall_alpha          : hint_range(0.0, 1.0) = 0.88;
+
+// ---------------------------------------------------------------------------
 // Varyings
 // ---------------------------------------------------------------------------
 varying vec3 v_world_pos;
 varying vec2 v_flow_dir;
 varying float v_shore_sdf; // packed_sdf codificado en COLOR.a por ShorelineResolver
+varying vec3 v_water_normal;
 
 void vertex() {
-	v_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	v_flow_dir  = UV2;
-	v_shore_sdf = COLOR.a;
+	v_world_pos     = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_flow_dir      = UV2;
+	v_shore_sdf     = COLOR.a;
+	v_water_normal  = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 }
 
 // =============================================================================
 // fragment — 5 capas procesadas en orden armónico
 // =============================================================================
 void fragment() {
+
+	// =========================================================================
+	// [0] WATERFALL — Detección y sombreado independiente de caras de cascada
+	// =========================================================================
+	bool is_waterfall = abs(v_water_normal.y) < 0.5;
+	if (is_waterfall) {
+		// Flujo vertical descendente animado por UV.y y TIME
+		vec2 wf_uv = vec2(
+			UV.x * waterfall_width_scale,
+			UV.y * waterfall_vertical_scale - TIME * waterfall_speed
+		);
+		vec2 wf_uv2 = vec2(
+			UV.x * (waterfall_width_scale * 1.4) + 0.35,
+			UV.y * (waterfall_vertical_scale * 1.3) - TIME * (waterfall_speed * 1.25)
+		);
+
+		float n_wf1 = texture(noise_texture, wf_uv * noise_scale.x * 2.5).r;
+		float n_wf2 = texture(noise_texture, wf_uv2 * noise_scale.x * 2.5).r;
+		float foam_stream = smoothstep(0.40, 0.65, (n_wf1 + n_wf2 * 0.7) / 1.7);
+
+		// Espuma en cresta superior y en base de impacto
+		float crest_foam  = (1.0 - smoothstep(0.0, 0.18, UV.y)) * (0.6 + n_wf1 * 0.4);
+		float impact_foam = smoothstep(0.82, 1.0, UV.y) * (0.7 + n_wf2 * 0.3);
+
+		float wf_total_foam = clamp(foam_stream * 0.65 + crest_foam * 0.85 + impact_foam * 0.90, 0.0, 1.0);
+
+		// Color de cascada a partir de color_shallow / color_mid mezclado con foam_color
+		vec3 wf_base_col = mix(color_shallow.rgb, color_mid.rgb, 0.35);
+		vec3 wf_final_col = mix(wf_base_col, foam_color.rgb, wf_total_foam * foam_color.a);
+
+		// Normal perturbada sutilmente preservando orientación vertical
+		vec3 wf_perturbed_n = normalize(v_water_normal + vec3(0.0, (n_wf1 - 0.5) * 0.25, 0.0));
+
+		ALBEDO    = wf_final_col;
+		ALPHA     = mix(waterfall_alpha * 0.85, 1.0, wf_total_foam);
+		NORMAL    = wf_perturbed_n;
+		ROUGHNESS = mix(roughness, 0.75, wf_total_foam);
+		METALLIC  = metallic;
+		SPECULAR  = 0.50;
+	} else {
 
 	// =========================================================================
 	// [3] NOISE & SURFACE DRIFT — Flujo sereno multi-capa estilo lago (Sin rayas)
@@ -245,6 +295,7 @@ void fragment() {
 	ROUGHNESS = mix(roughness, 0.85, total_foam);
 	METALLIC  = metallic;
 	SPECULAR  = 0.40;
+	}
 }
 
 // =============================================================================
