@@ -51,10 +51,10 @@ uniform float caustic_intensity     : hint_range(0.0, 1.0) = 0.55;
 // ---------------------------------------------------------------------------
 // [4] FOAM — cinta de ribera + contacto
 // ---------------------------------------------------------------------------
-uniform vec4  foam_color            : source_color = vec4(0.96, 0.99, 1.0, 1.0);
-uniform float shore_foam_width      : hint_range(0.02, 1.0) = 0.18; // Ancho de la cinta cremosa
-uniform float shore_foam_intensity  : hint_range(0.0, 1.5) = 0.90;
-uniform float contact_foam_width    : hint_range(0.02, 0.6) = 0.12; // Espuma contra obstáculos 3D
+uniform vec4  foam_color            : source_color = vec4(0.90, 0.97, 1.0, 0.65);
+uniform float shore_foam_width      : hint_range(0.02, 1.0) = 0.08; // Ancho de la cinta delicada
+uniform float shore_foam_intensity  : hint_range(0.0, 1.5) = 0.70;
+uniform float contact_foam_width    : hint_range(0.02, 0.6) = 0.08; // Espuma contra obstáculos verticales 3D
 
 // ---------------------------------------------------------------------------
 // [5] INTERACTION — Oleaje interactivo y ondas de pisadas (Ripples)
@@ -214,9 +214,11 @@ void fragment() {
 	float shore_breath = 0.88 + 0.12 * sin(TIME * 1.5 + dot(v_world_pos.xz, vec2(0.35, 0.25)));
 	float shore_foam  = foam_broken * shore_breath * shore_foam_intensity;
 
-	// Espuma de contacto con obstáculos
-	float obstacle_depth = water_depth + (noise_val - 0.5) * 0.04;
-	float contact_foam   = (1.0 - smoothstep(0.01, contact_foam_width, obstacle_depth)) * 0.60;
+	// Espuma de contacto exclusiva contra obstáculos verticales 3D (no contra el lecho horizontal)
+	vec3 terrain_normal = normalize(cross(dFdx(terrain_world.xyz), dFdy(terrain_world.xyz)));
+	float is_vertical_contact = 1.0 - smoothstep(0.35, 0.75, abs(terrain_normal.y));
+	float obstacle_depth = water_depth + (noise_val - 0.5) * 0.03;
+	float contact_foam   = (1.0 - smoothstep(0.01, contact_foam_width, obstacle_depth)) * 0.45 * is_vertical_contact;
 
 	float total_foam = clamp(max(shore_foam, contact_foam) + ripple_foam, 0.0, 1.0);
 
@@ -226,7 +228,7 @@ void fragment() {
 	// =========================================================================
 	// Composición final (Transparencia gradual cristalina)
 	// =========================================================================
-	vec3 final_color = mix(water_color, foam_color.rgb, total_foam);
+	vec3 final_color = mix(water_color, foam_color.rgb, total_foam * foam_color.a);
 
 	// Zona fade_in [-0.05, 0.02]
 	float visibility  = smoothstep(-0.05, 0.02, effective_dist);
@@ -235,7 +237,8 @@ void fragment() {
 	// Curva de transparencia:
 	// Aguas someras translúcidas (permite ver lecho y arena), profundizándose hacia aguas hondas
 	float base_alpha  = mix(color_shore.a, color_deep.a, depth_curve);
-	float final_alpha = clamp(max(base_alpha * edge_fade, total_foam * 0.95) * visibility, 0.0, 1.0);
+	float foam_alpha  = total_foam * foam_color.a;
+	float final_alpha = clamp(max(base_alpha * edge_fade, foam_alpha) * visibility, 0.0, 1.0);
 
 	ALBEDO    = final_color;
 	ALPHA     = final_alpha;

@@ -27,6 +27,7 @@ var points: Array = []
 var widths: Array = []
 var depths: Array = []
 var meander_offsets: Array = []
+var levels: Array = []
 
 func _init(p_id: int = -1, p_source: Vector2i = Vector2i(-1, -1), p_path: Array = []) -> void:
 	id = p_id
@@ -55,5 +56,6 @@ func to_dict() -> Dictionary:
 		"points": points,
 		"widths": widths,
 		"depths": depths,
-		"meander_offsets": meander_offsets
+		"meander_offsets": meander_offsets,
+		"levels": levels
 	}

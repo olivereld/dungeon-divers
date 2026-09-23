@@ -28,6 +28,7 @@ var shared_hydrology: HydrologyResult = null
 # HUD Elements
 var _hud_layer: CanvasLayer = null
 var _info_label: Label = null
+var _water_toggle_btn: Button = null
 
 
 func _ready() -> void:
@@ -135,10 +136,32 @@ func _setup_hud() -> void:
 	margin.add_theme_constant_override("margin_bottom", 10)
 	panel.add_child(margin)
 
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	margin.add_child(vbox)
+
 	_info_label = Label.new()
 	_info_label.name = "InfoLabel"
 	_info_label.text = "Cargando mundo de chunks..."
-	margin.add_child(_info_label)
+	vbox.add_child(_info_label)
+
+	_water_toggle_btn = Button.new()
+	_water_toggle_btn.name = "WaterToggleBtn"
+	_water_toggle_btn.text = "💧 Ocultar Malla de Agua [H]"
+	_water_toggle_btn.focus_mode = Control.FOCUS_NONE
+	_water_toggle_btn.pressed.connect(_on_toggle_water_pressed)
+	vbox.add_child(_water_toggle_btn)
+
+
+func _on_toggle_water_pressed() -> void:
+	_toggle_water()
+
+
+func _toggle_water() -> void:
+	if chunk_world != null:
+		var is_vis: bool = chunk_world.toggle_water_visible()
+		if _water_toggle_btn != null:
+			_water_toggle_btn.text = "💧 Ocultar Malla de Agua [H]" if is_vis else "🌊 Mostrar Malla de Agua [H]"
 
 
 func _process(_delta: float) -> void:
@@ -167,11 +190,13 @@ func _update_hud() -> void:
 			mgr.stats_generated,
 			mgr.stats_discarded
 		]
+	text += "Malla de Agua: %s\n" % ("Visible" if chunk_world.water_visible else "Oculta")
 	text += "-----------------------------------\n"
-	text += "[WASD / Flechas]: Mover personaje (orientado a cámara)\n"
+	text += "[WASD / Flechas]: Mover personaje\n"
 	text += "[Q / E]: Rotar cámara orbital 45°\n"
 	text += "[Rueda Mouse]: Zoom In / Out\n"
 	text += "[Espacio]: Saltar\n"
+	text += "[H]: Ocultar / Mostrar Malla de Agua\n"
 	text += "[R]: Reaparecer en origen (8, 8)\n"
 
 	_info_label.text = text
@@ -194,6 +219,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			camera_rig.yaw_degrees -= 45.0
 		elif ke.keycode == KEY_E:
 			camera_rig.yaw_degrees += 45.0
+		elif ke.keycode == KEY_H:
+			_toggle_water()
 
 
 func _handle_debug_inputs() -> void:

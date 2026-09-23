@@ -36,10 +36,26 @@ var integration_timings: Array = []
 ## Contenedor de nodos de chunks en la jerarquía
 var chunks_container: Node3D = null
 
+## Visibilidad global de la superficie de agua en los chunks
+var water_visible: bool = true
+
 ## Helper para generación de mallas de vegetación
 var _cached_conifer_mesh: Mesh = null
 var _cached_shrub_mesh: Mesh = null
 var _cached_rock_mesh: Mesh = null
+
+func set_water_visible(p_visible: bool) -> void:
+	water_visible = p_visible
+	for cv in chunk_views.values():
+		if cv != null and is_instance_valid(cv):
+			var w_node = cv.get_node_or_null("WaterRoot")
+			if w_node != null:
+				w_node.visible = water_visible
+
+func toggle_water_visible() -> bool:
+	set_water_visible(not water_visible)
+	return water_visible
+
 
 
 func _init() -> void:
@@ -235,6 +251,7 @@ func _on_chunk_loaded(coord: Vector2i, chunk_data: ChunkData) -> void:
 	if chunk_data.hydrology != null:
 		var water_node: Node3D = _WaterRendererScript.build_water_node(chunk_data, profile)
 		if water_node != null:
+			water_node.visible = water_visible
 			chunk_view.add_child(water_node)
 	var t_water_end := Time.get_ticks_usec()
 

@@ -107,6 +107,9 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 	# -------------------------------------------------------------------------
 	# PASO 2: SDF de orilla — delegado a ShorelineResolver (SRP)
 	# -------------------------------------------------------------------------
+	# -------------------------------------------------------------------------
+	# PASO 2: SDF de orilla — delegado a ShorelineResolver (SRP)
+	# -------------------------------------------------------------------------
 	var shore_off: float = float(profile.shoreline_offset) if (profile != null and "shoreline_offset" in profile) else -0.3
 	var shore_sdf: PackedFloat32Array = hydro.shoreline_sdf
 	if not is_chunk:
@@ -137,31 +140,58 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 			var pos2i := origin + Vector2i(x, y)
 			var is_water: bool = hydro.water_cells.has(pos2i)
 			var water_y: float = water_datum
+			var flow: Vector2 = Vector2.ZERO
+			var depth: float = 0.0
+			var sdf_val: float = 0.0
+
 			if is_chunk:
-				water_y = hydro.get_extended_water_height_at(pos2i, macro_w, macro_h, water_datum)
+				if is_water:
+					var cdata: Dictionary = hydro.water_cells[pos2i]
+					water_y = float(cdata.get("water_height", water_datum))
+					flow = Vector2(cdata.get("flow_dir", Vector2.ZERO))
+					depth = float(cdata.get("depth", 0.5))
+					var has_dry := false
+					for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+						if not hydro.water_cells.has(pos2i + off):
+							has_dry = true
+							break
+					sdf_val = 0.65 if has_dry else 1.0
+				else:
+					var min_d_sq: float = 999.0
+					var nearest_h: float = water_datum
+					for dy in range(-3, 4):
+						for dx in range(-3, 4):
+							var np := pos2i + Vector2i(dx, dy)
+							if hydro.water_cells.has(np):
+								var d_sq := float(dx * dx + dy * dy)
+								if d_sq < min_d_sq:
+									min_d_sq = d_sq
+									nearest_h = float(hydro.water_cells[np].get("water_height", water_datum))
+					if min_d_sq < 900.0:
+						water_y = nearest_h
+						var dist := sqrt(min_d_sq)
+						var signed_dist := -(dist - 0.5)
+						sdf_val = clampf(0.5 + signed_dist / 6.0, 0.0, 0.49)
+					else:
+						water_y = water_datum
+						sdf_val = 0.0
 			else:
 				if not extended_heights.is_empty() and y < h and x < w:
 					water_y = extended_heights[y * w + x]
-
-			var flow: Vector2 = Vector2.ZERO
-			var depth: float = 0.0
-
-			if is_water:
-				var cdata: Dictionary = hydro.water_cells[pos2i]
-				water_y = float(cdata.get("water_height", water_datum))
-				flow  = Vector2(cdata.get("flow_dir", Vector2.ZERO))
-				depth = float(cdata.get("depth", 0.5))
+				if is_water:
+					var cdata: Dictionary = hydro.water_cells[pos2i]
+					water_y = float(cdata.get("water_height", water_datum))
+					flow  = Vector2(cdata.get("flow_dir", Vector2.ZERO))
+					depth = float(cdata.get("depth", 0.5))
+				if not shore_sdf.is_empty() and y < h and x < w:
+					sdf_val = shore_sdf[y * w + x]
+				elif is_water:
+					sdf_val = 1.0
 
 			var v_pos := Vector3(float(x) * cell_size, water_y, float(y) * cell_size)
 			var uv    := Vector2(float(pos2i.x) / float(macro_w), float(pos2i.y) / float(macro_h))
 			var col: Color = col_shallow.lerp(col_deep, clampf(depth / 3.0, 0.0, 1.0))
-			if is_chunk:
-				col.a = hydro.get_shoreline_sdf_at(pos2i, macro_w, macro_h)
-			else:
-				if not shore_sdf.is_empty() and y < h and x < w:
-					col.a = shore_sdf[y * w + x]
-				else:
-					col.a = 0.0
+			col.a = sdf_val
 
 			surf.add_vertex(v_pos, Vector3.UP, uv, flow, col)
 
@@ -200,9 +230,10 @@ static func _compute_extended_water_heights(
 
 	# 1. Celdas de agua fijas (inmutables, cota canónica exacta)
 	for pos in water_cells.keys():
-		var wh: float = float(water_cells[pos].get("water_height", water_datum))
-		heights[pos.y * w + pos.x] = wh
-		resolved[pos] = true
+		if pos.x >= 0 and pos.x < w and pos.y >= 0 and pos.y < h:
+			var wh: float = float(water_cells[pos].get("water_height", water_datum))
+			heights[pos.y * w + pos.x] = wh
+			resolved[pos] = true
 
 	var d8: Array[Vector2i] = [
 		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
@@ -213,12 +244,13 @@ static func _compute_extended_water_heights(
 	var current_frontier: Array[Vector2i] = []
 	var frontier_set := {}
 	for pos in water_cells.keys():
-		for off in d8:
-			var np: Vector2i = pos + off
-			if np.x >= 0 and np.x < w and np.y >= 0 and np.y < h:
-				if not resolved.has(np) and not frontier_set.has(np):
-					frontier_set[np] = true
-					current_frontier.append(np)
+		if pos.x >= 0 and pos.x < w and pos.y >= 0 and pos.y < h:
+			for off in d8:
+				var np: Vector2i = pos + off
+				if np.x >= 0 and np.x < w and np.y >= 0 and np.y < h:
+					if not resolved.has(np) and not frontier_set.has(np):
+						frontier_set[np] = true
+						current_frontier.append(np)
 
 	# 3. Propagar la altura del agua hacia las celdas secas capa por capa (3+ celdas)
 	for step in range(ext_radius):
