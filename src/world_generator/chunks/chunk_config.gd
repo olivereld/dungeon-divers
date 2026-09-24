@@ -20,16 +20,37 @@ var use_reference_height_range: bool = false
 ## Modo de coordenadas globales infinitas (ChunkWorld) vs dominio delimitado (Lab 64x64)
 var is_unbounded: bool = false
 
-## Radio de renderizado / streaming en chunks (por defecto 2 para mantener 12-16 chunks activos)
-var render_distance: int = 2
+## Radios de Streaming Desacoplados (VISIBLE < PRELOAD < CACHE)
+var visible_radius: int = 2
+var preload_radius: int = 5
+var cache_radius: int = 8
 
-## Activar streaming circular para mantener 12-16 chunks optimizados
+## Distancia de proyección en chunks para predicción cinemática de movimiento
+var prediction_distance_chunks: float = 2.0
+
+## Presupuesto de tiempo de Main Thread para instanciación por frame (milisegundos)
+var activation_budget_ms: float = 2.0
+var max_chunk_activations_per_frame: int = 1
+
+## Radio de renderizado / streaming en chunks (compatibilidad heredada)
+var render_distance: int:
+	get:
+		return visible_radius
+	set(val):
+		visible_radius = val
+		preload_radius = maxi(preload_radius, visible_radius + 2)
+		cache_radius = maxi(cache_radius, preload_radius + 3)
+
+## Activar streaming circular para mantener chunks optimizados
 var circular_streaming: bool = true
 
 ## Margen de histéresis de descarga para evitar que caiga el número de chunks mientras se avanza
 var unload_margin: float = 0.65
 
-func _init(p_chunk_size: int = 16, p_margin: int = 1, p_render_dist: int = 1) -> void:
+func _init(p_chunk_size: int = 16, p_margin: int = 1, p_render_dist: int = 2) -> void:
 	chunk_size = p_chunk_size
 	generation_margin = p_margin
-	render_distance = p_render_dist
+	visible_radius = p_render_dist
+	preload_radius = maxi(5, visible_radius + 2)
+	cache_radius = maxi(8, preload_radius + 3)
+

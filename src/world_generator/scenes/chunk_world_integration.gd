@@ -218,12 +218,22 @@ func _update_hud() -> void:
 	var active_coord: Vector2i = chunk_world.active_chunk
 
 	var loaded_count: int = mgr.loaded_chunks.size() if mgr != null else 0
-	var text := "=== PROCEDURAL CHUNK STREAMING ===\n"
+	var pred_chunk: Vector2i = chunk_world.streaming_controller.predicted_chunk if chunk_world.streaming_controller != null else active_coord
+	var queue_len: int = chunk_world.activation_scheduler.get_queue_size() if chunk_world.activation_scheduler != null else 0
+	var act_ms: float = chunk_world.activation_scheduler.last_frame_activation_time_ms if chunk_world.activation_scheduler != null else 0.0
+
+	var text := "=== PROCEDURAL PREDICTIVE STREAMING ===\n"
 	text += "FPS: %d\n" % fps
 	text += "Chunk Activo: (%d, %d)\n" % [active_coord.x, active_coord.y]
+	text += "Chunk Predicho (Futuro): (%d, %d)\n" % [pred_chunk.x, pred_chunk.y]
 	text += "Posición Jugador: (%.1f, %.1f, %.1f)\n" % [p_pos.x, p_pos.y, p_pos.z]
-	text += "Rango de Chunks: %d (Radio)\n" % chunk_world.render_distance
-	text += "Chunks Cargados: %d\n" % loaded_count
+	text += "Radios: Vis %d | Preload %d | Cache %d\n" % [
+		config.visible_radius if config != null else 2,
+		config.preload_radius if config != null else 5,
+		config.cache_radius if config != null else 8
+	]
+	text += "Chunks Visibles Cargados: %d\n" % loaded_count
+	text += "Cola Activación: %d | Frame Act Time: %.2f ms\n" % [queue_len, act_ms]
 	if mgr != null:
 		text += "Peticiones: %d | Generados: %d | Descartados: %d\n" % [
 			mgr.stats_requested,
@@ -241,6 +251,7 @@ func _update_hud() -> void:
 	text += "[R]: Reaparecer en origen (8, 8)\n"
 
 	_info_label.text = text
+
 
 
 func _unhandled_input(event: InputEvent) -> void:

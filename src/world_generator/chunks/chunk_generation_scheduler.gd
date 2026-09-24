@@ -14,6 +14,7 @@ class ChunkRequest:
 	var config: ChunkConfig
 	var shared_hydrology: HydrologyResult
 	var token: int
+	var priority: float
 	var enqueue_time_usec: int
 
 	func _init(
@@ -23,6 +24,7 @@ class ChunkRequest:
 		p_config: ChunkConfig,
 		p_hydro: HydrologyResult,
 		p_token: int,
+		p_priority: float = 0.0,
 		p_enqueue_time: int = 0
 	) -> void:
 		coord = p_coord
@@ -31,6 +33,7 @@ class ChunkRequest:
 		config = p_config
 		shared_hydrology = p_hydro
 		token = p_token
+		priority = p_priority
 		enqueue_time_usec = p_enqueue_time if p_enqueue_time > 0 else Time.get_ticks_usec()
 
 
@@ -39,7 +42,7 @@ var _mutex: Mutex = null
 var _semaphore: Semaphore = null
 var _is_running: bool = false
 
-# Cola de solicitudes entrantes (Array[ChunkRequest])
+# Cola priorizada de solicitudes pendientes (Array[ChunkRequest])
 var _pending_requests: Array = []
 
 # Cola de resultados listos (Array[Dictionary]: { "coord": Vector2i, "chunk_data": ChunkData, "token": int })
@@ -57,21 +60,62 @@ func _init() -> void:
 	_thread.start(_worker_loop)
 
 
-## Encola la generación de un chunk con su respectivo token.
+## Encola la generación de un chunk con su respectivo token y prioridad relativa.
+## Si ya existía una petición para esa coordenada, actualiza sus datos y prioridad sin duplicar.
 func request_chunk(
 	coord: Vector2i,
 	seed_val: int,
 	profile: WorldProfile,
 	config: ChunkConfig,
 	shared_hydro: HydrologyResult,
-	token: int
+	token: int,
+	priority: float = 0.0
 ) -> void:
 	_mutex.lock()
 	_active_tokens[coord] = token
-	var req := ChunkRequest.new(coord, seed_val, profile, config, shared_hydro, token)
-	_pending_requests.append(req)
+
+	# Deduplicación: Si ya está en la cola, actualizar in-place
+	var found := false
+	for i in range(_pending_requests.size()):
+		var existing: ChunkRequest = _pending_requests[i] as ChunkRequest
+		if existing.coord == coord:
+			existing.seed_val = seed_val
+			existing.profile = profile
+			existing.config = config
+			existing.shared_hydrology = shared_hydro
+			existing.token = token
+			existing.priority = priority
+			found = true
+			break
+
+	if not found:
+		var req := ChunkRequest.new(coord, seed_val, profile, config, shared_hydro, token, priority)
+		_pending_requests.append(req)
+		_semaphore.post()
+
 	_mutex.unlock()
-	_semaphore.post()
+
+
+## Actualiza dinámicamente la prioridad de una petición pendiente.
+func update_priority(coord: Vector2i, new_priority: float) -> void:
+	_mutex.lock()
+	for i in range(_pending_requests.size()):
+		var req: ChunkRequest = _pending_requests[i] as ChunkRequest
+		if req.coord == coord:
+			req.priority = new_priority
+			break
+	_mutex.unlock()
+
+
+## Cancela explícitamente la generación de un chunk pendiente.
+func cancel_chunk(coord: Vector2i) -> void:
+	_mutex.lock()
+	_active_tokens.erase(coord)
+	for i in range(_pending_requests.size() - 1, -1, -1):
+		var req: ChunkRequest = _pending_requests[i] as ChunkRequest
+		if req.coord == coord:
+			_pending_requests.remove_at(i)
+	_mutex.unlock()
 
 
 ## Invalida el token para una coordenada específica, descartando su resultado si termina.
@@ -133,7 +177,18 @@ func _worker_loop() -> void:
 			_mutex.unlock()
 			continue
 
-		var req: ChunkRequest = _pending_requests.pop_front() as ChunkRequest
+		# Extraer la solicitud con mayor prioridad (Priority Queue)
+		var best_idx := 0
+		var best_priority := -999999.0
+		for i in range(_pending_requests.size()):
+			var candidate: ChunkRequest = _pending_requests[i] as ChunkRequest
+			if candidate.priority > best_priority:
+				best_priority = candidate.priority
+				best_idx = i
+
+		var req: ChunkRequest = _pending_requests[best_idx] as ChunkRequest
+		_pending_requests.remove_at(best_idx)
+
 		var current_token: int = _active_tokens.get(req.coord, -1)
 		# Si la petición fue cancelada o invalidada antes de empezar, la descartamos
 		if req.token != current_token:

@@ -15,6 +15,8 @@ const _WorldVegetationItemScript = preload("res://src/world_generator/data/world
 const _ProceduralRockGeneratorScript = preload("res://src/world_renderer/procedural_rock_generator.gd")
 const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometric_camera_rig.gd")
 const _DungeonEntrancePOIViewScript = preload("res://src/world_generator/presentation/dungeon_entrance_poi_view.gd")
+const _ChunkStreamingControllerScript = preload("res://src/world_generator/chunks/chunk_streaming_controller.gd")
+const _ChunkActivationSchedulerScript = preload("res://src/world_generator/chunks/chunk_activation_scheduler.gd")
 
 @export var world_seed: int = 12345
 @export var render_distance: int = 2
@@ -23,12 +25,15 @@ var profile: WorldProfile = null
 var config: ChunkConfig = null
 var shared_hydrology: HydrologyResult = null
 var chunk_manager: RefCounted = null
+var streaming_controller: RefCounted = null
+var activation_scheduler: RefCounted = null
 
 ## Coordenada del chunk actualmente activo (donde se ubica el jugador / objetivo)
 var active_chunk: Vector2i = Vector2i.ZERO
 
 ## Objetivo móvil opcional a rastrear (e.g. Player)
 var tracked_target: Node3D = null
+var _last_tracked_pos: Vector3 = Vector3.ZERO
 
 ## Diccionario de vistas 3D de chunks cargados (Vector2i -> Node3D)
 var chunk_views: Dictionary = {}
@@ -96,6 +101,10 @@ func initialize(
 		shared_hydrology
 	)
 
+	streaming_controller = _ChunkStreamingControllerScript.new(config)
+	activation_scheduler = _ChunkActivationSchedulerScript.new()
+	activation_scheduler.chunk_activated.connect(_on_chunk_activated)
+
 	chunk_manager.chunk_loaded.connect(_on_chunk_loaded)
 	chunk_manager.chunk_unloaded.connect(_on_chunk_unloaded)
 
@@ -103,12 +112,41 @@ func initialize(
 ## Carga explícitamente un área inicial alrededor de una coordenada central.
 ## Si radius < 0, utiliza render_distance de forma síncrona/garantizada.
 func load_initial_area(center_coord: Vector2i = Vector2i.ZERO, radius: int = -1) -> void:
-	var r := render_distance if radius < 0 else radius
+	bootstrap_minimum_area(center_coord, radius)
+
+
+## Bootstrap inicial optimizado: activa de inmediato solo el área mínima jugable (radio 1)
+## para que el jugador pueda interactuar al instante, dejando los radios mayores para background streaming.
+func bootstrap_minimum_area(center_coord: Vector2i = Vector2i.ZERO, full_radius: int = -1) -> void:
+	var r := render_distance if full_radius < 0 else full_radius
 	active_chunk = center_coord
+
 	if chunk_manager != null:
+		# 1. Encolar el área requerida completa en el scheduler asíncrono
 		chunk_manager.update_streaming(center_coord, r)
-		if chunk_manager.has_method("flush_pending"):
-			chunk_manager.flush_pending()
+
+		# 2. Generar y activar de forma inmediata únicamente el núcleo jugable (radio 1)
+		var core_coords: Array[Vector2i] = []
+		for cy in range(center_coord.y - 1, center_coord.y + 2):
+			for cx in range(center_coord.x - 1, center_coord.x + 2):
+				core_coords.append(Vector2i(cx, cy))
+
+		for c in core_coords:
+			if not chunk_manager.has_chunk(c):
+				chunk_manager.load_chunk(c)
+
+		# Procesar inmediatamente las activaciones del área núcleo
+		if activation_scheduler != null:
+			activation_scheduler.process_activations(
+				100.0,
+				core_coords.size() + 2,
+				profile,
+				water_visible,
+				chunks_container if chunks_container != null else self,
+				Callable(self, "_on_dungeon_enter_forward"),
+				Callable(self, "_spawn_chunk_vegetation")
+			)
+
 
 
 ## Espera y procesa todas las peticiones asíncronas pendientes del scheduler.
@@ -121,6 +159,7 @@ func flush_async_queue(timeout_ms: int = 10000) -> void:
 func set_tracked_target(target: Node3D) -> void:
 	tracked_target = target
 	if tracked_target != null:
+		_last_tracked_pos = tracked_target.global_position if tracked_target.is_inside_tree() else tracked_target.position
 		update_player_streaming()
 
 
@@ -128,22 +167,32 @@ func set_active_target(target: Node3D) -> void:
 	set_tracked_target(target)
 
 
-## Actualiza el streaming síncrono evaluando la posición actual del jugador.
-## Mantiene el invariante: loaded_chunks == required_chunks tras cada actualización.
+## Actualiza el streaming evaluando la posición y velocidad cinemática del jugador.
 func update_player_streaming() -> void:
 	if tracked_target == null or not is_instance_valid(tracked_target):
 		return
 	var target_pos: Vector3 = tracked_target.global_position if tracked_target.is_inside_tree() else tracked_target.position
-	var cell_size: float = profile.cell_size if profile != null else 1.0
-	var world_x := floori(target_pos.x / cell_size)
-	var world_y := floori(target_pos.z / cell_size)
-	var chunk_sz: int = config.chunk_size if config != null else 16
-	var target_chunk := ChunkCoord.world_to_chunk(Vector2i(world_x, world_y), chunk_sz)
+	var velocity := Vector3.ZERO
+	if "velocity" in tracked_target:
+		velocity = tracked_target.velocity
+	else:
+		velocity = target_pos - _last_tracked_pos
+	_last_tracked_pos = target_pos
 
-	if target_chunk != active_chunk or (chunk_manager != null and chunk_manager.loaded_chunks.is_empty()):
-		active_chunk = target_chunk
-		if chunk_manager != null:
-			chunk_manager.update_streaming(active_chunk, render_distance)
+	var cell_size: float = profile.cell_size if profile != null else 1.0
+	var streaming_data: Dictionary = {}
+	if streaming_controller != null:
+		streaming_data = streaming_controller.update_target(target_pos, velocity, cell_size)
+		active_chunk = streaming_data.get("current_chunk", active_chunk)
+	else:
+		var world_x := floori(target_pos.x / cell_size)
+		var world_y := floori(target_pos.z / cell_size)
+		var chunk_sz: int = config.chunk_size if config != null else 16
+		active_chunk = ChunkCoord.world_to_chunk(Vector2i(world_x, world_y), chunk_sz)
+
+	if chunk_manager != null:
+		var priorities: Dictionary = streaming_data.get("priorities", {})
+		chunk_manager.update_streaming(active_chunk, render_distance, priorities)
 
 
 ## Ajusta dinámicamente el radio de chunks cargados en tiempo de ejecución.
@@ -165,12 +214,27 @@ func _process(_delta: float) -> void:
 	poll_async_generation()
 
 
-## Extrae y procesa los chunks generados asíncronamente en el worker thread.
-## La instanciación visual de mallas y colisiones ocurre EXCLUSIVAMENTE en el Main Thread.
+## Extrae resultados de generación y procesa la activación bajo presupuesto por frame.
 func poll_async_generation() -> Array[Vector2i]:
+	var integrated: Array[Vector2i] = []
 	if chunk_manager != null and chunk_manager.has_method("poll_completed"):
-		return chunk_manager.poll_completed()
-	return []
+		integrated = chunk_manager.poll_completed()
+
+	if activation_scheduler != null:
+		var budget: float = config.activation_budget_ms if config != null else 2.0
+		var max_acts: int = config.max_chunk_activations_per_frame if config != null else 1
+		activation_scheduler.process_activations(
+			budget,
+			max_acts,
+			profile,
+			water_visible,
+			chunks_container if chunks_container != null else self,
+			Callable(self, "_on_dungeon_enter_forward"),
+			Callable(self, "_spawn_chunk_vegetation")
+		)
+
+	return integrated
+
 
 
 func shutdown() -> void:
@@ -228,108 +292,54 @@ func _on_chunk_loaded(coord: Vector2i, chunk_data: ChunkData) -> void:
 	if chunk_views.has(coord):
 		return
 
-	var cell_size: float = profile.cell_size if profile != null else 1.0
-	var origin: Vector2i = chunk_data.core_bounds.position
-
-	var chunk_view := Node3D.new()
-	chunk_view.name = "Chunk_%d_%d" % [coord.x, coord.y]
-	chunk_view.position = Vector3(float(origin.x) * cell_size, 0.0, float(origin.y) * cell_size)
-
-	var t_total_start := Time.get_ticks_usec()
-
-	# 1. Terreno 3D y Colisión Estática
-	var t_mesh_start := Time.get_ticks_usec()
-	var terrain_mesh := TerrainMeshBuilder.build_mesh(chunk_data, cell_size, profile)
-	var t_mesh_end := Time.get_ticks_usec()
-
-	var terrain_mi := MeshInstance3D.new()
-	terrain_mi.name = "TerrainMesh"
-	terrain_mi.mesh = terrain_mesh
-	terrain_mi.set_surface_override_material(0, _TerrainMaterialScript.create_material(profile))
-	chunk_view.add_child(terrain_mi)
-
-	var t_col_start := Time.get_ticks_usec()
-	var static_body := StaticBody3D.new()
-	static_body.name = "TerrainCollision"
-	var col_shape := CollisionShape3D.new()
-	col_shape.name = "CollisionShape3D"
-	col_shape.shape = terrain_mesh.create_trimesh_shape()
-	static_body.add_child(col_shape)
-	chunk_view.add_child(static_body)
-	var t_col_end := Time.get_ticks_usec()
-
-	# 2. Agua unificada del chunk (WaterRenderer -> WaterMeshBuilder -> water_flow.gdshader)
-	var t_water_start := Time.get_ticks_usec()
-	if chunk_data.hydrology != null:
-		var water_node: Node3D = _WaterRendererScript.build_water_node(chunk_data, profile)
-		if water_node != null:
-			water_node.visible = water_visible
-			chunk_view.add_child(water_node)
-	var t_water_end := Time.get_ticks_usec()
-
-	# 3. Vegetación del chunk (Reutilizando exactamente el pipeline de WorldRenderer)
-	var t_veg_start := Time.get_ticks_usec()
-	_spawn_chunk_vegetation(chunk_view, chunk_data, origin, cell_size)
-	var t_veg_end := Time.get_ticks_usec()
-
-	# 4. POIs del chunk (Entradas de Mazmorras - Cubos Rojos Interactivos)
-	if "pois" in chunk_data and chunk_data.pois != null:
-		for poi in chunk_data.pois:
-			if poi != null and "world_position" in poi:
-				var cell_x := int(floor(poi.world_position.x))
-				var cell_z := int(floor(poi.world_position.z))
-				# Solo el chunk que contiene el centro canónico del POI instancia su vista 3D
-				# (evita duplicados o desalineaciones en chunks colindantes de la huella)
-				if not chunk_data.core_bounds.has_point(Vector2i(cell_x, cell_z)):
-					continue
-
-				var entrance_node: Node3D = _DungeonEntrancePOIViewScript.new(poi)
-				var cell_h: float = poi.world_position.y
-				if chunk_data.has_method("get_cell_or_seam"):
-					var c = chunk_data.get_cell_or_seam(Vector2i(cell_x, cell_z))
-					if c != null:
-						cell_h = c.height
-				elif chunk_data.has_cell(Vector2i(cell_x, cell_z)):
-					var c = chunk_data.get_cell(Vector2i(cell_x, cell_z))
-					if c != null:
-						cell_h = c.height
-
-				# Posicionamiento 3D (X y Z en escala cell_size, Y en cota exacta de superficie)
-				var world_pos_3d := Vector3(float(cell_x) * cell_size + cell_size * 0.5, cell_h, float(cell_z) * cell_size + cell_size * 0.5)
-				var rel_pos = world_pos_3d - chunk_view.position
-				entrance_node.position = rel_pos
-				if "orientation_deg" in poi:
-					entrance_node.rotation_degrees.y = poi.orientation_deg
-				
-				entrance_node.dungeon_enter_requested.connect(
-					func(p: RefCounted, d_res: RefCounted, p_node: Node3D):
-						dungeon_enter_requested.emit(p, d_res, p_node)
-				)
-				chunk_view.add_child(entrance_node)
-
-	if chunks_container != null:
-		chunks_container.add_child(chunk_view)
+	if activation_scheduler != null:
+		var priority: float = 0.0
+		if streaming_controller != null:
+			priority = streaming_controller.chunk_priorities.get(coord, 100.0)
+		activation_scheduler.enqueue_chunk(coord, chunk_data, priority)
 	else:
-		add_child(chunk_view)
+		# Fallback síncrono directo si no hay activation_scheduler
+		_build_chunk_view_direct(coord, chunk_data)
 
+
+func _on_chunk_activated(coord: Vector2i, chunk_view: Node3D) -> void:
 	chunk_views[coord] = chunk_view
-	var t_total_end := Time.get_ticks_usec()
-
-	integration_timings.append({
-		"mesh_ms": float(t_mesh_end - t_mesh_start) / 1000.0,
-		"collision_ms": float(t_col_end - t_col_start) / 1000.0,
-		"water_ms": float(t_water_end - t_water_start) / 1000.0,
-		"vegetation_ms": float(t_veg_end - t_veg_start) / 1000.0,
-		"total_ms": float(t_total_end - t_total_start) / 1000.0
-	})
+	chunk_loaded.emit(coord, get_chunk(coord))
 
 
 ## Callback invocado por ChunkManager cuando un chunk se descarga de memoria.
 func _on_chunk_unloaded(coord: Vector2i) -> void:
+	if activation_scheduler != null:
+		activation_scheduler.cancel_activation(coord)
+
 	var chunk_view: Node3D = chunk_views.get(coord, null)
 	if chunk_view != null:
 		chunk_views.erase(coord)
 		chunk_view.queue_free()
+		chunk_unloaded.emit(coord)
+
+
+func _on_dungeon_enter_forward(poi: RefCounted, d_res: RefCounted, p_node: Node3D) -> void:
+	dungeon_enter_requested.emit(poi, d_res, p_node)
+
+
+func _build_chunk_view_direct(coord: Vector2i, chunk_data: ChunkData) -> void:
+	var scheduler_helper := _ChunkActivationSchedulerScript.new()
+	var chunk_view: Node3D = scheduler_helper._build_chunk_view(
+		coord,
+		chunk_data,
+		profile,
+		water_visible,
+		Callable(self, "_on_dungeon_enter_forward"),
+		Callable(self, "_spawn_chunk_vegetation")
+	)
+	if chunk_view != null:
+		if chunks_container != null:
+			chunks_container.add_child(chunk_view)
+		else:
+			add_child(chunk_view)
+		chunk_views[coord] = chunk_view
+
 
 
 ## Instancia la vegetación del chunk posicionada relativamente a su ChunkView

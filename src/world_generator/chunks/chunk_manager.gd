@@ -9,6 +9,7 @@ extends RefCounted
 const _WorldPipelineScript = preload("res://src/world_generator/facade/world_pipeline.gd")
 const _ChunkGenerationSchedulerScript = preload("res://src/world_generator/chunks/chunk_generation_scheduler.gd")
 const _DungeonPOIGeneratorScript = preload("res://src/world_generator/poi/dungeon_poi_generator.gd")
+const _HydrologyRegionCacheScript = preload("res://src/world_generator/chunks/hydrology_region_cache.gd")
 
 signal chunk_loaded(coord: Vector2i, chunk_data: ChunkData)
 signal chunk_unloaded(coord: Vector2i)
@@ -23,9 +24,13 @@ var seed_val: int = 0
 var profile: WorldProfile = null
 var config: ChunkConfig = null
 var shared_hydrology: HydrologyResult = null
+var hydrology_cache: RefCounted = null
 
 ## Chunks actualmente cargados e integrados en memoria (Vector2i -> ChunkData)
 var loaded_chunks: Dictionary = {}
+
+## Chunks con datos preparados en memoria (CACHED) listos para reactivación inmediata
+var cached_chunks: Dictionary = {}
 
 ## Estado de cada chunk en el pipeline (Vector2i -> ChunkState)
 var chunk_states: Dictionary = {}
@@ -78,8 +83,9 @@ func _init(
 	profile = p_profile if p_profile != null else TaigaWorldProfile.new()
 	config = p_config if p_config != null else ChunkConfig.new()
 	shared_hydrology = p_shared_hydro
+	hydrology_cache = _HydrologyRegionCacheScript.new(seed_val, profile)
 	if shared_hydrology != null:
-		_generated_macro_regions[Vector2i.ZERO] = true
+		hydrology_cache.shared_hydrology = shared_hydrology
 	scheduler = _ChunkGenerationSchedulerScript.new()
 	poi_generator = _DungeonPOIGeneratorScript.new()
 
@@ -118,29 +124,16 @@ func get_biome(world_x: int, world_z: int) -> StringName:
 
 
 func _ensure_macro_hydrology(coord: Vector2i) -> void:
+	if hydrology_cache == null:
+		return
+
 	var macro_w: int = maxi(profile.width, 64) if profile != null else 64
 	var macro_h: int = maxi(profile.height, 64) if profile != null else 64
 	var chunk_sz: int = config.chunk_size if config != null else 16
 	var margin: int = config.generation_margin if config != null else 1
 	var gen_bounds: Rect2i = ChunkCoord.get_generation_bounds(coord, chunk_sz, margin)
 
-	var min_mx: int = int(floor(float(gen_bounds.position.x) / float(macro_w)))
-	var max_mx: int = int(floor(float(gen_bounds.end.x - 1) / float(macro_w)))
-	var min_my: int = int(floor(float(gen_bounds.position.y) / float(macro_h)))
-	var max_my: int = int(floor(float(gen_bounds.end.y - 1) / float(macro_h)))
-
-	for my in range(min_my, max_my + 1):
-		for mx in range(min_mx, max_mx + 1):
-			var m_coord := Vector2i(mx, my)
-			if _generated_macro_regions.has(m_coord):
-				continue
-			_generated_macro_regions[m_coord] = true
-			var reg_origin := Vector2i(mx * macro_w, my * macro_h)
-			var reg_hydro := _WorldPipelineScript.generate_regional_hydrology(seed_val, profile, reg_origin)
-			if shared_hydrology == null:
-				shared_hydrology = reg_hydro
-			else:
-				shared_hydrology.merge(reg_hydro, profile.cell_size if profile != null else 1.0)
+	shared_hydrology = hydrology_cache.ensure_bounds(gen_bounds, macro_w, macro_h)
 
 
 ## Calcula la lista de coordenadas requeridas para un radio rectangular.
@@ -215,15 +208,25 @@ func unload_chunk(coord: Vector2i) -> void:
 
 ## Actualiza los chunks requeridos por el streaming de forma asíncrona.
 ## Invalida peticiones obsoletas y encola las nuevas necesarias.
-func update_streaming(center_coord: Vector2i, radius: int = -1) -> void:
+func update_streaming(
+	center_coord: Vector2i,
+	radius: int = -1,
+	priorities: Dictionary = {}
+) -> void:
 	var r: int = (config.render_distance if (config != null and "render_distance" in config) else 2) if radius < 0 else radius
 	var required_list := determine_required_chunks(center_coord, r)
-	keep_loaded(required_list, center_coord, r)
+	keep_loaded(required_list, center_coord, r, priorities)
+
 
 
 ## Sincroniza el conjunto de chunks requeridos:
 ## descarga los que salieron del área con histéresis y encola de forma asíncrona los que faltan.
-func keep_loaded(required_coords: Array[Vector2i], center_coord: Vector2i = Vector2i.ZERO, radius: int = 2) -> void:
+func keep_loaded(
+	required_coords: Array[Vector2i],
+	center_coord: Vector2i = Vector2i.ZERO,
+	radius: int = 2,
+	priorities: Dictionary = {}
+) -> void:
 	current_required_chunks.clear()
 	for c in required_coords:
 		current_required_chunks[c] = true
@@ -259,13 +262,17 @@ func keep_loaded(required_coords: Array[Vector2i], center_coord: Vector2i = Vect
 		_next_token += 1
 		chunk_tokens[c] = _next_token
 		if scheduler != null:
-			scheduler.invalidate_token(c, _next_token)
+			scheduler.cancel_chunk(c)
 		chunk_states.erase(c)
 
 	# 3. Encolar los nuevos chunks requeridos que no estén cargados ni solicitados
 	for c in required_coords:
+		var p: float = priorities.get(c, 0.0)
 		if not has_chunk(c) and not chunk_states.has(c):
-			_enqueue_chunk_generation(c)
+			_enqueue_chunk_generation(c, p)
+		elif chunk_states.get(c, -1) == ChunkState.QUEUED and priorities.has(c):
+			if scheduler != null:
+				scheduler.update_priority(c, p)
 
 
 ## Extrae resultados completados del scheduler de forma NO BLOQUEANTE.
@@ -312,7 +319,7 @@ func poll_completed() -> Array[Vector2i]:
 	return integrated
 
 
-func _enqueue_chunk_generation(coord: Vector2i) -> void:
+func _enqueue_chunk_generation(coord: Vector2i, priority: float = 0.0) -> void:
 	_ensure_macro_hydrology(coord)
 	_next_token += 1
 	var token := _next_token
@@ -321,7 +328,7 @@ func _enqueue_chunk_generation(coord: Vector2i) -> void:
 	stats_requested += 1
 	stats_peak_pending = maxi(stats_peak_pending, chunk_states.size())
 	if scheduler != null:
-		scheduler.request_chunk(coord, seed_val, profile, config, shared_hydrology, token)
+		scheduler.request_chunk(coord, seed_val, profile, config, shared_hydrology, token, priority)
 
 
 ## Resuelve una celda mundial consultando el chunk correspondiente si está cargado.
