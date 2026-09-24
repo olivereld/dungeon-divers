@@ -9,6 +9,7 @@ const DungeonIdentity = preload("res://src/world_generator/poi/dungeon_identity.
 
 const DungeonPOI = preload("res://src/world_generator/poi/dungeon_poi.gd")
 const DungeonPOIGenerator = preload("res://src/world_generator/poi/dungeon_poi_generator.gd")
+const DungeonWorldBridge = preload("res://src/world_generator/poi/dungeon_world_bridge.gd")
 
 func _init() -> void:
 	print("--- Running World ↔ Dungeon Integration Tests ---")
@@ -17,6 +18,7 @@ func _init() -> void:
 	success = test_task1_identity_and_seeds() and success
 	success = test_task2_dungeon_poi() and success
 	success = test_task3_poi_generator() and success
+	success = test_task4_world_bridge() and success
 	
 	if success:
 		print("ALL TEST CHECKS PASSED!")
@@ -177,4 +179,55 @@ func test_task3_poi_generator() -> bool:
 		return false
 		
 	print("✓ Task 3 DungeonPOIGenerator checks passed.")
+	return true
+
+func test_task4_world_bridge() -> bool:
+	print("\n[Test Task 4] DungeonWorldBridge...")
+	var master_seed := 555444333
+	var macro_coord := Vector2i(7, 2)
+	var generator = DungeonPOIGenerator.new()
+	var query := MockWorldQuery.new()
+	query.biome_override = &"desert"
+	
+	var poi: DungeonPOI = generator.evaluate_and_create_poi(master_seed, macro_coord, query)
+	if poi == null:
+		printerr("FAIL: Could not generate valid POI for bridge test")
+		return false
+		
+	# 1. Verificar creación de DungeonConfig
+	var cfg = DungeonWorldBridge.create_dungeon_config(poi)
+	if cfg == null:
+		printerr("FAIL: DungeonWorldBridge.create_dungeon_config returned null")
+		return false
+	if not cfg.use_fixed_seed:
+		printerr("FAIL: Expected use_fixed_seed to be true")
+		return false
+	if cfg.seed != poi.identity.dungeon_seed:
+		printerr("FAIL: Expected cfg.seed %d to match poi.identity.dungeon_seed %d" % [cfg.seed, poi.identity.dungeon_seed])
+		return false
+	if cfg.dungeon_id != poi.identity.dungeon_id:
+		printerr("FAIL: Expected cfg.dungeon_id %s, got %s" % [poi.identity.dungeon_id, cfg.dungeon_id])
+		return false
+	if cfg.archetype_id != poi.archetype_id:
+		printerr("FAIL: Expected cfg.archetype_id %s, got %s" % [poi.archetype_id, cfg.archetype_id])
+		return false
+	if cfg.total_floors != poi.total_floors:
+		printerr("FAIL: Expected cfg.total_floors %d, got %d" % [poi.total_floors, cfg.total_floors])
+		return false
+		
+	# 2. Generación de Mazmorra determinista a través del Bridge
+	var result_1 = DungeonWorldBridge.generate_dungeon_from_poi(poi)
+	if result_1 == null or result_1.rooms.is_empty():
+		printerr("FAIL: DungeonWorldBridge.generate_dungeon_from_poi failed or produced empty rooms")
+		return false
+		
+	var result_2 = DungeonWorldBridge.generate_dungeon_from_poi(poi)
+	if result_2 == null or result_1.rooms.size() != result_2.rooms.size():
+		printerr("FAIL: Generation via bridge was not reproducible")
+		return false
+	if result_1.checksum != result_2.checksum:
+		printerr("FAIL: Generation via bridge checksum mismatch (%s vs %s)" % [result_1.checksum, result_2.checksum])
+		return false
+		
+	print("✓ Task 4 DungeonWorldBridge checks passed.")
 	return true
