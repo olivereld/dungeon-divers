@@ -24,6 +24,7 @@ func _init() -> void:
 	_test_north_waterfall()
 	_test_south_waterfall()
 	_test_no_duplication_and_thresholds()
+	_test_corner_connection()
 
 	print("==================================================")
 	print(" ALL WATERFALL MESH GENERATION TESTS PASSED!")
@@ -246,3 +247,52 @@ func _test_no_duplication_and_thresholds() -> void:
 			count_wf_drop += 1
 	assert(count_wf_drop == 4, "Caída > 0.10 debe producir exactamente 1 cascada (4 vértices)")
 	print("  [PASS] Caída 1.0m (> 0.10m) produce exactamente 1 cascada (4 vértices)")
+
+
+func _test_corner_connection() -> void:
+	print("--- Testing Corner Connection (L-Junction) ---")
+	var profile = _TaigaWorldProfileScript.new()
+	profile.cell_size = 1.0
+
+	# Celda A en (1, 1) a 6.0m
+	# Celda Este en (2, 1) a 4.0m -> Cascada Este (+X)
+	# Celda Sur en (1, 2) a 4.0m -> Cascada Sur (+Z)
+	var chunk := _create_chunk_data_with_water({
+		Vector2i(1, 1): 6.0,
+		Vector2i(2, 1): 4.0,
+		Vector2i(1, 2): 4.0,
+	})
+
+	var surf = _WaterMeshBuilderScript.build_water_surface(chunk, profile)
+	assert(surf != null)
+
+	var east_wf_verts: Array[Vector3] = []
+	var south_wf_verts: Array[Vector3] = []
+	for i in range(surf.vertices.size()):
+		var n: Vector3 = surf.normals[i]
+		if n.is_equal_approx(Vector3.RIGHT):
+			east_wf_verts.append(surf.vertices[i])
+		elif n.is_equal_approx(Vector3.BACK):
+			south_wf_verts.append(surf.vertices[i])
+
+	assert(east_wf_verts.size() == 4, "Debe haber 4 vértices para cascada Este")
+	assert(south_wf_verts.size() == 4, "Debe haber 4 vértices para cascada Sur")
+
+	# El vértice de esquina superior donde se encuentran ambas caras debe ser exactamente:
+	# x = x1 + wf_off = 2.04, z = z1 + wf_off = 2.04, y = 6.0
+	var corner_shared := Vector3(2.04, 6.0, 2.04)
+	var found_in_east := false
+	var found_in_south := false
+	for v in east_wf_verts:
+		if v.is_equal_approx(corner_shared):
+			found_in_east = true
+			break
+	for v in south_wf_verts:
+		if v.is_equal_approx(corner_shared):
+			found_in_south = true
+			break
+
+	assert(found_in_east, "Cascada Este debe extenderse al vértice de esquina exterior (2.04, 6.0, 2.04)")
+	assert(found_in_south, "Cascada Sur debe extenderse al vértice de esquina exterior (2.04, 6.0, 2.04)")
+	print("  [PASS] Esquina exterior L-Junction perfectamente unida y sellada sin huecos (gap == 0.0)")
+

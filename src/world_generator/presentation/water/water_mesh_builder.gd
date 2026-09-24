@@ -145,32 +145,13 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 				var flow: Vector2 = Vector2.ZERO
 				var depth: float = 0.5
 
-				if is_water:
-					var cdata: Dictionary = hydro.water_cells[pos2i]
-					water_y = float(cdata.get("water_height", water_datum))
-					flow = Vector2(cdata.get("flow_dir", Vector2.ZERO))
-					depth = float(cdata.get("depth", 0.5))
-				else:
-					var c_cell: WorldCell = result.get_cell_or_seam(pos2i) if result.has_method("get_cell_or_seam") else result.get_cell(pos2i)
-					var c_h: float = c_cell.height if c_cell != null else water_datum
-					var min_d_sq: float = 999.0
-					var nearest_h: float = water_datum
-					for dy in range(-3, 4):
-						for dx in range(-3, 4):
-							var np := pos2i + Vector2i(dx, dy)
-							if hydro.water_cells.has(np):
-								var n_cdata: Dictionary = hydro.water_cells[np]
-								var n_wh: float = float(n_cdata.get("water_height", water_datum))
-								if absf(n_wh - c_h) <= step_h + 0.5:
-									var d_sq := float(dx * dx + dy * dy)
-									if d_sq < min_d_sq:
-										min_d_sq = d_sq
-										nearest_h = n_wh
-					if min_d_sq < 900.0:
-						water_y = nearest_h
-					else:
-						# Tierra seca distante sin influencia de agua
-						continue
+				if not is_water:
+					continue
+
+				var cdata: Dictionary = hydro.water_cells[pos2i]
+				water_y = float(cdata.get("water_height", water_datum))
+				flow = Vector2(cdata.get("flow_dir", Vector2.ZERO))
+				depth = float(cdata.get("depth", 0.5))
 
 				var x0: float = float(x) * cell_size
 				var x1: float = float(x + 1) * cell_size
@@ -244,69 +225,92 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 					var wf_col := col_shallow
 					wf_col.a = 1.0
 
-					# Vecino Oeste (-X)
 					var pos_w := pos2i + Vector2i(-1, 0)
+					var pos_e := pos2i + Vector2i(1, 0)
+					var pos_n := pos2i + Vector2i(0, -1)
+					var pos_s := pos2i + Vector2i(0, 1)
+
+					var has_wf_w := false
+					var has_wf_e := false
+					var has_wf_n := false
+					var has_wf_s := false
+					var n_wh_w: float = water_y
+					var n_wh_e: float = water_y
+					var n_wh_n: float = water_y
+					var n_wh_s: float = water_y
+
 					if hydro.water_cells.has(pos_w):
-						var n_wh_w: float = float(hydro.water_cells[pos_w].get("water_height", water_datum))
-						if water_y - n_wh_w > 0.10:
-							var h_hi: float = water_y
-							var h_lo: float = n_wh_w - base_pen
-							var x_wf: float = x0 - wf_off
-							var idx := surf.vertices.size()
-							surf.add_vertex(Vector3(x_wf, h_hi, z1), Vector3.LEFT, Vector2(0.0, 0.0), flow, wf_col)
-							surf.add_vertex(Vector3(x_wf, h_hi, z0), Vector3.LEFT, Vector2(1.0, 0.0), flow, wf_col)
-							surf.add_vertex(Vector3(x_wf, h_lo, z1), Vector3.LEFT, Vector2(0.0, 1.0), flow, wf_col)
-							surf.add_vertex(Vector3(x_wf, h_lo, z0), Vector3.LEFT, Vector2(1.0, 1.0), flow, wf_col)
-							surf.add_triangle(idx + 0, idx + 2, idx + 1)
-							surf.add_triangle(idx + 1, idx + 2, idx + 3)
+						n_wh_w = float(hydro.water_cells[pos_w].get("water_height", water_datum))
+						has_wf_w = (water_y - n_wh_w > 0.10)
+					if hydro.water_cells.has(pos_e):
+						n_wh_e = float(hydro.water_cells[pos_e].get("water_height", water_datum))
+						has_wf_e = (water_y - n_wh_e > 0.10)
+					if hydro.water_cells.has(pos_n):
+						n_wh_n = float(hydro.water_cells[pos_n].get("water_height", water_datum))
+						has_wf_n = (water_y - n_wh_n > 0.10)
+					if hydro.water_cells.has(pos_s):
+						n_wh_s = float(hydro.water_cells[pos_s].get("water_height", water_datum))
+						has_wf_s = (water_y - n_wh_s > 0.10)
+
+					# Vecino Oeste (-X)
+					if has_wf_w:
+						var h_hi: float = water_y
+						var h_lo: float = n_wh_w - base_pen
+						var x_wf: float = x0 - wf_off
+						var zw0: float = (z0 - wf_off) if has_wf_n else z0
+						var zw1: float = (z1 + wf_off) if has_wf_s else z1
+						var idx := surf.vertices.size()
+						surf.add_vertex(Vector3(x_wf, h_hi, zw1), Vector3.LEFT, Vector2(0.0, 0.0), flow, wf_col)
+						surf.add_vertex(Vector3(x_wf, h_hi, zw0), Vector3.LEFT, Vector2(1.0, 0.0), flow, wf_col)
+						surf.add_vertex(Vector3(x_wf, h_lo, zw1), Vector3.LEFT, Vector2(0.0, 1.0), flow, wf_col)
+						surf.add_vertex(Vector3(x_wf, h_lo, zw0), Vector3.LEFT, Vector2(1.0, 1.0), flow, wf_col)
+						surf.add_triangle(idx + 0, idx + 1, idx + 2)
+						surf.add_triangle(idx + 1, idx + 3, idx + 2)
 
 					# Vecino Este (+X)
-					var pos_e := pos2i + Vector2i(1, 0)
-					if hydro.water_cells.has(pos_e):
-						var n_wh_e: float = float(hydro.water_cells[pos_e].get("water_height", water_datum))
-						if water_y - n_wh_e > 0.10:
-							var h_hi: float = water_y
-							var h_lo: float = n_wh_e - base_pen
-							var x_wf: float = x1 + wf_off
-							var idx := surf.vertices.size()
-							surf.add_vertex(Vector3(x_wf, h_hi, z0), Vector3.RIGHT, Vector2(0.0, 0.0), flow, wf_col)
-							surf.add_vertex(Vector3(x_wf, h_hi, z1), Vector3.RIGHT, Vector2(1.0, 0.0), flow, wf_col)
-							surf.add_vertex(Vector3(x_wf, h_lo, z0), Vector3.RIGHT, Vector2(0.0, 1.0), flow, wf_col)
-							surf.add_vertex(Vector3(x_wf, h_lo, z1), Vector3.RIGHT, Vector2(1.0, 1.0), flow, wf_col)
-							surf.add_triangle(idx + 0, idx + 2, idx + 1)
-							surf.add_triangle(idx + 1, idx + 2, idx + 3)
+					if has_wf_e:
+						var h_hi: float = water_y
+						var h_lo: float = n_wh_e - base_pen
+						var x_wf: float = x1 + wf_off
+						var ze0: float = (z0 - wf_off) if has_wf_n else z0
+						var ze1: float = (z1 + wf_off) if has_wf_s else z1
+						var idx := surf.vertices.size()
+						surf.add_vertex(Vector3(x_wf, h_hi, ze0), Vector3.RIGHT, Vector2(0.0, 0.0), flow, wf_col)
+						surf.add_vertex(Vector3(x_wf, h_hi, ze1), Vector3.RIGHT, Vector2(1.0, 0.0), flow, wf_col)
+						surf.add_vertex(Vector3(x_wf, h_lo, ze0), Vector3.RIGHT, Vector2(0.0, 1.0), flow, wf_col)
+						surf.add_vertex(Vector3(x_wf, h_lo, ze1), Vector3.RIGHT, Vector2(1.0, 1.0), flow, wf_col)
+						surf.add_triangle(idx + 0, idx + 1, idx + 2)
+						surf.add_triangle(idx + 1, idx + 3, idx + 2)
 
 					# Vecino Norte (-Z)
-					var pos_n := pos2i + Vector2i(0, -1)
-					if hydro.water_cells.has(pos_n):
-						var n_wh_n: float = float(hydro.water_cells[pos_n].get("water_height", water_datum))
-						if water_y - n_wh_n > 0.10:
-							var h_hi: float = water_y
-							var h_lo: float = n_wh_n - base_pen
-							var z_wf: float = z0 - wf_off
-							var idx := surf.vertices.size()
-							surf.add_vertex(Vector3(x0, h_hi, z_wf), Vector3.FORWARD, Vector2(0.0, 0.0), flow, wf_col)
-							surf.add_vertex(Vector3(x1, h_hi, z_wf), Vector3.FORWARD, Vector2(1.0, 0.0), flow, wf_col)
-							surf.add_vertex(Vector3(x0, h_lo, z_wf), Vector3.FORWARD, Vector2(0.0, 1.0), flow, wf_col)
-							surf.add_vertex(Vector3(x1, h_lo, z_wf), Vector3.FORWARD, Vector2(1.0, 1.0), flow, wf_col)
-							surf.add_triangle(idx + 0, idx + 2, idx + 1)
-							surf.add_triangle(idx + 1, idx + 2, idx + 3)
+					if has_wf_n:
+						var h_hi: float = water_y
+						var h_lo: float = n_wh_n - base_pen
+						var z_wf: float = z0 - wf_off
+						var xn0: float = (x0 - wf_off) if has_wf_w else x0
+						var xn1: float = (x1 + wf_off) if has_wf_e else x1
+						var idx := surf.vertices.size()
+						surf.add_vertex(Vector3(xn0, h_hi, z_wf), Vector3.FORWARD, Vector2(0.0, 0.0), flow, wf_col)
+						surf.add_vertex(Vector3(xn1, h_hi, z_wf), Vector3.FORWARD, Vector2(1.0, 0.0), flow, wf_col)
+						surf.add_vertex(Vector3(xn0, h_lo, z_wf), Vector3.FORWARD, Vector2(0.0, 1.0), flow, wf_col)
+						surf.add_vertex(Vector3(xn1, h_lo, z_wf), Vector3.FORWARD, Vector2(1.0, 1.0), flow, wf_col)
+						surf.add_triangle(idx + 0, idx + 1, idx + 2)
+						surf.add_triangle(idx + 1, idx + 3, idx + 2)
 
 					# Vecino Sur (+Z)
-					var pos_s := pos2i + Vector2i(0, 1)
-					if hydro.water_cells.has(pos_s):
-						var n_wh_s: float = float(hydro.water_cells[pos_s].get("water_height", water_datum))
-						if water_y - n_wh_s > 0.10:
-							var h_hi: float = water_y
-							var h_lo: float = n_wh_s - base_pen
-							var z_wf: float = z1 + wf_off
-							var idx := surf.vertices.size()
-							surf.add_vertex(Vector3(x1, h_hi, z_wf), Vector3.BACK, Vector2(0.0, 0.0), flow, wf_col)
-							surf.add_vertex(Vector3(x0, h_hi, z_wf), Vector3.BACK, Vector2(1.0, 0.0), flow, wf_col)
-							surf.add_vertex(Vector3(x1, h_lo, z_wf), Vector3.BACK, Vector2(0.0, 1.0), flow, wf_col)
-							surf.add_vertex(Vector3(x0, h_lo, z_wf), Vector3.BACK, Vector2(1.0, 1.0), flow, wf_col)
-							surf.add_triangle(idx + 0, idx + 2, idx + 1)
-							surf.add_triangle(idx + 1, idx + 2, idx + 3)
+					if has_wf_s:
+						var h_hi: float = water_y
+						var h_lo: float = n_wh_s - base_pen
+						var z_wf: float = z1 + wf_off
+						var xs0: float = (x0 - wf_off) if has_wf_w else x0
+						var xs1: float = (x1 + wf_off) if has_wf_e else x1
+						var idx := surf.vertices.size()
+						surf.add_vertex(Vector3(xs1, h_hi, z_wf), Vector3.BACK, Vector2(0.0, 0.0), flow, wf_col)
+						surf.add_vertex(Vector3(xs0, h_hi, z_wf), Vector3.BACK, Vector2(1.0, 0.0), flow, wf_col)
+						surf.add_vertex(Vector3(xs1, h_lo, z_wf), Vector3.BACK, Vector2(0.0, 1.0), flow, wf_col)
+						surf.add_vertex(Vector3(xs0, h_lo, z_wf), Vector3.BACK, Vector2(1.0, 1.0), flow, wf_col)
+						surf.add_triangle(idx + 0, idx + 1, idx + 2)
+						surf.add_triangle(idx + 1, idx + 3, idx + 2)
 
 		return surf
 
