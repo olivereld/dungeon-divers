@@ -81,6 +81,40 @@ func _init(
 	if shared_hydrology != null:
 		_generated_macro_regions[Vector2i.ZERO] = true
 	scheduler = _ChunkGenerationSchedulerScript.new()
+	poi_generator = _DungeonPOIGeneratorScript.new()
+
+
+func is_water(world_x: int, world_z: int) -> bool:
+	var cell: WorldCell = get_cell(Vector2i(world_x, world_z))
+	if cell != null:
+		return cell.is_water
+	# Si el chunk no está en memoria, consultar hidrología regional compartida
+	if shared_hydrology != null:
+		var c_size: float = profile.cell_size if profile != null else 1.0
+		var hydro_pos := Vector2(float(world_x) * c_size, float(world_z) * c_size)
+		return shared_hydrology.is_water(hydro_pos)
+	return false
+
+
+func get_slope(world_x: int, world_z: int) -> float:
+	var cell: WorldCell = get_cell(Vector2i(world_x, world_z))
+	if cell != null:
+		return cell.slope_deg
+	return 0.0
+
+
+func get_elevation(world_x: int, world_z: int) -> float:
+	var cell: WorldCell = get_cell(Vector2i(world_x, world_z))
+	if cell != null:
+		return cell.height
+	return 0.0
+
+
+func get_biome(world_x: int, world_z: int) -> StringName:
+	var cell: WorldCell = get_cell(Vector2i(world_x, world_z))
+	if cell != null:
+		return cell.biome
+	return &"plains"
 
 
 func _ensure_macro_hydrology(coord: Vector2i) -> void:

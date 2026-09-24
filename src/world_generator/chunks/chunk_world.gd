@@ -12,6 +12,7 @@ const _WorldRendererScript = preload("res://src/world_renderer/world_renderer.gd
 const _WorldVegetationItemScript = preload("res://src/world_generator/data/world_vegetation_item.gd")
 const _ProceduralRockGeneratorScript = preload("res://src/world_renderer/procedural_rock_generator.gd")
 const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometric_camera_rig.gd")
+const _DungeonEntrancePOIViewScript = preload("res://src/world_generator/presentation/dungeon_entrance_poi_view.gd")
 
 @export var world_seed: int = 12345
 @export var render_distance: int = 2
@@ -268,6 +269,18 @@ func _on_chunk_loaded(coord: Vector2i, chunk_data: ChunkData) -> void:
 	var t_veg_start := Time.get_ticks_usec()
 	_spawn_chunk_vegetation(chunk_view, chunk_data, origin, cell_size)
 	var t_veg_end := Time.get_ticks_usec()
+
+	# 4. POIs del chunk (Entradas de Mazmorras - Cubos Rojos Interactivos)
+	if "pois" in chunk_data and chunk_data.pois != null:
+		for poi in chunk_data.pois:
+			if poi != null and "world_position" in poi:
+				var entrance_node: Node3D = _DungeonEntrancePOIViewScript.new(poi)
+				# Posicionamiento relativo al origen del chunk_view
+				var rel_pos = poi.world_position - chunk_view.position
+				entrance_node.position = rel_pos
+				if "orientation_deg" in poi:
+					entrance_node.rotation_degrees.y = poi.orientation_deg
+				chunk_view.add_child(entrance_node)
 
 	if chunks_container != null:
 		chunks_container.add_child(chunk_view)
