@@ -6,12 +6,23 @@ extends RefCounted
 
 enum ChunkState {
 	UNREQUESTED = 0,
-	QUEUED = 1,
-	GENERATING = 2,
-	READY = 3,
-	ACTIVATING = 4,
-	VISIBLE = 5,
-	CACHED = 6
+	WAITING_HYDROLOGY = 1,
+	QUEUED = 2,
+	GENERATING = 3,
+	READY = 4,
+	ACTIVATING = 5,
+	VISIBLE = 6,
+	CACHED = 7
+}
+
+enum ActivationStage {
+	NONE = 0,
+	TERRAIN_MESH = 1,
+	COLLISION = 2,
+	WATER = 3,
+	POI = 4,
+	VEGETATION = 5,
+	COMPLETE = 6
 }
 
 class ChunkRecord extends RefCounted:

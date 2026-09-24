@@ -269,7 +269,16 @@ func keep_loaded(
 	for c in required_coords:
 		var p: float = priorities.get(c, 0.0)
 		if not has_chunk(c) and not chunk_states.has(c):
-			_enqueue_chunk_generation(c, p)
+			# Reutilización instantánea si está en caché
+			if cached_chunks.has(c):
+				var cached_data: ChunkData = cached_chunks[c]
+				cached_chunks.erase(c)
+				loaded_chunks[c] = cached_data
+				chunk_states[c] = ChunkState.LOADED
+				stats_loaded += 1
+				chunk_loaded.emit(c, cached_data)
+			else:
+				_enqueue_chunk_generation(c, p)
 		elif chunk_states.get(c, -1) == ChunkState.QUEUED and priorities.has(c):
 			if scheduler != null:
 				scheduler.update_priority(c, p)
@@ -320,7 +329,6 @@ func poll_completed() -> Array[Vector2i]:
 
 
 func _enqueue_chunk_generation(coord: Vector2i, priority: float = 0.0) -> void:
-	_ensure_macro_hydrology(coord)
 	_next_token += 1
 	var token := _next_token
 	chunk_tokens[coord] = token
@@ -328,7 +336,7 @@ func _enqueue_chunk_generation(coord: Vector2i, priority: float = 0.0) -> void:
 	stats_requested += 1
 	stats_peak_pending = maxi(stats_peak_pending, chunk_states.size())
 	if scheduler != null:
-		scheduler.request_chunk(coord, seed_val, profile, config, shared_hydrology, token, priority)
+		scheduler.request_chunk(coord, seed_val, profile, config, shared_hydrology, token, priority, hydrology_cache)
 
 
 ## Resuelve una celda mundial consultando el chunk correspondiente si está cargado.

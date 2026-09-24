@@ -36,6 +36,40 @@ func _init(p_seed: int = 0, p_profile: WorldProfile = null) -> void:
 	profile = p_profile
 	_mutex = Mutex.new()
 
+## Verifica si una macro-región ya está generada y lista (READY) de forma no bloqueante
+func is_region_ready(macro_coord: Vector2i) -> bool:
+	_mutex.lock()
+	var ready: bool = _regions.has(macro_coord) and int(_states.get(macro_coord, RegionState.UNREQUESTED)) == int(RegionState.READY)
+	_mutex.unlock()
+	return ready
+
+
+## Verifica si todas las macro-regiones que intersectan bounds están listas
+func are_bounds_ready(bounds: Rect2i, macro_w: int, macro_h: int) -> bool:
+	var coords := get_required_macro_coords(bounds, macro_w, macro_h)
+	_mutex.lock()
+	for c in coords:
+		if not _regions.has(c) or _states.get(c, RegionState.UNREQUESTED) != RegionState.READY:
+			_mutex.unlock()
+			return false
+	_mutex.unlock()
+	return true
+
+
+## Retorna las coordenadas de las macro-regiones requeridas para cubrir unos bounds
+static func get_required_macro_coords(bounds: Rect2i, macro_w: int, macro_h: int) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var min_mx: int = int(floor(float(bounds.position.x) / float(macro_w)))
+	var max_mx: int = int(floor(float(bounds.end.x - 1) / float(macro_w)))
+	var min_my: int = int(floor(float(bounds.position.y) / float(macro_h)))
+	var max_my: int = int(floor(float(bounds.end.y - 1) / float(macro_h)))
+
+	for my in range(min_my, max_my + 1):
+		for mx in range(min_mx, max_mx + 1):
+			result.append(Vector2i(mx, my))
+	return result
+
+
 ## Obtiene o genera la hidrología para una región macro dada.
 ## Es thread-safe y reutiliza resultados ya generados.
 func get_or_generate_region(macro_coord: Vector2i, macro_w: int, macro_h: int) -> HydrologyResult:

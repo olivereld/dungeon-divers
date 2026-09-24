@@ -194,6 +194,34 @@ func update_player_streaming() -> void:
 		var priorities: Dictionary = streaming_data.get("priorities", {})
 		chunk_manager.update_streaming(active_chunk, render_distance, priorities)
 
+	# Gestionar visibilidad incremental:
+	if streaming_controller != null and not streaming_controller.visible_chunks.is_empty():
+		var vis_coords: Array[Vector2i] = streaming_controller.visible_chunks
+		var vis_set: Dictionary = {}
+		for c in vis_coords:
+			vis_set[c] = true
+
+		# 1. Desactivar vistas de chunks que salieron de visible_radius (pasan a caché en memoria)
+		var views_to_remove: Array[Vector2i] = []
+		for c in chunk_views.keys():
+			if not vis_set.has(c):
+				views_to_remove.append(c)
+
+		for c in views_to_remove:
+			var view: Node3D = chunk_views[c]
+			chunk_views.erase(c)
+			if view != null:
+				view.queue_free()
+			# Si el chunk sigue en loaded_chunks de chunk_manager, se preserva en RAM (CACHED)
+
+		# 2. Encolar activación para chunks que entraron a visible_radius y ya tienen ChunkData listo
+		if activation_scheduler != null and chunk_manager != null:
+			for c in vis_coords:
+				if not chunk_views.has(c) and chunk_manager.has_chunk(c):
+					var c_data: ChunkData = chunk_manager.get_chunk(c)
+					var p: float = streaming_controller.chunk_priorities.get(c, 100.0)
+					activation_scheduler.enqueue_chunk(c, c_data, p)
+
 
 ## Ajusta dinámicamente el radio de chunks cargados en tiempo de ejecución.
 func set_render_distance(p_dist: int) -> void:
@@ -292,6 +320,15 @@ func _on_chunk_loaded(coord: Vector2i, chunk_data: ChunkData) -> void:
 	if chunk_views.has(coord):
 		return
 
+	# Solo activamos visualmente los chunks que están dentro del radio VISIBLE
+	var is_visible_requested := true
+	if streaming_controller != null and not streaming_controller.visible_chunks.is_empty():
+		is_visible_requested = streaming_controller.visible_chunks.has(coord)
+
+	if not is_visible_requested:
+		# Queda en memoria (READY / PRELOAD) sin consumir presupuesto de Main Thread
+		return
+
 	if activation_scheduler != null:
 		var priority: float = 0.0
 		if streaming_controller != null:
@@ -307,7 +344,7 @@ func _on_chunk_activated(coord: Vector2i, chunk_view: Node3D) -> void:
 	chunk_loaded.emit(coord, get_chunk(coord))
 
 
-## Callback invocado por ChunkManager cuando un chunk se descarga de memoria.
+## Callback invocado por ChunkManager cuando un chunk se descarga de memoria o se desactiva.
 func _on_chunk_unloaded(coord: Vector2i) -> void:
 	if activation_scheduler != null:
 		activation_scheduler.cancel_activation(coord)

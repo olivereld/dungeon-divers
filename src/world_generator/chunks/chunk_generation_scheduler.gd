@@ -13,6 +13,7 @@ class ChunkRequest:
 	var profile: WorldProfile
 	var config: ChunkConfig
 	var shared_hydrology: HydrologyResult
+	var hydrology_cache: HydrologyRegionCache
 	var token: int
 	var priority: float
 	var enqueue_time_usec: int
@@ -25,13 +26,15 @@ class ChunkRequest:
 		p_hydro: HydrologyResult,
 		p_token: int,
 		p_priority: float = 0.0,
-		p_enqueue_time: int = 0
+		p_enqueue_time: int = 0,
+		p_hydro_cache: HydrologyRegionCache = null
 	) -> void:
 		coord = p_coord
 		seed_val = p_seed
 		profile = p_profile
 		config = p_config
 		shared_hydrology = p_hydro
+		hydrology_cache = p_hydro_cache
 		token = p_token
 		priority = p_priority
 		enqueue_time_usec = p_enqueue_time if p_enqueue_time > 0 else Time.get_ticks_usec()
@@ -69,7 +72,8 @@ func request_chunk(
 	config: ChunkConfig,
 	shared_hydro: HydrologyResult,
 	token: int,
-	priority: float = 0.0
+	priority: float = 0.0,
+	hydro_cache: HydrologyRegionCache = null
 ) -> void:
 	_mutex.lock()
 	_active_tokens[coord] = token
@@ -83,13 +87,14 @@ func request_chunk(
 			existing.profile = profile
 			existing.config = config
 			existing.shared_hydrology = shared_hydro
+			existing.hydrology_cache = hydro_cache
 			existing.token = token
 			existing.priority = priority
 			found = true
 			break
 
 	if not found:
-		var req := ChunkRequest.new(coord, seed_val, profile, config, shared_hydro, token, priority)
+		var req := ChunkRequest.new(coord, seed_val, profile, config, shared_hydro, token, priority, 0, hydro_cache)
 		_pending_requests.append(req)
 		_semaphore.post()
 
@@ -200,13 +205,23 @@ func _worker_loop() -> void:
 		var t_start_work := Time.get_ticks_usec()
 		var queue_time_ms := float(t_start_work - req.enqueue_time_usec) / 1000.0
 
+		# Si hay hydrology_cache, resolver macro hidrología en el worker thread sin bloquear Main Thread
+		var hydro_res: HydrologyResult = req.shared_hydrology
+		if req.hydrology_cache != null:
+			var macro_w: int = maxi(req.profile.width, 64) if req.profile != null else 64
+			var macro_h: int = maxi(req.profile.height, 64) if req.profile != null else 64
+			var chunk_sz: int = req.config.chunk_size if req.config != null else 16
+			var margin: int = req.config.generation_margin if req.config != null else 1
+			var gen_bounds: Rect2i = ChunkCoord.get_generation_bounds(req.coord, chunk_sz, margin)
+			hydro_res = req.hydrology_cache.ensure_bounds(gen_bounds, macro_w, macro_h)
+
 		# Ejecutar generación procedural en CPU (fuera de mutex, fuera de main thread)
 		var chunk_data: ChunkData = _WorldPipelineScript.generate_chunk(
 			req.seed_val,
 			req.coord,
 			req.profile,
 			req.config,
-			req.shared_hydrology
+			hydro_res
 		)
 
 		var t_end_work := Time.get_ticks_usec()

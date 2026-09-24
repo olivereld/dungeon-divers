@@ -223,19 +223,31 @@ func _update_hud() -> void:
 	var act_ms: float = chunk_world.activation_scheduler.last_frame_activation_time_ms if chunk_world.activation_scheduler != null else 0.0
 
 	var text := "=== PROCEDURAL PREDICTIVE STREAMING ===\n"
-	text += "FPS: %d\n" % fps
-	text += "Chunk Activo: (%d, %d)\n" % [active_coord.x, active_coord.y]
-	text += "Chunk Predicho (Futuro): (%d, %d)\n" % [pred_chunk.x, pred_chunk.y]
+	text += "FPS: %d %s\n" % [fps, "⚠️ SPIKE (>16ms)" if fps < 60 else "🟢"]
+	text += "Chunk Activo: (%d, %d) | Predicho: (%d, %d)\n" % [active_coord.x, active_coord.y, pred_chunk.x, pred_chunk.y]
 	text += "Posición Jugador: (%.1f, %.1f, %.1f)\n" % [p_pos.x, p_pos.y, p_pos.z]
 	text += "Radios: Vis %d | Preload %d | Cache %d\n" % [
 		config.visible_radius if config != null else 2,
 		config.preload_radius if config != null else 5,
 		config.cache_radius if config != null else 8
 	]
-	text += "Chunks Visibles Cargados: %d\n" % loaded_count
-	text += "Cola Activación: %d | Frame Act Time: %.2f ms\n" % [queue_len, act_ms]
+	var vis_views: int = chunk_world.chunk_views.size() if chunk_world != null else 0
+	var act_sched = chunk_world.activation_scheduler
+	text += "Vistas Activas: %d | Chunks en RAM (Ready/Preload): %d\n" % [vis_views, loaded_count]
+	text += "Cola Activación: %d | Frame Act: %.2f ms (Budget: %.1f ms)\n" % [
+		queue_len,
+		act_ms,
+		config.activation_budget_ms if config != null else 2.0
+	]
+	if act_sched != null:
+		text += "  [Etapas] Terreno: %.1fms | Colisión: %.1fms | Agua: %.1fms | Veg: %.1fms\n" % [
+			act_sched.telemetry_terrain_ms,
+			act_sched.telemetry_collision_ms,
+			act_sched.telemetry_water_ms,
+			act_sched.telemetry_vegetation_ms
+		]
 	if mgr != null:
-		text += "Peticiones: %d | Generados: %d | Descartados: %d\n" % [
+		text += "Req: %d | Gen: %d | Desc: %d\n" % [
 			mgr.stats_requested,
 			mgr.stats_generated,
 			mgr.stats_discarded

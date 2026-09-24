@@ -1,177 +1,209 @@
-# Plan Técnico de Implementación: Streaming Asíncrono y Pre-generación Predictiva del Mundo
+# Plan de Implementación — Eliminar Freeze durante Streaming de Chunks
 
-## 1. Resumen Ejecutivo y Objetivos
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-Transformar la generación del mundo procedural por chunks de un modelo síncrono/reactivo a un sistema de **streaming predictivo, desacoplado y asíncrono** guiado por las siguientes directrices arquitectónicas:
+**Goal:** Eliminar completamente los micro-freezes y caídas bruscas de FPS (`60 -> 7 -> 60`) al cruzar límites de chunks mediante generación hidrológica 100% asíncrona en workers, activación visual incremental por etapas con presupuesto de tiempo real inter-etapa en Main Thread, y correcta separación de radios (VISIBLE, PRELOAD, CACHE).
 
-1. **Desacoplamiento Estricto:** Separación de lifecycle entre `ChunkData` (datos puros generados en workers CPU) y `ChunkView` (materialización de mallas y colisiones en Main Thread bajo presupuesto).
-2. **Modelo de Tres Radios:** Diferenciar `visible_radius`, `preload_radius` y `cache_radius` dentro de `ChunkConfig`.
-3. **Predicción Cinemática Barata:** `ChunkStreamingController` proyecta la posición futura del jugador según su vector de velocidad para priorizar chunks en la dirección de avance.
-4. **Cola Priorizada con Cancelación e Inmunidad a Tokens Obsoletos:** `ChunkGenerationScheduler` reordena peticiones por urgencia relativa y descarta resultados con tokens caducados.
-5. **Hidrología Regional Asíncrona:** Extracción de `_ensure_macro_hydrology` a `HydrologyRegionCache` con estados `UNREQUESTED`, `GENERATING`, `READY`.
-6. **Planificador de Activación con Presupuesto de Frame:** `ChunkActivationScheduler` controla la instanciación de mallas, colisiones, agua, POIs y vegetación para no superar `activation_budget_ms` (por defecto 2.0 ms).
-7. **Bootstrap Rápido:** Inicio de gameplay con activación exclusiva del área mínima jugable (sin bloqueos con `flush_pending`).
-8. **Test de Integración Unificado:** `src/world_generator/tests/test_chunk_streaming_integration.gd` validando el ciclo completo extremo a extremo.
+**Architecture:**
+1. **Hidrología Desacoplada y Asíncrona:** Eliminar toda llamada síncrona a `_ensure_macro_hydrology` del Main Thread. El `ChunkGenerationScheduler` o un worker genera regiones hidrológicas antes de que los chunks dependientes entren en `ChunkState.GENERATING`. Los chunks esperan en `WAITING_HYDROLOGY` de forma no bloqueante.
+2. **Activación Incremental por Etapas (Frame Budget Real):** Romper la activación monolítica del chunk (`_build_chunk_view`) en etapas discretas:
+   `TERRAIN_MESH` $\to$ `COLLISION` $\to$ `WATER` $\to$ `POI` $\to$ `VEGETATION` $\to$ `VISIBLE`.
+   El presupuesto (`activation_budget_ms = 2.0`, `max_chunk_activations_per_frame = 1`) se valida **entre etapas**, deteniendo la ejecución y continuando en el siguiente frame si se agota el presupuesto. Además, la creación física pesada (`create_trimesh_shape()`) se limita estrictamente a máximo 1 por frame.
+3. **Manejo Estricto de Radios:**
+   - `VISIBLE` (radio 2): Chunks con nodos instanciados y visibles en el SceneTree.
+   - `PRELOAD` (radio 5): Chunks generados y mantenidos en `READY` (`ChunkData` en memoria), sin instanciar nodos ni saturar el SceneTree.
+   - `CACHE` (radio 8): Chunks que salieron del radio visible cuyos nodos fueron liberados (`queue_free()`), pero conservan su `ChunkData` para reutilización inmediata sin regenerar.
 
----
+**Tech Stack:** Godot 4.6.1 (GDScript), Threads, Mutex, Semaphore, ArrayMesh, Trimesh Collision.
 
-## 2. Mapa de Archivos e Interfaces
+**Spec:** Documento de requerimientos *Plan Técnico — Eliminar Freeze durante Streaming de Chunks*.
 
-### Archivos Nuevos
-| Archivo | Responsabilidad |
-|---|---|
-| `src/world_generator/chunks/chunk_state.gd` | Define el enum canónico `ChunkState` (`UNREQUESTED`, `QUEUED`, `GENERATING`, `READY`, `ACTIVATING`, `VISIBLE`, `CACHED`) y `ChunkRecord`. |
-| `src/world_generator/chunks/chunk_streaming_controller.gd` | Evalúa posición y velocidad del jugador; calcula chunks visibles, preload y cache; aplica predicción direccional. |
-| `src/world_generator/chunks/hydrology_region_cache.gd` | Gestión de hidrología macro compartida por regiones con soporte multi-hilo y deduplicación. |
-| `src/world_generator/chunks/chunk_activation_scheduler.gd` | Cola priorizada de activación en Main Thread con límite de tiempo por frame (`activation_budget_ms`). |
-| `src/world_generator/tests/test_chunk_streaming_integration.gd` | Test unificado de integración para el pipeline de streaming asíncrono. |
-
-### Archivos Modificados
-| Archivo | Cambios Principales |
-|---|---|
-| `src/world_generator/chunks/chunk_config.gd` | Incorporación de `visible_radius`, `preload_radius`, `cache_radius`, `prediction_distance_chunks`, `activation_budget_ms`, `max_chunk_activations_per_frame`. |
-| `src/world_generator/chunks/chunk_generation_scheduler.gd` | Reemplazo de cola FIFO simple por cola priorizada con deduplicación, tokens de generación y cancelación explícita. |
-| `src/world_generator/chunks/chunk_manager.gd` | Distinción entre `loaded_chunks` (visibles) y `cached_chunks` (en memoria sin view); integración con `HydrologyRegionCache`. |
-| `src/world_generator/chunks/chunk_world.gd` | Delegación de orquestación a `ChunkStreamingController` y `ChunkActivationScheduler`; división de `_on_chunk_loaded` en sub-etapas ordenadas; bootstrap inicial ligero. |
-| `src/world_generator/scenes/chunk_world_integration.gd` | Actualización de telemetría HUD con métricas del nuevo streaming (queue length, ready chunks, cached chunks, activation ms). |
+## Global Constraints
+- Ninguna generación de hidrología (`generate_regional_hydrology`) o chunk (`WorldPipeline.generate_chunk`) puede ocurrir en el Main Thread durante el gameplay.
+- Presupuesto de activación en Main Thread: `activation_budget_ms = 2.0`, con verificación continua entre etapas.
+- Máximo 1 `create_trimesh_shape()` por frame.
+- Cero llamadas a `flush_pending()` en el flujo normal de juego (solo permitido en tests/shutdown).
+- Mantener compatibilidad 100% con el pipeline existente de mazmorras y POIs.
+- Un único test de integración en `src/world_generator/tests/test_chunk_streaming_integration.gd`.
 
 ---
 
-## 3. Desglose de Fases de Implementación (TDD y Pasos Concretos)
+## File Structure & Responsibilities
 
-### Fase A: Modelo de Lifecycle (`ChunkState` y `ChunkRecord`)
-- **Objetivo:** Formalizar los estados del ciclo de vida del chunk y separar `ChunkData != ChunkView`.
-- **Archivos:**
-  - Crear `src/world_generator/chunks/chunk_state.gd`
-- **Detalle de Implementación:**
-  - Definir enum `ChunkState`:
-    ```gdscript
-    enum ChunkState {
-        UNREQUESTED,
-        QUEUED,
-        GENERATING,
-        READY,
-        ACTIVATING,
-        VISIBLE,
-        CACHED
-    }
-    ```
-  - Crear clase `ChunkRecord` con campos: `coord: Vector2i`, `state: int`, `token: int`, `data: ChunkData`, `view: Node3D`, `priority: float`, `last_accessed_msec: int`.
+| File | Status | Responsibility |
+| --- | --- | --- |
+| `src/world_generator/chunks/chunk_state.gd` | Modify | Añadir estado `WAITING_HYDROLOGY` y campos de etapas de activación a `ChunkRecord`. |
+| `src/world_generator/chunks/hydrology_region_cache.gd` | Modify | Permitir reservas asíncronas no bloqueantes y consultas atómicas de estado de regiones (`is_region_ready`, etc.). |
+| `src/world_generator/chunks/chunk_generation_scheduler.gd` | Modify | Manejar generación asíncrona de macro-regiones hidrológicas en workers, resolviendo dependencias de chunks `WAITING_HYDROLOGY`. |
+| `src/world_generator/chunks/chunk_manager.gd` | Modify | Eliminar `_ensure_macro_hydrology` del flujo síncrono. Manejar separación de `PRELOAD` (mantener `READY` sin emitir a vista) y `CACHE` (reutilizar `ChunkData` sin regenerar). |
+| `src/world_generator/chunks/chunk_activation_scheduler.gd` | Modify | Implementar máquina de estados de activación incremental inter-frame (`TERRAIN_MESH` $\to$ `COLLISION` $\to$ `WATER` $\to$ `POI` $\to$ `VEGETATION`), chequeo de budget entre etapas y límite de 1 trimesh/frame. |
+| `src/world_generator/chunks/chunk_world.gd` | Modify | Coordinar `VISIBLE`, `PRELOAD` y `CACHE`. Desasociar nodos visuales al salir de `VISIBLE` y retener datos en caché. Telemetría de frame y tiempos por etapa. |
+| `src/world_generator/scenes/chunk_world_integration.gd` | Modify | Actualizar telemetría visual del HUD (`ready_chunks`, `activation_total_ms`, desglose de etapas, FPS sin freeze). |
+| `src/world_generator/tests/test_chunk_streaming_integration.gd` | Modify | Test integral unificado: request $\to$ hydrology async $\to$ generation async $\to$ READY $\to$ activation incremental $\to$ VISIBLE $\to$ cache $\to$ reuse. |
 
 ---
 
-### Fase B: Configuración Ampliada y `ChunkStreamingController`
-- **Objetivo:** Manejar los 3 radios (`visible`, `preload`, `cache`) y predecir la dirección de avance del jugador.
-- **Archivos:**
-  - Modificar `src/world_generator/chunks/chunk_config.gd`
-  - Crear `src/world_generator/chunks/chunk_streaming_controller.gd`
-- **Detalle de Implementación:**
-  - Añadir a `ChunkConfig`:
-    - `var visible_radius: int = 2`
-    - `var preload_radius: int = 5`
-    - `var cache_radius: int = 8`
-    - `var prediction_distance_chunks: float = 2.0`
-    - `var activation_budget_ms: float = 2.0`
-    - `var max_chunk_activations_per_frame: int = 1`
-  - En `ChunkStreamingController`:
-    - Función `update_player(player_pos: Vector3, player_velocity: Vector3, cell_size: float, chunk_size: int) -> Dictionary`.
-    - Calcular `current_chunk` y `predicted_chunk = current_chunk + round(velocity.normalized() * prediction_distance_chunks)`.
-    - Determinar conjuntos de chunks: `visible_set`, `preload_set`, `cache_set`.
-    - Calcular prioridad escalar para cada chunk considerando distancia al jugador y ángulo respecto a la velocidad.
+### Task 1: Estados de Ciclo de Vida y Soporte para Hidrología Asíncrona
+
+**Files:**
+- Modify: `src/world_generator/chunks/chunk_state.gd:1-41`
+- Modify: `src/world_generator/chunks/hydrology_region_cache.gd:1-92`
+
+**Interfaces:**
+- Consumes: `WorldPipeline.generate_regional_hydrology`
+- Produces: `ChunkLifecycle.ChunkState.WAITING_HYDROLOGY`, `HydrologyRegionCache.is_region_ready(macro_coord)`, `HydrologyRegionCache.request_region_async(macro_coord)`
+
+- [ ] **Step 1: Actualizar `chunk_state.gd` con `WAITING_HYDROLOGY` y etapas de activación incremental**
+  Agregar al enum `ChunkState`:
+  ```gdscript
+  enum ChunkState {
+      UNREQUESTED = 0,
+      WAITING_HYDROLOGY = 1,
+      QUEUED = 2,
+      GENERATING = 3,
+      READY = 4,
+      ACTIVATING = 5,
+      VISIBLE = 6,
+      CACHED = 7
+  }
+  ```
+  Y añadir constantes de etapas de activación (`ActivationStage`: `NONE`, `TERRAIN_MESH`, `COLLISION`, `WATER`, `POI`, `VEGETATION`, `COMPLETE`).
+
+- [ ] **Step 2: Extender `hydrology_region_cache.gd` para consulta no bloqueante y generación thread-safe**
+  Asegurar que `ensure_bounds` o `get_or_generate_region` no bloqueen el hilo llamante si se solicita desde Main Thread, permitiendo verificar si las regiones requeridas ya están listas:
+  - `has_region(macro_coord: Vector2i) -> bool`
+  - `is_region_ready(macro_coord: Vector2i) -> bool`
+  - `get_required_macro_coords(bounds: Rect2i, macro_w: int, macro_h: int) -> Array[Vector2i]`
+  - `generate_region_worker(macro_coord: Vector2i, macro_w: int, macro_h: int) -> HydrologyResult` (para ser llamada exclusivamente en workers).
+
+- [ ] **Step 3: Ejecutar suite de pruebas actual para validar compatibilidad básica**
+  Comando:
+  ```powershell
+  Start-Process -FilePath 'C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64.exe' -ArgumentList '--headless', '--path', '.', '-s', 'res://src/world_generator/tests/test_chunk_streaming_integration.gd' -NoNewWindow -Wait
+  ```
 
 ---
 
-### Fase C: Scheduler de Generación con Cola de Prioridad y Tokens
-- **Objetivo:** Reemplazar el `ChunkGenerationScheduler` FIFO por una cola ordenada por prioridad con cancelación y control estricto de tokens.
-- **Archivos:**
-  - Modificar `src/world_generator/chunks/chunk_generation_scheduler.gd`
-- **Detalle de Implementación:**
-  - Cada `ChunkRequest` almacena `priority: float`.
-  - Método `request_chunk(coord, seed_val, profile, config, shared_hydro, token, priority: float)`.
-  - Método `update_priority(coord: Vector2i, new_priority: float)`.
-  - En el worker loop, extraer la solicitud con mayor prioridad (`sort_custom` o inserción ordenada bajo mutex).
-  - Invalidador de tokens `invalidate_token(coord, new_token)` y descarte automático si el token de request no coincide con el token activo.
+### Task 2: Generación Asíncrona de Hidrología en `ChunkGenerationScheduler` y Desacople en `ChunkManager`
+
+**Files:**
+- Modify: `src/world_generator/chunks/chunk_generation_scheduler.gd:1-227`
+- Modify: `src/world_generator/chunks/chunk_manager.gd:126-335`
+
+**Interfaces:**
+- Consumes: `HydrologyRegionCache`, `WorldPipeline`
+- Produces: Eliminación total de `_ensure_macro_hydrology` del flujo de Main Thread en `_enqueue_chunk_generation()`. Solicitud asíncrona de hidrología delegada a los workers.
+
+- [ ] **Step 1: Eliminar `_ensure_macro_hydrology(coord)` de `_enqueue_chunk_generation()` en `chunk_manager.gd`**
+  Garantizar que `_enqueue_chunk_generation` solo asigne token y encole la solicitud al scheduler sin calcular hidrología en Main Thread.
+
+- [ ] **Step 2: Actualizar `ChunkGenerationScheduler` para resolver hidrología en segundo plano**
+  En `ChunkGenerationScheduler`:
+  - Permitir encolar tareas de generación de hidrología regional con alta prioridad o procesar dependencias de hidrología en el worker antes de invocar `generate_chunk`.
+  - Cuando el worker toma un `ChunkRequest`, si requiere hidrología regional y esta no está lista en `hydrology_cache`, el worker la genera en su propio hilo secundario y la guarda en `hydrology_cache` antes de procesar el chunk.
+
+- [ ] **Step 3: Probar que la generación en workers no congela el hilo principal**
+  Verificar que `test_chunk_streaming_integration.gd` continúe pasando de forma asíncrona.
 
 ---
 
-### Fase D: Cache de Hidrología Regional Asíncrona
-- **Objetivo:** Desacoplar `_ensure_macro_hydrology` del flujo de generación individual de cada chunk.
-- **Archivos:**
-  - Crear `src/world_generator/chunks/hydrology_region_cache.gd`
-  - Modificar `src/world_generator/chunks/chunk_manager.gd`
-- **Detalle de Implementación:**
-  - Estados por región: `UNREQUESTED`, `GENERATING`, `READY`.
-  - Generación de macro-regiones en worker threads o compartidas entre chunks de la misma región.
-  - Almacén de regiones con bloqueo concurrente para evitar que múltiples chunks simultáneos disparen la misma región hidrológica.
+### Task 3: Activación Incremental Inter-Frame con Presupuesto Real (`ChunkActivationScheduler`)
+
+**Files:**
+- Modify: `src/world_generator/chunks/chunk_activation_scheduler.gd:1-204`
+
+**Interfaces:**
+- Consumes: `ChunkData`, `TerrainMeshBuilder`, `WorldRenderer`
+- Produces: Activación fragmentada por micro-etapas (`TERRAIN_MESH` $\to$ `COLLISION` $\to$ `WATER` $\to$ `POI` $\to$ `VEGETATION`), `last_frame_collision_count`, desglose de telemetría de tiempos por etapa.
+
+- [ ] **Step 1: Definir clase `ActivationTask` para persistir el progreso de construcción de un chunk**
+  ```gdscript
+  class ActivationTask:
+      var coord: Vector2i
+      var chunk_data: ChunkData
+      var priority: float
+      var token: int
+      var stage: int = Stage.TERRAIN_MESH
+      var chunk_view: Node3D = null
+      var terrain_mesh: ArrayMesh = null
+      # Tiempos de telemetría acumulados
+      var time_terrain_ms: float = 0.0
+      var time_collision_ms: float = 0.0
+      var time_water_ms: float = 0.0
+      var time_poi_ms: float = 0.0
+      var time_vegetation_ms: float = 0.0
+  ```
+
+- [ ] **Step 2: Implementar ejecución incremental con chequeo de presupuesto entre etapas**
+  En `process_activations`:
+  - Si el presupuesto (`budget_ms`, ej. 2.0 ms) se supera al terminar una etapa, guardar el estado en `task.stage`, detener el procesamiento y continuar en el siguiente frame.
+  - Limitar la etapa de `COLLISION` (`create_trimesh_shape()`) a máximo 1 operación pesada por frame.
+  - Emitir `chunk_activated` solo cuando se completen todas las etapas (`Stage.COMPLETE`).
+
+- [ ] **Step 3: Agregar telemetría granular de activación**
+  Registrar métricas públicas en `ChunkActivationScheduler`:
+  - `telemetry_terrain_ms`
+  - `telemetry_collision_ms`
+  - `telemetry_water_ms`
+  - `telemetry_vegetation_ms`
+  - `telemetry_total_activation_ms`
 
 ---
 
-### Fase E: Scheduler de Activación en Main Thread con Presupuesto
-- **Objetivo:** Escalonar la materialización 3D (malla, colisión, agua, vegetación, POIs) en el Main Thread respetando un frame budget.
-- **Archivos:**
-  - Crear `src/world_generator/chunks/chunk_activation_scheduler.gd`
-  - Modificar `src/world_generator/chunks/chunk_world.gd`
-- **Detalle de Implementación:**
-  - Encolar `ChunkData` en estado `READY`.
-  - Durante cada `_process` en `ChunkWorld`:
-    - Medir tiempo transcurrido con `Time.get_ticks_usec()`.
-    - Activar chunks ordenados por urgencia (1: visibles urgentes, 2: visibles, 3: predecidos).
-    - Orden de construcción de cada chunk:
-      1. `TerrainMesh`
-      2. `TerrainCollision`
-      3. `Water`
-      4. `DungeonEntrancePOIView`
-      5. `Vegetation`
-    - Detener activación cuando `elapsed_ms >= activation_budget_ms` o se alcance `max_chunk_activations_per_frame`.
+### Task 4: Separación Estricta de Radios (VISIBLE, PRELOAD, CACHE) y Manejo de Ciclo de Vida
+
+**Files:**
+- Modify: `src/world_generator/chunks/chunk_manager.gd`
+- Modify: `src/world_generator/chunks/chunk_world.gd`
+
+**Interfaces:**
+- Consumes: `ChunkLifecycle.ChunkState`, `ChunkActivationScheduler`
+- Produces: `PRELOAD` genera y mantiene `READY` sin instanciar `ChunkView`. `VISIBLE` instantiates incrementalmente. Al salir de `VISIBLE`, libera `ChunkView` pero retiene `ChunkData` en `CACHE`.
+
+- [ ] **Step 1: Ajustar `ChunkManager` para clasificar chunks requeridos por radio**
+  Diferenciar entre chunks que deben pasar a `VISIBLE` (radio 2) vs chunks en `PRELOAD` (radio 5):
+  - Chunks en `PRELOAD` se generan en workers y quedan en `loaded_chunks` / `READY`.
+  - Solo los chunks dentro del radio `VISIBLE` son enviados al `ChunkActivationScheduler`.
+
+- [ ] **Step 2: Gestión de Salida de Visibilidad y Caché en `ChunkWorld`**
+  Cuando un chunk sale de `visible_radius`:
+  - Si está dentro de `cache_radius` (radio 8): remover y liberar el nodo `ChunkView` (`queue_free()`), cancelar activaciones pendientes en scheduler, pero **conservar** el `ChunkData` en `ChunkManager` (marcado como `CACHED`).
+  - Si el jugador regresa al chunk, transicionar inmediatamente de `CACHED` a la cola de activación sin pedir regeneración a los workers.
+  - Solo si sale de `cache_radius` se descarga completamente (`unload_chunk`).
+
+- [ ] **Step 3: Bootstrap inicial no bloqueante en `chunk_world.gd`**
+  Modificar `bootstrap_minimum_area()`:
+  - Generar y activar de forma inmediata únicamente el chunk central o radio 1 mínimo para el suelo inicial del jugador.
+  - No llamar a `flush_pending()` en el loop de juego ni bloquear el frame. Encolar el resto en background.
 
 ---
 
-### Fase F: Cache de Datos y Política de Descarga
-- **Objetivo:** Mantener `ChunkData` en caché al salir de `visible_radius` y liberar únicamente al exceder `cache_radius`.
-- **Archivos:**
-  - Modificar `src/world_generator/chunks/chunk_manager.gd`
-- **Detalle de Implementación:**
-  - Estructuras en `ChunkManager`:
-    - `loaded_chunks: Dictionary` (visibles activos).
-    - `cached_chunks: Dictionary` (chunks con datos generados en memoria, listos para activación inmediata sin recalcular).
-  - Transición cuando un chunk sale de `visible_radius`:
-    - `VISIBLE -> CACHED` (libera su `ChunkView` visual/colisión pero retiene el `ChunkData`).
-  - Transición cuando sale de `cache_radius`:
-    - `CACHED -> RELEASED` (libera completamente de memoria).
-  - Reingreso: Si el jugador regresa antes de abandonar `cache_radius`, se reactiva inmediatamente sin re-generar en workers.
+### Task 5: Telemetría en HUD y Actualización del Test de Integración Unificado
 
----
+**Files:**
+- Modify: `src/world_generator/scenes/chunk_world_integration.gd`
+- Modify: `src/world_generator/tests/test_chunk_streaming_integration.gd`
 
-### Fase G: Bootstrap Inicial Liviano y Eliminación de `flush_pending` en Gameplay
-- **Objetivo:** Iniciar la partida instantáneamente cargando únicamente la zona visible inmediata (radio 1-2) y delegar el resto al streaming en background.
-- **Archivos:**
-  - Modificar `src/world_generator/chunks/chunk_world.gd`
-  - Modificar `src/world_generator/scenes/chunk_world_integration.gd`
-- **Detalle de Implementación:**
-  - Sustituir `load_initial_area` bloqueante por `bootstrap_minimum_area(center_coord)` que solo espera el chunk inicial y sus vecinos inmediatos directos.
-  - El jugador puede moverse inmediatamente mientras los círculos de preload se calculan en background.
-  - `flush_pending()` y `flush_async_queue()` se reservan exclusivamente para pruebas unitarias y shutdown.
+**Interfaces:**
+- Consumes: Métricas de `ChunkActivationScheduler`, `ChunkManager`, `HydrologyRegionCache`
+- Produces: Visualización completa de telemetría en HUD y test extremo a extremo validando que no hay bloqueos.
 
----
+- [ ] **Step 1: Actualizar telemetría del HUD en `chunk_world_integration.gd`**
+  Mostrar métricas requeridas:
+  - `generation_queue`, `ready_chunks`, `activation_queue`, `visible_chunks`, `cached_chunks`.
+  - Tiempos de activación detallados: `terrain_ms`, `collision_ms`, `water_ms`, `vegetation_ms`, `total_ms`.
+  - Detección visual de picos de frame (> 16.6 ms).
 
-### Fase H: Telemetría y Test Unificado de Integración
-- **Objetivo:** Monitoreo visual de la cola y validación automatizada completa.
-- **Archivos:**
-  - Crear `src/world_generator/tests/test_chunk_streaming_integration.gd`
-  - Modificar `src/world_generator/scenes/chunk_world_integration.gd` (HUD con métricas avanzadas)
-- **Casos del Test de Integración:**
-  1. **Determinismo:** El mismo chunk genera idéntico `ChunkData` antes y después de pasar por la cola priorizada.
-  2. **Deduplicación:** No se encolan peticiones duplicadas para la misma coordenada.
-  3. **Cancelación por Token:** Al cambiar rápidamente de posición, las peticiones obsoletas se descartan sin insertarse en el mundo.
-  4. **Transición de Estados:** `UNREQUESTED -> QUEUED -> GENERATING -> READY -> ACTIVATING -> VISIBLE -> CACHED`.
-  5. **Hit de Caché:** Chunks que salen del radio visible y regresan se activan desde `cached_chunks` sin pasar por el scheduler de generación.
-  6. **Cumplimiento de Presupuesto:** Comprobar que el scheduler de activación no excede el frame budget asignado en Main Thread.
+- [ ] **Step 2: Actualizar `test_chunk_streaming_integration.gd` para validar el pipeline completo sin bloqueos**
+  Comprobar en una única suite continua:
+  1. `REQUEST`: petición asíncrona de chunk.
+  2. `HYDROLOGY ASYNC`: generación de región hidrológica en background sin llamadas bloqueantes en Main Thread.
+  3. `GENERATION ASYNC`: worker produce `ChunkData`.
+  4. `READY`: chunk permanece en memoria sin crear nodos.
+  5. `INCREMENTAL ACTIVATION`: activación por etapas respetando `budget_ms <= 2.0 ms` y límite de colisiones.
+  6. `VISIBLE`: nodo instanciado en el SceneTree.
+  7. `CACHE`: al alejarse, nodo eliminado de escena pero `ChunkData` preservado.
+  8. `REUSE`: reingreso al radio visible activa directamente desde memoria sin reencolar en workers.
 
----
-
-## 4. Criterios de Aceptación
-- [ ] Ejecución de `test_chunk_streaming_integration.gd` con código de salida `0` y 100% de verificaciones aprobadas en Godot headless.
-- [ ] Ningún stage procedural (`TerrainStage`, `HydrologyStage`, etc.) contiene lógica de streaming.
-- [ ] Invariante $VISIBLE < PRELOAD < CACHE$ preservado en todo momento.
-- [ ] Ausencia de congelamiento de pantalla al navegar a través de chunks en `chunk_world_integration.tscn`.
-- [ ] El sistema de entradas a mazmorras y POIs continúa funcionando sin alteración.
+- [ ] **Step 3: Ejecutar pruebas automáticas y verificar aprobación 100%**
+  Ejecutar el test de streaming y los tests de regresión de mazmorras en Godot Headless.
