@@ -3,7 +3,9 @@ extends Node3D
 
 ## Autoridad de alto nivel y coordinador runtime del mundo por chunks.
 ## Orquesta semilla, perfil, configuración, hidrología compartida y el ChunkManager.
-## Gestiona la jerarquía de nodos 3D para la visualización y colisión continua de chunks.
+signal chunk_loaded(coord: Vector2i, chunk_data: ChunkData)
+signal chunk_unloaded(coord: Vector2i)
+signal dungeon_enter_requested(poi: RefCounted, dungeon_result: RefCounted, player_node: Node3D)
 
 const _ChunkManagerScript = preload("res://src/world_generator/chunks/chunk_manager.gd")
 const _TerrainMaterialScript = preload("res://src/world_generator/presentation/terrain_material.gd")
@@ -298,6 +300,11 @@ func _on_chunk_loaded(coord: Vector2i, chunk_data: ChunkData) -> void:
 				entrance_node.position = rel_pos
 				if "orientation_deg" in poi:
 					entrance_node.rotation_degrees.y = poi.orientation_deg
+				
+				entrance_node.dungeon_enter_requested.connect(
+					func(p: RefCounted, d_res: RefCounted, p_node: Node3D):
+						dungeon_enter_requested.emit(p, d_res, p_node)
+				)
 				chunk_view.add_child(entrance_node)
 
 	if chunks_container != null:

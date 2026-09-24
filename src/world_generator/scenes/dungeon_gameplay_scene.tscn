@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dng_gmpl_sc_001"]
+
+[ext_resource type="Script" path="res://src/world_generator/scenes/dungeon_gameplay_scene.gd" id="1_dungeon_scene"]
+
+[node name="DungeonGameplayScene" type="Node3D"]
+script = ExtResource("1_dungeon_scene")

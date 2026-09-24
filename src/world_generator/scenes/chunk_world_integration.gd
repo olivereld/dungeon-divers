@@ -11,6 +11,7 @@ const _AutumnForestWorldProfileScript = preload("res://src/world_generator/profi
 const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometric_camera_rig.gd")
 const _ChunkConfigScript = preload("res://src/world_generator/chunks/chunk_config.gd")
 const _WorldPipelineScript = preload("res://src/world_generator/facade/world_pipeline.gd")
+const _DungeonSessionDataScript = preload("res://src/world_generator/poi/dungeon_session_data.gd")
 
 @export var world_seed: int = 12345
 @export var render_distance: int = 4
@@ -78,6 +79,7 @@ func _setup_chunk_world() -> void:
 	chunk_world = _ChunkWorldScript.new()
 	chunk_world.name = "ChunkWorld"
 	chunk_world.render_distance = render_distance
+	chunk_world.dungeon_enter_requested.connect(_on_dungeon_enter_requested)
 	add_child(chunk_world)
 
 	chunk_world.initialize(world_seed, profile, config, shared_hydrology, render_distance)
@@ -89,10 +91,17 @@ func _setup_player() -> void:
 	player = _PlayerTestScript.new()
 	player.name = "Player"
 
-	# Posicionar al jugador en una cota segura sobre el terreno inicial
-	var start_cell := chunk_world.get_cell_at_world_pos(Vector2i(8, 8))
-	var start_y: float = start_cell.height if start_cell != null else 10.0
-	player.position = Vector3(8.0, start_y + 1.2, 8.0)
+	# Posicionar al jugador: si venimos de regreso de una mazmorra, usar la posición guardada
+	var start_pos := Vector3(8.0, 10.0, 8.0)
+	if _DungeonSessionDataScript.saved_player_overworld_position != Vector3.ZERO:
+		start_pos = _DungeonSessionDataScript.saved_player_overworld_position
+		_DungeonSessionDataScript.saved_player_overworld_position = Vector3.ZERO
+	else:
+		var start_cell := chunk_world.get_cell_at_world_pos(Vector2i(8, 8))
+		var start_y: float = start_cell.height if start_cell != null else 10.0
+		start_pos = Vector3(8.0, start_y + 1.2, 8.0)
+
+	player.position = start_pos
 	add_child(player)
 
 	# Cámara isométrica orbital de producción (IsometricCameraRig)
@@ -203,10 +212,10 @@ func _update_hud() -> void:
 	if _info_label == null or chunk_world == null or player == null:
 		return
 
+	var fps: int = int(Engine.get_frames_per_second())
+	var p_pos: Vector3 = player.global_position
 	var mgr = chunk_world.chunk_manager
 	var active_coord: Vector2i = chunk_world.active_chunk
-	var p_pos: Vector3 = player.global_position
-	var fps: int = int(Engine.get_frames_per_second())
 
 	var loaded_count: int = mgr.loaded_chunks.size() if mgr != null else 0
 	var text := "=== PROCEDURAL CHUNK STREAMING ===\n"
@@ -267,3 +276,28 @@ func _handle_debug_inputs() -> void:
 		player.velocity = Vector3.ZERO
 		if camera_rig != null:
 			camera_rig.teleport_to_target()
+
+
+
+func _on_dungeon_enter_requested(poi: RefCounted, dungeon_result: RefCounted, player_node: Node3D) -> void:
+	print("[ChunkWorldIntegration] Preparando transición a la escena de mazmorra independiente...")
+
+	# 1. Guardar posición previa del jugador en el mundo exterior para el regreso
+	var active_player: CharacterBody3D = (player_node as CharacterBody3D) if player_node is CharacterBody3D else player
+	var return_pos := Vector3(8.0, 12.0, 8.0)
+	if active_player != null:
+		return_pos = active_player.global_position
+	elif poi != null and "world_position" in poi:
+		return_pos = poi.world_position + Vector3(0.0, 0.5, 3.0)
+
+	# 2. Persistir datos en DungeonSessionData para la escena dedicada
+	_DungeonSessionDataScript.active_poi = poi
+	_DungeonSessionDataScript.active_dungeon_result = dungeon_result
+	_DungeonSessionDataScript.saved_player_overworld_position = return_pos
+	_DungeonSessionDataScript.return_scene_path = scene_file_path if not scene_file_path.is_empty() else "res://src/world_generator/scenes/chunk_world_integration.tscn"
+	_DungeonSessionDataScript.return_world_seed = world_seed
+	_DungeonSessionDataScript.return_render_distance = render_distance
+
+	# 3. Cambiar a la escena separada de la mazmorra
+	print("[ChunkWorldIntegration] Cambiando a res://src/world_generator/scenes/dungeon_gameplay_scene.tscn")
+	get_tree().change_scene_to_file("res://src/world_generator/scenes/dungeon_gameplay_scene.tscn")

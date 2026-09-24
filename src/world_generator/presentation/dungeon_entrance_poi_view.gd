@@ -6,12 +6,13 @@ extends Node3D
 ## área de detección y un label flotante con su ID y prompt de interacción.
 ## Al pulsar Intro/Enter dentro del área, dispara la señal dungeon_enter_requested.
 
-signal dungeon_enter_requested(poi: RefCounted)
+signal dungeon_enter_requested(poi: RefCounted, dungeon_result: RefCounted, player_node: Node3D)
 
 const _DungeonWorldBridgeScript = preload("res://src/world_generator/poi/dungeon_world_bridge.gd")
 
 var poi: RefCounted = null
 var _player_inside: bool = false
+var _player_node: CharacterBody3D = null
 var _prompt_label: Label3D = null
 
 func _init(p_poi: RefCounted = null) -> void:
@@ -107,6 +108,8 @@ func _build_trigger() -> void:
 func _on_body_entered(body: Node) -> void:
 	if body.name.to_lower().contains("player") or body is CharacterBody3D:
 		_player_inside = true
+		if body is CharacterBody3D:
+			_player_node = body as CharacterBody3D
 		if _prompt_label != null:
 			var d_id: String = String(poi.identity.dungeon_id) if (poi != null and poi.identity != null) else "Dungeon"
 			_prompt_label.text = "[ %s ]\nPulsa [ INTRO / ENTER ] para entrar a la Mazmorra" % d_id
@@ -115,6 +118,7 @@ func _on_body_entered(body: Node) -> void:
 func _on_body_exited(body: Node) -> void:
 	if body.name.to_lower().contains("player") or body is CharacterBody3D:
 		_player_inside = false
+		_player_node = null
 		if _prompt_label != null:
 			var d_id: String = String(poi.identity.dungeon_id) if (poi != null and poi.identity != null) else "Dungeon"
 			var arch: String = String(poi.archetype_id) if poi != null else "necropolis"
@@ -133,7 +137,6 @@ func _enter_dungeon() -> void:
 	if poi == null:
 		return
 	print("[DungeonEntrance] ¡Jugador pulsó INTRO! Generando y accediendo a la mazmorra %s..." % poi.identity.dungeon_id)
-	dungeon_enter_requested.emit(poi)
 	
 	# Invocar el DungeonWorldBridge determinista
 	var dungeon_res = _DungeonWorldBridgeScript.generate_dungeon_from_poi(poi)
@@ -142,3 +145,5 @@ func _enter_dungeon() -> void:
 		if _prompt_label != null:
 			_prompt_label.text = "¡ENTRANDO A LA MAZMORRA!\nChecksum: %s (%d salas)" % [dungeon_res.checksum, dungeon_res.rooms.size()]
 			_prompt_label.modulate = Color(0.2, 1.0, 0.4, 1.0)
+	
+	dungeon_enter_requested.emit(poi, dungeon_res, _player_node)
