@@ -7,11 +7,14 @@ extends SceneTree
 
 const DungeonIdentity = preload("res://src/world_generator/poi/dungeon_identity.gd")
 
+const DungeonPOI = preload("res://src/world_generator/poi/dungeon_poi.gd")
+
 func _init() -> void:
 	print("--- Running World ↔ Dungeon Integration Tests ---")
 	var success := true
 	
 	success = test_task1_identity_and_seeds() and success
+	success = test_task2_dungeon_poi() and success
 	
 	if success:
 		print("ALL TEST CHECKS PASSED!")
@@ -66,4 +69,38 @@ func test_task1_identity_and_seeds() -> bool:
 		return false
 		
 	print("✓ Task 1 identity & seed derivation checks passed.")
+	return true
+
+func test_task2_dungeon_poi() -> bool:
+	print("\n[Test Task 2] DungeonPOI Entity...")
+	var master_seed := 987654321
+	var macro_coord := Vector2i(4, 8)
+	var identity = DungeonIdentity.create(master_seed, macro_coord, 0)
+	
+	var poi = DungeonPOI.new()
+	poi.identity = identity
+	poi.world_position = Vector3(1030.5, 45.0, 2050.2)
+	poi.entrance_transform = Transform3D(Basis(), poi.world_position)
+	poi.archetype_id = &"catacombs"
+	poi.tier = 2
+	poi.total_floors = 3
+	poi.orientation_deg = 180.0
+	poi.bounding_rect = Rect2i(1020, 2040, 20, 20)
+	
+	# Verificar campos
+	if poi.identity.dungeon_id != &"dungeon_m4_8_0":
+		printerr("FAIL: poi.identity mismatch")
+		return false
+	if poi.tier != 2 or poi.total_floors != 3 or poi.archetype_id != &"catacombs":
+		printerr("FAIL: poi property mismatch")
+		return false
+		
+	# Verificar desacoplamiento de chunk_coord: get_chunk_coord(16)
+	var expected_chunk := Vector2i(int(floor(1030.5 / 16.0)), int(floor(2050.2 / 16.0)))
+	var calculated_chunk: Vector2i = poi.get_chunk_coord(16)
+	if calculated_chunk != expected_chunk:
+		printerr("FAIL: Expected chunk %s, got %s" % [expected_chunk, calculated_chunk])
+		return false
+		
+	print("✓ Task 2 DungeonPOI checks passed.")
 	return true
