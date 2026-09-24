@@ -20,6 +20,7 @@ func _init() -> void:
 	success = test_task3_poi_generator() and success
 	success = test_task4_world_bridge() and success
 	success = test_task5_chunk_streaming_integration() and success
+	success = test_task6_end_to_end_and_streaming_independence() and success
 	
 	if success:
 		print("ALL TEST CHECKS PASSED!")
@@ -257,4 +258,45 @@ func test_task5_chunk_streaming_integration() -> bool:
 		return false
 		
 	print("✓ Task 5 Chunk Streaming POI attachment checks passed.")
+	return true
+
+func test_task6_end_to_end_and_streaming_independence() -> bool:
+	print("\n[Test Task 6] Full End-to-End & Streaming Independence...")
+	var master_seed := 123456789
+	var far_macro_coord := Vector2i(16, 16) # Coordenada lejana (4096, 4096)
+	
+	var generator = DungeonPOIGenerator.new(256, 32, 100.0)
+	var query := MockWorldQuery.new()
+	query.biome_override = &"mountain"
+	
+	# 1. Independencia de Streaming:
+	# Descubrir y evaluar el POI a (4096, 4096) sin generar ningún chunk previo
+	var poi: DungeonPOI = generator.evaluate_and_create_poi(master_seed, far_macro_coord, query)
+	if poi == null:
+		printerr("FAIL: Could not evaluate far POI")
+		return false
+	if poi.archetype_id != &"fortress":
+		printerr("FAIL: Expected 'fortress' for mountain elevation, got %s" % poi.archetype_id)
+		return false
+	if poi.identity.dungeon_id != &"dungeon_m16_16_0":
+		printerr("FAIL: Unexpected dungeon_id %s" % poi.identity.dungeon_id)
+		return false
+		
+	# 2. Generación Perezosa (Lazy evaluation) a través del Bridge
+	# El interior sólo se genera al invocar explícitamente el bridge
+	var dungeon_res = DungeonWorldBridge.generate_dungeon_from_poi(poi)
+	if dungeon_res == null or dungeon_res.rooms.is_empty():
+		printerr("FAIL: Lazy dungeon generation returned empty rooms")
+		return false
+		
+	# 3. Determinismo total del pipeline
+	var dungeon_res_copy = DungeonWorldBridge.generate_dungeon_from_poi(poi)
+	if dungeon_res.checksum != dungeon_res_copy.checksum:
+		printerr("FAIL: Checksum mismatch in identical generation")
+		return false
+	if dungeon_res.rooms.size() != dungeon_res_copy.rooms.size():
+		printerr("FAIL: Room count mismatch in identical generation")
+		return false
+		
+	print("✓ Task 6 End-to-end and streaming independence checks passed.")
 	return true
