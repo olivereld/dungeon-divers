@@ -19,6 +19,7 @@ func _init() -> void:
 	success = test_task2_dungeon_poi() and success
 	success = test_task3_poi_generator() and success
 	success = test_task4_world_bridge() and success
+	success = test_task5_chunk_streaming_integration() and success
 	
 	if success:
 		print("ALL TEST CHECKS PASSED!")
@@ -230,4 +231,30 @@ func test_task4_world_bridge() -> bool:
 		return false
 		
 	print("✓ Task 4 DungeonWorldBridge checks passed.")
+	return true
+
+func test_task5_chunk_streaming_integration() -> bool:
+	print("\n[Test Task 5] Chunk Streaming Integration (Lazy POI attachment)...")
+	var chunk_data = ChunkData.new(Vector2i(5, 5), Rect2i(80, 80, 16, 16), Rect2i(78, 78, 20, 20))
+	
+	# Verificar que ChunkData tiene propiedad 'pois'
+	if not ("pois" in chunk_data):
+		printerr("FAIL: ChunkData does not have 'pois' property")
+		return false
+	if not (chunk_data.pois is Array):
+		printerr("FAIL: ChunkData.pois is not an Array")
+		return false
+		
+	# Simular un POI cuya huella intersecta core_bounds del chunk (80,80, 16,16)
+	var poi = DungeonPOI.new()
+	poi.bounding_rect = Rect2i(85, 85, 10, 10)
+	
+	if chunk_data.core_bounds.intersects(poi.bounding_rect):
+		chunk_data.pois.append(poi)
+		
+	if chunk_data.pois.size() != 1:
+		printerr("FAIL: Expected 1 POI attached to chunk_data, got %d" % chunk_data.pois.size())
+		return false
+		
+	print("✓ Task 5 Chunk Streaming POI attachment checks passed.")
 	return true

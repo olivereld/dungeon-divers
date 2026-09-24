@@ -8,6 +8,7 @@ extends RefCounted
 
 const _WorldPipelineScript = preload("res://src/world_generator/facade/world_pipeline.gd")
 const _ChunkGenerationSchedulerScript = preload("res://src/world_generator/chunks/chunk_generation_scheduler.gd")
+const _DungeonPOIGeneratorScript = preload("res://src/world_generator/poi/dungeon_poi_generator.gd")
 
 signal chunk_loaded(coord: Vector2i, chunk_data: ChunkData)
 signal chunk_unloaded(coord: Vector2i)
@@ -37,6 +38,8 @@ var current_required_chunks: Dictionary = {}
 
 ## Scheduler de generación asíncrona en worker thread
 var scheduler: RefCounted = null
+var poi_generator: RefCounted = null
+var _evaluated_pois: Dictionary = {} # Vector2i (macro_coord) -> DungeonPOI or null
 
 var _next_token: int = 1
 var _generated_macro_regions: Dictionary = {}
@@ -154,6 +157,7 @@ func load_chunk(coord: Vector2i) -> ChunkData:
 
 	loaded_chunks[coord] = chunk_data
 	chunk_states[coord] = ChunkState.LOADED
+	_attach_pois_to_chunk(chunk_data)
 	chunk_loaded.emit(coord, chunk_data)
 	return chunk_data
 
@@ -262,6 +266,7 @@ func poll_completed() -> Array[Vector2i]:
 				var lat_ms := float(Time.get_ticks_usec() - item["enqueue_time_usec"]) / 1000.0
 				stats_latencies.append(lat_ms)
 
+			_attach_pois_to_chunk(chunk_data)
 			chunk_loaded.emit(coord, chunk_data)
 			integrated.append(coord)
 		else:
@@ -320,3 +325,29 @@ func flush_pending(timeout_ms: int = 10000) -> void:
 func shutdown() -> void:
 	if scheduler != null:
 		scheduler.shutdown()
+
+
+## Asocia perezosamente los POIs que intersectan el área del chunk sin generar mazmorras
+func _attach_pois_to_chunk(chunk_data: ChunkData) -> void:
+	if chunk_data == null or poi_generator == null:
+		return
+	
+	var m_sz: int = poi_generator.macro_cell_size if "macro_cell_size" in poi_generator else 256
+	var min_mx: int = int(floor(float(chunk_data.core_bounds.position.x) / float(m_sz)))
+	var max_mx: int = int(floor(float(chunk_data.core_bounds.end.x - 1) / float(m_sz)))
+	var min_my: int = int(floor(float(chunk_data.core_bounds.position.y) / float(m_sz)))
+	var max_my: int = int(floor(float(chunk_data.core_bounds.end.y - 1) / float(m_sz)))
+
+	for my in range(min_my, max_my + 1):
+		for mx in range(min_mx, max_mx + 1):
+			var m_coord := Vector2i(mx, my)
+			if not _evaluated_pois.has(m_coord):
+				# Evaluación perezosa del POI de la celda
+				var poi = poi_generator.evaluate_and_create_poi(seed_val, m_coord, self)
+				_evaluated_pois[m_coord] = poi
+			
+			var candidate_poi = _evaluated_pois[m_coord]
+			if candidate_poi != null and "bounding_rect" in candidate_poi:
+				if chunk_data.core_bounds.intersects(candidate_poi.bounding_rect):
+					if not (candidate_poi in chunk_data.pois):
+						chunk_data.pois.append(candidate_poi)
