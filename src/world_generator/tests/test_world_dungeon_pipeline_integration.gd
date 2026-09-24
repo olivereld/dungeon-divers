@@ -8,6 +8,7 @@ extends SceneTree
 const DungeonIdentity = preload("res://src/world_generator/poi/dungeon_identity.gd")
 
 const DungeonPOI = preload("res://src/world_generator/poi/dungeon_poi.gd")
+const DungeonPOIGenerator = preload("res://src/world_generator/poi/dungeon_poi_generator.gd")
 
 func _init() -> void:
 	print("--- Running World ↔ Dungeon Integration Tests ---")
@@ -15,6 +16,7 @@ func _init() -> void:
 	
 	success = test_task1_identity_and_seeds() and success
 	success = test_task2_dungeon_poi() and success
+	success = test_task3_poi_generator() and success
 	
 	if success:
 		print("ALL TEST CHECKS PASSED!")
@@ -103,4 +105,76 @@ func test_task2_dungeon_poi() -> bool:
 		return false
 		
 	print("✓ Task 2 DungeonPOI checks passed.")
+	return true
+
+# Mock World Query que no genera chunks, sino que simula respuestas del terreno
+class MockWorldQuery extends RefCounted:
+	var water_at: Array[Vector2i] = []
+	var steep_at: Array[Vector2i] = []
+	var biome_override: StringName = &"forest"
+	
+	func get_elevation(x: int, z: int) -> float:
+		return 35.0
+	
+	func get_slope(x: int, z: int) -> float:
+		if Vector2i(x, z) in steep_at:
+			return 45.0 # demasiado empinado
+		return 8.0 # pendiente suave
+		
+	func is_water(x: int, z: int) -> bool:
+		return Vector2i(x, z) in water_at
+		
+	func get_biome(x: int, z: int) -> StringName:
+		return biome_override
+
+func test_task3_poi_generator() -> bool:
+	print("\n[Test Task 3] DungeonPOIGenerator...")
+	var master_seed := 1337
+	var macro_coord := Vector2i(3, 5)
+	var generator = DungeonPOIGenerator.new(256, 32, 100.0)
+	
+	# 1. Determinismo en candidato de macro-celda
+	var cand_a = generator.generate_candidate_for_macro_cell(master_seed, macro_coord, 0)
+	var cand_b = generator.generate_candidate_for_macro_cell(master_seed, macro_coord, 0)
+	if cand_a["world_x"] != cand_b["world_x"] or cand_a["world_z"] != cand_b["world_z"]:
+		printerr("FAIL: Candidate position is not deterministic")
+		return false
+	
+	# Verificar que cae dentro de los límites y márgenes de la celda
+	var min_x := macro_coord.x * 256 + 32
+	var max_x := (macro_coord.x + 1) * 256 - 32
+	if cand_a["world_x"] < min_x or cand_a["world_x"] > max_x:
+		printerr("FAIL: Candidate x %d out of bounds [%d, %d]" % [cand_a["world_x"], min_x, max_x])
+		return false
+		
+	# 2. Evaluación ambiental válida
+	var query := MockWorldQuery.new()
+	var poi: DungeonPOI = generator.evaluate_and_create_poi(master_seed, macro_coord, query)
+	if poi == null:
+		printerr("FAIL: Valid candidate was rejected")
+		return false
+	if poi.identity.macro_coord != macro_coord:
+		printerr("FAIL: POI macro_coord mismatch")
+		return false
+	if poi.archetype_id != &"ruins": # en bosque -> ruins
+		printerr("FAIL: Expected archetype 'ruins' for forest, got %s" % [poi.archetype_id])
+		return false
+		
+	# 3. Rechazo por agua
+	var water_query := MockWorldQuery.new()
+	water_query.water_at.append(Vector2i(cand_a["world_x"], cand_a["world_z"]))
+	var poi_water: DungeonPOI = generator.evaluate_and_create_poi(master_seed, macro_coord, water_query)
+	if poi_water != null:
+		printerr("FAIL: Candidate on water should have been rejected")
+		return false
+		
+	# 4. Rechazo por pendiente excesiva
+	var steep_query := MockWorldQuery.new()
+	steep_query.steep_at.append(Vector2i(cand_a["world_x"], cand_a["world_z"]))
+	var poi_steep: DungeonPOI = generator.evaluate_and_create_poi(master_seed, macro_coord, steep_query)
+	if poi_steep != null:
+		printerr("FAIL: Candidate on steep slope should have been rejected")
+		return false
+		
+	print("✓ Task 3 DungeonPOIGenerator checks passed.")
 	return true
