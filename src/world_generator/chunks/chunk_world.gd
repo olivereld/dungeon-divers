@@ -274,9 +274,27 @@ func _on_chunk_loaded(coord: Vector2i, chunk_data: ChunkData) -> void:
 	if "pois" in chunk_data and chunk_data.pois != null:
 		for poi in chunk_data.pois:
 			if poi != null and "world_position" in poi:
+				var cell_x := int(floor(poi.world_position.x))
+				var cell_z := int(floor(poi.world_position.z))
+				# Solo el chunk que contiene el centro canónico del POI instancia su vista 3D
+				# (evita duplicados o desalineaciones en chunks colindantes de la huella)
+				if not chunk_data.core_bounds.has_point(Vector2i(cell_x, cell_z)):
+					continue
+
 				var entrance_node: Node3D = _DungeonEntrancePOIViewScript.new(poi)
-				# Posicionamiento relativo al origen del chunk_view
-				var rel_pos = poi.world_position - chunk_view.position
+				var cell_h: float = poi.world_position.y
+				if chunk_data.has_method("get_cell_or_seam"):
+					var c = chunk_data.get_cell_or_seam(Vector2i(cell_x, cell_z))
+					if c != null:
+						cell_h = c.height
+				elif chunk_data.has_cell(Vector2i(cell_x, cell_z)):
+					var c = chunk_data.get_cell(Vector2i(cell_x, cell_z))
+					if c != null:
+						cell_h = c.height
+
+				# Posicionamiento 3D (X y Z en escala cell_size, Y en cota exacta de superficie)
+				var world_pos_3d := Vector3(float(cell_x) * cell_size + cell_size * 0.5, cell_h, float(cell_z) * cell_size + cell_size * 0.5)
+				var rel_pos = world_pos_3d - chunk_view.position
 				entrance_node.position = rel_pos
 				if "orientation_deg" in poi:
 					entrance_node.rotation_degrees.y = poi.orientation_deg

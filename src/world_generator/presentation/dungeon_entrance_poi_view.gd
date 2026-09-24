@@ -23,22 +23,41 @@ func _ready() -> void:
 	_build_trigger()
 
 func _build_visuals() -> void:
-	# 1. Cubo / Monolito Rojo de Entrada
+	# 1. Monolito / Cubo Rojo de Entrada
 	var mesh_inst := MeshInstance3D.new()
 	mesh_inst.name = "EntranceCube"
 	var box := BoxMesh.new()
 	box.size = Vector3(4.0, 5.0, 4.0)
 	mesh_inst.mesh = box
-	mesh_inst.position = Vector3(0.0, 2.5, 0.0)
+	# Se apoya firmemente sobre la cota Y del terreno (ligeramente embebido 0.2m para no flotar en pendientes)
+	mesh_inst.position = Vector3(0.0, 2.3, 0.0)
 	
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.9, 0.1, 0.1, 1.0)
+	mat.albedo_color = Color(0.9, 0.15, 0.15, 1.0)
 	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.15, 0.15, 1.0)
-	mat.emission_energy_multiplier = 2.0
-	mat.roughness = 0.3
+	mat.emission = Color(1.0, 0.2, 0.2, 1.0)
+	mat.emission_energy_multiplier = 3.0
+	mat.roughness = 0.25
 	mesh_inst.material_override = mat
 	add_child(mesh_inst)
+
+	# Pilar de luz / baliza vertical (Beacon) para visibilidad a distancia entre árboles
+	var beacon := MeshInstance3D.new()
+	beacon.name = "EntranceBeacon"
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.8
+	cyl.bottom_radius = 0.8
+	cyl.height = 14.0
+	beacon.mesh = cyl
+	beacon.position = Vector3(0.0, 7.0, 0.0)
+	var b_mat := StandardMaterial3D.new()
+	b_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	b_mat.albedo_color = Color(1.0, 0.2, 0.2, 0.45)
+	b_mat.emission_enabled = true
+	b_mat.emission = Color(1.0, 0.1, 0.1, 1.0)
+	b_mat.emission_energy_multiplier = 4.0
+	beacon.material_override = b_mat
+	add_child(beacon)
 
 	# Colisión física del cubo
 	var static_body := StaticBody3D.new()
@@ -55,13 +74,14 @@ func _build_visuals() -> void:
 	_prompt_label = Label3D.new()
 	_prompt_label.name = "PromptLabel"
 	_prompt_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_prompt_label.no_depth_test = true
 	_prompt_label.position = Vector3(0.0, 6.0, 0.0)
 	_prompt_label.pixel_size = 0.015
 	_prompt_label.font_size = 28
 	_prompt_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
-	_prompt_label.outline_render_priority = 1
+	_prompt_label.outline_render_priority = 10
 	_prompt_label.outline_modulate = Color.BLACK
-	_prompt_label.outline_size = 4
+	_prompt_label.outline_size = 6
 	
 	var d_id: String = String(poi.identity.dungeon_id) if (poi != null and poi.identity != null) else "Dungeon"
 	var arch: String = String(poi.archetype_id) if poi != null else "necropolis"
