@@ -217,15 +217,20 @@ func _validate_water_bed_contract(cells: Dictionary, hydro: HydrologyResult) -> 
 		var data: Dictionary = hydro.water_cells[pos]
 		var w_h: float = float(data.get("water_height", cell.height))
 		var b_h: float = float(data.get("bed_height", cell.height))
+		var depth: float = float(data.get("depth", w_h - b_h))
 
-		# Sincronización explícita
+		# Sincronización explícita del contrato
 		if not is_equal_approx(cell.height, b_h):
 			cell.height = b_h
 
+		assert(is_finite(cell.raw_height),
+			"Violación Contrato Marino: cell.raw_height en %s no es finito" % str(pos))
 		assert(is_equal_approx(cell.height, b_h),
 			"Violación Contrato Marino: cell.height (%.4f) != bed_height (%.4f) en %s" % [cell.height, b_h, str(pos)])
 		assert(b_h <= w_h + 0.001,
 			"Violación Contrato Marino: bed_height (%.4f) > water_height (%.4f) en %s" % [b_h, w_h, str(pos)])
+		assert(absf(depth - (w_h - b_h)) < 0.001,
+			"Violación Contrato Marino: depth (%.4f) != water_height (%.4f) - bed_height (%.4f) en %s" % [depth, w_h, b_h, str(pos)])
 
 
 
