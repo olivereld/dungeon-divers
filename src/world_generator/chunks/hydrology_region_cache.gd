@@ -112,7 +112,10 @@ func ensure_bounds(bounds: Rect2i, macro_w: int, macro_h: int) -> HydrologyResul
 			var m_coord := Vector2i(mx, my)
 			get_or_generate_region(m_coord, macro_w, macro_h)
 
-	return shared_hydrology
+	_mutex.lock()
+	var hydro_snapshot: HydrologyResult = shared_hydrology
+	_mutex.unlock()
+	return hydro_snapshot
 
 ## Limpia la caché si cambia la semilla
 func clear() -> void:

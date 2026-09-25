@@ -36,6 +36,11 @@ static func build_water_node(result: WorldResult, profile: WorldProfile = null, 
 	mi.set_surface_override_material(0, water_mat)
 	root.add_child(mi)
 
+	# Efectos de salpicadura y efervescencia en la base de las cascadas (Paso 4: GPUParticles3D)
+	var splashes_node = _build_waterfall_splash_particles(mesh)
+	if splashes_node != null:
+		root.add_child(splashes_node)
+
 	# Overlay de depuración wireframe (adjunto siempre para toggle instantáneo)
 	var wire_overlay = build_wireframe_node(mesh)
 	if wire_overlay != null:
@@ -43,6 +48,76 @@ static func build_water_node(result: WorldResult, profile: WorldProfile = null, 
 		root.add_child(wire_overlay)
 
 	return root
+
+
+## Construye emisores de partículas GPUParticles3D en la base de las cascadas (pos_y inferior)
+static func _build_waterfall_splash_particles(mesh: ArrayMesh) -> Node3D:
+	if mesh == null or mesh.get_surface_count() == 0:
+		return null
+
+	var arrays: Array = mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+
+	if verts.is_empty() or normals.is_empty() or uvs.is_empty():
+		return null
+
+	# Localizar puntos de impacto en la base de cascadas (normal vertical baja y UV.y cerca de 1.0)
+	var impact_centers: Array[Vector3] = []
+	for i in range(verts.size()):
+		if absf(normals[i].y) < 0.5 and uvs[i].y >= 0.9:
+			var base_pt := verts[i]
+			# Agrupar puntos cercanos para tener 1 emisor central por cascada
+			var merged := false
+			for j in range(impact_centers.size()):
+				if impact_centers[j].distance_squared_to(base_pt) < 1.0:
+					impact_centers[j] = (impact_centers[j] + base_pt) * 0.5
+					merged = true
+					break
+			if not merged:
+				impact_centers.append(base_pt)
+
+	if impact_centers.is_empty():
+		return null
+
+	var splashes_root := Node3D.new()
+	splashes_root.name = "WaterfallSplashEffects"
+
+	for center in impact_centers:
+		var particles := GPUParticles3D.new()
+		particles.name = "SplashEmitter"
+		particles.position = center + Vector3(0.0, 0.08, 0.0)
+		particles.amount = 16
+		particles.lifetime = 0.65
+		particles.randomness = 0.4
+		particles.explosiveness = 0.1
+
+		var p_mat := ParticleProcessMaterial.new()
+		p_mat.direction = Vector3(0.0, 1.0, 0.0)
+		p_mat.spread = 45.0
+		p_mat.initial_velocity_min = 1.0
+		p_mat.initial_velocity_max = 2.2
+		p_mat.gravity = Vector3(0.0, -4.5, 0.0)
+		p_mat.scale_min = 0.08
+		p_mat.scale_max = 0.18
+		p_mat.color = Color(0.92, 0.96, 1.0, 0.85)
+
+		var sphere_mesh := SphereMesh.new()
+		sphere_mesh.radius = 0.06
+		sphere_mesh.height = 0.12
+
+		var sphere_mat := StandardMaterial3D.new()
+		sphere_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		sphere_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		sphere_mat.albedo_color = Color(0.95, 0.98, 1.0, 0.80)
+		sphere_mesh.material = sphere_mat
+
+		particles.process_material = p_mat
+		particles.draw_pass_1 = sphere_mesh
+		splashes_root.add_child(particles)
+
+	return splashes_root
 
 ## Construye una malla de alambre y puntos de inspección a partir de ArrayMesh o WaterSurfaceData
 static func build_wireframe_node(mesh_or_surf: RefCounted) -> Node3D:

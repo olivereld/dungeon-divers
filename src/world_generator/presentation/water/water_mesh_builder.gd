@@ -93,10 +93,13 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 	# PASO 1: Cota base geometrica para celdas secas (water_datum independiente)
 	# -------------------------------------------------------------------------
 	var min_water_h: float = INF
-	for pos in hydro.water_cells.keys():
-		var wh: float = float(hydro.water_cells[pos].get("water_height", 0.0))
-		if wh < min_water_h:
-			min_water_h = wh
+	var w_cells: Dictionary = hydro.water_cells.duplicate()
+	for pos in w_cells.keys():
+		var cell_info = w_cells.get(pos, null)
+		if cell_info is Dictionary:
+			var wh: float = float(cell_info.get("water_height", 0.0))
+			if wh < min_water_h:
+				min_water_h = wh
 
 	var water_datum: float = 0.0
 	if min_water_h != INF:
@@ -148,7 +151,10 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 				if not is_water:
 					continue
 
-				var cdata: Dictionary = hydro.water_cells[pos2i]
+				var cdata_val = hydro.water_cells.get(pos2i, null)
+				if not (cdata_val is Dictionary):
+					continue
+				var cdata: Dictionary = cdata_val
 				water_y = float(cdata.get("water_height", water_datum))
 				flow = Vector2(cdata.get("flow_dir", Vector2.ZERO))
 				depth = float(cdata.get("depth", 0.5))
@@ -239,17 +245,24 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 					var n_wh_n: float = water_y
 					var n_wh_s: float = water_y
 
-					if hydro.water_cells.has(pos_w):
-						n_wh_w = float(hydro.water_cells[pos_w].get("water_height", water_datum))
+					var cw_data = hydro.water_cells.get(pos_w, null)
+					if cw_data is Dictionary:
+						n_wh_w = float(cw_data.get("water_height", water_datum))
 						has_wf_w = (water_y - n_wh_w > 0.10)
-					if hydro.water_cells.has(pos_e):
-						n_wh_e = float(hydro.water_cells[pos_e].get("water_height", water_datum))
+
+					var ce_data = hydro.water_cells.get(pos_e, null)
+					if ce_data is Dictionary:
+						n_wh_e = float(ce_data.get("water_height", water_datum))
 						has_wf_e = (water_y - n_wh_e > 0.10)
-					if hydro.water_cells.has(pos_n):
-						n_wh_n = float(hydro.water_cells[pos_n].get("water_height", water_datum))
+
+					var cn_data = hydro.water_cells.get(pos_n, null)
+					if cn_data is Dictionary:
+						n_wh_n = float(cn_data.get("water_height", water_datum))
 						has_wf_n = (water_y - n_wh_n > 0.10)
-					if hydro.water_cells.has(pos_s):
-						n_wh_s = float(hydro.water_cells[pos_s].get("water_height", water_datum))
+
+					var cs_data = hydro.water_cells.get(pos_s, null)
+					if cs_data is Dictionary:
+						n_wh_s = float(cs_data.get("water_height", water_datum))
 						has_wf_s = (water_y - n_wh_s > 0.10)
 
 					# Vecino Oeste (-X)

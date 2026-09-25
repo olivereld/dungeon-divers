@@ -68,6 +68,12 @@ static func create_water_material(profile: WorldProfile, use_shader: bool = true
 		mat.set_shader_parameter("player_pos", Vector3(0.0, -100.0, 0.0))
 		mat.set_shader_parameter("player_speed", 0.0)
 		mat.set_shader_parameter("player_in_water", 0.0)
+
+		# Parámetros dedicados de cascadas
+		mat.set_shader_parameter("waterfall_speed", 3.0)
+		mat.set_shader_parameter("waterfall_scroll_speed", Vector2(0.0, -1.2))
+		mat.set_shader_parameter("waterfall_wave_strength", 0.035)
+		mat.set_shader_parameter("waterfall_alpha", 0.90)
 		return mat
 	else:
 		var mat := StandardMaterial3D.new()
