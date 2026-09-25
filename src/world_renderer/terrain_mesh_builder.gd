@@ -133,6 +133,23 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 			uvs.append(uv2)
 			uvs.append(uv3)
 
+			# Evaluar bordes de caída hacia vecinos más bajos para contraste de cresta/lip
+			var n_pos_w := origin + Vector2i(x - 1, y)
+			var n_cell_w: WorldCell = result.get_cell_or_seam(n_pos_w) if is_chunk and result.has_method("get_cell_or_seam") else result.get_cell(n_pos_w)
+			var drop_w: bool = n_cell_w != null and (cell.height - n_cell_w.height > 0.0001)
+
+			var n_pos_e := origin + Vector2i(x + 1, y)
+			var n_cell_e: WorldCell = result.get_cell_or_seam(n_pos_e) if is_chunk and result.has_method("get_cell_or_seam") else result.get_cell(n_pos_e)
+			var drop_e: bool = n_cell_e != null and (cell.height - n_cell_e.height > 0.0001)
+
+			var n_pos_n := origin + Vector2i(x, y - 1)
+			var n_cell_n: WorldCell = result.get_cell_or_seam(n_pos_n) if is_chunk and result.has_method("get_cell_or_seam") else result.get_cell(n_pos_n)
+			var drop_n: bool = n_cell_n != null and (cell.height - n_cell_n.height > 0.0001)
+
+			var n_pos_s := origin + Vector2i(x, y + 1)
+			var n_cell_s: WorldCell = result.get_cell_or_seam(n_pos_s) if is_chunk and result.has_method("get_cell_or_seam") else result.get_cell(n_pos_s)
+			var drop_s: bool = n_cell_s != null and (cell.height - n_cell_s.height > 0.0001)
+
 			var t_factor: float = tree_mask[y * cells_w + x]
 			var uv2_val := Vector2(t_factor, 0.0)
 			uv2s.append(uv2_val)
@@ -149,10 +166,25 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 				else:
 					col_top.a = 0.0
 
-			colors.append(col_top)
-			colors.append(col_top)
-			colors.append(col_top)
-			colors.append(col_top)
+			# Modular brillo según la autoridad del nivel de elevación (contraste inequívoco de pisos)
+			# Nivel 0: base sólida; cada nivel superior es claramente más iluminado (+20% por piso)
+			var lvl_mult: float = clampf(0.85 + float(cell.elevation_level) * 0.20, 0.60, 1.65)
+			var base_top_rgb := Vector3(col_top.r, col_top.g, col_top.b) * lvl_mult
+
+			# En los vértices que caen al precipicio (drop edge), oscurecer para crear la línea de cresta/lip
+			# p0: (x0, z0) -> Borde Oeste o Norte
+			# p1: (x1, z0) -> Borde Este o Norte
+			# p2: (x0, z1) -> Borde Oeste o Sur
+			# p3: (x1, z1) -> Borde Este o Sur
+			var c0_rgb: Vector3 = base_top_rgb * (0.65 if (drop_w or drop_n) else 1.0)
+			var c1_rgb: Vector3 = base_top_rgb * (0.65 if (drop_e or drop_n) else 1.0)
+			var c2_rgb: Vector3 = base_top_rgb * (0.65 if (drop_w or drop_s) else 1.0)
+			var c3_rgb: Vector3 = base_top_rgb * (0.65 if (drop_e or drop_s) else 1.0)
+
+			colors.append(Color(c0_rgb.x, c0_rgb.y, c0_rgb.z, col_top.a))
+			colors.append(Color(c1_rgb.x, c1_rgb.y, c1_rgb.z, col_top.a))
+			colors.append(Color(c2_rgb.x, c2_rgb.y, c2_rgb.z, col_top.a))
+			colors.append(Color(c3_rgb.x, c3_rgb.y, c3_rgb.z, col_top.a))
 
 			# Triangulación de la cara superior (normal hacia arriba Vector3.UP)
 			indices.append(top_idx + 0)
@@ -175,9 +207,7 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 			col_cliff.a = col_top.a
 
 			# Borde Oeste (-X)
-			var n_pos_w := origin + Vector2i(x - 1, y)
-			var n_cell_w: WorldCell = result.get_cell_or_seam(n_pos_w) if is_chunk and result.has_method("get_cell_or_seam") else result.get_cell(n_pos_w)
-			if n_cell_w != null and (cell.height - n_cell_w.height > 0.0001):
+			if drop_w:
 				var h_hi: float = cell.height
 				var h_lo: float = n_cell_w.height
 				if h_hi > h_lo:
@@ -216,9 +246,7 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 					indices.append(idx + 3)
 
 			# Borde Este (+X)
-			var n_pos_e := origin + Vector2i(x + 1, y)
-			var n_cell_e: WorldCell = result.get_cell_or_seam(n_pos_e) if is_chunk and result.has_method("get_cell_or_seam") else result.get_cell(n_pos_e)
-			if n_cell_e != null and (cell.height - n_cell_e.height > 0.0001):
+			if drop_e:
 				var h_hi: float = cell.height
 				var h_lo: float = n_cell_e.height
 				if h_hi > h_lo:
@@ -257,9 +285,7 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 					indices.append(idx + 3)
 
 			# Borde Norte (-Z)
-			var n_pos_n := origin + Vector2i(x, y - 1)
-			var n_cell_n: WorldCell = result.get_cell_or_seam(n_pos_n) if is_chunk and result.has_method("get_cell_or_seam") else result.get_cell(n_pos_n)
-			if n_cell_n != null and (cell.height - n_cell_n.height > 0.0001):
+			if drop_n:
 				var h_hi: float = cell.height
 				var h_lo: float = n_cell_n.height
 				if h_hi > h_lo:
@@ -298,9 +324,7 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 					indices.append(idx + 3)
 
 			# Borde Sur (+Z)
-			var n_pos_s := origin + Vector2i(x, y + 1)
-			var n_cell_s: WorldCell = result.get_cell_or_seam(n_pos_s) if is_chunk and result.has_method("get_cell_or_seam") else result.get_cell(n_pos_s)
-			if n_cell_s != null and (cell.height - n_cell_s.height > 0.0001):
+			if drop_s:
 				var h_hi: float = cell.height
 				var h_lo: float = n_cell_s.height
 				if h_hi > h_lo:

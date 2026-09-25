@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c8x1laq2m5r7a"]
+
+[ext_resource type="Script" path="res://src/rock_generation/scenes/rock_showcase.gd" id="1_showcase"]
+
+[node name="RockShowcase" type="Node3D"]
+script = ExtResource("1_showcase")

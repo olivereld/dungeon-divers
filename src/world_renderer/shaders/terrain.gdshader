@@ -56,6 +56,11 @@ uniform float overhang_depth : hint_range(0.05, 1.0) = 0.35;
 uniform float overhang_noise_scale : hint_range(0.5, 10.0) = 1.8;
 uniform float dirt_rim_width : hint_range(0.02, 0.5) = 0.12;
 
+// 6. Legibilidad Espacial de Niveles (Paso 1: Tinte por elevación / Paso 2: AO de base)
+uniform float elevation_tint_intensity : hint_range(0.0, 0.35) = 0.10;
+uniform float cliff_base_ao_distance : hint_range(0.1, 1.0) = 0.35;
+uniform float cliff_base_ao_strength : hint_range(0.0, 1.0) = 0.40;
+
 varying vec3 v_world_pos;
 varying vec3 v_normal;
 varying vec4 v_color;
@@ -143,6 +148,26 @@ void fragment() {
 	vec3 land_floor = mix(open_grass_color, under_tree_floor, v_tree_factor);
 	float land_floor_roughness = mix(roughness_grass, roughness_under_tree, v_tree_factor);
 
+	// Incorporar el color de vértice (que lleva la modulación altimétrica y la cresta/lip de borde)
+	// Normalizado respecto al valor base del resolver (~0.30)
+	vec3 vert_tint = clamp(v_color.rgb / max(vec3(0.28), vec3(0.05)), 0.40, 2.0);
+	land_floor *= vert_tint;
+
+	// =========================================================================
+	// PASO 1: MODULACIÓN TONAL POR ELEVACIÓN (Legibilidad de Terrazas)
+	// =========================================================================
+	// Identificar el índice de escalón/terraza según la altura de mundo
+	float elev_band = round((v_world_pos.y - base_height) / max(elevation_step_height, 0.5));
+	// Cada piso de elevación tiene una variación de brillo notable (25% por nivel)
+	// Pisos inferiores se mantienen más umbríos/frescos; pisos superiores más soleados y claros
+	float elev_mod = clamp(elev_band * 0.25 * (elevation_tint_intensity / 0.10), -0.40, 0.60);
+	vec3 floor_warm = vec3(1.08, 1.05, 0.92);
+	vec3 floor_cool = vec3(0.78, 0.85, 0.95);
+	vec3 terrace_tint = (elev_mod >= 0.0) 
+		? mix(vec3(1.0), floor_warm, min(elev_mod * 1.2, 1.0)) 
+		: mix(vec3(1.0), floor_cool, min(-elev_mod * 1.2, 1.0));
+	land_floor = land_floor * (1.0 + elev_mod) * terrace_tint;
+
 	// Acantilados muy pronunciados y paredes verticales revelan la roca de acantilado (cliff_02.jpg)
 	float cliff_factor = 1.0 - smoothstep(0.35, 0.75, v_normal.y);
 	vec3 cliff_blended = mix(cliff_color, land_albedo * cliff_color * 1.35, 0.20);
@@ -163,28 +188,38 @@ void fragment() {
 	// Profundidad dinámica del borde que cuelga (Overhang)
 	float dynamic_overhang = max(overhang_depth + edge_noise * (overhang_depth * 0.45), 0.05);
 
-	// Factor de hierba que se derrama hacia abajo por el acantilado (solo en caras verticales)
-	float overhang_mask = 1.0 - smoothstep(dynamic_overhang * 0.65, dynamic_overhang, dist_from_top);
+	// Factor de hierba que se derrama hacia abajo por el acantilado (ESTRICTAMENTE en caras verticales)
+	float is_cliff_face = step(0.5, cliff_factor);
+	float overhang_mask = (1.0 - smoothstep(dynamic_overhang * 0.65, dynamic_overhang, dist_from_top)) * is_cliff_face;
 
 	// Franja de tierra de contacto (Dirt Rim) justo en el límite inferior del fleco de hierba
 	float dirt_rim_start = dynamic_overhang;
 	float dirt_rim_end = dynamic_overhang + dirt_rim_width;
 	float dirt_rim_mask = smoothstep(dynamic_overhang * 0.70, dirt_rim_start, dist_from_top)
-	                    * (1.0 - smoothstep(dirt_rim_start, dirt_rim_end, dist_from_top));
+	                    * (1.0 - smoothstep(dirt_rim_start, dirt_rim_end, dist_from_top))
+	                    * is_cliff_face;
 
 	// Color de la pared del acantilado con el fleco de hierba y la franja de tierra integrados
 	vec3 cliff_surface = cliff_blended;
 	// Aplicar franja de tierra oscura / oclusión en el borde de contacto
 	vec3 dirt_contact_color = mix(forest_dirt_color * 0.75, sand_color * 0.85, 0.40);
 	cliff_surface = mix(cliff_surface, dirt_contact_color, dirt_rim_mask * 0.85);
+
+	// =========================================================================
+	// PASO 2: CONTACT AO EN LA BASE DEL ACANTILADO
+	// Sombra de contacto donde el muro vertical se une al suelo inferior
+	// =========================================================================
+	// Calculamos la distancia vertical con respecto a los escalones de altura
+	float height_above_base = mod(max(v_world_pos.y - base_height, 0.0) + 0.001, elevation_step_height);
+	float base_ao_factor = (1.0 - smoothstep(0.0, cliff_base_ao_distance, height_above_base)) * is_cliff_face;
+	cliff_surface = mix(cliff_surface, cliff_surface * (1.0 - cliff_base_ao_strength), base_ao_factor);
+
 	// Aplicar la hierba que cuelga encima
 	cliff_surface = mix(cliff_surface, land_floor, overhang_mask);
 
 	vec3 land_surface = mix(land_floor, cliff_surface, cliff_factor);
 	float land_roughness = mix(land_floor_roughness, roughness_cliff, cliff_factor);
-	if (cliff_factor > 0.5) {
-		land_roughness = mix(land_roughness, roughness_grass, overhang_mask);
-	}
+	land_roughness = mix(land_roughness, roughness_grass, overhang_mask);
 
 	// 4. Factores de mezcla basados en el campo de distancia métrico (SDF en v_color.a)
 	// v_color.a codifica el SDF normalizado de ShorelineResolver:

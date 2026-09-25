@@ -148,6 +148,9 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 		mat.set_shader_parameter("overhang_depth", 0.35)
 		mat.set_shader_parameter("overhang_noise_scale", 1.8)
 		mat.set_shader_parameter("dirt_rim_width", 0.12)
+		mat.set_shader_parameter("elevation_tint_intensity", 0.20)
+		mat.set_shader_parameter("cliff_base_ao_distance", 0.35)
+		mat.set_shader_parameter("cliff_base_ao_strength", 0.40)
 		return mat
 
 	# Fallback a StandardMaterial3D
