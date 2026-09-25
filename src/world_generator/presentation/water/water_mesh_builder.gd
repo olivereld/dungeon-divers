@@ -20,7 +20,6 @@ extends RefCounted
 
 const _WaterSurfaceDataScript = preload("res://src/world_generator/presentation/water/water_surface_data.gd")
 const _WaterTopologyScript    = preload("res://src/world_generator/presentation/water/water_topology.gd")
-const _ShorelineResolverScript = preload("res://src/world_generator/presentation/water/shoreline_resolver.gd")
 
 ## API canonica: construye el ArrayMesh global del agua
 static func build_mesh(result: WorldResult, profile = null) -> ArrayMesh:
