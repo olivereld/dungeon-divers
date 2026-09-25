@@ -128,50 +128,50 @@ void fragment() {
 		vec2 scrolled_uv = UV + waterfall_scroll_speed * TIME;
 		float scrolled_tex = texture(water_texture, scrolled_uv).r;
 		float scrolled_noise = texture(noise_texture, scrolled_uv * 0.5).r;
-		float uv_scroll_foam = step(0.5, scrolled_tex * scrolled_noise);
+		// Modulación suave de perturbación de flujo (ribbons dinámicos)
+		float uv_scroll_foam = smoothstep(0.55, 0.85, scrolled_tex * scrolled_noise) * 0.25;
 
-		// Franjas de espuma estilizada (tendrils de espuma blanca sobre agua turquesa)
-		float flow_ribbons = (n_wf1 * 0.52 + n_wf2 * 0.33 + n_wf3 * 0.15);
-		float stream_foam  = smoothstep(0.48, 0.66, flow_ribbons) * 0.65;
-		float sharp_froth  = smoothstep(0.58, 0.80, (n_wf2 + n_wf3 * 0.7) / 1.7) * 0.50;
-		float body_foam    = clamp(stream_foam + sharp_froth + uv_scroll_foam * 0.35, 0.0, 0.90);
+		// Franjas de espuma estilizada finas (tendrils verticales translúcidos sobre agua turquesa)
+		float flow_ribbons = (n_wf1 * 0.55 + n_wf2 * 0.30 + n_wf3 * 0.15);
+		float stream_foam  = smoothstep(0.60, 0.82, flow_ribbons) * 0.45;
+		float sharp_froth  = smoothstep(0.70, 0.92, (n_wf2 + n_wf3 * 0.7) / 1.7) * 0.35;
+		float body_foam    = clamp(stream_foam + sharp_froth + uv_scroll_foam, 0.0, 0.55);
 
-		// Espuma en la cresta donde el agua quiebra el desnivel superior
-		float crest_curve   = 1.0 - smoothstep(0.0, 0.24, UV.y);
-		float crest_sparkle = smoothstep(0.32, 0.65, n_wf1 * 0.7 + n_wf3 * 0.5);
-		float crest_foam    = crest_curve * (0.60 + 0.30 * crest_sparkle);
+		// Espuma en la cresta donde el agua quiebra el desnivel superior (delicada, no bloque sólido)
+		float crest_curve   = 1.0 - smoothstep(0.0, 0.18, UV.y);
+		float crest_sparkle = smoothstep(0.40, 0.75, n_wf1 * 0.7 + n_wf3 * 0.5);
+		float crest_foam    = crest_curve * (0.35 + 0.25 * crest_sparkle);
 
-		// Espuma densa y salpicadura efervescente en la base del impacto
-		float impact_curve  = smoothstep(0.68, 1.0, UV.y);
-		float impact_boil   = smoothstep(0.25, 0.70, n_wf2 * 0.6 + n_wf1 * 0.4);
-		float impact_foam   = impact_curve * (0.70 + 0.25 * impact_boil);
+		// Espuma en la base del impacto
+		float impact_curve  = smoothstep(0.78, 1.0, UV.y);
+		float impact_boil   = smoothstep(0.35, 0.80, n_wf2 * 0.6 + n_wf1 * 0.4);
+		float impact_foam   = impact_curve * (0.45 + 0.25 * impact_boil);
 
-		float wf_total_foam = clamp(body_foam * 0.60 + crest_foam * 0.80 + impact_foam * 0.85, 0.0, 1.0);
+		// Espuma total controlada: máximo 50% de mezcla blanca, permitiendo que el 50%+ siempre sea agua azul
+		float wf_total_foam = clamp(body_foam * 0.60 + crest_foam * 0.50 + impact_foam * 0.55, 0.0, 0.55);
 
-		// Gradiente de color vertical: cian traslúcido arriba a azul cristalino en la caída
-		vec3 wf_water_col = mix(color_shallow.rgb, color_mid.rgb, smoothstep(0.05, 0.85, UV.y) * 0.45);
-		wf_water_col = mix(wf_water_col, wf_water_col * wt_tex * 1.5, water_texture_blend * 0.80);
+		// Gradiente de color vertical: cian vibrante arriba a azul intenso en la caída
+		vec3 wf_water_col = mix(color_shallow.rgb * 0.90, color_mid.rgb * 0.85, smoothstep(0.05, 0.85, UV.y));
+		wf_water_col = mix(wf_water_col, wf_water_col * wt_tex * 1.2, water_texture_blend * 0.50);
 
-		vec3 pure_froth   = vec3(0.92, 0.96, 0.98);
-		vec3 wf_final_col = mix(wf_water_col, pure_froth, wf_total_foam * 0.75);
+		// Espuma celeste suave (nunca blanco puro reflectante)
+		vec3 pure_froth   = vec3(0.80, 0.90, 0.96);
+		vec3 wf_final_col = mix(wf_water_col, pure_froth, wf_total_foam);
 
 		// Cobertura completa sin huecos ni roturas en los bordes
-		float final_alpha = mix(0.70, 0.95, wf_total_foam);
+		float final_alpha = mix(0.70, 0.92, wf_total_foam);
 
 		// Perturbación de normal orientada al flujo
-		float norm_perturb = (n_wf1 - 0.5) * 0.18 + (n_wf2 - 0.5) * 0.12;
+		float norm_perturb = (n_wf1 - 0.5) * 0.15 + (n_wf2 - 0.5) * 0.10;
 		vec3 wf_perturbed_n = normalize(v_water_normal + vec3(0.0, norm_perturb, 0.0));
-
-		// Auto-luminiscencia suave anime: mantiene la cascada brillante, fresca y legible en sombras sin quemarse al sol
-		vec3 wf_emission = wf_water_col * 0.08 + pure_froth * (wf_total_foam * 0.12);
 
 		ALBEDO    = wf_final_col;
 		ALPHA     = final_alpha;
 		NORMAL    = wf_perturbed_n;
-		ROUGHNESS = mix(0.15, 0.40, wf_total_foam); // Acabado húmedo y brillante
-		METALLIC  = metallic;
-		SPECULAR  = 0.40;
-		EMISSION  = wf_emission;
+		ROUGHNESS = 0.35;
+		METALLIC  = 0.0;
+		SPECULAR  = 0.08;
+		EMISSION  = vec3(0.0);
 	} else {
 
 	// =========================================================================
@@ -346,13 +346,26 @@ void fragment() {
 }
 
 // =============================================================================
-// light — Difusa Half-Lambert + Especular estilizado
+// light — Difusa Half-Lambert + Especular estilizado suave
 // =============================================================================
 void light() {
+	bool is_wf = abs(v_water_normal.y) < 0.5;
 	float NdotL = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
-	DIFFUSE_LIGHT += LIGHT_COLOR * ALBEDO * (NdotL * 0.70 + 0.30) * ATTENUATION;
 
-	vec3  H     = normalize(LIGHT + VIEW);
-	float NdotH = max(dot(NORMAL, H), 0.0);
-	SPECULAR_LIGHT += LIGHT_COLOR * ATTENUATION * pow(NdotH, 36.0) * 0.35;
+	if (is_wf) {
+		// Cascada: luz difusa suave con atenuación y sin quemar el color base del agua
+		DIFFUSE_LIGHT += LIGHT_COLOR * ALBEDO * (NdotL * 0.40 + 0.60) * ATTENUATION;
+
+		vec3 H = normalize(LIGHT + VIEW);
+		float NdotH = max(dot(NORMAL, H), 0.0);
+		// Especular mínimo que no borra los tonos azules
+		SPECULAR_LIGHT += LIGHT_COLOR * ATTENUATION * pow(NdotH, 32.0) * (SPECULAR_AMOUNT * 0.20);
+	} else {
+		DIFFUSE_LIGHT += LIGHT_COLOR * ALBEDO * (NdotL * 0.70 + 0.30) * ATTENUATION;
+
+		vec3 H = normalize(LIGHT + VIEW);
+		float NdotH = max(dot(NORMAL, H), 0.0);
+		float spec_power = mix(64.0, 16.0, ROUGHNESS);
+		SPECULAR_LIGHT += LIGHT_COLOR * ATTENUATION * pow(NdotH, spec_power) * SPECULAR_AMOUNT;
+	}
 }

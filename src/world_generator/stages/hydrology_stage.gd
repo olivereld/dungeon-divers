@@ -183,6 +183,13 @@ func _apply_local_impl(context: WorldGenerationContext, hydro: HydrologyResult) 
 	# Las transiciones transitables (rampas/escaleras/puentes) se delegan fuera de Hydrology.
 	var t3 := Time.get_ticks_usec() if is_profiling else 0
 
+	# BLOQUE 1: Blindaje del contrato del fondo marino (Seabed Contract)
+	# Para toda celda de agua dentro de los bounds locales/generados:
+	# 1. cell.height == bed_height
+	# 2. bed_height <= water_height
+	# 3. depth == water_height - bed_height
+	_validate_water_bed_contract(cells, hydro)
+
 	if is_profiling:
 		var total_ms := float(t3 - t_start) / 1000.0
 		var river_raw_ms := float((t1 - t0) - slope_river_us) / 1000.0
@@ -198,6 +205,28 @@ func _apply_local_impl(context: WorldGenerationContext, hydro: HydrologyResult) 
 		context.telemetry["hydro_slope_ms"] = slope_ms
 		context.telemetry["hydro_other_ms"] = other_ms
 		context.telemetry["hydro_total_ms"] = total_ms
+
+
+func _validate_water_bed_contract(cells: Dictionary, hydro: HydrologyResult) -> void:
+	if hydro == null or hydro.water_cells.is_empty():
+		return
+	for pos in hydro.water_cells:
+		var cell: WorldCell = cells.get(pos)
+		if cell == null:
+			continue
+		var data: Dictionary = hydro.water_cells[pos]
+		var w_h: float = float(data.get("water_height", cell.height))
+		var b_h: float = float(data.get("bed_height", cell.height))
+
+		# Sincronización explícita
+		if not is_equal_approx(cell.height, b_h):
+			cell.height = b_h
+
+		assert(is_equal_approx(cell.height, b_h),
+			"Violación Contrato Marino: cell.height (%.4f) != bed_height (%.4f) en %s" % [cell.height, b_h, str(pos)])
+		assert(b_h <= w_h + 0.001,
+			"Violación Contrato Marino: bed_height (%.4f) > water_height (%.4f) en %s" % [b_h, w_h, str(pos)])
+
 
 
 func _solve_global_impl(context: WorldGenerationContext) -> HydrologyResult:

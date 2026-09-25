@@ -245,6 +245,10 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 					var n_wh_n: float = water_y
 					var n_wh_s: float = water_y
 
+					# Cascadas (Waterfall Quads): se emite en cualquier cara cardinal donde el vecino
+					# de agua tenga una cota estrictamente inferior (desnivel > 0.10m).
+					# Esto garantiza que todos los bordes del escalón hidráulico estén sellados
+					# sin huecos frontales ni laterales.
 					var cw_data = hydro.water_cells.get(pos_w, null)
 					if cw_data is Dictionary:
 						n_wh_w = float(cw_data.get("water_height", water_datum))
