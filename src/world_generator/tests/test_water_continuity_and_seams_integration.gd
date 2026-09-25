@@ -15,6 +15,7 @@ extends SceneTree
 const _ChunkConfigScript = preload("res://src/world_generator/chunks/chunk_config.gd")
 const _ChunkDataScript = preload("res://src/world_generator/chunks/chunk_data.gd")
 const _TaigaWorldProfileScript = preload("res://src/world_generator/profiles/taiga_world_profile.gd")
+const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
 
 func _init() -> void:
 	print("==================================================")
@@ -180,3 +181,24 @@ func _test_continuity_and_chunk_seams(seed_val: int) -> void:
 		assert(diff_v < 15.0, "Salto abrupto/grieta en frontera vertical entre %s y %s: %.4f" % [str(pos_a), str(pos_b), diff_v])
 
 	print("    -> Costuras validadas con éxito (Agua en costura: H=%d, V=%d)" % [seam_water_h, seam_water_v])
+
+	# -------------------------------------------------------------------------
+	# PARTE 3: Verificación Canónica del Pipeline de Agua Unificado
+	# -------------------------------------------------------------------------
+	print("  [3/3] Verificando generación canónica WaterRenderer -> WaterMeshBuilder...")
+	var chunk_has_water := false
+	if c00.hydrology != null:
+		var c_rect := Rect2i(c00.core_bounds.position - Vector2i(2, 2), c00.core_bounds.size + Vector2i(5, 5))
+		for p in c00.hydrology.water_cells:
+			if c_rect.has_point(p):
+				chunk_has_water = true
+				break
+
+	var water_chunk_node: Node3D = _WaterRendererScript.build_water_node(c00, profile)
+	if chunk_has_water:
+		assert(water_chunk_node != null, "WaterRenderer debe producir un nodo para el chunk con agua")
+		var mi: MeshInstance3D = water_chunk_node.get_node_or_null("UnifiedWaterSurface") as MeshInstance3D
+		assert(mi != null and mi.mesh != null, "Chunk debe tener UnifiedWaterSurface MeshInstance3D")
+	else:
+		assert(water_chunk_node == null, "WaterRenderer debe retornar null para chunks secos sin agua cercana")
+	print("    -> Pipeline canónico de presentación verificado sin builders alternativos.")

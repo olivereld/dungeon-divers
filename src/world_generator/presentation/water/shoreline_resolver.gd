@@ -84,7 +84,10 @@ static func compute(
 
 			var signed_dist: float = sqrt(min_dist_sq) * sign_val
 			signed_dist += shoreline_offset
-			sdf[y * w + x] = clampf(0.5 + signed_dist / (2.0 * MAX_QUERY_DIST), 0.0, 1.0)
+			var sdf_value := clampf(0.5 + signed_dist / (2.0 * MAX_QUERY_DIST), 0.0, 1.0)
+			if water_cells.has(pos2i):
+				sdf_value = maxf(sdf_value, 0.56)
+			sdf[y * w + x] = sdf_value
 
 	# Segunda protección: celdas interiores de agua (con sus 4 vecinos cardinales
 	# también siendo agua) deben quedar siempre estrictamente en el interior del SDF (1.0).

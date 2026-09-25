@@ -212,4 +212,10 @@ func get_hydrology_noise_frequency() -> float:
 @export_range(0.05, 2.0, 0.05) var forest_dirt_uv_scale: float = 0.35
 @export_range(0.05, 2.0, 0.05) var cliff_uv_scale: float = 0.25
 
+# Hydrology - Cascadas / Waterfalls (Parámetros por Bioma / Perfil)
+@export_group("Hydrology - Waterfalls")
+@export_range(0.05, 2.0, 0.05) var waterfall_height_threshold: float = 0.10
+@export_range(0.0, 0.20, 0.01) var waterfall_base_penetration: float = 0.05
+@export_range(0.0, 0.20, 0.01) var waterfall_lip_offset: float = 0.04
+
 

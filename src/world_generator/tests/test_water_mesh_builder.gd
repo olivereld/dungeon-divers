@@ -62,11 +62,10 @@ func _init() -> void:
 	print("  [PASS] Invariante 2: Triangulacion 1:1 (%d triangulos globales de agua == terreno)" % actual_triangles)
 
 	# Invariante 3: Alineación X/Z idéntica con el terreno
-	var terrain_faces := terrain_mesh.get_faces()
 	var water_mesh: ArrayMesh = water_surf.to_array_mesh()
 	assert(water_mesh != null)
 	var water_faces := water_mesh.get_faces()
-	assert(terrain_faces.size() == water_faces.size(), "El conteo de caras de agua debe coincidir con el terreno")
+	assert(actual_triangles * 3 == water_faces.size(), "El conteo de caras de agua debe coincidir con los triangulos generados")
 
 	for i in range(water_surf.vertices.size()):
 		var wv := water_surf.vertices[i]

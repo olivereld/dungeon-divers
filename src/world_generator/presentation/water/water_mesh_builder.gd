@@ -196,20 +196,10 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 								break
 						corner_sdf = 0.65 if has_dry else 1.0
 					else:
-						var min_c_d_sq: float = 999.0
-						for dy in range(-3, 4):
-							for dx in range(-3, 4):
-								var np := c_pos + Vector2i(dx, dy)
-								if hydro.water_cells.has(np):
-									var d_sq := float(dx * dx + dy * dy)
-									if d_sq < min_c_d_sq:
-										min_c_d_sq = d_sq
-						if min_c_d_sq < 900.0:
-							var dist := sqrt(min_c_d_sq)
-							var signed_dist := -(dist - 0.5)
-							corner_sdf = clampf(0.5 + signed_dist / 6.0, 0.0, 0.49)
-						else:
-							corner_sdf = 0.0
+						# Esta esquina pertenece a un vertice adyacente seco en la frontera
+						# de un quad de agua. Fijar en 0.60 para que la orilla permanezca
+						# visible y continua sobre el cauce sin ser descartada por el shader.
+						corner_sdf = 0.60
 
 					var col: Color = col_shallow.lerp(col_deep, clampf(depth / 3.0, 0.0, 1.0))
 					col.a = corner_sdf
@@ -226,8 +216,9 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 				# vertical desplazado hacia la celda inferior y con penetración basal.
 				# -------------------------------------------------------------
 				if is_water:
-					var base_pen: float = 0.05 * cell_size
-					var wf_off: float = 0.04 * cell_size
+					var wf_thresh: float = float(profile.waterfall_height_threshold) if profile != null and "waterfall_height_threshold" in profile else 0.10
+					var base_pen: float = (float(profile.waterfall_base_penetration) if profile != null and "waterfall_base_penetration" in profile else 0.05) * cell_size
+					var wf_off: float = (float(profile.waterfall_lip_offset) if profile != null and "waterfall_lip_offset" in profile else 0.04) * cell_size
 					var wf_col := col_shallow
 					wf_col.a = 1.0
 
@@ -252,22 +243,22 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 					var cw_data = hydro.water_cells.get(pos_w, null)
 					if cw_data is Dictionary:
 						n_wh_w = float(cw_data.get("water_height", water_datum))
-						has_wf_w = (water_y - n_wh_w > 0.10)
+						has_wf_w = (water_y - n_wh_w > wf_thresh)
 
 					var ce_data = hydro.water_cells.get(pos_e, null)
 					if ce_data is Dictionary:
 						n_wh_e = float(ce_data.get("water_height", water_datum))
-						has_wf_e = (water_y - n_wh_e > 0.10)
+						has_wf_e = (water_y - n_wh_e > wf_thresh)
 
 					var cn_data = hydro.water_cells.get(pos_n, null)
 					if cn_data is Dictionary:
 						n_wh_n = float(cn_data.get("water_height", water_datum))
-						has_wf_n = (water_y - n_wh_n > 0.10)
+						has_wf_n = (water_y - n_wh_n > wf_thresh)
 
 					var cs_data = hydro.water_cells.get(pos_s, null)
 					if cs_data is Dictionary:
 						n_wh_s = float(cs_data.get("water_height", water_datum))
-						has_wf_s = (water_y - n_wh_s > 0.10)
+						has_wf_s = (water_y - n_wh_s > wf_thresh)
 
 					# Vecino Oeste (-X)
 					if has_wf_w:
