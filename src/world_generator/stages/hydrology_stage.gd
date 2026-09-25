@@ -222,9 +222,9 @@ func _validate_water_bed_contract(cells: Dictionary, hydro: HydrologyResult) -> 
 		var b_h: float = float(data.get("bed_height", cell.height))
 		var depth: float = float(data.get("depth", w_h - b_h))
 
-		# Sincronización explícita del contrato
-		if not is_equal_approx(cell.height, b_h):
-			cell.height = b_h
+		# Sincronización y forzado definitivo del contrato:
+		# Toda celda perteneciente a water_cells tiene incondicionalmente fondo submarino cell.height = b_h
+		cell.height = b_h
 
 		assert(is_finite(cell.raw_height),
 			"Violación Contrato Marino: cell.raw_height en %s no es finito" % str(pos))
@@ -741,28 +741,25 @@ func _generate_lakes(
 		var lake_id: int = next_lake_id
 		next_lake_id += 1
 
-		for pos in cluster:
-			var cell: WorldCell = cells[pos]
-			var c_h: float = cell.raw_height if cell.raw_height != 0.0 else cell.height
-			var raw_depth: float = maxf(0.0, spillway_height - c_h)
-			var min_lake_depth: float = 0.50
-			var effective_depth: float = maxf(raw_depth, min_lake_depth)
-			var bed_h: float = spillway_height - effective_depth
+		var step_h: float = profile.elevation_step_height if (profile != null and profile.elevation_step_height > 0.0) else 2.0
+		var uniform_lake_depth: float = step_h * 0.5
+		var lake_bed_h: float = spillway_height - uniform_lake_depth
 
+		for pos in cluster:
 			hydro.water_cells[pos] = {
 				"type": "lake",
 				"shoreline_height": spillway_height + 0.05,
 				"water_height": spillway_height,
-				"bed_height": bed_h,
-				"depth": effective_depth,
-				"initial_depth": effective_depth,
+				"bed_height": lake_bed_h,
+				"depth": uniform_lake_depth,
+				"initial_depth": uniform_lake_depth,
 				"lake_id": lake_id,
 				"flow_dir": Vector2.ZERO
 			}
 
 			debug_drainage[pos] = maxf(
 				float(debug_drainage.get(pos, 0.0)),
-				10.0 + effective_depth * 5.0
+				10.0 + uniform_lake_depth * 5.0
 			)
 
 		hydro.lakes.append({
