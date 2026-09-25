@@ -86,6 +86,23 @@ static func compute(
 			signed_dist += shoreline_offset
 			sdf[y * w + x] = clampf(0.5 + signed_dist / (2.0 * MAX_QUERY_DIST), 0.0, 1.0)
 
+	# Segunda protección: celdas interiores de agua (con sus 4 vecinos cardinales
+	# también siendo agua) deben quedar siempre estrictamente en el interior del SDF (1.0).
+	# Esto impide que perturbaciones o aproximaciones numéricas del contorno
+	# conviertan celdas sumergidas interiores en falsos agujeros visuales.
+	for y in range(h):
+		for x in range(w):
+			var pos2i := Vector2i(x, y)
+			if not water_cells.has(pos2i):
+				continue
+			var is_interior := true
+			for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if not water_cells.has(pos2i + off):
+					is_interior = false
+					break
+			if is_interior:
+				sdf[y * w + x] = maxf(sdf[y * w + x], 1.0)
+
 	return sdf
 
 ## Compatibilidad: expone los segmentos suavizados
@@ -248,6 +265,12 @@ static func _compute_sign(
 		water_cells: Dictionary
 	) -> float:
 
+	# water_cells es la autoridad hidráulica absoluta.
+	# Una celda marcada como agua nunca puede ser descartada
+	# por una interpretación geométrica del SDF.
+	if water_cells.has(pos2i):
+		return 1.0
+
 	if not closed_polylines.is_empty():
 		var total_wn: int = 0
 		for poly in closed_polylines:
@@ -263,11 +286,6 @@ static func _compute_sign(
 	var cross: float = d.x * (point.y - nearest_seg[0].y) - d.y * (point.x - nearest_seg[0].x)
 	var seg_len: float = d.length()
 	var normalized_cross: float = cross / maxf(seg_len, 0.0001)
-
-	# La celda de grilla es la autoridad final: si water_cells dice que es agua,
-	# nunca debe salir signo negativo (nunca debe descartarse en el shader).
-	if water_cells.has(pos2i):
-		return 1.0
 
 	if absf(normalized_cross) > 0.05:
 		return 1.0 if cross > 0.0 else -1.0
