@@ -186,6 +186,10 @@ func _apply_local_impl(context: WorldGenerationContext, hydro: HydrologyResult) 
 	# Las transiciones transitables (rampas/escaleras/puentes) se delegan fuera de Hydrology.
 	var t3 := Time.get_ticks_usec() if is_profiling else 0
 
+	# FASE FINAL: Normalización de fondo por cuerpo de agua conexo y validación de continuidad
+	_normalize_underwater_floors(cells, hydro, profile)
+	_validate_underwater_continuity(cells, hydro)
+
 	# BLOQUE 1: Blindaje del contrato del fondo marino (Seabed Contract)
 	# Para toda celda de agua dentro de los bounds locales/generados:
 	# 1. cell.height == bed_height
@@ -208,6 +212,101 @@ func _apply_local_impl(context: WorldGenerationContext, hydro: HydrologyResult) 
 		context.telemetry["hydro_slope_ms"] = slope_ms
 		context.telemetry["hydro_other_ms"] = other_ms
 		context.telemetry["hydro_total_ms"] = total_ms
+
+
+## Fase final de normalización del fondo submarino por cuerpo de agua conexo.
+## Recorre todas las water_cells, agrupa componentes conexas con la misma cota de agua,
+## y asigna una única cota de fondo plana y uniforme a todas sus celdas.
+func _normalize_underwater_floors(cells: Dictionary, hydro: HydrologyResult, profile: WorldProfile) -> void:
+	if hydro == null or hydro.water_cells.is_empty():
+		return
+
+	var step_h: float = profile.elevation_step_height if (profile != null and profile.elevation_step_height > 0.0) else 2.0
+	var visited: Dictionary = {}
+	var cardinal_dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+
+	for pos in hydro.water_cells:
+		if visited.has(pos):
+			continue
+
+		var start_data: Dictionary = hydro.water_cells[pos]
+		var target_wh: float = float(start_data.get("water_height", 0.0))
+
+		# BFS para agrupar todas las celdas de agua contiguas del mismo cuerpo / cota de agua
+		var component: Array[Vector2i] = []
+		var queue: Array[Vector2i] = [pos]
+		visited[pos] = true
+
+		var min_bed: float = INF
+		while not queue.is_empty():
+			var curr: Vector2i = queue.pop_front()
+			component.append(curr)
+			var c_data: Dictionary = hydro.water_cells[curr]
+			var c_bed: float = float(c_data.get("bed_height", target_wh - step_h * 0.5))
+			if c_bed < min_bed:
+				min_bed = c_bed
+
+			for dir in cardinal_dirs:
+				var neighbor: Vector2i = curr + dir
+				if not hydro.water_cells.has(neighbor):
+					continue
+				if visited.has(neighbor):
+					continue
+				var n_data: Dictionary = hydro.water_cells[neighbor]
+				var n_wh: float = float(n_data.get("water_height", 0.0))
+				# Si comparten la misma cota hidráulica, pertenecen a la misma masa/terraza de agua
+				if absf(n_wh - target_wh) < 0.05:
+					visited[neighbor] = true
+					queue.append(neighbor)
+
+		# Cota uniforme del lecho submarino para todo el cuerpo conexo
+		var stable_bed_h: float
+		if is_inf(min_bed):
+			stable_bed_h = target_wh - step_h * 0.5
+		else:
+			stable_bed_h = min_bed
+
+		# Asignar la misma cota a todas las celdas del cuerpo conexo
+		for c_pos in component:
+			var c_dict: Dictionary = hydro.water_cells[c_pos]
+			c_dict["bed_height"] = stable_bed_h
+			c_dict["depth"] = target_wh - stable_bed_h
+			var cell: WorldCell = cells.get(c_pos)
+			if cell != null:
+				cell.height = stable_bed_h
+
+
+## Validación de continuidad del fondo entre celdas de agua vecinas que comparten cota de agua
+func _validate_underwater_continuity(cells: Dictionary, hydro: HydrologyResult) -> void:
+	if hydro == null or hydro.water_cells.is_empty():
+		return
+
+	var cardinal_dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	for pos in hydro.water_cells:
+		var cell_a: WorldCell = cells.get(pos)
+		if cell_a == null:
+			continue
+		var data_a: Dictionary = hydro.water_cells[pos]
+		var wh_a: float = float(data_a.get("water_height", 0.0))
+
+		for dir in cardinal_dirs:
+			var neighbor: Vector2i = pos + dir
+			if not hydro.water_cells.has(neighbor):
+				continue
+			var cell_b: WorldCell = cells.get(neighbor)
+			if cell_b == null:
+				continue
+			var data_b: Dictionary = hydro.water_cells[neighbor]
+			var wh_b: float = float(data_b.get("water_height", 0.0))
+
+			# Dentro de la misma cota hidráulica (mismo lago/fosa), el fondo DEBE ser continuo
+			if absf(wh_a - wh_b) < 0.05:
+				var diff: float = absf(cell_a.height - cell_b.height)
+				if diff > 0.01:
+					push_warning(
+						"Discontinuidad submarina detectada: %s (h=%.3f) -> %s (h=%.3f) [diff=%.3f]"
+						% [str(pos), cell_a.height, str(neighbor), cell_b.height, diff]
+					)
 
 
 func _validate_water_bed_contract(cells: Dictionary, hydro: HydrologyResult) -> void:

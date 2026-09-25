@@ -139,8 +139,15 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 		mat.set_shader_parameter("sand_tint", s_tint)
 		mat.set_shader_parameter("grass_tint", g_tint)
 		mat.set_shader_parameter("forest_grass_tint", fg_tint)
-		mat.set_shader_parameter("forest_dirt_tint", fd_tint)
 		mat.set_shader_parameter("cliff_tint", c_tint)
+
+		var step_h: float = float(profile.elevation_step_height) if (profile != null and "elevation_step_height" in profile) else 2.0
+		var base_h: float = float(profile.base_height) if (profile != null and "base_height" in profile) else 2.0
+		mat.set_shader_parameter("elevation_step_height", step_h)
+		mat.set_shader_parameter("base_height", base_h)
+		mat.set_shader_parameter("overhang_depth", 0.35)
+		mat.set_shader_parameter("overhang_noise_scale", 1.8)
+		mat.set_shader_parameter("dirt_rim_width", 0.12)
 		return mat
 
 	# Fallback a StandardMaterial3D

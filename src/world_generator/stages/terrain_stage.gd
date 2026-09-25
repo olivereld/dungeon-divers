@@ -86,7 +86,44 @@ func execute(context: WorldGenerationContext) -> void:
 				cell.elevation_level = level
 				cell.height = final_h
 
-	# 2. Normalization & Slope computation (Stepped Terrain Contract)
+	# 2. Filtro Morfológico Universal: Eliminación de pozos y muescas aisladas 1x1
+	# Si una celda tiene al menos 3 vecinos cardinales en una terraza superior (nivel mayor),
+	# absorbe el nivel de sus vecinos para evitar agujeros y chimeneas ciegas por cuantización.
+	var cardinal_offsets := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var cells_dict: Dictionary = context.result.cells
+
+	for _pass in range(2):
+		var adjustments: Dictionary = {}
+		for pos in cells_dict:
+			var cell: WorldCell = cells_dict[pos]
+			if cell == null:
+				continue
+
+			var higher_neighbors: Array[int] = []
+			for off in cardinal_offsets:
+				var n_pos: Vector2i = pos + off
+				var n_cell: WorldCell = cells_dict.get(n_pos, null)
+				if n_cell != null and n_cell.elevation_level > cell.elevation_level:
+					higher_neighbors.append(n_cell.elevation_level)
+
+			# Si 3 o 4 vecinos cardinales están más altos, la celda es un pozo o muesca 1x1
+			if higher_neighbors.size() >= 3:
+				var target_lvl: int = higher_neighbors[0]
+				for h_lvl in higher_neighbors:
+					if h_lvl < target_lvl:
+						target_lvl = h_lvl
+				adjustments[pos] = target_lvl
+
+		if adjustments.is_empty():
+			break
+
+		for pos in adjustments:
+			var cell: WorldCell = cells_dict[pos]
+			var new_lvl: int = adjustments[pos]
+			cell.elevation_level = new_lvl
+			cell.height = profile.base_height + float(new_lvl) * profile.elevation_step_height
+
+	# 3. Normalization & Slope computation (Stepped Terrain Contract)
 	var min_lvl: int = profile.elevation_min_level
 	var max_lvl: int = profile.elevation_max_level if profile.elevation_max_level > min_lvl else max(profile.elevation_level_count - 1, 1)
 	var lvl_span: float = float(max(max_lvl - min_lvl, 1))

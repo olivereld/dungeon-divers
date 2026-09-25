@@ -197,10 +197,10 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 					uvs.append(uv2)
 					uvs.append(uv0)
 
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
+					uv2s.append(Vector2(0.0, 0.0))
+					uv2s.append(Vector2(0.0, 0.0))
+					uv2s.append(Vector2(0.0, h_hi - h_lo))
+					uv2s.append(Vector2(0.0, h_hi - h_lo))
 
 					colors.append(col_cliff)
 					colors.append(col_cliff)
@@ -238,10 +238,10 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 					uvs.append(uv1)
 					uvs.append(uv3)
 
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
+					uv2s.append(Vector2(0.0, 0.0))
+					uv2s.append(Vector2(0.0, 0.0))
+					uv2s.append(Vector2(0.0, h_hi - h_lo))
+					uv2s.append(Vector2(0.0, h_hi - h_lo))
 
 					colors.append(col_cliff)
 					colors.append(col_cliff)
@@ -279,10 +279,10 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 					uvs.append(uv0)
 					uvs.append(uv1)
 
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
+					uv2s.append(Vector2(0.0, 0.0))
+					uv2s.append(Vector2(0.0, 0.0))
+					uv2s.append(Vector2(0.0, h_hi - h_lo))
+					uv2s.append(Vector2(0.0, h_hi - h_lo))
 
 					colors.append(col_cliff)
 					colors.append(col_cliff)
@@ -320,10 +320,10 @@ static func build_mesh(result: WorldResult, cell_size: float = 1.0, profile: Wor
 					uvs.append(uv3)
 					uvs.append(uv2)
 
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
-					uv2s.append(Vector2.ZERO)
+					uv2s.append(Vector2(0.0, 0.0))
+					uv2s.append(Vector2(0.0, 0.0))
+					uv2s.append(Vector2(0.0, h_hi - h_lo))
+					uv2s.append(Vector2(0.0, h_hi - h_lo))
 
 					colors.append(col_cliff)
 					colors.append(col_cliff)

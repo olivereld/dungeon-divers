@@ -192,25 +192,49 @@ static func build_water_surface(result: WorldResult, profile = null) -> WaterSur
 			var n_wh_n: float = water_y
 			var n_wh_s: float = water_y
 
+			# Identificadores de cuerpo de agua de la celda actual
+			var cur_lake_id: int = int(cdata.get("lake_id", -1))
+			var cur_river_id: int = int(cdata.get("river_index", -1))
+
 			var cw_data = hydro.water_cells.get(pos_w, null)
 			if cw_data is Dictionary:
 				n_wh_w = float(cw_data.get("water_height", water_datum))
-				has_wf_w = (water_y - n_wh_w > wf_thresh)
+				var nw_lake_id: int = int(cw_data.get("lake_id", -1))
+				var nw_river_id: int = int(cw_data.get("river_index", -1))
+				var is_same_lake: bool = (cur_lake_id != -1 and nw_lake_id != -1 and cur_lake_id == nw_lake_id)
+				var is_same_flat_river: bool = (cur_river_id != -1 and nw_river_id != -1 and cur_river_id == nw_river_id and absf(water_y - n_wh_w) <= wf_thresh)
+				if not is_same_lake and not is_same_flat_river:
+					has_wf_w = (water_y - n_wh_w > wf_thresh)
 
 			var ce_data = hydro.water_cells.get(pos_e, null)
 			if ce_data is Dictionary:
 				n_wh_e = float(ce_data.get("water_height", water_datum))
-				has_wf_e = (water_y - n_wh_e > wf_thresh)
+				var ne_lake_id: int = int(ce_data.get("lake_id", -1))
+				var ne_river_id: int = int(ce_data.get("river_index", -1))
+				var is_same_lake: bool = (cur_lake_id != -1 and ne_lake_id != -1 and cur_lake_id == ne_lake_id)
+				var is_same_flat_river: bool = (cur_river_id != -1 and ne_river_id != -1 and cur_river_id == ne_river_id and absf(water_y - n_wh_e) <= wf_thresh)
+				if not is_same_lake and not is_same_flat_river:
+					has_wf_e = (water_y - n_wh_e > wf_thresh)
 
 			var cn_data = hydro.water_cells.get(pos_n, null)
 			if cn_data is Dictionary:
 				n_wh_n = float(cn_data.get("water_height", water_datum))
-				has_wf_n = (water_y - n_wh_n > wf_thresh)
+				var nn_lake_id: int = int(cn_data.get("lake_id", -1))
+				var nn_river_id: int = int(cn_data.get("river_index", -1))
+				var is_same_lake: bool = (cur_lake_id != -1 and nn_lake_id != -1 and cur_lake_id == nn_lake_id)
+				var is_same_flat_river: bool = (cur_river_id != -1 and nn_river_id != -1 and cur_river_id == nn_river_id and absf(water_y - n_wh_n) <= wf_thresh)
+				if not is_same_lake and not is_same_flat_river:
+					has_wf_n = (water_y - n_wh_n > wf_thresh)
 
 			var cs_data = hydro.water_cells.get(pos_s, null)
 			if cs_data is Dictionary:
 				n_wh_s = float(cs_data.get("water_height", water_datum))
-				has_wf_s = (water_y - n_wh_s > wf_thresh)
+				var ns_lake_id: int = int(cs_data.get("lake_id", -1))
+				var ns_river_id: int = int(cs_data.get("river_index", -1))
+				var is_same_lake: bool = (cur_lake_id != -1 and ns_lake_id != -1 and cur_lake_id == ns_lake_id)
+				var is_same_flat_river: bool = (cur_river_id != -1 and ns_river_id != -1 and cur_river_id == ns_river_id and absf(water_y - n_wh_s) <= wf_thresh)
+				if not is_same_lake and not is_same_flat_river:
+					has_wf_s = (water_y - n_wh_s > wf_thresh)
 
 			# Vecino Oeste (-X)
 			if has_wf_w:

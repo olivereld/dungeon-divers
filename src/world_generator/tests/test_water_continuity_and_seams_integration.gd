@@ -90,6 +90,11 @@ func _test_continuity_and_chunk_seams(seed_val: int) -> void:
 			assert(delta_bed < 30.0,
 				"Discontinuidad inesperada en bed_height entre %s y %s: delta=%.4f" % [str(pos), str(n_pos), delta_bed])
 
+			# Si comparten la misma cota de agua (mismo cuerpo / terraza), el lecho debe ser idéntico y continuo:
+			if absf(wh_a - wh_b) < 0.05:
+				assert(delta_bed < 0.01,
+					"Discontinuidad submarina en el mismo cuerpo de agua: %s (%.3f) vs %s (%.3f), delta=%.4f" % [str(pos), bh_a, str(n_pos), bh_b, delta_bed])
+
 			verified_pairs += 1
 
 	print("    -> Parejas adyacentes validadas: %d" % verified_pairs)
