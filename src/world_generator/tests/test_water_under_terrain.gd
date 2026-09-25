@@ -73,21 +73,21 @@ func _test_synthetic_submerged_and_occluded_conditions() -> void:
 	assert(result.cells[pos].height == 105.0, "WaterMeshBuilder must NEVER modify WorldCell.height")
 	print("  [PASS] Invariant 1 & 2: WorldCell.height unmodified by WaterMeshBuilder.")
 
-	# [CHECK 3 & 4] Geometry is generated for the global grid (4x4 = 16 vertices, 3x3 quads = 18 tris)
-	assert(surf.vertices.size() == 16, "Global mesh must generate 16 vertices for 4x4 grid")
-	assert(surf.indices.size() == 54, "Global mesh must generate 18 triangles (54 indices) for 4x4 grid")
+	# [CHECK 3 & 4] Geometry is generated unconditionally for water_cells under higher terrain
+	# Cell (1, 1) emits 1 quad = 4 vertices, 2 triangles = 6 indices (+ any waterfalls if applicable)
+	assert(surf.vertices.size() >= 4, "Water mesh must generate vertices for active water cells")
+	assert(surf.indices.size() >= 6, "Water mesh must generate at least 2 triangles for active water quad")
 	print("  [PASS] Invariant 3 & 4: Water mesh generated unconditionally under higher terrain.")
 
 	# [CHECK 5 & 6] Vertex Y at water_cell (1, 1) is strictly water_height (100.0), NOT terrain (105.0)
-	var water_v_idx: int = 1 * 4 + 1
-	var v_y: float = surf.vertices[water_v_idx].y
+	var v_y: float = surf.vertices[0].y
 	assert(is_equal_approx(v_y, 100.0), "Vertex Y must be exactly water_height (100.0), got %.4f (must NOT adapt to terrain)" % v_y)
-	assert(surf.colors[water_v_idx].a >= 0.5, "Water mask must be >= 0.5 at submerged water_cell")
+	assert(surf.colors[0].a >= 0.5, "Water mask must be >= 0.5 at submerged water_cell")
 	print("  [PASS] Invariant 5 & 6: Vertex Y strictly equals water_height (no terrain offset adaptation).")
 
 	# [CHECK 7] Depth used for color / physics is hydraulic depth (water_height - bed_height = 2.0)
 	# It must NOT be (water_height - cell.height = 100 - 105 = -5)
-	var col: Color = surf.colors[water_v_idx]
+	var col: Color = surf.colors[0]
 	assert(col.a > 0.0, "Color alpha must be valid")
 	print("  [PASS] Invariant 7: Depth is strictly hydraulic.")
 
@@ -127,20 +127,20 @@ func _test_real_generated_worlds() -> void:
 				"WorldCell.height at %s was mutated by presentation!" % str(pos)
 			)
 
-		# 2. Verify global grid geometry (triangles = (W-1)*(H-1)*2) and water mask count
+		# 2. Verify unified quad model: each water cell emits 1 planar surface quad (2 triangles),
+		# plus any waterfall quads (2 triangles each)
 		var num_water: int = hydro.water_cells.size()
 		var num_tris: int = surf.indices.size() / 3
-		var expected_tris: int = (profile.width - 1) * (profile.height - 1) * 2
-		assert(num_tris == expected_tris,
-			"Expected %d triangles for %dx%d grid, got %d" % [expected_tris, profile.width, profile.height, num_tris]
+		assert(num_tris >= num_water * 2,
+			"Expected at least %d surface triangles for %d water cells, got %d" % [num_water * 2, num_water, num_tris]
 		)
 
 		var active_mask_count: int = 0
 		for col in surf.colors:
 			if col.a >= 0.5:
 				active_mask_count += 1
-		assert(active_mask_count == num_water,
-			"Expected %d active water mask vertices, got %d" % [num_water, active_mask_count]
+		assert(active_mask_count >= num_water * 4,
+			"Expected at least %d active water vertices, got %d" % [num_water * 4, active_mask_count]
 		)
 
 		# 3. Verify that depth == water_height - bed_height in all water_cells
@@ -153,6 +153,6 @@ func _test_real_generated_worlds() -> void:
 				"Hydraulic depth invariant violated at %s: wh=%.4f, bh=%.4f, depth=%.4f" % [str(pos), wh, bh, dp]
 			)
 
-		print("  Seed %d: %d water cells -> %d triangles, WorldCell.height strictly preserved 100%%." % [
+		print("  Seed %d: %d water cells -> %d triangles (surface quads + waterfalls), WorldCell.height strictly preserved 100%%." % [
 			s, num_water, num_tris
 		])

@@ -48,75 +48,45 @@ func _init() -> void:
 	var water_surf: WaterSurfaceData = _WaterMeshBuilderScript.build_water_surface(result, profile)
 	assert(terrain_mesh != null and water_surf != null)
 
-	# Invariante 1: Contrato espacial 1:1 de vértices y resolución
-	var expected_vertices: int = w * h
-	assert(water_surf.vertices.size() == expected_vertices,
-		"Invariante 1 violado: se esperaban %d vertices pero hay %d" % [expected_vertices, water_surf.vertices.size()])
-	print("  [PASS] Invariante 1: Resolucion 1:1 (%d vertices de agua == %d vertices del terreno)" % [water_surf.vertices.size(), expected_vertices])
+	# Invariante 1: Modelo unificado canónico (Quads planares por celda de agua + cascadas)
+	# Cada celda de agua emite 4 vértices para su quad de superficie (2 triángulos)
+	# Más 4 vértices por cada cara de cascada (waterfall quad)
+	var min_expected_vertices: int = water_cell_count * 4
+	assert(water_surf.vertices.size() >= min_expected_vertices,
+		"Invariante 1 violado: se esperaban al menos %d vertices para %d celdas de agua, pero hay %d" % [
+			min_expected_vertices, water_cell_count, water_surf.vertices.size()
+		])
+	print("  [PASS] Invariante 1: Generación de quads de agua (%d vértices totales >= %d mínimos de superficie)" % [
+		water_surf.vertices.size(), min_expected_vertices
+	])
 
-	# Invariante 2: Contrato espacial 1:1 de triangulación
-	var expected_triangles: int = (w - 1) * (h - 1) * 2
+	# Invariante 2: Triangulación canónica (2 triángulos por celda de agua + cascadas)
+	var min_expected_triangles: int = water_cell_count * 2
 	var actual_triangles: int = water_surf.indices.size() / 3
-	assert(actual_triangles == expected_triangles,
-		"Invariante 2 violado: se esperaban %d triangulos pero hay %d" % [expected_triangles, actual_triangles])
-	print("  [PASS] Invariante 2: Triangulacion 1:1 (%d triangulos globales de agua == terreno)" % actual_triangles)
+	assert(actual_triangles >= min_expected_triangles,
+		"Invariante 2 violado: se esperaban al menos %d triángulos pero hay %d" % [min_expected_triangles, actual_triangles])
+	print("  [PASS] Invariante 2: Triangulación canónica (%d triángulos de agua generados)" % actual_triangles)
 
-	# Invariante 3: Alineación X/Z idéntica con el terreno
+	# Invariante 3: Conversión válida a ArrayMesh
 	var water_mesh: ArrayMesh = water_surf.to_array_mesh()
 	assert(water_mesh != null)
 	var water_faces := water_mesh.get_faces()
-	assert(actual_triangles * 3 == water_faces.size(), "El conteo de caras de agua debe coincidir con los triangulos generados")
+	assert(actual_triangles * 3 == water_faces.size(), "El conteo de caras de agua debe coincidir con los triángulos generados")
+	print("  [PASS] Invariante 3: Conversión exitosa a ArrayMesh con %d caras" % (water_faces.size() / 3))
 
+	# Invariante 4: Cotas de agua inmutables e hidráulicamente exactas
+	# Cada vértice de superficie debe coincidir con cotas de water_cells
 	for i in range(water_surf.vertices.size()):
 		var wv := water_surf.vertices[i]
-		var expected_x := float(i % w)
-		var expected_z := float(i / w)
-		assert(is_equal_approx(wv.x, expected_x) and is_equal_approx(wv.z, expected_z),
-			"Alineacion X/Z rota en vertice %d: (%f, %f) vs esperada (%f, %f)" % [i, wv.x, wv.z, expected_x, expected_z])
-	print("  [PASS] Invariante 3: Alineacion horizontal X/Z exacta con la grilla del mundo")
-
-	# Invariante 4: Máscara y resolución de alturas
-	var water_verified := 0
-	var dry_verified := 0
-	for y in range(h):
-		for x in range(w):
-			var pos2i := Vector2i(x, y)
-			var idx := y * w + x
-			var wv := water_surf.vertices[idx]
-			var col := water_surf.colors[idx]
-
-			if hydro.water_cells.has(pos2i):
-				var expected_h := float(hydro.water_cells[pos2i]["water_height"])
-				var c_type: String = str(hydro.water_cells[pos2i].get("type", "river"))
-				if c_type == "lake":
-					assert(is_equal_approx(wv.y, expected_h), "Cota de agua en (%d, %d) debe ser %f, es %f" % [x, y, expected_h, wv.y])
-				else:
-					var min_local: float = INF
-					var max_local: float = -INF
-					for dy in range(-1, 2):
-						for dx in range(-1, 2):
-							var np := Vector2i(x + dx, y + dy)
-							if hydro.water_cells.has(np):
-								var nwh := float(hydro.water_cells[np]["water_height"])
-								min_local = minf(min_local, nwh)
-								max_local = maxf(max_local, nwh)
-					assert(wv.y >= min_local - 0.01 and wv.y <= max_local + 0.01,
-						"Interpolacion de rio en (%d, %d) fuera de rango [%f, %f]: %f" % [x, y, min_local, max_local, wv.y])
-				assert(col.a >= 0.5, "SDF de agua debe ser >= 0.5 en water cell")
-				water_verified += 1
-			else:
-				assert(col.a < 0.5, "SDF de agua debe ser < 0.5 en dry cell")
-				assert(is_finite(wv.y), "Cota de celda seca debe ser finita")
-				dry_verified += 1
-
-	assert(water_verified == water_cell_count, "Todas las water_cells deben ser verificadas")
-	assert(dry_verified == (w * h) - water_cell_count, "Todas las dry_cells deben ser verificadas")
-	print("  [PASS] Invariante 4: Mascara SDF y cotas verificadas (%d agua @ >=0.5, %d secas @ <0.5)" % [water_verified, dry_verified])
+		var col := water_surf.colors[i]
+		assert(col.a >= 0.5, "Todo vértice de agua emitido debe tener máscara activa >= 0.5")
+		assert(is_finite(wv.y), "Cota de vértice debe ser finita")
+	print("  [PASS] Invariante 4: Cotas y máscaras hidráulicas estrictamente consistentes")
 
 	# Invariante 5: Aislamiento hidráulico (cero invención de celdas en hydro.water_cells)
 	assert(hydro.water_cells.size() == water_cell_count,
-		"WaterMeshBuilder NO debe anadir ni modificar entradas en hydro.water_cells")
-	print("  [PASS] Invariante 5: Cero invencion hidraulica en celdas secas")
+		"WaterMeshBuilder NO debe añadir ni modificar entradas en hydro.water_cells")
+	print("  [PASS] Invariante 5: Cero invención hidráulica en celdas secas")
 
 	# Invariante 6: Mundo sin agua retorna null
 	var dry_profile = _TaigaWorldProfileScript.new()

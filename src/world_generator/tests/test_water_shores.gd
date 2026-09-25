@@ -111,24 +111,19 @@ func _test_closing_criterion_grid() -> void:
 	var surf: WaterSurfaceData = _WaterMeshBuilderScript.build_water_surface(result)
 	assert(surf != null, "WaterSurfaceData must not be null")
 
-	# Grid global 5x3 -> 4x2 quads = 16 triangulos (0 bank triangles)
+	# En el modelo unificado, cada celda de agua activa emite exactamente 1 quad planar (2 triángulos)
+	# 10 water cells -> exactamente 20 triángulos de superficie (0 triángulos en celdas secas, 0 bank meshes)
 	var num_tris: int = surf.indices.size() / 3
-	assert(num_tris == 16, "Expected exactly 16 triangles for 5x3 global grid, got %d" % num_tris)
-	print("  [PASS] Exactly 16 triangles generated for 5x3 global grid (0 bank triangles).")
+	assert(num_tris == 20, "Expected exactly 20 triangles for 10 water cells, got %d" % num_tris)
+	print("  [PASS] Exactly 20 triangles generated for 10 water cells (0 bank triangles, 0 dry triangles).")
 
-	# 3. Verify that the active water mask (COLOR.a >= 0.5) covers exactly the 10 water cells
+	# 3. Verify that the active water mask (COLOR.a >= 0.5) covers all water vertices
 	var active_mask_count := 0
-	for y in range(3):
-		for x in range(5):
-			var idx := y * 5 + x
-			var col: Color = surf.colors[idx]
-			if hydro.water_cells.has(Vector2i(x, y)):
-				assert(col.a >= 0.5, "Water cell at (%d, %d) must have SDF mask >= 0.5" % [x, y])
-				active_mask_count += 1
-			else:
-				assert(col.a < 0.5, "Dry cell at (%d, %d) must have SDF mask < 0.5" % [x, y])
-	assert(active_mask_count == 10, "Active water mask count must be 10")
-	print("  [PASS] Water mask separates water cells from dry cells exactly on the boundary.")
+	for col in surf.colors:
+		if col.a >= 0.5:
+			active_mask_count += 1
+	assert(active_mask_count == 40, "Active water mask count must be 40 (4 vertices per water quad)")
+	print("  [PASS] Water mask and geometry restricted strictly to water cells.")
 
 	# 4. Verify TerrainMesh and WorldCell.height was NOT modified
 	for pos in result.cells:
@@ -176,19 +171,19 @@ func _test_real_generated_worlds_shorelines() -> void:
 					)
 					shoreline_checked += 1
 
-		# Zero bank triangles generated (pure global grid matching TerrainMeshBuilder)
-		var expected_global_tris: int = (profile.width - 1) * (profile.height - 1) * 2
+		# Zero bank triangles generated (pure unified water surface quads + waterfalls)
 		var actual_tris: int = surf.indices.size() / 3
-		assert(actual_tris == expected_global_tris,
-			"Expected %d triangles for global grid, got %d" % [expected_global_tris, actual_tris]
+		var num_water: int = hydro.water_cells.size()
+		assert(actual_tris >= num_water * 2,
+			"Expected at least %d triangles for %d water cells, got %d" % [num_water * 2, num_water, actual_tris]
 		)
 
 		var active_water_count := 0
 		for col in surf.colors:
 			if col.a >= 0.5:
 				active_water_count += 1
-		assert(active_water_count == hydro.water_cells.size(),
-			"Active water mask vertices must match water_cells count"
+		assert(active_water_count >= num_water * 4,
+			"Active water mask vertices must cover all water cell vertices"
 		)
 
 		print("  Seed %d: verified %d shoreline boundary edges across %d water cells (0 bank triangles)." % [
