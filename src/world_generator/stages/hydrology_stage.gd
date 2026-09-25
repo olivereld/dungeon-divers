@@ -171,6 +171,9 @@ func _apply_local_impl(context: WorldGenerationContext, hydro: HydrologyResult) 
 	var is_chunk: bool = context.has_method("is_chunk_context") and context.is_chunk_context()
 	var is_unbounded: bool = is_chunk and "config" in context and context.config != null and context.config.is_unbounded
 
+	# BLOQUE 2B: Llenar agujeros aislados de agua antes de tallar cauces y lagos
+	_fill_isolated_water_holes(profile.width, profile.height, cells, profile, hydro)
+
 	var t0 := Time.get_ticks_usec() if is_profiling else 0
 	var slope_river_us: int = _carve_river_channels(cells, validated_rivers, accumulation, profile, hydro, is_profiling, context_bounds, is_chunk, is_unbounded)
 	var t1 := Time.get_ticks_usec() if is_profiling else 0
@@ -443,6 +446,11 @@ func _solve_global_impl(context: WorldGenerationContext) -> HydrologyResult:
 						hydro.water_cells[pos]["bed_height"] = b_h
 					hydro.water_cells[pos]["depth"] = cur_h - b_h
 				prev_h = cur_h
+
+	# -------------------------------------------------------------------------
+	# BLOQUE 2B: FILTRO TOPOLÓGICO — ELIMINAR ISLAS / HUECOS SECOS 1x1 EN AGUA
+	# -------------------------------------------------------------------------
+	_fill_isolated_water_holes(width, height, cells, profile, hydro)
 
 	# -------------------------------------------------------------------------
 	# BLOQUE 10C: ZONIFICACIÓN HIDROLÓGICA Y MÁSCARA DE EXCLUSIÓN PARA VEGETACIÓN
@@ -787,6 +795,122 @@ func _generate_lakes(
 			var idx: int = lk["cells"].find(p)
 			if idx != -1:
 				lk["cells"].remove_at(idx)
+
+
+## Detecta y absorbe celdas secas aisladas (1x1 o pequeños huecos contiguos) rodeadas por agua cardinalmente.
+## Evita chimeneas de tierra o agujeros no intencionales que provocan cascadas falsas cuadradas.
+func _fill_isolated_water_holes(
+	width: int,
+	height: int,
+	cells: Dictionary,
+	profile: WorldProfile,
+	hydro: HydrologyResult
+) -> void:
+	if hydro == null or hydro.water_cells.is_empty():
+		return
+
+	var cardinal_offsets := [
+		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)
+	]
+
+	# Ejecutar hasta 3 pasadas para rellenar también huecos contiguos de 2 o 3 celdas (ej. 1x2 o celdas en L)
+	for _pass in range(3):
+		var holes_to_fill: Array[Vector2i] = []
+
+		for y in range(1, height - 1):
+			for x in range(1, width - 1):
+				var pos := Vector2i(x, y)
+				if hydro.water_cells.has(pos):
+					continue
+
+				var water_neighbor_count := 0
+				for off in cardinal_offsets:
+					if hydro.water_cells.has(pos + off):
+						water_neighbor_count += 1
+
+				# Si tiene al menos 3 o 4 vecinos cardinales de agua, es un agujero dentro de la masa de agua
+				if water_neighbor_count >= 4:
+					holes_to_fill.append(pos)
+				elif water_neighbor_count == 3:
+					var d_count := 0
+					for diag in [Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]:
+						if hydro.water_cells.has(pos + diag):
+							d_count += 1
+					if d_count >= 2:
+						holes_to_fill.append(pos)
+
+		if holes_to_fill.is_empty():
+			break
+
+		for pos: Vector2i in holes_to_fill:
+			# Recolectar datos de los vecinos de agua circundantes
+			var dominant_type := "lake"
+			var lake_id := -1
+			var river_id := -1
+			var valid_count := 0
+			var neighbor_wh_list: Array[float] = []
+			var neighbor_bed_list: Array[float] = []
+
+			for off: Vector2i in cardinal_offsets:
+				var np: Vector2i = pos + off
+				if hydro.water_cells.has(np):
+					var ndata: Dictionary = hydro.water_cells[np]
+					var n_wh: float = float(ndata.get("water_height", 0.0))
+					var n_bed: float = float(ndata.get("bed_height", n_wh - 0.5))
+					neighbor_wh_list.append(n_wh)
+					neighbor_bed_list.append(n_bed)
+					valid_count += 1
+					if ndata.get("type") == "lake":
+						dominant_type = "lake"
+						lake_id = int(ndata.get("lake_id", -1))
+					elif dominant_type != "lake" and ndata.has("river_index"):
+						river_id = int(ndata.get("river_index", -1))
+
+			if valid_count == 0:
+				continue
+
+			# Si los vecinos comparten el mismo water_height (ej. lago o tramo plano de río),
+			# la celda rellenada DEBE tener exactamente esa misma cota para evitar cualquier desnivel.
+			var water_h: float = neighbor_wh_list[0]
+			for wh_val in neighbor_wh_list:
+				if absf(wh_val - water_h) > 0.01:
+					# Si hay variación leve, tomar la moda o la cota más baja coherente
+					water_h = minf(water_h, wh_val)
+
+			var avg_bed: float = 0.0
+			for b_val in neighbor_bed_list:
+				avg_bed += b_val
+			avg_bed /= float(valid_count)
+
+			var bed_h: float = minf(avg_bed, water_h - 0.50)
+			var eff_depth: float = maxf(water_h - bed_h, 0.50)
+
+			# Incorporar celda al conjunto de agua
+			hydro.water_cells[pos] = {
+				"type": dominant_type,
+				"water_height": water_h,
+				"bed_height": bed_h,
+				"depth": eff_depth,
+				"shoreline_height": water_h + 0.05,
+				"flow_dir": Vector2.ZERO
+			}
+
+			if dominant_type == "lake" and lake_id != -1:
+				hydro.water_cells[pos]["lake_id"] = lake_id
+				for lk in hydro.lakes:
+					if lk.get("id") == lake_id:
+						if not lk["cells"].has(pos):
+							lk["cells"].append(pos)
+						break
+			elif river_id != -1:
+				hydro.water_cells[pos]["river_index"] = river_id
+
+			# Sincronizar celda en el grid de WorldCell antes de carving
+			var cell: WorldCell = cells.get(pos)
+			if cell != null:
+				cell.height = bed_h
+				cell.hydraulic_influence = 1.0
+
 
 
 ## Traza una línea continua en la grilla discreta entre p0 y p1 (algoritmo Bresenham)
