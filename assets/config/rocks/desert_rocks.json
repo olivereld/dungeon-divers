@@ -1,0 +1,220 @@
+{
+	"biome": "desert",
+	"clustering": {
+		"large": {
+			"enabled": true,
+			"max_distance_mult": 1.6,
+			"max_satellites": 3,
+			"min_distance_mult": 0.8,
+			"min_satellites": 2,
+			"probability": 0.65,
+			"satellite_profiles": [
+				{
+					"category": "medium",
+					"scale_max": 0.95,
+					"scale_min": 0.7,
+					"weight": 0.35
+				},
+				{
+					"category": "small",
+					"scale_max": 0.4,
+					"scale_min": 0.2,
+					"weight": 0.65
+				}
+			]
+		},
+		"medium": {
+			"enabled": true,
+			"max_distance_mult": 1.2,
+			"max_satellites": 1,
+			"min_distance_mult": 0.6,
+			"min_satellites": 1,
+			"probability": 0.4,
+			"satellite_profiles": [
+				{
+					"category": "small",
+					"scale_max": 0.35,
+					"scale_min": 0.18,
+					"weight": 1.0
+				}
+			]
+		},
+		"small": {
+			"enabled": false,
+			"max_distance_mult": 0.0,
+			"max_satellites": 0,
+			"min_distance_mult": 0.0,
+			"min_satellites": 0,
+			"probability": 0.0,
+			"satellite_profiles": []
+		}
+	},
+	"distribution": {
+		"category_weights": {
+			"large": 0.15,
+			"medium": 0.35,
+			"small": 0.5
+		},
+		"density": 0.1,
+		"max_slope_degrees": 45.0,
+		"min_slope_degrees": 10.0
+	},
+	"material": {
+		"height_weight": 0.35,
+		"normal_weight": 0.65,
+		"palette_texture": "",
+		"roughness": 0.9,
+		"specular": 0.15,
+		"variation_strength": 0.2
+	},
+	"profiles": {
+		"large": {
+			"category": 0,
+			"category_name": "large",
+			"deformation": {
+				"diagonal_alternation": true,
+				"mass_offset_strength": 0.2,
+				"radial_jitter": 0.6,
+				"top_ring_y_jitter": 0.3,
+				"vertical_jitter": 0.35
+			},
+			"geometry": {
+				"base_penetration": 0.35,
+				"cluster_probability": 0.6,
+				"density": 0.03,
+				"height_ratio": 0.77,
+				"irregularity": 0.75,
+				"max_slope_degrees": 45.0,
+				"num_variants": 3,
+				"rings": 5,
+				"segments": 9
+			},
+			"silhouette": {
+				"apex_elevation_max": 0.15,
+				"apex_elevation_min": 0.05,
+				"base_radius_factor": 1.1,
+				"body_bulge_factor": 1.15,
+				"peak_convergence_max": 0.45,
+				"peak_convergence_min": 0.25,
+				"taper_power": 0.6
+			},
+			"variation": {
+				"max_scale": 1.7,
+				"max_tilt_degrees": 8.0,
+				"min_scale": 1.3,
+				"scale_x_range": [
+					0.850000023841858,
+					1.20000004768372
+				],
+				"scale_y_range": [
+					0.850000023841858,
+					1.20000004768372
+				],
+				"scale_z_range": [
+					0.850000023841858,
+					1.20000004768372
+				],
+				"slope_tilt_factor": 4.0
+			}
+		},
+		"medium": {
+			"category": 1,
+			"category_name": "medium",
+			"deformation": {
+				"diagonal_alternation": true,
+				"mass_offset_strength": 0.15,
+				"radial_jitter": 0.55,
+				"top_ring_y_jitter": 0.3,
+				"vertical_jitter": 0.35
+			},
+			"geometry": {
+				"base_penetration": 0.25,
+				"cluster_probability": 0.4,
+				"density": 0.12,
+				"height_ratio": 0.665,
+				"irregularity": 0.55,
+				"max_slope_degrees": 40.0,
+				"num_variants": 4,
+				"rings": 4,
+				"segments": 8
+			},
+			"silhouette": {
+				"apex_elevation_max": 0.15,
+				"apex_elevation_min": 0.05,
+				"base_radius_factor": 1.1,
+				"body_bulge_factor": 1.1,
+				"peak_convergence_max": 0.45,
+				"peak_convergence_min": 0.25,
+				"taper_power": 0.6
+			},
+			"variation": {
+				"max_scale": 1.1,
+				"max_tilt_degrees": 8.0,
+				"min_scale": 0.75,
+				"scale_x_range": [
+					0.850000023841858,
+					1.20000004768372
+				],
+				"scale_y_range": [
+					0.75,
+					1.17999994754791
+				],
+				"scale_z_range": [
+					0.850000023841858,
+					1.20000004768372
+				],
+				"slope_tilt_factor": 4.0
+			}
+		},
+		"small": {
+			"category": 2,
+			"category_name": "small",
+			"deformation": {
+				"diagonal_alternation": true,
+				"mass_offset_strength": 0.1,
+				"radial_jitter": 0.45,
+				"top_ring_y_jitter": 0.25,
+				"vertical_jitter": 0.3
+			},
+			"geometry": {
+				"base_penetration": 0.2,
+				"cluster_probability": 0.2,
+				"density": 0.3,
+				"height_ratio": 0.525,
+				"irregularity": 0.4,
+				"max_slope_degrees": 35.0,
+				"num_variants": 4,
+				"rings": 3,
+				"segments": 7
+			},
+			"silhouette": {
+				"apex_elevation_max": 0.15,
+				"apex_elevation_min": 0.05,
+				"base_radius_factor": 1.1,
+				"body_bulge_factor": 1.05,
+				"peak_convergence_max": 0.45,
+				"peak_convergence_min": 0.25,
+				"taper_power": 0.6
+			},
+			"variation": {
+				"max_scale": 0.5,
+				"max_tilt_degrees": 10.0,
+				"min_scale": 0.25,
+				"scale_x_range": [
+					0.850000023841858,
+					1.20000004768372
+				],
+				"scale_y_range": [
+					0.699999988079071,
+					1.14999997615814
+				],
+				"scale_z_range": [
+					0.850000023841858,
+					1.20000004768372
+				],
+				"slope_tilt_factor": 4.0
+			}
+		}
+	},
+	"version": 1
+}
