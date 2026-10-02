@@ -39,9 +39,11 @@ static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMe
 			profile_radius_factor = 0.85
 			ring_base_y = -profile.base_penetration * 0.5
 		elif r == rings - 1:
-			# Último anillo: Cima mesetiforme irregular amplia
-			profile_radius_factor = lerp(0.50, 0.65, _hash_float(rock_seed, 888, 1))
-			ring_base_y = total_height
+			# Último anillo: Convergencia hacia la cúspide irregular (NO meseta)
+			# Radio mucho más estrecho (15-30% del base) para crear una cima natural
+			profile_radius_factor = lerp(0.15, 0.30, _hash_float(rock_seed, 888, 1))
+			# Elevar ligeramente sobre total_height para crear variación de cresta
+			ring_base_y = total_height + _hash_float(rock_seed, 888, 2) * 0.15 * total_height
 		else:
 			# Anillos intermedios
 			# Perfil acampanado/abultado
@@ -59,8 +61,8 @@ static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMe
 			var r_jitter: float = (_hash_float(rock_seed, r * 100 + s, 20) - 0.5) * 0.6 * irregularity
 			var current_radius: float = base_radius * profile_radius_factor * max(0.25, 1.0 + r_jitter)
 
-			# Jitter vertical determinista (más contenido en la cima para mantener la meseta)
-			var y_jitter_scale: float = 0.15 if r == rings - 1 else 0.35
+			# Jitter vertical determinista
+			var y_jitter_scale: float = 0.30 if r == rings - 1 else 0.35
 			var y_jitter: float = (_hash_float(rock_seed, r * 100 + s, 30) - 0.5) * y_jitter_scale * total_height * irregularity
 			var vert_y: float = ring_base_y + y_jitter
 
@@ -78,12 +80,13 @@ static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMe
 	# Vértice central de la base (para cerrar el fondo herméticamente)
 	var bottom_center: Vector3 = Vector3(mass_offset.x * 0.5, -profile.base_penetration * 0.8, mass_offset.z * 0.5)
 
-	# Vértice central de la cima: meseta plana ligeramente variada (sin pico agudo)
-	var top_jitter_y: float = (_hash_float(rock_seed, 777, 40) - 0.5) * 0.08 * total_height * irregularity
+	# Apex se eleva 10-25% sobre total_height, con jitter horizontal mínimo
+	var apex_elevation: float = lerp(0.10, 0.25, _hash_float(rock_seed, 777, 40)) * total_height
+	var top_jitter_y: float = (_hash_float(rock_seed, 777, 43) - 0.5) * 0.06 * total_height * irregularity
 	var top_center: Vector3 = Vector3(
-		mass_offset.x * 0.2 + (_hash_float(rock_seed, 777, 41) - 0.5) * 0.15,
-		total_height + top_jitter_y,
-		mass_offset.z * 0.2 + (_hash_float(rock_seed, 777, 42) - 0.5) * 0.15
+		mass_offset.x * 0.12 + (_hash_float(rock_seed, 777, 41) - 0.5) * 0.10,
+		total_height + apex_elevation + top_jitter_y,
+		mass_offset.z * 0.12 + (_hash_float(rock_seed, 777, 42) - 0.5) * 0.10
 	)
 
 	# Construir la geometría facetada con SurfaceTool
@@ -118,7 +121,7 @@ static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMe
 				_add_flat_triangle(st, v_curr_s, v_curr_next, v_upper_s)
 				_add_flat_triangle(st, v_curr_next, v_upper_next, v_upper_s)
 
-	# 3. Cima mesetiforme (triángulos del último anillo hacia el centro de la cima, vistos desde arriba en CCW)
+	# 3. Cima en cúpula/pico (triángulos del último anillo convergiendo al apex, vistos desde arriba en CCW)
 	var last_ring: int = rings - 1
 	for s in range(segments):
 		var next_s: int = (s + 1) % segments
