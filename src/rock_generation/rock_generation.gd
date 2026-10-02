@@ -6,35 +6,76 @@ const RockMeshBuilder = preload("res://src/rock_generation/rock_mesh_builder.gd"
 const RockMaterial = preload("res://src/rock_generation/rock_material.gd")
 const RockInstance = preload("res://src/rock_generation/rock_instance.gd")
 const RockDistribution = preload("res://src/rock_generation/rock_distribution.gd")
+const RockConfig = preload("res://src/rock_generation/config/rock_config.gd")
+const RockSizeConfig = preload("res://src/rock_generation/config/rock_size_config.gd")
 
 ## Fachada y orquestador del sistema de generación procedural de rocas estilizadas.
 ## Módulo 100% autónomo e independiente.
 ## Gestiona perfiles, mallas pregeneradas en caché, material y generación de MultiMeshes.
 
-var profiles: Dictionary = {} # int (Category) -> RockSizeProfile
+var rock_config = null
+var profiles: Dictionary = {} # int (Category) -> RockSizeConfig or RockSizeProfile
 var mesh_variants: Dictionary = {} # int (Category) -> Array[ArrayMesh]
 var shared_material: ShaderMaterial = null
 var base_seed: int = 1337
 
-func _init(p_base_seed: int = 1337, custom_profiles: Dictionary = {}) -> void:
+func _init(p_base_seed: int = 1337, config_or_profiles: Variant = null) -> void:
 	base_seed = p_base_seed
-	if custom_profiles.is_empty():
-		profiles = RockSizeProfile.get_all_profiles()
+	if config_or_profiles is RockConfig:
+		rock_config = config_or_profiles
+		profiles = rock_config.profiles
+	elif config_or_profiles is String:
+		rock_config = RockConfig.new()
+		rock_config.load_from_json(config_or_profiles)
+		profiles = rock_config.profiles
+	elif config_or_profiles is Dictionary and not config_or_profiles.is_empty():
+		profiles = config_or_profiles
+		rock_config = RockConfig.create_default_taiga()
 	else:
-		profiles = custom_profiles
+		rock_config = RockConfig.create_default_taiga()
+		profiles = rock_config.profiles
 
-	shared_material = RockMaterial.create_rock_material()
+	_update_material()
 	_pregenerate_mesh_variants()
+
+func _update_material() -> void:
+	shared_material = RockMaterial.create_rock_material()
+	if rock_config != null and rock_config.material is Dictionary:
+		var mat_cfg: Dictionary = rock_config.material
+		if mat_cfg.has("normal_weight"):
+			shared_material.set_shader_parameter("normal_weight", float(mat_cfg["normal_weight"]))
+		if mat_cfg.has("height_weight"):
+			shared_material.set_shader_parameter("height_weight", float(mat_cfg["height_weight"]))
+		if mat_cfg.has("variation_strength"):
+			shared_material.set_shader_parameter("variation_strength", float(mat_cfg["variation_strength"]))
+		if mat_cfg.has("roughness"):
+			shared_material.set_shader_parameter("roughness", float(mat_cfg["roughness"]))
+		if mat_cfg.has("specular"):
+			shared_material.set_shader_parameter("specular", float(mat_cfg["specular"]))
+
+func set_config(new_cfg) -> void:
+	if new_cfg is RockConfig:
+		rock_config = new_cfg
+		profiles = rock_config.profiles
+	elif new_cfg is String:
+		rock_config = RockConfig.new()
+		rock_config.load_from_json(new_cfg)
+		profiles = rock_config.profiles
+	_update_material()
+	_pregenerate_mesh_variants()
+
+func get_config():
+	return rock_config
 
 ## Pre-genera variantes de malla facetadas para cada categoría
 func _pregenerate_mesh_variants() -> void:
 	mesh_variants.clear()
 	for cat in profiles.keys():
-		var prof: RockSizeProfile = profiles[cat]
+		var prof = profiles[cat]
 		var variants: Array[ArrayMesh] = []
-		var count: int = max(1, prof.num_variants)
+		var count: int = max(1, int(prof.num_variants))
 		for v in range(count):
-			var variant_seed: int = (base_seed * 49979687) ^ (cat * 73856093) ^ (v * 19349663)
+			var variant_seed: int = (base_seed * 49979687) ^ (int(cat) * 73856093) ^ (v * 19349663)
 			var m: ArrayMesh = RockMeshBuilder.build_rock_mesh(prof, variant_seed)
 			if shared_material != null:
 				m.surface_set_material(0, shared_material)

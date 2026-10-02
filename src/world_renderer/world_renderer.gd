@@ -6,6 +6,8 @@ const _WaterRendererScript = preload("res://src/world_generator/presentation/wat
 const _RockGenerationScript = preload("res://src/rock_generation/rock_generation.gd")
 const _RockSizeProfileScript = preload("res://src/rock_generation/rock_size_profile.gd")
 const _RockInstanceScript = preload("res://src/rock_generation/rock_instance.gd")
+const _RockConfigScript = preload("res://src/rock_generation/config/rock_config.gd")
+const _RockSizeConfigScript = preload("res://src/rock_generation/config/rock_size_config.gd")
 
 static var _rock_gen_instance = null
 static func _get_rock_gen():
@@ -388,18 +390,18 @@ static func _spawn_rock_multimeshes(parent: Node3D, items: Array, origin_3d: Vec
 
 	# Agrupar items por categoría según su escala
 	var categorized_items: Dictionary = {
-		_RockSizeProfileScript.Category.LARGE: [],
-		_RockSizeProfileScript.Category.MEDIUM: [],
-		_RockSizeProfileScript.Category.SMALL: []
+		_RockSizeConfigScript.Category.LARGE: [],
+		_RockSizeConfigScript.Category.MEDIUM: [],
+		_RockSizeConfigScript.Category.SMALL: []
 	}
 
 	for item in items:
 		if item.scale >= 1.20:
-			categorized_items[_RockSizeProfileScript.Category.LARGE].append(item)
+			categorized_items[_RockSizeConfigScript.Category.LARGE].append(item)
 		elif item.scale >= 0.60:
-			categorized_items[_RockSizeProfileScript.Category.MEDIUM].append(item)
+			categorized_items[_RockSizeConfigScript.Category.MEDIUM].append(item)
 		else:
-			categorized_items[_RockSizeProfileScript.Category.SMALL].append(item)
+			categorized_items[_RockSizeConfigScript.Category.SMALL].append(item)
 
 	var rocks_container := Node3D.new()
 	rocks_container.name = "Rocks"
@@ -410,8 +412,8 @@ static func _spawn_rock_multimeshes(parent: Node3D, items: Array, origin_3d: Vec
 		if cat_items.is_empty():
 			continue
 
-		var prof: _RockSizeProfileScript = rg.profiles.get(cat, _RockSizeProfileScript.create_medium())
-		var num_variants: int = max(1, prof.num_variants)
+		var prof = rg.profiles.get(cat, _RockSizeConfigScript.create_medium())
+		var num_variants: int = max(1, int(prof.num_variants))
 
 		# Sub-distribuir items en cubos por variante de malla
 		var variant_buckets: Array = []

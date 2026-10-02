@@ -16,9 +16,9 @@ static func generate_area_rocks(
 ) -> Array[RockInstance]:
 	var instances: Array[RockInstance] = []
 
-	var large_profile: RockSizeProfile = profiles.get(RockSizeProfile.Category.LARGE, RockSizeProfile.create_large())
-	var medium_profile: RockSizeProfile = profiles.get(RockSizeProfile.Category.MEDIUM, RockSizeProfile.create_medium())
-	var small_profile: RockSizeProfile = profiles.get(RockSizeProfile.Category.SMALL, RockSizeProfile.create_small())
+	var large_profile = profiles.get(RockSizeProfile.Category.LARGE, RockSizeProfile.create_large())
+	var medium_profile = profiles.get(RockSizeProfile.Category.MEDIUM, RockSizeProfile.create_medium())
+	var small_profile = profiles.get(RockSizeProfile.Category.SMALL, RockSizeProfile.create_small())
 
 	# Células de cuadrícula para distribución determinista espacial
 	# 1. Grandes: células de 16x16 metros

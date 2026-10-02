@@ -21,6 +21,11 @@ var height_ratio: float = 1.0
 var base_penetration: float = 0.25
 var irregularity: float = 0.55
 
+# --- DISTRIBUCIÓN Y TERRENO ---
+var density: float = 0.15
+var cluster_probability: float = 0.35
+var max_slope_degrees: float = 40.0
+
 # --- SILUETA Y PERFIL ---
 var base_radius_factor: float = 0.85
 var body_bulge_factor: float = 1.15
@@ -56,7 +61,10 @@ func to_dict() -> Dictionary:
 			"segments": segments,
 			"height_ratio": height_ratio,
 			"base_penetration": base_penetration,
-			"irregularity": irregularity
+			"irregularity": irregularity,
+			"density": density,
+			"cluster_probability": cluster_probability,
+			"max_slope_degrees": max_slope_degrees
 		},
 		"silhouette": {
 			"base_radius_factor": base_radius_factor,
@@ -99,6 +107,9 @@ func from_dict(d: Dictionary) -> void:
 		height_ratio = float(g.get("height_ratio", height_ratio))
 		base_penetration = float(g.get("base_penetration", base_penetration))
 		irregularity = float(g.get("irregularity", irregularity))
+		density = float(g.get("density", density))
+		cluster_probability = float(g.get("cluster_probability", cluster_probability))
+		max_slope_degrees = float(g.get("max_slope_degrees", max_slope_degrees))
 
 	if d.has("silhouette") and d["silhouette"] is Dictionary:
 		var s: Dictionary = d["silhouette"]
@@ -157,6 +168,9 @@ static func create_large():
 	cfg.vertical_jitter = 0.35
 	cfg.top_ring_y_jitter = 0.30
 	cfg.mass_offset_strength = 0.20
+	cfg.density = 0.03
+	cfg.cluster_probability = 0.60
+	cfg.max_slope_degrees = 45.0
 	cfg.min_scale = 1.30
 	cfg.max_scale = 1.70
 	cfg.scale_x_range = Vector2(0.85, 1.20)
@@ -187,6 +201,9 @@ static func create_medium():
 	cfg.vertical_jitter = 0.35
 	cfg.top_ring_y_jitter = 0.30
 	cfg.mass_offset_strength = 0.15
+	cfg.density = 0.12
+	cfg.cluster_probability = 0.40
+	cfg.max_slope_degrees = 40.0
 	cfg.min_scale = 0.75
 	cfg.max_scale = 1.10
 	cfg.scale_x_range = Vector2(0.85, 1.20)
@@ -217,6 +234,9 @@ static func create_small():
 	cfg.vertical_jitter = 0.30
 	cfg.top_ring_y_jitter = 0.25
 	cfg.mass_offset_strength = 0.10
+	cfg.density = 0.30
+	cfg.cluster_probability = 0.20
+	cfg.max_slope_degrees = 35.0
 	cfg.min_scale = 0.25
 	cfg.max_scale = 0.50
 	cfg.scale_x_range = Vector2(0.85, 1.20)

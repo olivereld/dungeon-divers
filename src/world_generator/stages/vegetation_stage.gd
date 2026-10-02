@@ -1,10 +1,25 @@
 class_name VegetationStage
 extends WorldStage
 
+const _RockConfigScript = preload("res://src/rock_generation/config/rock_config.gd")
+const _RockSizeConfigScript = preload("res://src/rock_generation/config/rock_size_config.gd")
+
 func execute(context: WorldGenerationContext) -> void:
 	var profile: WorldProfile = context.profile
 	var veg_seed: int = WorldSeedSystem.derive_seed(context.master_seed, WorldSeedSystem.DOMAIN_VEGETATION)
 	context.result.vegetation.clear()
+
+	# Configuración de rocas desde el contrato RockConfig
+	var rock_config = profile.get("rock_config") if profile != null and profile.get("rock_config") != null else _RockConfigScript.create_default_taiga()
+	var rock_dist: Dictionary = rock_config.distribution
+	var rock_density: float = float(rock_dist.get("density", profile.rock_density if profile != null else 0.15))
+	var rock_min_slope: float = float(rock_dist.get("min_slope_degrees", 15.0))
+	var rock_max_slope: float = float(rock_dist.get("max_slope_degrees", 55.0))
+	var cat_weights: Dictionary = rock_dist.get("category_weights", {"large": 0.20, "medium": 0.45, "small": 0.35})
+	var w_large: float = float(cat_weights.get("large", 0.20))
+	var w_med: float = float(cat_weights.get("medium", 0.45))
+	var w_small: float = float(cat_weights.get("small", 0.35))
+	var total_w: float = maxf(0.001, w_large + w_med + w_small)
 
 	# Spatial Hash Grid for O(N) tree spacing checks
 	var core_bounds: Rect2i = context.get_core_bounds() if context.has_method("get_core_bounds") else Rect2i(0, 0, profile.width, profile.height)
@@ -193,58 +208,58 @@ func execute(context: WorldGenerationContext) -> void:
 					)
 
 			# 3. Rock Placement (solo dentro del core del chunk o mundo)
-			if pos_in_core and ((cell.slope_category in [NavigationStage.SlopeCategory.STEEP, NavigationStage.SlopeCategory.CLIFF] or (cell.slope_category == NavigationStage.SlopeCategory.GENTLE and cell.slope > 15.0) or local_slope > 20.0) and local_slope < 55.0):
-				if rng.randf() < profile.rock_density:
-					var size_roll: float = rng.randf()
+			if pos_in_core and ((cell.slope_category in [NavigationStage.SlopeCategory.STEEP, NavigationStage.SlopeCategory.CLIFF] or (cell.slope_category == NavigationStage.SlopeCategory.GENTLE and cell.slope > rock_min_slope) or local_slope > 20.0) and local_slope < rock_max_slope):
+				if rng.randf() < rock_density:
+					var size_roll: float = rng.randf() * total_w
 					var rot_y := rng.randf_range(0.0, TAU)
-					var main_scale: float
-					if size_roll < 0.20:
-						# Roca Grande moderada (1.30 a 1.70)
-						main_scale = rng.randf_range(1.30, 1.70)
-					elif size_roll < 0.65:
-						# Roca Mediana (0.75 a 1.10)
-						main_scale = rng.randf_range(0.75, 1.10)
+					var cat_id: int
+					var cat_key: String
+
+					if size_roll < w_large:
+						cat_id = _RockSizeConfigScript.Category.LARGE
+						cat_key = "large"
+					elif size_roll < w_large + w_med:
+						cat_id = _RockSizeConfigScript.Category.MEDIUM
+						cat_key = "medium"
 					else:
-						# Roca Pequeña / Guijarro (0.25 a 0.50)
-						main_scale = rng.randf_range(0.25, 0.50)
+						cat_id = _RockSizeConfigScript.Category.SMALL
+						cat_key = "small"
+
+					var prof = rock_config.get_profile(cat_id)
+					var main_scale: float = rng.randf_range(prof.min_scale, prof.max_scale)
 
 					context.result.vegetation.append(
 						WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, pos_3d, rot_y, main_scale)
 					)
 
-					# Generación de Cluster / Satélites alrededor de rocas maestras
+					# Generación de Cluster / Satélites alrededor de rocas maestras según RockConfig
 					var stage_cell_size: float = profile.cell_size if profile != null else 1.0
-					if size_roll < 0.20 and rng.randf() < 0.65:
-						# Satélites para roca grande: 1 mediana y 1-2 pequeñas
-						var sat_count: int = rng.randi_range(2, 3)
+					var cl_info: Dictionary = rock_config.clustering.get(cat_key, {})
+					if cl_info.get("enabled", false) and rng.randf() < float(cl_info.get("probability", 0.0)):
+						var min_sats: int = int(cl_info.get("min_satellites", 1))
+						var max_sats: int = int(cl_info.get("max_satellites", 2))
+						var sat_count: int = rng.randi_range(min_sats, max_sats)
+						var dist_min_mult: float = float(cl_info.get("min_distance_mult", 0.8))
+						var dist_max_mult: float = float(cl_info.get("max_distance_mult", 1.6))
+						var sat_profiles: Array = cl_info.get("satellite_profiles", [])
+
 						for s_idx in range(sat_count):
 							var sat_angle: float = rng.randf_range(0.0, TAU)
-							var sat_dist: float = rng.randf_range(0.8, 1.6) * main_scale
+							var sat_dist: float = rng.randf_range(dist_min_mult, dist_max_mult) * main_scale
 							var sat_x: float = pos_3d.x + cos(sat_angle) * sat_dist
 							var sat_z: float = pos_3d.z + sin(sat_angle) * sat_dist
 							var sat_cell := Vector2i(floori(sat_x / stage_cell_size), floori(sat_z / stage_cell_size))
 							if core_bounds.has_point(sat_cell):
 								var s_surf = _sample_surface(context.result, sat_x, sat_z, stage_cell_size)
-								if s_surf.get("slope", 0.0) < 55.0:
-									var is_med: bool = (s_idx == 0 and rng.randf() < 0.50)
-									var s_sc: float = rng.randf_range(0.70, 0.95) if is_med else rng.randf_range(0.20, 0.40)
-									var s_pos := Vector3(sat_x, s_surf["height"], sat_z)
-									context.result.vegetation.append(
-										WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, s_pos, rng.randf_range(0.0, TAU), s_sc)
-									)
-					elif size_roll < 0.65 and rng.randf() < 0.40:
-						# Satélites para roca mediana: 1 pequeña
-						var sat_count: int = 1
-						for s_idx in range(sat_count):
-							var sat_angle: float = rng.randf_range(0.0, TAU)
-							var sat_dist: float = rng.randf_range(0.6, 1.2)
-							var sat_x: float = pos_3d.x + cos(sat_angle) * sat_dist
-							var sat_z: float = pos_3d.z + sin(sat_angle) * sat_dist
-							var sat_cell := Vector2i(floori(sat_x / stage_cell_size), floori(sat_z / stage_cell_size))
-							if core_bounds.has_point(sat_cell):
-								var s_surf = _sample_surface(context.result, sat_x, sat_z, stage_cell_size)
-								if s_surf.get("slope", 0.0) < 55.0:
-									var s_sc: float = rng.randf_range(0.18, 0.35)
+								if s_surf.get("slope", 0.0) < rock_max_slope:
+									var s_sc: float
+									if not sat_profiles.is_empty():
+										var sat_p: Dictionary = sat_profiles[s_idx % sat_profiles.size()]
+										var sc_min: float = float(sat_p.get("scale_min", 0.20))
+										var sc_max: float = float(sat_p.get("scale_max", 0.40))
+										s_sc = rng.randf_range(sc_min, sc_max)
+									else:
+										s_sc = rng.randf_range(0.20, 0.40)
 									var s_pos := Vector3(sat_x, s_surf["height"], sat_z)
 									context.result.vegetation.append(
 										WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, s_pos, rng.randf_range(0.0, TAU), s_sc)
