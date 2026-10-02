@@ -1,38 +1,48 @@
 extends Node3D
 
-## Laboratorio Visual Interactivo para el Sistema Procedural de Rocas.
-## Incluye cámara orbital completa (giro, zoom, paneo) y panel de control en tiempo real
-## para modificar todos los parámetros de generación geométrica, distribución y shader.
+## Rock Laboratory: Herramienta visual de autoría y configuración de rocas procedurales.
+## Permite diseñar geometrías, siluetas, deformaciones, clusters y materiales en tiempo real
+## y exportar/importar configuraciones JSON unificadas (RockConfig) por bioma.
 
-const RockSizeProfile = preload("res://src/rock_generation/rock_size_profile.gd")
+const RockConfig = preload("res://src/rock_generation/config/rock_config.gd")
+const RockSizeConfig = preload("res://src/rock_generation/config/rock_size_config.gd")
 const RockMeshBuilder = preload("res://src/rock_generation/rock_mesh_builder.gd")
 const RockMaterial = preload("res://src/rock_generation/rock_material.gd")
 const RockInstance = preload("res://src/rock_generation/rock_instance.gd")
 const RockGeneration = preload("res://src/rock_generation/rock_generation.gd")
 
-# Contenedor de nodos de rocas para poder regenerarlas al vuelo
+# Configuración del Laboratorio
+var _rock_config: RockConfig = null
+var _current_seed: int = 4242
+var _selected_category: int = RockSizeConfig.Category.LARGE
+
+# Nodos de visualización
 var _rocks_container: Node3D = null
 var _shared_material: ShaderMaterial = null
-var _profiles: Dictionary = {}
-var _current_seed: int = 4242
-var _selected_category: int = RockSizeProfile.Category.LARGE
+var _rock_gen: RockGeneration = null
 
 # Configuración de Cámara Orbital
 var _cam_pivot: Node3D = null
 var _cam: Camera3D = null
-var _cam_distance: float = 18.0
+var _cam_distance: float = 20.0
 var _cam_yaw: float = 0.0
 var _cam_pitch: float = -32.0
 var _is_orbiting: bool = false
 var _is_panning: bool = false
 var _last_mouse_pos: Vector2 = Vector2.ZERO
 
-# Referencias a controles UI
+# UI Controls Registry
 var _sliders: Dictionary = {}
 var _labels: Dictionary = {}
+var _toast_label: Label = null
+var _toast_timer: float = 0.0
+var _file_dialog: FileDialog = null
+var _file_dialog_mode: int = 0 # 0: load, 1: save
+var _biome_name_edit: LineEdit = null
+var _cat_selector: OptionButton = null
 
 func _ready() -> void:
-	_profiles = RockSizeProfile.get_all_profiles()
+	_rock_config = RockConfig.create_default_taiga()
 	_shared_material = RockMaterial.create_rock_material()
 
 	_setup_environment()
@@ -41,8 +51,13 @@ func _ready() -> void:
 	_populate_showcase()
 	_setup_ui()
 
+func _process(delta: float) -> void:
+	if _toast_timer > 0.0:
+		_toast_timer -= delta
+		if _toast_timer <= 0.0 and _toast_label != null:
+			_toast_label.text = ""
+
 func _setup_environment() -> void:
-	# 1. Luz Direccional (Sol estilizado)
 	var sun: DirectionalLight3D = DirectionalLight3D.new()
 	sun.name = "SunLight"
 	sun.rotation_degrees = Vector3(-50.0, 35.0, 0.0)
@@ -51,12 +66,11 @@ func _setup_environment() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
-	# 2. Luz de relleno ambiente
 	var env: WorldEnvironment = WorldEnvironment.new()
 	env.name = "WorldEnv"
 	var sky_env: Environment = Environment.new()
 	sky_env.background_mode = Environment.BG_COLOR
-	sky_env.background_color = Color(0.18, 0.22, 0.26)
+	sky_env.background_color = Color(0.14, 0.17, 0.20)
 	sky_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	sky_env.ambient_light_color = Color(0.48, 0.55, 0.60)
 	sky_env.ambient_light_energy = 0.95
@@ -64,11 +78,10 @@ func _setup_environment() -> void:
 	env.environment = sky_env
 	add_child(env)
 
-	# 3. Suelo de referencia
 	var ground_mesh: PlaneMesh = PlaneMesh.new()
-	ground_mesh.size = Vector2(80, 80)
+	ground_mesh.size = Vector2(100, 100)
 	var ground_mat: StandardMaterial3D = StandardMaterial3D.new()
-	ground_mat.albedo_color = Color(0.28, 0.35, 0.24) # Verde Taiga
+	ground_mat.albedo_color = Color(0.24, 0.30, 0.22)
 	ground_mat.roughness = 0.95
 	var ground_inst: MeshInstance3D = MeshInstance3D.new()
 	ground_inst.name = "Ground"
@@ -98,28 +111,28 @@ func _setup_rocks_container() -> void:
 	_rocks_container.name = "RocksContainer"
 	add_child(_rocks_container)
 
-## Genera y coloca las variantes y el cluster usando la configuración actual
+## Regenera la escena completa utilizando _rock_config
 func _populate_showcase() -> void:
-	# Limpiar instancias anteriores
 	for child in _rocks_container.get_children():
 		child.queue_free()
 
-	var rock_gen: RockGeneration = RockGeneration.new(_current_seed, _profiles)
-	rock_gen.shared_material = _shared_material
+	_rock_gen = RockGeneration.new(_current_seed, _rock_config)
+	_shared_material = _rock_gen.get_material()
 
-	var large_profile: RockSizeProfile = _profiles[RockSizeProfile.Category.LARGE]
-	var medium_profile: RockSizeProfile = _profiles[RockSizeProfile.Category.MEDIUM]
-	var small_profile: RockSizeProfile = _profiles[RockSizeProfile.Category.SMALL]
+	var large_profile: RockSizeConfig = _rock_config.get_profile(RockSizeConfig.Category.LARGE)
+	var medium_profile: RockSizeConfig = _rock_config.get_profile(RockSizeConfig.Category.MEDIUM)
+	var small_profile: RockSizeConfig = _rock_config.get_profile(RockSizeConfig.Category.SMALL)
 
 	# --- COLUMNA 1: ROCAS GRANDES (X = -9.0) ---
-	for v in range(large_profile.num_variants):
-		var mesh: ArrayMesh = rock_gen.get_mesh(RockSizeProfile.Category.LARGE, v)
+	var l_vars: int = max(1, large_profile.num_variants)
+	for v in range(l_vars):
+		var mesh: ArrayMesh = _rock_gen.get_mesh(RockSizeConfig.Category.LARGE, v)
 		var inst: RockInstance = RockInstance.create(
 			Vector3(-9.0, 0.0, -6.0 + float(v) * 5.0),
 			large_profile,
 			_current_seed + 100 + v,
 			Vector3.UP,
-			RockSizeProfile.Category.LARGE
+			RockSizeConfig.Category.LARGE
 		)
 		var mi: MeshInstance3D = MeshInstance3D.new()
 		mi.name = "Large_Variant_%d" % v
@@ -129,14 +142,15 @@ func _populate_showcase() -> void:
 		_rocks_container.add_child(mi)
 
 	# --- COLUMNA 2: ROCAS MEDIANAS (X = -2.5) ---
-	for v in range(medium_profile.num_variants):
-		var mesh: ArrayMesh = rock_gen.get_mesh(RockSizeProfile.Category.MEDIUM, v)
+	var m_vars: int = max(1, medium_profile.num_variants)
+	for v in range(m_vars):
+		var mesh: ArrayMesh = _rock_gen.get_mesh(RockSizeConfig.Category.MEDIUM, v)
 		var inst: RockInstance = RockInstance.create(
 			Vector3(-2.5, 0.0, -6.0 + float(v) * 3.4),
 			medium_profile,
 			_current_seed + 200 + v,
 			Vector3.UP,
-			RockSizeProfile.Category.MEDIUM
+			RockSizeConfig.Category.MEDIUM
 		)
 		var mi: MeshInstance3D = MeshInstance3D.new()
 		mi.name = "Medium_Variant_%d" % v
@@ -146,14 +160,15 @@ func _populate_showcase() -> void:
 		_rocks_container.add_child(mi)
 
 	# --- FILA FRONTAL: ROCAS MINÚSCULAS (Z = 5.5) ---
+	var s_vars: int = max(1, small_profile.num_variants)
 	for v in range(6):
-		var mesh: ArrayMesh = rock_gen.get_mesh(RockSizeProfile.Category.SMALL, v % small_profile.num_variants)
+		var mesh: ArrayMesh = _rock_gen.get_mesh(RockSizeConfig.Category.SMALL, v % s_vars)
 		var inst: RockInstance = RockInstance.create(
 			Vector3(-10.0 + float(v) * 2.2, 0.0, 5.5),
 			small_profile,
 			_current_seed + 300 + v,
 			Vector3.UP,
-			RockSizeProfile.Category.SMALL
+			RockSizeConfig.Category.SMALL
 		)
 		var mi: MeshInstance3D = MeshInstance3D.new()
 		mi.name = "Small_Variant_%d" % v
@@ -162,58 +177,592 @@ func _populate_showcase() -> void:
 		mi.material_override = _shared_material
 		_rocks_container.add_child(mi)
 
-	# --- SECCIÓN DERECHA: CLUSTER NATURAL (Centro en X = 6.5, Z = -1.0) ---
-	var cl_large_mesh: ArrayMesh = rock_gen.get_mesh(RockSizeProfile.Category.LARGE, 0)
+	# --- SECCIÓN DERECHA: CLUSTER SIMULADO BASADO EN ROCKCONFIG ---
+	_spawn_cluster_simulation(Vector3(6.5, 0.0, -1.0))
+
+func _spawn_cluster_simulation(center: Vector3) -> void:
+	var large_profile: RockSizeConfig = _rock_config.get_profile(RockSizeConfig.Category.LARGE)
+	var cl_large_mesh: ArrayMesh = _rock_gen.get_mesh(RockSizeConfig.Category.LARGE, 0)
 	var cl_large_inst: RockInstance = RockInstance.create(
-		Vector3(6.5, 0.0, -1.0),
+		center,
 		large_profile,
 		_current_seed + 777,
 		Vector3.UP,
-		RockSizeProfile.Category.LARGE
+		RockSizeConfig.Category.LARGE
 	)
 	var mi_cl_l: MeshInstance3D = MeshInstance3D.new()
-	mi_cl_l.name = "Cluster_Large"
+	mi_cl_l.name = "Cluster_Large_Master"
 	mi_cl_l.mesh = cl_large_mesh
 	mi_cl_l.transform = cl_large_inst.transform
 	mi_cl_l.material_override = _shared_material
 	_rocks_container.add_child(mi_cl_l)
 
-	var med_offsets: Array[Vector3] = [Vector3(-2.8, 0.0, 1.4), Vector3(2.5, 0.0, -1.6)]
-	for i in range(med_offsets.size()):
-		var m_mesh: ArrayMesh = rock_gen.get_mesh(RockSizeProfile.Category.MEDIUM, i % medium_profile.num_variants)
-		var m_inst: RockInstance = RockInstance.create(
-			Vector3(6.5, 0.0, -1.0) + med_offsets[i],
-			medium_profile,
-			_current_seed + 800 + i,
-			Vector3.UP,
-			RockSizeProfile.Category.MEDIUM
-		)
-		var mi_m: MeshInstance3D = MeshInstance3D.new()
-		mi_m.name = "Cluster_Medium_%d" % i
-		mi_m.mesh = m_mesh
-		mi_m.transform = m_inst.transform
-		mi_m.material_override = _shared_material
-		_rocks_container.add_child(mi_m)
+	# Generar satélites de acuerdo con _rock_config.clustering["large"]
+	var cl_info: Dictionary = _rock_config.clustering.get("large", {})
+	if not cl_info.get("enabled", true):
+		return
 
-	var small_angles: Array[float] = [0.2, 1.2, 2.3, 3.4, 4.5, 5.6]
-	for i in range(small_angles.size()):
-		var rad: float = small_angles[i]
-		var dist: float = 3.0 + (i % 3) * 0.9
-		var s_pos: Vector3 = Vector3(6.5 + cos(rad) * dist, 0.0, -1.0 + sin(rad) * dist)
-		var s_mesh: ArrayMesh = rock_gen.get_mesh(RockSizeProfile.Category.SMALL, i % small_profile.num_variants)
-		var s_inst: RockInstance = RockInstance.create(
-			s_pos,
-			small_profile,
-			_current_seed + 900 + i,
+	var min_sats: int = int(cl_info.get("min_satellites", 2))
+	var max_sats: int = int(cl_info.get("max_satellites", 3))
+	var count: int = max(min_sats, max_sats)
+	var dist_min_mult: float = float(cl_info.get("min_distance_mult", 0.8))
+	var dist_max_mult: float = float(cl_info.get("max_distance_mult", 1.6))
+	var sat_profiles: Array = cl_info.get("satellite_profiles", [])
+	var master_scale: float = (cl_large_inst.scale.x + cl_large_inst.scale.z) * 0.5
+
+	for s_idx in range(count):
+		var angle: float = (TAU * float(s_idx) / float(count)) + 0.35
+		var dist: float = lerp(dist_min_mult, dist_max_mult, float(s_idx) / float(max(1, count - 1))) * master_scale
+		var sat_pos: Vector3 = center + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+
+		var sat_cat: int = RockSizeConfig.Category.SMALL
+		var s_sc_min: float = 0.20
+		var s_sc_max: float = 0.40
+
+		if not sat_profiles.is_empty():
+			var p_info: Dictionary = sat_profiles[s_idx % sat_profiles.size()]
+			var cat_str: String = str(p_info.get("category", "small")).to_lower()
+			if cat_str == "medium":
+				sat_cat = RockSizeConfig.Category.MEDIUM
+			s_sc_min = float(p_info.get("scale_min", 0.20))
+			s_sc_max = float(p_info.get("scale_max", 0.40))
+
+		var sat_cfg: RockSizeConfig = _rock_config.get_profile(sat_cat)
+		var sat_mesh: ArrayMesh = _rock_gen.get_mesh(sat_cat, s_idx)
+		var sat_inst: RockInstance = RockInstance.create(
+			sat_pos,
+			sat_cfg,
+			_current_seed + 900 + s_idx,
 			Vector3.UP,
-			RockSizeProfile.Category.SMALL
+			sat_cat
 		)
-		var mi_s: MeshInstance3D = MeshInstance3D.new()
-		mi_s.name = "Cluster_Small_%d" % i
-		mi_s.mesh = s_mesh
-		mi_s.transform = s_inst.transform
-		mi_s.material_override = _shared_material
-		_rocks_container.add_child(mi_s)
+		var mi_sat: MeshInstance3D = MeshInstance3D.new()
+		mi_sat.name = "Cluster_Satellite_%d" % s_idx
+		mi_sat.mesh = sat_mesh
+		mi_sat.transform = sat_inst.transform
+		mi_sat.material_override = _shared_material
+		_rocks_container.add_child(mi_sat)
+
+# =========================================================================
+# INTERFAZ DE USUARIO: PANEL DE CONTROL POR PESTAÑAS (AUTHORING SUITE)
+# =========================================================================
+
+func _setup_ui() -> void:
+	var canvas: CanvasLayer = CanvasLayer.new()
+	canvas.name = "UILayer"
+	add_child(canvas)
+
+	var panel: PanelContainer = PanelContainer.new()
+	panel.name = "LaboratoryPanel"
+	panel.custom_minimum_size = Vector2(420, 720)
+	panel.position = Vector2(16, 16)
+
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.10, 0.14, 0.92)
+	style.corner_radius_top_left = 12
+	style.corner_radius_top_right = 12
+	style.corner_radius_bottom_left = 12
+	style.corner_radius_bottom_right = 12
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
+	panel.add_theme_stylebox_override("panel", style)
+	canvas.add_child(panel)
+
+	var main_vbox: VBoxContainer = VBoxContainer.new()
+	main_vbox.add_theme_constant_override("separation", 6)
+	panel.add_child(main_vbox)
+
+	# Encabezado
+	var title_lbl: Label = Label.new()
+	title_lbl.text = "⚒️ ROCK LABORATORY — AUTHORING TOOL"
+	title_lbl.add_theme_font_size_override("font_size", 14)
+	title_lbl.add_theme_color_override("font_color", Color(0.92, 0.96, 1.0))
+	main_vbox.add_child(title_lbl)
+
+	var sub_lbl: Label = Label.new()
+	sub_lbl.text = "Click Der: Orbitar | Rueda: Zoom | Botón Medio: Paneo"
+	sub_lbl.add_theme_font_size_override("font_size", 10)
+	sub_lbl.add_theme_color_override("font_color", Color(0.60, 0.68, 0.76))
+	main_vbox.add_child(sub_lbl)
+
+	# Fila Semilla y Categoría activa
+	var top_row: HBoxContainer = HBoxContainer.new()
+	var seed_lbl: Label = Label.new()
+	seed_lbl.text = "Semilla: %d" % _current_seed
+	seed_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_labels["seed_text"] = {"label": seed_lbl, "name": "Semilla"}
+	top_row.add_child(seed_lbl)
+
+	var btn_rand: Button = Button.new()
+	btn_rand.text = "🎲 Random"
+	btn_rand.pressed.connect(func():
+		_current_seed = randi() % 999999
+		seed_lbl.text = "Semilla: %d" % _current_seed
+		_populate_showcase()
+	)
+	top_row.add_child(btn_rand)
+	main_vbox.add_child(top_row)
+
+	# Selector de categoría para pestañas geométricas
+	var cat_row: HBoxContainer = HBoxContainer.new()
+	var cat_lbl: Label = Label.new()
+	cat_lbl.text = "Tamaño a Modificar:"
+	cat_row.add_child(cat_lbl)
+
+	_cat_selector = OptionButton.new()
+	_cat_selector.add_item("Grandes (Large)", RockSizeConfig.Category.LARGE)
+	_cat_selector.add_item("Medianas (Medium)", RockSizeConfig.Category.MEDIUM)
+	_cat_selector.add_item("Pequeñas (Small)", RockSizeConfig.Category.SMALL)
+	_cat_selector.selected = 0
+	_cat_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cat_selector.item_selected.connect(func(idx: int):
+		_selected_category = _cat_selector.get_item_id(idx)
+		_sync_all_controls()
+	)
+	cat_row.add_child(_cat_selector)
+	main_vbox.add_child(cat_row)
+
+	main_vbox.add_child(HSeparator.new())
+
+	# Contenedor de Pestañas
+	var tab_container: TabContainer = TabContainer.new()
+	tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(tab_container)
+
+	# 1. Pestaña Bioma & Archivos
+	_build_tab_biome_io(tab_container)
+
+	# 2. Pestaña Geometría
+	_build_tab_geometry(tab_container)
+
+	# 3. Pestaña Silueta & Deformación
+	_build_tab_silhouette(tab_container)
+
+	# 4. Pestaña Variación Instancia
+	_build_tab_variation(tab_container)
+
+	# 5. Pestaña Clusters & Satélites
+	_build_tab_clustering(tab_container)
+
+	# 6. Pestaña Material / Sombreado
+	_build_tab_material(tab_container)
+
+	# Notificación Toast y Botones Inferiores
+	_toast_label = Label.new()
+	_toast_label.text = ""
+	_toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast_label.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
+	_toast_label.add_theme_font_size_override("font_size", 11)
+	main_vbox.add_child(_toast_label)
+
+	var bottom_row: HBoxContainer = HBoxContainer.new()
+	var btn_regen: Button = Button.new()
+	btn_regen.text = "🔄 Regenerar Mallas"
+	btn_regen.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_regen.pressed.connect(func(): _populate_showcase())
+	bottom_row.add_child(btn_regen)
+
+	var btn_save_default: Button = Button.new()
+	btn_save_default.text = "💾 Guardar Bioma JSON"
+	btn_save_default.pressed.connect(_on_save_default_json)
+	bottom_row.add_child(btn_save_default)
+	main_vbox.add_child(bottom_row)
+
+	# FileDialog para Guardar/Cargar personalizado
+	_setup_file_dialog(canvas)
+
+	_sync_all_controls()
+
+# --- PESTAÑA 1: BIOMA & ARCHIVOS ---
+func _build_tab_biome_io(tab_parent: TabContainer) -> void:
+	var scroll: ScrollContainer = _create_tab_scroll(tab_parent, "Bioma")
+	var vbox: VBoxContainer = scroll.get_child(0)
+
+	var name_lbl: Label = Label.new()
+	name_lbl.text = "Nombre del Bioma:"
+	vbox.add_child(name_lbl)
+
+	_biome_name_edit = LineEdit.new()
+	_biome_name_edit.text = _rock_config.biome
+	_biome_name_edit.text_changed.connect(func(new_text: String):
+		_rock_config.biome = new_text
+	)
+	vbox.add_child(_biome_name_edit)
+
+	var pres_lbl: Label = Label.new()
+	pres_lbl.text = "Cargar Preset Canónico:"
+	vbox.add_child(pres_lbl)
+
+	var preset_opt: OptionButton = OptionButton.new()
+	preset_opt.add_item("🌲 Taiga (Crestas y granito)")
+	preset_opt.add_item("🏜️ Desierto (Lajas estratificadas)")
+	preset_opt.add_item("🏔️ Alta Montaña (Picos escarpados)")
+	preset_opt.selected = 0
+	preset_opt.item_selected.connect(func(idx: int):
+		if idx == 0:
+			_rock_config = RockConfig.create_default_taiga()
+		elif idx == 1:
+			_rock_config = RockConfig.create_default_desert()
+		elif idx == 2:
+			_rock_config = RockConfig.create_default_mountain()
+		_biome_name_edit.text = _rock_config.biome
+		_sync_all_controls()
+		_populate_showcase()
+		_show_toast("Preset aplicado exitosamente.")
+	)
+	vbox.add_child(preset_opt)
+
+	vbox.add_child(HSeparator.new())
+
+	# Distribución
+	_add_slider(vbox, "dist_density", "Densidad Global", 0.01, 0.50, 0.01, func(v: float):
+		_rock_config.distribution["density"] = v
+	)
+	_add_slider(vbox, "dist_min_slope", "Pendiente Mínima (°)", 0.0, 45.0, 1.0, func(v: float):
+		_rock_config.distribution["min_slope_degrees"] = v
+	)
+	_add_slider(vbox, "dist_max_slope", "Pendiente Máxima (°)", 20.0, 85.0, 1.0, func(v: float):
+		_rock_config.distribution["max_slope_degrees"] = v
+	)
+
+	vbox.add_child(HSeparator.new())
+
+	var io_row: HBoxContainer = HBoxContainer.new()
+	var btn_load: Button = Button.new()
+	btn_load.text = "📥 Cargar JSON..."
+	btn_load.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_load.pressed.connect(func():
+		_file_dialog_mode = 0
+		_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		_file_dialog.popup_centered(Vector2i(600, 400))
+	)
+	io_row.add_child(btn_load)
+
+	var btn_save_as: Button = Button.new()
+	btn_save_as.text = "💾 Guardar Como..."
+	btn_save_as.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_save_as.pressed.connect(func():
+		_file_dialog_mode = 1
+		_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+		_file_dialog.current_file = "%s_rocks.json" % _rock_config.biome
+		_file_dialog.popup_centered(Vector2i(600, 400))
+	)
+	io_row.add_child(btn_save_as)
+	vbox.add_child(io_row)
+
+# --- PESTAÑA 2: GEOMETRÍA ---
+func _build_tab_geometry(tab_parent: TabContainer) -> void:
+	var scroll: ScrollContainer = _create_tab_scroll(tab_parent, "Geometría")
+	var vbox: VBoxContainer = scroll.get_child(0)
+
+	_add_slider(vbox, "rings", "Anillos Verticales (Rings)", 3.0, 8.0, 1.0, func(v: float):
+		_get_active_profile().rings = int(v)
+		_populate_showcase()
+	)
+	_add_slider(vbox, "segments", "Segmentos Circulares", 5.0, 16.0, 1.0, func(v: float):
+		_get_active_profile().segments = int(v)
+		_populate_showcase()
+	)
+	_add_slider(vbox, "height_ratio", "Relación Altura (Y Ratio)", 0.3, 2.5, 0.05, func(v: float):
+		_get_active_profile().height_ratio = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "irregularity", "Irregularidad Global", 0.0, 1.0, 0.02, func(v: float):
+		_get_active_profile().irregularity = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "base_penetration", "Penetración Base Suelo", 0.0, 0.60, 0.02, func(v: float):
+		_get_active_profile().base_penetration = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "num_variants", "Variantes Pregeneradas", 1.0, 6.0, 1.0, func(v: float):
+		_get_active_profile().num_variants = int(v)
+		_populate_showcase()
+	)
+
+# --- PESTAÑA 3: SILUETA & DEFORMACIÓN ---
+func _build_tab_silhouette(tab_parent: TabContainer) -> void:
+	var scroll: ScrollContainer = _create_tab_scroll(tab_parent, "Silueta")
+	var vbox: VBoxContainer = scroll.get_child(0)
+
+	_add_slider(vbox, "base_radius_factor", "Factor Radio Base", 0.4, 1.6, 0.05, func(v: float):
+		_get_active_profile().base_radius_factor = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "body_bulge_factor", "Abultamiento Cuerpo", 0.8, 1.8, 0.05, func(v: float):
+		_get_active_profile().body_bulge_factor = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "taper_power", "Potencia Estrechamiento (Taper)", 0.2, 2.0, 0.05, func(v: float):
+		_get_active_profile().taper_power = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "peak_convergence_min", "Convergencia Cresta Min", 0.05, 0.40, 0.02, func(v: float):
+		_get_active_profile().peak_convergence_min = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "peak_convergence_max", "Convergencia Cresta Max", 0.15, 0.60, 0.02, func(v: float):
+		_get_active_profile().peak_convergence_max = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "apex_elevation_min", "Elevación Apex Min", 0.02, 0.40, 0.02, func(v: float):
+		_get_active_profile().apex_elevation_min = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "apex_elevation_max", "Elevación Apex Max", 0.10, 0.60, 0.02, func(v: float):
+		_get_active_profile().apex_elevation_max = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "radial_jitter", "Jitter Radial", 0.0, 1.0, 0.05, func(v: float):
+		_get_active_profile().radial_jitter = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "vertical_jitter", "Jitter Vertical", 0.0, 1.0, 0.05, func(v: float):
+		_get_active_profile().vertical_jitter = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "mass_offset_strength", "Fuerza Asimetría (Masa)", 0.0, 0.50, 0.02, func(v: float):
+		_get_active_profile().mass_offset_strength = v
+		_populate_showcase()
+	)
+
+# --- PESTAÑA 4: VARIACIÓN DE INSTANCIA ---
+func _build_tab_variation(tab_parent: TabContainer) -> void:
+	var scroll: ScrollContainer = _create_tab_scroll(tab_parent, "Variación")
+	var vbox: VBoxContainer = scroll.get_child(0)
+
+	_add_slider(vbox, "min_scale", "Escala Mínima", 0.1, 4.0, 0.05, func(v: float):
+		_get_active_profile().min_scale = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "max_scale", "Escala Máxima", 0.2, 8.0, 0.05, func(v: float):
+		_get_active_profile().max_scale = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "max_tilt_degrees", "Inclinación Máxima (°)", 0.0, 25.0, 1.0, func(v: float):
+		_get_active_profile().max_tilt_degrees = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "slope_tilt_factor", "Factor Inclinación Pendiente", 0.0, 12.0, 0.5, func(v: float):
+		_get_active_profile().slope_tilt_factor = v
+		_populate_showcase()
+	)
+
+# --- PESTAÑA 5: CLUSTERS & SATÉLITES ---
+func _build_tab_clustering(tab_parent: TabContainer) -> void:
+	var scroll: ScrollContainer = _create_tab_scroll(tab_parent, "Clusters")
+	var vbox: VBoxContainer = scroll.get_child(0)
+
+	_add_slider(vbox, "cluster_prob", "Probabilidad de Cluster", 0.0, 1.0, 0.05, func(v: float):
+		var key: String = _get_active_cat_key()
+		_rock_config.clustering[key]["probability"] = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "cluster_min_sat", "Mínimo de Satélites", 0.0, 5.0, 1.0, func(v: float):
+		var key: String = _get_active_cat_key()
+		_rock_config.clustering[key]["min_satellites"] = int(v)
+		_populate_showcase()
+	)
+	_add_slider(vbox, "cluster_max_sat", "Máximo de Satélites", 0.0, 8.0, 1.0, func(v: float):
+		var key: String = _get_active_cat_key()
+		_rock_config.clustering[key]["max_satellites"] = int(v)
+		_populate_showcase()
+	)
+	_add_slider(vbox, "cluster_dist_min", "Distancia Mínima Multiplicador", 0.4, 2.5, 0.1, func(v: float):
+		var key: String = _get_active_cat_key()
+		_rock_config.clustering[key]["min_distance_mult"] = v
+		_populate_showcase()
+	)
+	_add_slider(vbox, "cluster_dist_max", "Distancia Máxima Multiplicador", 0.8, 3.5, 0.1, func(v: float):
+		var key: String = _get_active_cat_key()
+		_rock_config.clustering[key]["max_distance_mult"] = v
+		_populate_showcase()
+	)
+
+# --- PESTAÑA 6: MATERIAL / SHADING ---
+func _build_tab_material(tab_parent: TabContainer) -> void:
+	var scroll: ScrollContainer = _create_tab_scroll(tab_parent, "Material")
+	var vbox: VBoxContainer = scroll.get_child(0)
+
+	_add_slider(vbox, "mat_normal_weight", "Luz Normal UP", 0.0, 1.0, 0.05, func(v: float):
+		_rock_config.material["normal_weight"] = v
+		if _shared_material != null:
+			_shared_material.set_shader_parameter("normal_weight", v)
+	)
+	_add_slider(vbox, "mat_height_weight", "Gradiente Altura", 0.0, 1.0, 0.05, func(v: float):
+		_rock_config.material["height_weight"] = v
+		if _shared_material != null:
+			_shared_material.set_shader_parameter("height_weight", v)
+	)
+	_add_slider(vbox, "mat_variation_strength", "Variación Tonal Instancia", 0.0, 0.50, 0.02, func(v: float):
+		_rock_config.material["variation_strength"] = v
+		if _shared_material != null:
+			_shared_material.set_shader_parameter("variation_strength", v)
+	)
+	_add_slider(vbox, "mat_roughness", "Rugosidad (Roughness)", 0.1, 1.0, 0.05, func(v: float):
+		_rock_config.material["roughness"] = v
+		if _shared_material != null:
+			_shared_material.set_shader_parameter("roughness", v)
+	)
+	_add_slider(vbox, "mat_specular", "Especularidad (Specular)", 0.0, 1.0, 0.05, func(v: float):
+		_rock_config.material["specular"] = v
+		if _shared_material != null:
+			_shared_material.set_shader_parameter("specular", v)
+	)
+
+# =========================================================================
+# HELPERS DE UI Y CONTROLADORES
+# =========================================================================
+
+func _create_tab_scroll(tab_parent: TabContainer, tab_name: String) -> ScrollContainer:
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.name = tab_name
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tab_parent.add_child(scroll)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
+	return scroll
+
+func _get_active_profile() -> RockSizeConfig:
+	return _rock_config.get_profile(_selected_category)
+
+func _get_active_cat_key() -> String:
+	if _selected_category == RockSizeConfig.Category.LARGE:
+		return "large"
+	elif _selected_category == RockSizeConfig.Category.MEDIUM:
+		return "medium"
+	return "small"
+
+func _add_slider(
+	parent: Container,
+	id: String,
+	display_name: String,
+	min_v: float,
+	max_v: float,
+	step: float,
+	callback: Callable
+) -> void:
+	var lbl: Label = Label.new()
+	lbl.text = "%s: --" % display_name
+	lbl.add_theme_font_size_override("font_size", 11)
+	parent.add_child(lbl)
+	_labels[id] = {"label": lbl, "name": display_name}
+
+	var slider: HSlider = HSlider.new()
+	slider.min_value = min_v
+	slider.max_value = max_v
+	slider.step = step
+	slider.value_changed.connect(func(v: float):
+		lbl.text = "%s: %.2f" % [display_name, v]
+		callback.call(v)
+	)
+	parent.add_child(slider)
+	_sliders[id] = slider
+
+func _sync_all_controls() -> void:
+	var prof: RockSizeConfig = _get_active_profile()
+	var cat_key: String = _get_active_cat_key()
+
+	# Bioma
+	_set_slider_value("dist_density", _rock_config.distribution.get("density", 0.15))
+	_set_slider_value("dist_min_slope", _rock_config.distribution.get("min_slope_degrees", 15.0))
+	_set_slider_value("dist_max_slope", _rock_config.distribution.get("max_slope_degrees", 55.0))
+
+	# Geometría
+	_set_slider_value("rings", float(prof.rings))
+	_set_slider_value("segments", float(prof.segments))
+	_set_slider_value("height_ratio", prof.height_ratio)
+	_set_slider_value("irregularity", prof.irregularity)
+	_set_slider_value("base_penetration", prof.base_penetration)
+	_set_slider_value("num_variants", float(prof.num_variants))
+
+	# Silueta
+	_set_slider_value("base_radius_factor", prof.base_radius_factor)
+	_set_slider_value("body_bulge_factor", prof.body_bulge_factor)
+	_set_slider_value("taper_power", prof.taper_power)
+	_set_slider_value("peak_convergence_min", prof.peak_convergence_min)
+	_set_slider_value("peak_convergence_max", prof.peak_convergence_max)
+	_set_slider_value("apex_elevation_min", prof.apex_elevation_min)
+	_set_slider_value("apex_elevation_max", prof.apex_elevation_max)
+	_set_slider_value("radial_jitter", prof.radial_jitter)
+	_set_slider_value("vertical_jitter", prof.vertical_jitter)
+	_set_slider_value("mass_offset_strength", prof.mass_offset_strength)
+
+	# Variación
+	_set_slider_value("min_scale", prof.min_scale)
+	_set_slider_value("max_scale", prof.max_scale)
+	_set_slider_value("max_tilt_degrees", prof.max_tilt_degrees)
+	_set_slider_value("slope_tilt_factor", prof.slope_tilt_factor)
+
+	# Clusters
+	var cl: Dictionary = _rock_config.clustering.get(cat_key, {})
+	_set_slider_value("cluster_prob", float(cl.get("probability", 0.4)))
+	_set_slider_value("cluster_min_sat", float(cl.get("min_satellites", 1)))
+	_set_slider_value("cluster_max_sat", float(cl.get("max_satellites", 2)))
+	_set_slider_value("cluster_dist_min", float(cl.get("min_distance_mult", 0.8)))
+	_set_slider_value("cluster_dist_max", float(cl.get("max_distance_mult", 1.6)))
+
+	# Material
+	_set_slider_value("mat_normal_weight", float(_rock_config.material.get("normal_weight", 0.55)))
+	_set_slider_value("mat_height_weight", float(_rock_config.material.get("height_weight", 0.45)))
+	_set_slider_value("mat_variation_strength", float(_rock_config.material.get("variation_strength", 0.15)))
+	_set_slider_value("mat_roughness", float(_rock_config.material.get("roughness", 0.85)))
+	_set_slider_value("mat_specular", float(_rock_config.material.get("specular", 0.15)))
+
+func _set_slider_value(id: String, val: Variant) -> void:
+	if val == null:
+		return
+	if _sliders.has(id):
+		var slider: HSlider = _sliders[id]
+		slider.set_value_no_signal(float(val))
+		if _labels.has(id):
+			var info: Dictionary = _labels[id]
+			info["label"].text = "%s: %.2f" % [info["name"], float(val)]
+
+func _show_toast(msg: String) -> void:
+	if _toast_label != null:
+		_toast_label.text = msg
+		_toast_timer = 4.0
+
+func _on_save_default_json() -> void:
+	var path: String = "res://assets/config/rocks/%s_rocks.json" % _rock_config.biome.to_lower()
+	var err: Error = _rock_config.save_to_json(path)
+	if err == OK:
+		_show_toast("Guardado exitoso en %s" % path)
+	else:
+		_show_toast("Error al guardar en %s: %d" % [path, err])
+
+func _setup_file_dialog(canvas: CanvasLayer) -> void:
+	_file_dialog = FileDialog.new()
+	_file_dialog.access = FileDialog.ACCESS_RESOURCES
+	_file_dialog.filters = PackedStringArray(["*.json ; Archivos de Configuración JSON"])
+	_file_dialog.file_selected.connect(_on_file_selected)
+	canvas.add_child(_file_dialog)
+
+func _on_file_selected(path: String) -> void:
+	if _file_dialog_mode == 0:
+		# Cargar
+		var err: Error = _rock_config.load_from_json(path)
+		if err == OK:
+			if _biome_name_edit != null:
+				_biome_name_edit.text = _rock_config.biome
+			_sync_all_controls()
+			_populate_showcase()
+			_show_toast("Cargado exitoso: %s" % path.get_file())
+		else:
+			_show_toast("Error al cargar JSON: %d" % err)
+	else:
+		# Guardar Como
+		var err: Error = _rock_config.save_to_json(path)
+		if err == OK:
+			_show_toast("Guardado exitoso: %s" % path.get_file())
+		else:
+			_show_toast("Error al guardar: %d" % err)
 
 # =========================================================================
 # ENTRADAS DE USUARIO (CÁMARA ORBITAL Y NAVEGACIÓN)
@@ -232,7 +781,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cam_distance = max(4.0, _cam_distance - 1.2)
 			_update_camera_transform()
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_cam_distance = min(45.0, _cam_distance + 1.2)
+			_cam_distance = min(60.0, _cam_distance + 1.2)
 			_update_camera_transform()
 
 	elif event is InputEventMouseMotion:
@@ -251,240 +800,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			forward_dir = forward_dir.normalized()
 			_cam_pivot.position += (-right_dir * delta.x + forward_dir * delta.y) * pan_speed
 
-func _process(delta: float) -> void:
-	# Movimiento suave de pivote con teclado (WASD / Flechas)
-	var move_vec: Vector3 = Vector3.ZERO
-	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
-		move_vec.z -= 1.0
-	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
-		move_vec.z += 1.0
-	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
-		move_vec.x -= 1.0
-	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
-		move_vec.x += 1.0
-
-	if move_vec != Vector3.ZERO:
-		var move_speed: float = 12.0 * delta
-		var right_dir: Vector3 = _cam.global_transform.basis.x
-		right_dir.y = 0.0
-		right_dir = right_dir.normalized()
-		var forward_dir: Vector3 = -_cam.global_transform.basis.z
-		forward_dir.y = 0.0
-		forward_dir = forward_dir.normalized()
-		_cam_pivot.position += (right_dir * move_vec.x + forward_dir * move_vec.z) * move_speed
-
-# =========================================================================
-# INTERFAZ DE USUARIO (PANEL DE CONTROL INTERACTIVO)
-# =========================================================================
-
-func _setup_ui() -> void:
-	var canvas: CanvasLayer = CanvasLayer.new()
-	canvas.name = "UILayer"
-	add_child(canvas)
-
-	# Panel contenedor semi-transparente
-	var panel: PanelContainer = PanelContainer.new()
-	panel.name = "ControlPanel"
-	panel.custom_minimum_size = Vector2(360, 680)
-	panel.position = Vector2(16, 16)
-	
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.12, 0.15, 0.88)
-	style.corner_radius_top_left = 10
-	style.corner_radius_top_right = 10
-	style.corner_radius_bottom_left = 10
-	style.corner_radius_bottom_right = 10
-	style.content_margin_left = 14
-	style.content_margin_right = 14
-	style.content_margin_top = 14
-	style.content_margin_bottom = 14
-	panel.add_theme_stylebox_override("panel", style)
-	canvas.add_child(panel)
-
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	panel.add_child(scroll)
-
-	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
-	scroll.add_child(vbox)
-
-	# Título
-	var title: Label = Label.new()
-	title.text = "Configuración de Rocas Taiga"
-	title.add_theme_font_size_override("font_size", 16)
-	title.add_theme_color_override("font_color", Color(0.9, 0.95, 1.0))
-	vbox.add_child(title)
-
-	var help_lbl: Label = Label.new()
-	help_lbl.text = "Click Der: Orbitar | Rueda: Zoom | WASD/Medio: Paneo"
-	help_lbl.add_theme_font_size_override("font_size", 11)
-	help_lbl.add_theme_color_override("font_color", Color(0.65, 0.72, 0.80))
-	vbox.add_child(help_lbl)
-
-	vbox.add_child(HSeparator.new())
-
-	# Fila de Semilla
-	var seed_row: HBoxContainer = HBoxContainer.new()
-	var seed_lbl: Label = Label.new()
-	seed_lbl.text = "Semilla: %d" % _current_seed
-	seed_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_labels["seed"] = seed_lbl
-	seed_row.add_child(seed_lbl)
-
-	var btn_rand: Button = Button.new()
-	btn_rand.text = "🎲 Random"
-	btn_rand.pressed.connect(func():
-		_current_seed = randi() % 999999
-		seed_lbl.text = "Semilla: %d" % _current_seed
-		_populate_showcase()
-	)
-	seed_row.add_child(btn_rand)
-	vbox.add_child(seed_row)
-
-	# Selector de Categoría a editar
-	var cat_label: Label = Label.new()
-	cat_label.text = "Categoría a Modificar:"
-	vbox.add_child(cat_label)
-
-	var cat_select: OptionButton = OptionButton.new()
-	cat_select.add_item("Rocas Grandes", RockSizeProfile.Category.LARGE)
-	cat_select.add_item("Rocas Medianas", RockSizeProfile.Category.MEDIUM)
-	cat_select.add_item("Rocas Minúsculas", RockSizeProfile.Category.SMALL)
-	cat_select.selected = 0
-	cat_select.item_selected.connect(func(idx: int):
-		_selected_category = cat_select.get_item_id(idx)
-		_sync_sliders_with_profile()
-	)
-	vbox.add_child(cat_select)
-
-	vbox.add_child(HSeparator.new())
-
-	# --- PARÁMETROS GEOMÉTRICOS ---
-	_add_slider(vbox, "irregularity", "Irregularidad", 0.0, 1.0, 0.02, func(v: float):
-		_get_active_profile().irregularity = v
-		_populate_showcase()
-	)
-	_add_slider(vbox, "rings", "Anillos (Rings)", 3.0, 7.0, 1.0, func(v: float):
-		_get_active_profile().rings = int(v)
-		_populate_showcase()
-	)
-	_add_slider(vbox, "segments", "Segmentos (Segments)", 5.0, 14.0, 1.0, func(v: float):
-		_get_active_profile().segments = int(v)
-		_populate_showcase()
-	)
-	_add_slider(vbox, "height_ratio", "Relación Altura (Y)", 0.4, 2.2, 0.05, func(v: float):
-		_get_active_profile().height_ratio = v
-		_populate_showcase()
-	)
-	_add_slider(vbox, "min_scale", "Escala Mínima", 0.1, 4.0, 0.05, func(v: float):
-		_get_active_profile().min_scale = v
-		_populate_showcase()
-	)
-	_add_slider(vbox, "max_scale", "Escala Máxima", 0.2, 8.0, 0.05, func(v: float):
-		_get_active_profile().max_scale = v
-		_populate_showcase()
-	)
-	_add_slider(vbox, "base_penetration", "Penetración Base", 0.0, 0.5, 0.02, func(v: float):
-		_get_active_profile().base_penetration = v
-		_populate_showcase()
-	)
-
-	vbox.add_child(HSeparator.new())
-
-	# --- PARÁMETROS DE SHADER / MATERIAL ---
-	var mat_title: Label = Label.new()
-	mat_title.text = "Material & Shader:"
-	mat_title.add_theme_font_size_override("font_size", 14)
-	vbox.add_child(mat_title)
-
-	_add_slider(vbox, "normal_weight", "Luz Normal (UP)", 0.0, 1.0, 0.05, func(v: float):
-		if _shared_material != null:
-			_shared_material.set_shader_parameter("normal_weight", v)
-	)
-	_add_slider(vbox, "height_weight", "Gradiente Altura", 0.0, 1.0, 0.05, func(v: float):
-		if _shared_material != null:
-			_shared_material.set_shader_parameter("height_weight", v)
-	)
-	_add_slider(vbox, "variation_strength", "Variación Instancia", 0.0, 0.4, 0.02, func(v: float):
-		if _shared_material != null:
-			_shared_material.set_shader_parameter("variation_strength", v)
-	)
-	_add_slider(vbox, "roughness", "Rugosidad (Roughness)", 0.1, 1.0, 0.05, func(v: float):
-		if _shared_material != null:
-			_shared_material.set_shader_parameter("roughness", v)
-	)
-
-	vbox.add_child(HSeparator.new())
-
-	# Botón Regenerar
-	var btn_regen: Button = Button.new()
-	btn_regen.text = "🔄 Regenerar Mallas"
-	btn_regen.pressed.connect(func(): _populate_showcase())
-	vbox.add_child(btn_regen)
-
-	# Botón Reset Perfiles por defecto
-	var btn_reset: Button = Button.new()
-	btn_reset.text = "↩️ Restaurar Valores Canónicos"
-	btn_reset.pressed.connect(func():
-		_profiles = RockSizeProfile.get_all_profiles()
-		_sync_sliders_with_profile()
-		_populate_showcase()
-	)
-	vbox.add_child(btn_reset)
-
-	_sync_sliders_with_profile()
-
-func _get_active_profile() -> RockSizeProfile:
-	return _profiles[_selected_category]
-
-func _add_slider(
-	parent: Container,
-	id: String,
-	display_name: String,
-	min_v: float,
-	max_v: float,
-	step: float,
-	callback: Callable
-) -> void:
-	var lbl: Label = Label.new()
-	lbl.text = "%s: --" % display_name
-	parent.add_child(lbl)
-	_labels[id] = {"label": lbl, "name": display_name}
-
-	var slider: HSlider = HSlider.new()
-	slider.min_value = min_v
-	slider.max_value = max_v
-	slider.step = step
-	slider.value_changed.connect(func(v: float):
-		lbl.text = "%s: %.2f" % [display_name, v]
-		callback.call(v)
-	)
-	parent.add_child(slider)
-	_sliders[id] = slider
-
-func _sync_sliders_with_profile() -> void:
-	var prof: RockSizeProfile = _get_active_profile()
-	_set_slider_value("irregularity", prof.irregularity)
-	_set_slider_value("rings", float(prof.rings))
-	_set_slider_value("segments", float(prof.segments))
-	_set_slider_value("height_ratio", prof.height_ratio)
-	_set_slider_value("min_scale", prof.min_scale)
-	_set_slider_value("max_scale", prof.max_scale)
-	_set_slider_value("base_penetration", prof.base_penetration)
-
-	if _shared_material != null:
-		_set_slider_value("normal_weight", _shared_material.get_shader_parameter("normal_weight"))
-		_set_slider_value("height_weight", _shared_material.get_shader_parameter("height_weight"))
-		_set_slider_value("variation_strength", _shared_material.get_shader_parameter("variation_strength"))
-		_set_slider_value("roughness", _shared_material.get_shader_parameter("roughness"))
-
-func _set_slider_value(id: String, val: Variant) -> void:
-	if val == null:
-		return
-	if _sliders.has(id):
-		var slider: HSlider = _sliders[id]
-		slider.set_value_no_signal(float(val))
-		if _labels.has(id):
-			var info: Dictionary = _labels[id]
-			info["label"].text = "%s: %.2f" % [info["name"], float(val)]
+	elif event is InputEventKey:
+		var ek: InputEventKey = event
+		if ek.pressed and ek.keycode == KEY_SPACE:
+			_cam_pivot.position = Vector3(0.0, 1.5, 0.0)
+			_cam_yaw = 0.0
+			_cam_pitch = -32.0
+			_cam_distance = 20.0
+			_update_camera_transform()
