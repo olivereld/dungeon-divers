@@ -7,11 +7,28 @@ const RockSizeProfile = preload("res://src/rock_generation/rock_size_profile.gd"
 ## Utiliza una estructura de anillos irregulares con jitter determinista
 ## y normales por cara (flat shading) para conservar facetas nítidas y siluetas asimétricas.
 
-static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMesh:
-	var rings: int = profile.rings
-	var segments: int = profile.segments
-	var irregularity: float = profile.irregularity
-	var height_ratio: float = profile.height_ratio
+static func build_rock_mesh(profile: Variant, rock_seed: int) -> ArrayMesh:
+	var rings: int = int(profile.rings)
+	var segments: int = int(profile.segments)
+	var irregularity: float = float(profile.irregularity)
+	var height_ratio: float = float(profile.height_ratio)
+	var base_penetration: float = float(profile.base_penetration)
+
+	# Parámetros de silueta con fallbacks retrocompatibles
+	var base_radius_factor: float = float(profile.get("base_radius_factor")) if profile.get("base_radius_factor") != null else 0.85
+	var body_bulge_factor: float = float(profile.get("body_bulge_factor")) if profile.get("body_bulge_factor") != null else 1.15
+	var taper_power: float = float(profile.get("taper_power")) if profile.get("taper_power") != null else 0.75
+	var peak_convergence_min: float = float(profile.get("peak_convergence_min")) if profile.get("peak_convergence_min") != null else 0.15
+	var peak_convergence_max: float = float(profile.get("peak_convergence_max")) if profile.get("peak_convergence_max") != null else 0.30
+	var apex_elevation_min: float = float(profile.get("apex_elevation_min")) if profile.get("apex_elevation_min") != null else 0.10
+	var apex_elevation_max: float = float(profile.get("apex_elevation_max")) if profile.get("apex_elevation_max") != null else 0.25
+
+	# Parámetros de deformación con fallbacks retrocompatibles
+	var radial_jitter_scale: float = float(profile.get("radial_jitter")) if profile.get("radial_jitter") != null else 0.60
+	var vertical_jitter_scale: float = float(profile.get("vertical_jitter")) if profile.get("vertical_jitter") != null else 0.35
+	var top_ring_y_jitter_scale: float = float(profile.get("top_ring_y_jitter")) if profile.get("top_ring_y_jitter") != null else 0.30
+	var mass_offset_strength: float = float(profile.get("mass_offset_strength")) if profile.get("mass_offset_strength") != null else 0.20
+	var diagonal_alternation: bool = bool(profile.get("diagonal_alternation")) if profile.get("diagonal_alternation") != null else true
 
 	# Radio y altura base normalizados (la escala de instancia se aplicará luego)
 	var base_radius: float = 1.0
@@ -19,7 +36,7 @@ static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMe
 
 	# Desplazamiento global del centro de masa para romper la simetría rotacional
 	var mass_offset_angle: float = _hash_float(rock_seed, 999, 1) * TAU
-	var mass_offset_dist: float = _hash_float(rock_seed, 999, 2) * 0.25 * irregularity
+	var mass_offset_dist: float = _hash_float(rock_seed, 999, 2) * mass_offset_strength * irregularity
 	var mass_offset: Vector3 = Vector3(cos(mass_offset_angle), 0.0, sin(mass_offset_angle)) * mass_offset_dist
 
 	# Matriz de posiciones de vértices: ring_vertices[ring_index][segment_index] -> Vector3
@@ -30,24 +47,20 @@ static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMe
 		var t: float = float(r) / float(rings - 1) # 0.0 (base) a 1.0 (cima)
 
 		# Curvatura base del perfil de elevación y radio
-		# La masa es más ancha cerca de la base (t ~ 0.25 - 0.35) y se estrecha hacia la cima
 		var profile_radius_factor: float
 		var ring_base_y: float
 
 		if r == 0:
 			# Anillo 0: Base ligeramente enterrada en el terreno para evitar flotación
-			profile_radius_factor = 0.85
-			ring_base_y = -profile.base_penetration * 0.5
+			profile_radius_factor = base_radius_factor
+			ring_base_y = -base_penetration * 0.5
 		elif r == rings - 1:
 			# Último anillo: Convergencia hacia la cúspide irregular (NO meseta)
-			# Radio mucho más estrecho (15-30% del base) para crear una cima natural
-			profile_radius_factor = lerp(0.15, 0.30, _hash_float(rock_seed, 888, 1))
-			# Elevar ligeramente sobre total_height para crear variación de cresta
-			ring_base_y = total_height + _hash_float(rock_seed, 888, 2) * 0.15 * total_height
+			profile_radius_factor = lerp(peak_convergence_min, peak_convergence_max, _hash_float(rock_seed, 888, 1))
+			ring_base_y = total_height + _hash_float(rock_seed, 888, 2) * apex_elevation_min * total_height
 		else:
-			# Anillos intermedios
-			# Perfil acampanado/abultado
-			profile_radius_factor = lerp(1.15, 0.65, pow(t, 0.75))
+			# Anillos intermedios: Perfil acampanado y taper hacia la cima
+			profile_radius_factor = lerp(body_bulge_factor, peak_convergence_max * 2.0, pow(t, taper_power))
 			ring_base_y = t * total_height
 
 		for s in range(segments):
@@ -58,11 +71,11 @@ static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMe
 			var angle: float = base_angle + angle_jitter
 
 			# Jitter radial determinista
-			var r_jitter: float = (_hash_float(rock_seed, r * 100 + s, 20) - 0.5) * 0.6 * irregularity
+			var r_jitter: float = (_hash_float(rock_seed, r * 100 + s, 20) - 0.5) * radial_jitter_scale * irregularity
 			var current_radius: float = base_radius * profile_radius_factor * max(0.25, 1.0 + r_jitter)
 
 			# Jitter vertical determinista
-			var y_jitter_scale: float = 0.30 if r == rings - 1 else 0.35
+			var y_jitter_scale: float = top_ring_y_jitter_scale if r == rings - 1 else vertical_jitter_scale
 			var y_jitter: float = (_hash_float(rock_seed, r * 100 + s, 30) - 0.5) * y_jitter_scale * total_height * irregularity
 			var vert_y: float = ring_base_y + y_jitter
 
@@ -78,10 +91,10 @@ static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMe
 		ring_vertices.append(ring_verts)
 
 	# Vértice central de la base (para cerrar el fondo herméticamente)
-	var bottom_center: Vector3 = Vector3(mass_offset.x * 0.5, -profile.base_penetration * 0.8, mass_offset.z * 0.5)
+	var bottom_center: Vector3 = Vector3(mass_offset.x * 0.5, -base_penetration * 0.8, mass_offset.z * 0.5)
 
-	# Apex se eleva 10-25% sobre total_height, con jitter horizontal mínimo
-	var apex_elevation: float = lerp(0.10, 0.25, _hash_float(rock_seed, 777, 40)) * total_height
+	# Apex se eleva sobre total_height según los límites de la silueta configurada
+	var apex_elevation: float = lerp(apex_elevation_min, apex_elevation_max, _hash_float(rock_seed, 777, 40)) * total_height
 	var top_jitter_y: float = (_hash_float(rock_seed, 777, 43) - 0.5) * 0.06 * total_height * irregularity
 	var top_center: Vector3 = Vector3(
 		mass_offset.x * 0.12 + (_hash_float(rock_seed, 777, 41) - 0.5) * 0.10,
@@ -112,7 +125,7 @@ static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMe
 			var v_upper_next: Vector3 = ring_vertices[r + 1][next_s]
 
 			# Alternar diagonal deterministamente para enriquecer el facetado
-			var flip_diagonal: bool = _hash_float(rock_seed, r * 50 + s, 50) > 0.5
+			var flip_diagonal: bool = (_hash_float(rock_seed, r * 50 + s, 50) > 0.5) if diagonal_alternation else false
 
 			if flip_diagonal:
 				_add_flat_triangle(st, v_curr_s, v_curr_next, v_upper_next)

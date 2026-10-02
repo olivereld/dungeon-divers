@@ -128,6 +128,16 @@ func _test_mesh_builder() -> bool:
 		printerr("La generación de mallas no es determinista con la misma semilla.")
 		return false
 
+	# Verificar compatibilidad con RockSizeConfig parametrizado
+	var RockSizeConfig = preload("res://src/rock_generation/config/rock_size_config.gd")
+	var size_cfg = RockSizeConfig.create_large()
+	size_cfg.base_radius_factor = 1.2
+	size_cfg.taper_power = 0.5
+	var mesh_cfg: ArrayMesh = RockMeshBuilder.build_rock_mesh(size_cfg, 9999)
+	if mesh_cfg == null or mesh_cfg.get_surface_count() == 0:
+		printerr("Fallo al construir malla desde RockSizeConfig.")
+		return false
+
 	return true
 
 func _test_rock_material() -> bool:
