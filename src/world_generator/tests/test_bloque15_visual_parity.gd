@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Test BLOQUE 15: Paridad Visual WorldRenderer ↔ ChunkWorld
 ## Valida:
-## 15A: Vegetación (Pino GLB + pino_foliage shader + ProceduralRockGenerator)
+## 15A: Vegetación (Pino GLB + pino_foliage shader + RockGeneration)
 ## 15B: Terreno (Normales continuas C1 en costuras entre chunks adyacentes)
 ## 15C: Shoreline SDF (Inmutabilidad del SDF macro y muestreo ventana sin mutación)
 ## 15D: Agua (Integración WaterRenderer -> WaterMeshBuilder -> water_flow.gdshader unificado)
@@ -16,7 +16,6 @@ const _TerrainMeshBuilderScript = preload("res://src/world_renderer/terrain_mesh
 const _WaterMeshBuilderScript = preload("res://src/world_generator/presentation/water/water_mesh_builder.gd")
 const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
 const _WorldRendererScript = preload("res://src/world_renderer/world_renderer.gd")
-const _ProceduralRockGeneratorScript = preload("res://src/world_renderer/procedural_rock_generator.gd")
 
 func _init() -> void:
 	print("==================================================")
@@ -83,7 +82,7 @@ func _init() -> void:
 	# Verificar que los vértices del chunk obtuvieron el SDF muestreado en su ventana
 	var arrays_0_0: Array = chunk_mesh_0_0.surface_get_arrays(0)
 	var colors_0_0: PackedColorArray = arrays_0_0[Mesh.ARRAY_COLOR]
-	assert(colors_0_0.size() == 17 * 17, "Chunk 0,0 mesh must have 289 vertices")
+	assert(colors_0_0.size() >= 17 * 17, "Chunk 0,0 mesh must have at least 289 vertices (including cliffs)")
 	print("      15C OK: macro shoreline_sdf intacto (size=%d), sampling por ventana OK." % macro_hydro.shoreline_sdf.size())
 
 	# -------------------------------------------------------------------------
@@ -162,7 +161,7 @@ func _init() -> void:
 					verified_water_surface = true
 
 	print("      -> Conifers pino_foliage.gdshader verificado: %s" % str(verified_pino_shader))
-	print("      -> Rocks ProceduralRockGenerator verificado: %s" % str(verified_rocks))
+	print("      -> Rocks RockGeneration verificado: %s" % str(verified_rocks))
 	print("      -> UnifiedWaterSurface con water_flow.gdshader verificado: %s" % str(verified_water_surface))
 
 	assert(verified_pino_shader, "15A: Conifers must use ShaderMaterial with pino_foliage.gdshader")
