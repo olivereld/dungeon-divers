@@ -134,9 +134,9 @@ static func build_rock_mesh(profile: RockSizeProfile, rock_seed: int) -> ArrayMe
 	var mesh: ArrayMesh = st.commit()
 	return mesh
 
-## Añade un triángulo con flat-shading estricto y orden de vértices CCW exterior.
+## Añade un triángulo con flat-shading estricto y orden de vértices frontal (Clockwise para Godot).
 static func _add_flat_triangle(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
-	# En el sistema de coordenadas de Godot (XZ), invertir para orden CCW exterior
+	# En Godot, las caras frontales usan orden horario (Clockwise).
 	var edge1: Vector3 = c - a
 	var edge2: Vector3 = b - a
 	var face_normal: Vector3 = edge1.cross(edge2).normalized()
@@ -153,12 +153,12 @@ static func _add_flat_triangle(st: SurfaceTool, a: Vector3, b: Vector3, c: Vecto
 	st.add_vertex(a)
 
 	st.set_normal(face_normal)
-	st.set_uv(uv_c)
-	st.add_vertex(c)
-
-	st.set_normal(face_normal)
 	st.set_uv(uv_b)
 	st.add_vertex(b)
+
+	st.set_normal(face_normal)
+	st.set_uv(uv_c)
+	st.add_vertex(c)
 
 ## Función hash pseudoaleatoria determinista en el rango [0.0, 1.0]
 static func _hash_float(seed_val: int, idx: int, salt: int) -> float:
