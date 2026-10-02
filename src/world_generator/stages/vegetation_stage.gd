@@ -195,11 +195,60 @@ func execute(context: WorldGenerationContext) -> void:
 			# 3. Rock Placement (solo dentro del core del chunk o mundo)
 			if pos_in_core and ((cell.slope_category in [NavigationStage.SlopeCategory.STEEP, NavigationStage.SlopeCategory.CLIFF] or (cell.slope_category == NavigationStage.SlopeCategory.GENTLE and cell.slope > 15.0) or local_slope > 20.0) and local_slope < 55.0):
 				if rng.randf() < profile.rock_density:
+					var size_roll: float = rng.randf()
 					var rot_y := rng.randf_range(0.0, TAU)
-					var sc := rng.randf_range(0.6, 1.4)
+					var main_scale: float
+					if size_roll < 0.20:
+						# Roca Grande moderada (1.30 a 1.70)
+						main_scale = rng.randf_range(1.30, 1.70)
+					elif size_roll < 0.65:
+						# Roca Mediana (0.75 a 1.10)
+						main_scale = rng.randf_range(0.75, 1.10)
+					else:
+						# Roca Pequeña / Guijarro (0.25 a 0.50)
+						main_scale = rng.randf_range(0.25, 0.50)
+
 					context.result.vegetation.append(
-						WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, pos_3d, rot_y, sc)
+						WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, pos_3d, rot_y, main_scale)
 					)
+
+					# Generación de Cluster / Satélites alrededor de rocas maestras
+					var stage_cell_size: float = profile.cell_size if profile != null else 1.0
+					if size_roll < 0.20 and rng.randf() < 0.65:
+						# Satélites para roca grande: 1 mediana y 1-2 pequeñas
+						var sat_count: int = rng.randi_range(2, 3)
+						for s_idx in range(sat_count):
+							var sat_angle: float = rng.randf_range(0.0, TAU)
+							var sat_dist: float = rng.randf_range(0.8, 1.6) * main_scale
+							var sat_x: float = pos_3d.x + cos(sat_angle) * sat_dist
+							var sat_z: float = pos_3d.z + sin(sat_angle) * sat_dist
+							var sat_cell := Vector2i(floori(sat_x / stage_cell_size), floori(sat_z / stage_cell_size))
+							if core_bounds.has_point(sat_cell):
+								var s_surf = _sample_surface(context.result, sat_x, sat_z, stage_cell_size)
+								if s_surf.get("slope", 0.0) < 55.0:
+									var is_med: bool = (s_idx == 0 and rng.randf() < 0.50)
+									var s_sc: float = rng.randf_range(0.70, 0.95) if is_med else rng.randf_range(0.20, 0.40)
+									var s_pos := Vector3(sat_x, s_surf["height"], sat_z)
+									context.result.vegetation.append(
+										WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, s_pos, rng.randf_range(0.0, TAU), s_sc)
+									)
+					elif size_roll < 0.65 and rng.randf() < 0.40:
+						# Satélites para roca mediana: 1 pequeña
+						var sat_count: int = 1
+						for s_idx in range(sat_count):
+							var sat_angle: float = rng.randf_range(0.0, TAU)
+							var sat_dist: float = rng.randf_range(0.6, 1.2)
+							var sat_x: float = pos_3d.x + cos(sat_angle) * sat_dist
+							var sat_z: float = pos_3d.z + sin(sat_angle) * sat_dist
+							var sat_cell := Vector2i(floori(sat_x / stage_cell_size), floori(sat_z / stage_cell_size))
+							if core_bounds.has_point(sat_cell):
+								var s_surf = _sample_surface(context.result, sat_x, sat_z, stage_cell_size)
+								if s_surf.get("slope", 0.0) < 55.0:
+									var s_sc: float = rng.randf_range(0.18, 0.35)
+									var s_pos := Vector3(sat_x, s_surf["height"], sat_z)
+									context.result.vegetation.append(
+										WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, s_pos, rng.randf_range(0.0, TAU), s_sc)
+									)
 
 			if is_profiling:
 				t_candidate_us += (Time.get_ticks_usec() - t_cand0)
