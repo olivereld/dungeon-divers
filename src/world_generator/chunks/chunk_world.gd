@@ -12,7 +12,6 @@ const _TerrainMaterialScript = preload("res://src/world_generator/presentation/t
 const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
 const _WorldRendererScript = preload("res://src/world_renderer/world_renderer.gd")
 const _WorldVegetationItemScript = preload("res://src/world_generator/data/world_vegetation_item.gd")
-const _ProceduralRockGeneratorScript = preload("res://src/world_renderer/procedural_rock_generator.gd")
 const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometric_camera_rig.gd")
 const _DungeonEntrancePOIViewScript = preload("res://src/world_generator/presentation/dungeon_entrance_poi_view.gd")
 const _ChunkStreamingControllerScript = preload("res://src/world_generator/chunks/chunk_streaming_controller.gd")
@@ -380,7 +379,7 @@ func _build_chunk_view_direct(coord: Vector2i, chunk_data: ChunkData) -> void:
 
 
 ## Instancia la vegetación del chunk posicionada relativamente a su ChunkView
-## reutilizando exactamente el pipeline de WorldRenderer (Pino GLB + shader + ProceduralRockGenerator).
+## reutilizando exactamente el pipeline de WorldRenderer (Pino GLB + shader + RockGeneration).
 func _spawn_chunk_vegetation(
 	chunk_view: Node3D,
 	chunk_data: ChunkData,

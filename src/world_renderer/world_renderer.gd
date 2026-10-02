@@ -3,7 +3,15 @@ extends Node3D
 
 const _TerrainMaterialScript = preload("res://src/world_generator/presentation/terrain_material.gd")
 const _WaterRendererScript = preload("res://src/world_generator/presentation/water/water_renderer.gd")
-const _ProceduralRockGeneratorScript = preload("res://src/world_renderer/procedural_rock_generator.gd")
+const _RockGenerationScript = preload("res://src/rock_generation/rock_generation.gd")
+const _RockSizeProfileScript = preload("res://src/rock_generation/rock_size_profile.gd")
+const _RockInstanceScript = preload("res://src/rock_generation/rock_instance.gd")
+
+static var _rock_gen_instance = null
+static func _get_rock_gen():
+	if _rock_gen_instance == null:
+		_rock_gen_instance = _RockGenerationScript.new(4242)
+	return _rock_gen_instance
 
 func render_world(
 		result: WorldResult,
@@ -363,81 +371,84 @@ static func _bake_bush_mesh(orig_mesh: Mesh, xform: Transform3D, mat: Material, 
 	return new_mesh
 
 static func _create_rock_mesh() -> Mesh:
-	var variants: Array[Mesh] = _ProceduralRockGeneratorScript.get_rock_variants()
-	if not variants.is_empty():
-		return variants[0]
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(1.2, 0.8, 1.0)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.42, 0.42, 0.45)
-	mesh.material = mat
-	return mesh
+	var rg = _get_rock_gen()
+	var mesh: Mesh = rg.get_mesh(_RockSizeProfileScript.Category.MEDIUM, 0)
+	if mesh != null:
+		return mesh
+	var default_mesh := BoxMesh.new()
+	default_mesh.size = Vector3(1.2, 0.8, 1.0)
+	return default_mesh
 
 static func _spawn_rock_multimeshes(parent: Node3D, items: Array, origin_3d: Vector3 = Vector3.ZERO) -> void:
 	if items.is_empty():
 		return
 
-	var variants: Array[Mesh] = _ProceduralRockGeneratorScript.get_rock_variants()
-	if variants.is_empty():
-		_create_multimesh(parent, "Rocks", _create_rock_mesh(), items, 0.20, origin_3d)
-		return
+	var rg = _get_rock_gen()
+	var shared_mat: ShaderMaterial = rg.get_material()
 
-	var num_variants: int = variants.size()
-	var buckets: Array = []
-	for i in range(num_variants):
-		var b: Array[WorldVegetationItem] = []
-		buckets.append(b)
+	# Agrupar items por categoría según su escala
+	var categorized_items: Dictionary = {
+		_RockSizeProfileScript.Category.LARGE: [],
+		_RockSizeProfileScript.Category.MEDIUM: [],
+		_RockSizeProfileScript.Category.SMALL: []
+	}
 
-	# Distribuir rocas en las variantes mediante hash espacial consistente
 	for item in items:
-		var h: int = int(abs(item.position.x * 73.0 + item.position.z * 179.0))
-		var v_idx: int = h % num_variants
-		buckets[v_idx].append(item)
+		if item.scale >= 1.20:
+			categorized_items[_RockSizeProfileScript.Category.LARGE].append(item)
+		elif item.scale >= 0.60:
+			categorized_items[_RockSizeProfileScript.Category.MEDIUM].append(item)
+		else:
+			categorized_items[_RockSizeProfileScript.Category.SMALL].append(item)
 
 	var rocks_container := Node3D.new()
 	rocks_container.name = "Rocks"
 	parent.add_child(rocks_container)
 
-	for v in range(num_variants):
-		var bucket_items: Array[WorldVegetationItem] = buckets[v]
-		if bucket_items.is_empty():
+	for cat in categorized_items.keys():
+		var cat_items: Array = categorized_items[cat]
+		if cat_items.is_empty():
 			continue
 
-		var mesh: Mesh = variants[v]
-		var mmi := MultiMeshInstance3D.new()
-		mmi.name = "RockVariant_%d" % v
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = mesh
-		mm.instance_count = bucket_items.size()
+		var prof: _RockSizeProfileScript = rg.profiles.get(cat, _RockSizeProfileScript.create_medium())
+		var num_variants: int = max(1, prof.num_variants)
 
-		for i in range(bucket_items.size()):
-			var item := bucket_items[i]
-			var seed_hash: int = int(abs(item.position.x * 311.0 + item.position.z * 617.0)) & 0x7FFFFFFF
-			var rng := RandomNumberGenerator.new()
-			rng.seed = seed_hash
+		# Sub-distribuir items en cubos por variante de malla
+		var variant_buckets: Array = []
+		for v in range(num_variants):
+			variant_buckets.append([])
 
-			# Variación individual no uniforme de escala (aspectos únicos: achatado, alargado o compacto)
-			var sx: float = rng.randf_range(0.85, 1.20)
-			var sy: float = rng.randf_range(0.75, 1.18)
-			var sz: float = rng.randf_range(0.85, 1.20)
-			var base_scale: float = item.scale
+		for item in cat_items:
+			var h: int = int(abs(item.position.x * 73.0 + item.position.z * 179.0))
+			var v_idx: int = h % num_variants
+			variant_buckets[v_idx].append(item)
 
-			var t := Transform3D()
-			t = t.scaled(Vector3(base_scale * sx, base_scale * sy, base_scale * sz))
+		for v in range(num_variants):
+			var bucket: Array = variant_buckets[v]
+			if bucket.is_empty():
+				continue
 
-			# Rotación 3D natural completa: guiñada yaw 0-360° más leves inclinaciones pitch/roll (-12° a +12°)
-			var pitch: float = rng.randf_range(-0.20, 0.20)
-			var roll: float = rng.randf_range(-0.20, 0.20)
-			t = t.rotated(Vector3.RIGHT, pitch)
-			t = t.rotated(Vector3.FORWARD, roll)
-			t = t.rotated(Vector3.UP, item.rotation_y)
+			var mesh: Mesh = rg.get_mesh(cat, v)
+			if mesh == null:
+				continue
 
-			# Arraigo: base descansando firmemente sobre el terreno
-			var base_y_offset: float = 0.12
-			var local_pos := item.position - origin_3d
-			t.origin = local_pos + Vector3(0.0, base_y_offset * base_scale, 0.0)
-			mm.set_instance_transform(i, t)
+			var mmi := MultiMeshInstance3D.new()
+			mmi.name = "Rock_Cat%d_Var%d" % [cat, v]
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_custom_data = true
+			mm.mesh = mesh
+			mm.instance_count = bucket.size()
 
-		mmi.multimesh = mm
-		rocks_container.add_child(mmi)
+			for i in range(bucket.size()):
+				var item = bucket[i]
+				var seed_hash: int = int(abs(item.position.x * 311.0 + item.position.z * 617.0)) & 0x7FFFFFFF
+				var local_pos: Vector3 = item.position - origin_3d
+				var r_inst: _RockInstanceScript = _RockInstanceScript.create(local_pos, prof, seed_hash, Vector3.UP, cat)
+				mm.set_instance_transform(i, r_inst.transform)
+				mm.set_instance_custom_data(i, r_inst.custom_data)
+
+			mmi.multimesh = mm
+			if shared_mat != null:
+				mmi.material_override = shared_mat
+			rocks_container.add_child(mmi)
