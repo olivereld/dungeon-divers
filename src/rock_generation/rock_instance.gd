@@ -71,9 +71,12 @@ static func create(
 	var basis: Basis = Basis.from_euler(inst.rotation_euler)
 	basis = basis.scaled(inst.scale)
 
-	# Leve offset hacia abajo para que la base penetre el terreno
+	# Penetración proyectada a lo largo de la normal del terreno (no siempre vertical)
+	# En superficies planas (normal=UP), esto es equivalente al comportamiento anterior.
+	# En pendientes, la roca se hunde perpendicular a la superficie, evitando flotación parcial.
 	var penetration_offset: float = profile.base_penetration * uniform_scale * 0.4
-	var final_pos: Vector3 = p_position - Vector3(0.0, penetration_offset, 0.0)
+	var penetration_dir: Vector3 = ground_normal if ground_normal.y > 0.3 else Vector3.UP
+	var final_pos: Vector3 = p_position - penetration_dir * penetration_offset
 
 	inst.transform = Transform3D(basis, final_pos)
 	return inst
