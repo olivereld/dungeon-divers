@@ -20,6 +20,7 @@ func _init() -> void:
 
 	_run_synthetic_scenario_integration()
 	_run_input_buffering_integration()
+	_run_8way_movement_integration()
 	_run_world_generator_pipeline_integration()
 
 	print("==================================================")
@@ -211,6 +212,67 @@ func _run_input_buffering_integration() -> void:
 	assert(comp.current_cell == Vector2i(2, 0), "Final cell is (2, 0)")
 
 	print("    [PASS] input buffering integration")
+
+func _run_8way_movement_integration() -> void:
+	print(" -> Testing 8-way native transitions, diagonal corner blocking, and single A -> B move...")
+
+	var root := Node3D.new()
+	var cells_dict := {}
+
+	# 4x4 grid de celdas planas transitables
+	for y in range(4):
+		for x in range(4):
+			var c = _WorldCellScript.new(Vector2i(x, y))
+			c.elevation_level = 1
+			c.height = 1.0
+			c.is_walkable = true
+			cells_dict[Vector2i(x, y)] = c
+
+	var grid: MovementGrid = _GridScript.new(1.0, Vector3.ZERO)
+	grid.setup_from_cells(cells_dict)
+
+	var occupancy: MovementOccupancy = _OccupancyScript.new()
+	var player: PlayerTest = _PlayerTestScript.new()
+	root.add_child(player)
+	player.setup_movement(grid, occupancy, Vector2i(1, 1))
+
+	# 1. Movimiento diagonal como transición única directa A -> B (no N + E)
+	var req_ne := _RequestScript.new(Vector2i(1, -1), &"player") # Noreste
+	var res_ne: MovementResult = player.movement_component.request_movement(req_ne)
+	assert(res_ne.accepted == true, "Diagonal transition NE must be accepted")
+	assert(player.movement_component.is_moving == true, "Player is moving diagonally")
+	assert(player.movement_component.facing == Vector2i(1, -1), "Facing must be NE (1, -1)")
+	assert(player.movement_component.target_cell == Vector2i(2, 0), "Target cell must be (2, 0)")
+
+	# A mitad de camino, la celda lógica DEBE seguir siendo la de origen (1, 1)
+	player.movement_component.process_movement(0.1)
+	assert(player.get_current_cell() == Vector2i(1, 1), "Logical cell remains (1, 1) during transition")
+
+	# Al completar la transición, pasa atómicamente a (2, 0)
+	player.movement_component.process_movement(0.5)
+	assert(player.movement_component.is_moving == false, "Player finished diagonal move")
+	assert(player.get_current_cell() == Vector2i(2, 0), "Player current cell is now directly (2, 0)")
+
+	# 2. Diagonal con esquinas bloqueadas (corner blocking)
+	# Desde (2, 0), intentar diagonal hacia (3, 1) con esquinas ortogonales (3, 0) y (2, 1) bloqueadas
+	cells_dict[Vector2i(3, 0)].is_walkable = false
+	cells_dict[Vector2i(2, 1)].is_walkable = false
+
+	var req_se := _RequestScript.new(Vector2i(1, 1), &"player") # Sureste hacia (3, 1)
+	var res_corner_blocked: MovementResult = player.movement_component.request_movement(req_se)
+	assert(res_corner_blocked.accepted == false, "Diagonal must be rejected when both orthogonal corners are blocked")
+	assert(res_corner_blocked.reason == _ResultScript.REASON_DIAGONAL_CORNER_BLOCKED, "Reason must be REASON_DIAGONAL_CORNER_BLOCKED")
+
+	# Liberar una esquina ortogonal (3, 0)
+	cells_dict[Vector2i(3, 0)].is_walkable = true
+	var res_corner_freed: MovementResult = player.movement_component.request_movement(req_se)
+	assert(res_corner_freed.accepted == true, "Diagonal must be accepted when passage is clear through at least one corner")
+
+	# Completar el movimiento diagonal
+	player.movement_component.process_movement(0.5)
+	assert(player.get_current_cell() == Vector2i(3, 1), "Player reached (3, 1)")
+
+	print("    [PASS] 8-way native transitions & diagonal corner blocking")
 
 func _run_world_generator_pipeline_integration() -> void:
 	print(" -> Testing full world pipeline integration with real generated terrain...")

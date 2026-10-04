@@ -48,8 +48,19 @@ static var _cached_anim_library: AnimationLibrary = null
 @export var capsule_height: float = 1.75
 
 # --- Componente de Movimiento y Nodos Internos ---
+const DIRECTIONS_8: Array[Vector2i] = [
+	Vector2i(1, 0),   # 0: Este (+X)
+	Vector2i(1, 1),   # 1: Sureste (+X, +Z)
+	Vector2i(0, 1),   # 2: Sur (+Z)
+	Vector2i(-1, 1),  # 3: Suroeste (-X, +Z)
+	Vector2i(-1, 0),  # 4: Oeste (-X)
+	Vector2i(-1, -1), # 5: Noroeste (-X, -Z)
+	Vector2i(0, -1),  # 6: Norte (-Z)
+	Vector2i(1, -1),  # 7: Noreste (+X, -Z)
+]
+
 var movement_component: MovementComponent = null
-var _last_dominant_axis: int = 0 # 0=ninguno, 1=X, 2=Y/Z
+var _last_8way_index: int = -1 # -1=sin input previo
 var _last_frame_position: Vector3 = Vector3.ZERO
 
 var _visual_root: Node3D = null
@@ -323,32 +334,29 @@ func _physics_process(delta: float) -> void:
 	if Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
 		raw_input.x += 1.0
 
-	# 4. Proyección a plano XZ y cuantización 4-way con histéresis
+	# 4. Proyección a plano XZ y cuantización 8-way con histéresis angular
 	if raw_input != Vector2.ZERO:
 		var move_intent_3d: Vector3 = (right * raw_input.x) + (forward * -raw_input.y)
 		var v := Vector2(move_intent_3d.x, move_intent_3d.z)
 
 		if v.length() >= 0.2:
-			var ax: float = absf(v.x)
-			var ay: float = absf(v.y)
-			var hysteresis_margin: float = 0.15
+			var angle: float = atan2(v.y, v.x) # Rango [-PI, PI]
+			var chosen_octant: int = -1
 
-			var chosen_axis: int = 0
-			if _last_dominant_axis == 1 and (ax + hysteresis_margin >= ay):
-				chosen_axis = 1
-			elif _last_dominant_axis == 2 and (ay + hysteresis_margin >= ax):
-				chosen_axis = 2
-			elif ax >= ay:
-				chosen_axis = 1
-			else:
-				chosen_axis = 2
+			# Histéresis angular: si ya había una dirección activa, aplicar zona de adherencia (+/- 8°)
+			# evitando alternancias indeseadas entre diagonal y cardinal al mantener el input
+			if _last_8way_index >= 0 and _last_8way_index < 8:
+				var current_center_angle: float = wrapf(float(_last_8way_index) * (PI / 4.0), -PI, PI)
+				var angle_diff: float = absf(wrapf(angle - current_center_angle, -PI, PI))
+				var sticky_threshold: float = (PI / 8.0) + deg_to_rad(8.0) # ~30.5°
+				if angle_diff <= sticky_threshold:
+					chosen_octant = _last_8way_index
 
-			_last_dominant_axis = chosen_axis
-			var grid_dir := Vector2i.ZERO
-			if chosen_axis == 1:
-				grid_dir = Vector2i(1 if v.x > 0.0 else -1, 0)
-			else:
-				grid_dir = Vector2i(0, 1 if v.y > 0.0 else -1)
+			if chosen_octant == -1:
+				chosen_octant = posmod(int(round(angle / (PI / 4.0))), 8)
+				_last_8way_index = chosen_octant
+
+			var grid_dir: Vector2i = DIRECTIONS_8[chosen_octant]
 
 			# 5. Modificadores de velocidad (Sprint / Caminata forzada)
 			var is_sprinting: bool = Input.is_key_pressed(KEY_SHIFT)
@@ -363,12 +371,12 @@ func _physics_process(delta: float) -> void:
 			if movement_component != null and movement_component.profile != null:
 				movement_component.profile.cells_per_second = cps
 
-			# 6. Envío de MovementRequest (evaluado y bufferizado por MovementComponent)
+			# 6. Envío de MovementRequest de 8 direcciones
 			if movement_component != null:
 				var req := _MovementRequestScript.new(grid_dir, &"player")
 				movement_component.request_movement(req)
 	else:
-		_last_dominant_axis = 0
+		_last_8way_index = -1
 
 	# 7. Velocidad aparente para shaders/efectos de agua (no gobierna la física)
 	if delta > 0.0 and movement_component != null and movement_component.is_moving:

@@ -12,7 +12,13 @@ func _init(p_direction: Vector2i = Vector2i.ZERO, p_source: StringName = &"") ->
 	source = p_source
 
 func is_valid() -> bool:
-	return direction != Vector2i.ZERO
+	return direction != Vector2i.ZERO and abs(direction.x) <= 1 and abs(direction.y) <= 1
+
+func is_8way() -> bool:
+	return is_valid()
 
 func is_cardinal_4way() -> bool:
 	return (abs(direction.x) + abs(direction.y) == 1)
+
+func is_diagonal() -> bool:
+	return abs(direction.x) == 1 and abs(direction.y) == 1

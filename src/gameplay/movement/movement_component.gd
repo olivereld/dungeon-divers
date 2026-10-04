@@ -165,6 +165,7 @@ func process_movement(delta: float) -> void:
 			var req: MovementRequest = buffered_request
 			buffered_request = null
 			_attempt_transition(req)
+		_turn_actor_towards_facing(delta)
 		return
 
 	var cps: float = profile.cells_per_second if profile != null else 4.0
@@ -172,10 +173,10 @@ func process_movement(delta: float) -> void:
 
 	if progress >= 1.0:
 		progress = 1.0
-		_update_presentation(progress)
+		_update_presentation(progress, delta)
 		_complete_movement()
 	else:
-		_update_presentation(progress)
+		_update_presentation(progress, delta)
 
 func _complete_movement() -> void:
 	if occupancy != null and target_actor != null:
@@ -197,7 +198,7 @@ func _complete_movement() -> void:
 		buffered_request = null
 		_attempt_transition(next_req)
 
-func _update_presentation(p: float) -> void:
+func _update_presentation(p: float, delta: float) -> void:
 	if target_actor == null or grid == null:
 		return
 
@@ -209,14 +210,17 @@ func _update_presentation(p: float) -> void:
 	else:
 		target_actor.position = target_pos
 
-	# Orientación suave del actor hacia la dirección de avance
+	_turn_actor_towards_facing(delta)
+
+func _turn_actor_towards_facing(delta: float) -> void:
+	if target_actor == null:
+		return
 	var dir_3d := Vector3(float(facing.x), 0.0, float(facing.y)).normalized()
 	if dir_3d != Vector3.ZERO:
 		var target_angle: float = atan2(-dir_3d.x, -dir_3d.z)
 		var turn_speed: float = profile.turn_speed if profile != null else 14.0
-		var dt := get_physics_process_delta_time()
-		if dt > 0.0:
-			target_actor.rotation.y = lerp_angle(target_actor.rotation.y, target_angle, turn_speed * dt)
+		if delta > 0.0 and turn_speed > 0.0:
+			target_actor.rotation.y = lerp_angle(target_actor.rotation.y, target_angle, clampf(turn_speed * delta, 0.0, 1.0))
 		else:
 			target_actor.rotation.y = target_angle
 
@@ -227,6 +231,4 @@ func _teleport_actor_to_cell(cell: Vector2i) -> void:
 			target_actor.global_position = target_pos
 		else:
 			target_actor.position = target_pos
-		var dir_3d := Vector3(float(facing.x), 0.0, float(facing.y)).normalized()
-		if dir_3d != Vector3.ZERO:
-			target_actor.rotation.y = atan2(-dir_3d.x, -dir_3d.z)
+		_turn_actor_towards_facing(0.0)

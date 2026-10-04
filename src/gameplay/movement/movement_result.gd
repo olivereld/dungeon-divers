@@ -12,6 +12,7 @@ const REASON_WATER_BLOCKED: StringName = &"water_blocked"
 const REASON_OCCUPIED: StringName = &"occupied"
 const REASON_BLOCKED_BY_OBSTACLE: StringName = &"blocked_by_obstacle"
 const REASON_DIRECTION_NOT_ALLOWED: StringName = &"direction_not_allowed"
+const REASON_DIAGONAL_CORNER_BLOCKED: StringName = &"diagonal_corner_blocked"
 const REASON_ALREADY_MOVING: StringName = &"already_moving"
 const REASON_INVALID_SOURCE_CELL: StringName = &"invalid_source_cell"
 

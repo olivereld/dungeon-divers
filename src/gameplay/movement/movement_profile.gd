@@ -10,16 +10,31 @@ enum WaterMode {
 	FLY   ## Ignora agua y diferencias de elevación de terreno
 }
 
+enum DiagonalCornerRule {
+	NONE,         ## Permite transiciones diagonales sin verificar esquinas ortogonales
+	BOTH_BLOCKED, ## Bloquea la diagonal si las dos celdas ortogonales adyacentes bloquean el paso
+	STRICT        ## Bloquea la diagonal si cualquiera de las celdas ortogonales adyacentes bloquea el paso
+}
+
 ## Velocidad en celdas por segundo. Determina duration = 1.0 / cells_per_second.
 @export var cells_per_second: float = 4.0
 
-## Direcciones permitidas para el actor (por defecto 4 direcciones cardinales).
+## Direcciones permitidas para el actor (por defecto 8 direcciones nativas).
 @export var allowed_directions: Array[Vector2i] = [
-	Vector2i(0, 1),   # Sur / +Z
+	# 4 Cardinales
 	Vector2i(0, -1),  # Norte / -Z
 	Vector2i(1, 0),   # Este / +X
-	Vector2i(-1, 0)   # Oeste / -X
+	Vector2i(0, 1),   # Sur / +Z
+	Vector2i(-1, 0),  # Oeste / -X
+	# 4 Diagonales
+	Vector2i(1, -1),  # Noreste (+X, -Z)
+	Vector2i(1, 1),   # Sureste (+X, +Z)
+	Vector2i(-1, 1),  # Suroeste (-X, +Z)
+	Vector2i(-1, -1)  # Noroeste (-X, -Z)
 ]
+
+## Regla de validación para esquinas ortogonales en movimientos diagonales.
+@export var diagonal_corner_rule: DiagonalCornerRule = DiagonalCornerRule.BOTH_BLOCKED
 
 ## Máximo desnivel de elevación ascendente permitido (+levels).
 @export var max_step_up: int = 1

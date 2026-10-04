@@ -141,27 +141,58 @@ func is_water(pos: Vector2i) -> bool:
 	assert(res.reason == _ResultScript.REASON_UNWALKABLE, "Reason must be UNWALKABLE")
 
 	# 6. Fuera de límites rechazada (usando dirección permitida pero celda inexistente en grid)
-	res = rules.validate_transition(Vector2i(0, 0), Vector2i(-1, 0), grid, profile) # (-1, 0) existe en cells_dict, probamos (-2, 0) desde (-1, 0)
 	res = rules.validate_transition(Vector2i(0, 1), Vector2i(0, 2), grid, profile) # (0, 2) no existe en el grid
 	assert(res.accepted == false, "Out of bounds cell must be rejected")
 	assert(res.reason == _ResultScript.REASON_OUT_OF_BOUNDS, "Reason must be OUT_OF_BOUNDS: " + str(res.reason))
 
-	# 7. Diagonal rechazada (4-way profile)
-	res = rules.validate_transition(Vector2i(0, 0), Vector2i(1, 1), grid, profile)
-	assert(res.accepted == false, "Diagonal move must be rejected in 4-way profile")
-	assert(res.reason == _ResultScript.REASON_DIRECTION_NOT_ALLOWED, "Reason must be DIRECTION_NOT_ALLOWED")
-
-	# 8. Agua para LAND rechazada
-	# Permitir diagonal temporalmente en perfil para probar agua
-	profile.allowed_directions.append(Vector2i(1, 1))
+	# 7. Agua para LAND rechazada en transición diagonal
 	res = rules.validate_transition(Vector2i(0, 0), Vector2i(1, 1), grid, profile)
 	assert(res.accepted == false, "Water cell must be rejected for LAND mode")
 	assert(res.reason == _ResultScript.REASON_WATER_BLOCKED, "Reason must be WATER_BLOCKED")
 
-	# 9. Agua para SWIM aceptada
+	# 8. Agua para SWIM aceptada
 	profile.water_mode = _ProfileScript.WaterMode.SWIM
 	res = rules.validate_transition(Vector2i(0, 0), Vector2i(1, 1), grid, profile)
 	assert(res.accepted == true, "Water cell must be accepted for SWIM mode")
+	profile.water_mode = _ProfileScript.WaterMode.LAND
+
+	# 9. Test de esquinas bloqueadas en movimiento diagonal (Corner-cutting rule)
+	# Escenario: (0, 0) -> (1, 1) donde (1, 1) es tierra seca
+	var c_diag_target = _WorldCellScript.new(Vector2i(2, 2))
+	c_diag_target.elevation_level = 2
+	c_diag_target.height = 2.0
+	c_diag_target.is_walkable = true
+	cells_dict[Vector2i(2, 2)] = c_diag_target
+
+	# Origen (1, 1) modificado a tierra seca
+	c_water.elevation_level = 2
+	# (2, 1) y (1, 2) son los dos vecinos ortogonales de la esquina
+	var c_corner_x = _WorldCellScript.new(Vector2i(2, 1))
+	c_corner_x.elevation_level = 2
+	c_corner_x.is_walkable = false # Bloqueado
+	cells_dict[Vector2i(2, 1)] = c_corner_x
+
+	var c_corner_y = _WorldCellScript.new(Vector2i(1, 2))
+	c_corner_y.elevation_level = 2
+	c_corner_y.is_walkable = false # Bloqueado
+	cells_dict[Vector2i(1, 2)] = c_corner_y
+
+	# Caso 9A: Ambas esquinas bloqueadas -> RECHAZADO con BOTH_BLOCKED
+	profile.diagonal_corner_rule = _ProfileScript.DiagonalCornerRule.BOTH_BLOCKED
+	res = rules.validate_transition(Vector2i(1, 1), Vector2i(2, 2), grid, profile)
+	assert(res.accepted == false, "Diagonal must be rejected when both orthogonal corners block passage")
+	assert(res.reason == _ResultScript.REASON_DIAGONAL_CORNER_BLOCKED, "Reason must be REASON_DIAGONAL_CORNER_BLOCKED")
+
+	# Caso 9B: Solo una esquina bloqueada -> ACEPTADO con BOTH_BLOCKED
+	c_corner_y.is_walkable = true
+	res = rules.validate_transition(Vector2i(1, 1), Vector2i(2, 2), grid, profile)
+	assert(res.accepted == true, "Diagonal must be accepted when only one corner is blocked under BOTH_BLOCKED")
+
+	# Caso 9C: Con modo STRICT -> RECHAZADO incluso con solo una esquina bloqueada
+	profile.diagonal_corner_rule = _ProfileScript.DiagonalCornerRule.STRICT
+	res = rules.validate_transition(Vector2i(1, 1), Vector2i(2, 2), grid, profile)
+	assert(res.accepted == false, "Diagonal must be rejected under STRICT rule when one corner is blocked")
+	assert(res.reason == _ResultScript.REASON_DIAGONAL_CORNER_BLOCKED, "Reason must be REASON_DIAGONAL_CORNER_BLOCKED")
 
 	print("    [PASS] movement rules")
 
