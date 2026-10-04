@@ -522,8 +522,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_ui_visibility()
 		elif ke.keycode == KEY_SPACE:
 			if is_player_active and test_player != null and is_instance_valid(test_player):
-				test_player.global_position = current_result.spawn_position + Vector3(0.0, 0.3, 0.0)
-				test_player.velocity = Vector3.ZERO
+				var spawn_cell := Vector2i(roundi(current_result.spawn_position.x), roundi(current_result.spawn_position.z))
+				test_player.teleport_to_cell(spawn_cell)
 				camera_rig.teleport_to_target()
 			else:
 				_focus_spawn()
@@ -600,8 +600,13 @@ func _spawn_test_player() -> void:
 
 	test_player = _PlayerTestScript.new()
 	test_player.name = "PlayerTestInstance"
-	test_player.position = current_result.spawn_position + Vector3(0.0, 0.4, 0.0)
 	world_container.add_child(test_player)
+
+	var grid = preload("res://src/gameplay/movement/movement_grid.gd").new()
+	var c_size: float = profile.cell_size if profile != null else 1.0
+	grid.setup_from_world_result(current_result, c_size)
+	var spawn_cell := grid.world_to_cell(current_result.spawn_position)
+	test_player.setup_movement(grid, null, spawn_cell)
 
 	if is_player_active and camera_rig != null:
 		camera_rig.set_target(test_player)

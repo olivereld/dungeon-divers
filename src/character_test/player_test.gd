@@ -19,33 +19,39 @@ const ANIM_SOURCES: Dictionary = {
 	"stop": "res://assets/animations/human/human_01_run_stop.fbx",
 }
 
+const _MovementComponentScript = preload("res://src/gameplay/movement/movement_component.gd")
+const _MovementRequestScript = preload("res://src/gameplay/movement/movement_request.gd")
+const _MovementProfileScript = preload("res://src/gameplay/movement/movement_profile.gd")
+const _MovementGridScript = preload("res://src/gameplay/movement/movement_grid.gd")
+const _MovementOccupancyScript = preload("res://src/gameplay/movement/movement_occupancy.gd")
+const _WorldCellScript = preload("res://src/world_generator/data/world_cell.gd")
+
 # Caché estática compartida de la biblioteca de animaciones para evitar reimportaciones y retargeting redundantes
 static var _cached_anim_library: AnimationLibrary = null
 
-# --- Parámetros de Movimiento y Aceleración ---
-@export_group("Movement Speeds")
-@export var walk_speed: float = 2.0
+# --- Parámetros de Movimiento por Celdas ---
+@export_group("Cell Movement")
+@export var walk_cells_per_second: float = 2.5
+@export var normal_cells_per_second: float = 4.2
+@export var sprint_cells_per_second: float = 7.0
+@export var turn_speed: float = 14.0
+
+# Aliases para configuración del AnimationTree y compatibilidad
+@export_group("Animation Speeds")
+@export var walk_speed: float = 2.5
 @export var trot_speed: float = 4.2
 @export var run_speed: float = 7.0
-@export var speed: float = 7.0 # Alias retrocompatible para velocidad máxima
-
-@export_group("Acceleration & Physics")
-## Tasa de aceleración estándar que permite pasar naturalmente de caminar a trotar a correr
-@export var acceleration: float = 7.5
-## Aceleración rápida al usar la tecla de Sprint (Shift)
-@export var sprint_acceleration: float = 14.0
-## Fricción / desaceleración al soltar los controles
-@export var friction: float = 14.0
-## Velocidad de rotación suave hacia la dirección de movimiento
-@export var turn_speed: float = 14.0
-@export var gravity: float = 20.0
-@export var jump_velocity: float = 7.5
+@export var speed: float = 7.0
 
 @export_group("Collision")
 @export var capsule_radius: float = 0.38
 @export var capsule_height: float = 1.75
 
-# --- Nodos Internos ---
+# --- Componente de Movimiento y Nodos Internos ---
+var movement_component: MovementComponent = null
+var _last_dominant_axis: int = 0 # 0=ninguno, 1=X, 2=Y/Z
+var _last_frame_position: Vector3 = Vector3.ZERO
+
 var _visual_root: Node3D = null
 var _character_model: Node3D = null
 var _anim_player: AnimationPlayer = null
@@ -54,6 +60,7 @@ var _anim_playback: AnimationNodeStateMachinePlayback = null
 
 func _ready() -> void:
 	_setup_visuals_and_collision()
+	_setup_movement_component()
 
 func _setup_visuals_and_collision() -> void:
 	# 1. CollisionShape3D (Cápsula de colisión física para el CharacterBody3D)
@@ -220,31 +227,78 @@ func _setup_fallback_capsule() -> void:
 	body_mesh_instance.material_override = body_mat
 	_visual_root.add_child(body_mesh_instance)
 
+func _setup_movement_component() -> void:
+	movement_component = get_node_or_null("MovementComponent")
+	if movement_component == null:
+		movement_component = _MovementComponentScript.new()
+		movement_component.name = "MovementComponent"
+		add_child(movement_component)
+	movement_component.target_actor = self
+	movement_component.y_offset = 0.0
+	if movement_component.profile == null:
+		movement_component.profile = _MovementProfileScript.new()
+	movement_component.profile.cells_per_second = normal_cells_per_second
+	movement_component.profile.turn_speed = turn_speed
+	if not movement_component.movement_started.is_connected(_on_movement_started):
+		movement_component.movement_started.connect(_on_movement_started)
+	if not movement_component.movement_finished.is_connected(_on_movement_finished):
+		movement_component.movement_finished.connect(_on_movement_finished)
+	_last_frame_position = global_position if is_inside_tree() else position
+
+## Configura el componente de movimiento con el MovementGrid y MovementOccupancy del mundo activo.
+func setup_movement(
+	p_grid: MovementGrid,
+	p_occupancy: MovementOccupancy = null,
+	p_initial_cell: Vector2i = Vector2i.ZERO
+) -> void:
+	if movement_component == null:
+		_setup_movement_component()
+	movement_component.setup(p_grid, p_occupancy, null, p_initial_cell, 0.0)
+
+func teleport_to_cell(cell: Vector2i) -> void:
+	if movement_component != null:
+		movement_component.teleport_to_cell(cell)
+
+func get_current_cell() -> Vector2i:
+	return movement_component.current_cell if movement_component != null else Vector2i.ZERO
+
+func get_target_cell() -> Vector2i:
+	return movement_component.target_cell if movement_component != null else Vector2i.ZERO
+
+func is_moving() -> bool:
+	return movement_component.is_moving if movement_component != null else false
+
+func _ensure_grid_exists() -> void:
+	if movement_component != null and movement_component.grid == null:
+		var fallback_grid: MovementGrid = _MovementGridScript.new(1.0, Vector3.ZERO)
+		var center_cell := fallback_grid.world_to_cell(global_position)
+		var dummy_cells := {}
+		for cy in range(center_cell.y - 40, center_cell.y + 41):
+			for cx in range(center_cell.x - 40, center_cell.x + 41):
+				var c = _WorldCellScript.new(Vector2i(cx, cy))
+				c.height = global_position.y
+				c.elevation_level = 0
+				c.is_walkable = true
+				dummy_cells[Vector2i(cx, cy)] = c
+		fallback_grid.setup_from_cells(dummy_cells)
+		movement_component.setup(fallback_grid, null, null, center_cell, 0.0)
+
 func _physics_process(delta: float) -> void:
 	if not is_visible_in_tree():
 		velocity = Vector3.ZERO
 		return
 
-	# 1. Gravedad y Salto
-	if not is_on_floor():
-		velocity.y -= gravity * delta
-	else:
-		if velocity.y < 0.0:
-			velocity.y = 0.0
-		if Input.is_key_pressed(KEY_SPACE):
-			velocity.y = jump_velocity
+	_ensure_grid_exists()
 
-	# 2. Ignorar input si el foco está en un campo de texto de UI
+	# 1. Ignorar input si el foco está en un campo de texto de UI
 	var vp = get_viewport()
 	if vp != null:
 		var focus_owner = vp.gui_get_focus_owner()
 		if focus_owner is LineEdit or focus_owner is TextEdit:
-			_apply_deceleration(delta)
-			_update_animation_state(delta)
-			move_and_slide()
+			_update_animation_state()
 			return
 
-	# 3. Orientación relativa a la cámara activa
+	# 2. Orientación de cámara activa
 	var forward := Vector3(0, 0, -1)
 	var right := Vector3(1, 0, 0)
 	if vp != null:
@@ -258,67 +312,92 @@ func _physics_process(delta: float) -> void:
 			right.y = 0.0
 			right = right.normalized()
 
-	# 4. Captura de Input (WASD y Teclas de Flecha)
-	var move_intent := Vector3.ZERO
+	# 3. Captura de Input (WASD y Teclas de Flecha)
+	var raw_input := Vector2.ZERO
 	if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W):
-		move_intent += forward
+		raw_input.y -= 1.0
 	if Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_S):
-		move_intent -= forward
+		raw_input.y += 1.0
 	if Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A):
-		move_intent -= right
+		raw_input.x -= 1.0
 	if Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
-		move_intent += right
+		raw_input.x += 1.0
 
-	# 5. Modificadores de velocidad (Shift = Sprint inmediato, Ctrl/Alt = Caminata forzada)
-	var is_sprinting: bool = Input.is_key_pressed(KEY_SHIFT)
-	var is_walking_forced: bool = Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_ALT)
+	# 4. Proyección a plano XZ y cuantización 4-way con histéresis
+	if raw_input != Vector2.ZERO:
+		var move_intent_3d: Vector3 = (right * raw_input.x) + (forward * -raw_input.y)
+		var v := Vector2(move_intent_3d.x, move_intent_3d.z)
 
-	var target_speed: float = maxf(run_speed, speed)
-	var current_accel: float = acceleration
+		if v.length() >= 0.2:
+			var ax: float = absf(v.x)
+			var ay: float = absf(v.y)
+			var hysteresis_margin: float = 0.15
 
-	if is_walking_forced:
-		target_speed = walk_speed
-		current_accel = acceleration * 1.5
-	elif is_sprinting:
-		target_speed = maxf(run_speed, speed)
-		current_accel = sprint_acceleration
+			var chosen_axis: int = 0
+			if _last_dominant_axis == 1 and (ax + hysteresis_margin >= ay):
+				chosen_axis = 1
+			elif _last_dominant_axis == 2 and (ay + hysteresis_margin >= ax):
+				chosen_axis = 2
+			elif ax >= ay:
+				chosen_axis = 1
+			else:
+				chosen_axis = 2
+
+			_last_dominant_axis = chosen_axis
+			var grid_dir := Vector2i.ZERO
+			if chosen_axis == 1:
+				grid_dir = Vector2i(1 if v.x > 0.0 else -1, 0)
+			else:
+				grid_dir = Vector2i(0, 1 if v.y > 0.0 else -1)
+
+			# 5. Modificadores de velocidad (Sprint / Caminata forzada)
+			var is_sprinting: bool = Input.is_key_pressed(KEY_SHIFT)
+			var is_walking_forced: bool = Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_ALT)
+
+			var cps: float = normal_cells_per_second
+			if is_walking_forced:
+				cps = walk_cells_per_second
+			elif is_sprinting:
+				cps = sprint_cells_per_second
+
+			if movement_component != null and movement_component.profile != null:
+				movement_component.profile.cells_per_second = cps
+
+			# 6. Envío de MovementRequest (evaluado y bufferizado por MovementComponent)
+			if movement_component != null:
+				var req := _MovementRequestScript.new(grid_dir, &"player")
+				movement_component.request_movement(req)
 	else:
-		# Aceleración progresiva natural: al mantener presionado, gana impulso pasando por trote y carrera
-		target_speed = maxf(run_speed, speed)
-		current_accel = acceleration
+		_last_dominant_axis = 0
 
-	# 6. Aplicación de aceleración o deceleración
-	if move_intent != Vector3.ZERO:
-		move_intent = move_intent.normalized()
-		velocity.x = move_toward(velocity.x, move_intent.x * target_speed, current_accel * delta)
-		velocity.z = move_toward(velocity.z, move_intent.z * target_speed, current_accel * delta)
-
-		# Rotación suave hacia la dirección de movimiento
-		var target_angle: float = atan2(-move_intent.x, -move_intent.z)
-		rotation.y = lerp_angle(rotation.y, target_angle, turn_speed * delta)
+	# 7. Velocidad aparente para shaders/efectos de agua (no gobierna la física)
+	if delta > 0.0 and movement_component != null and movement_component.is_moving:
+		velocity = (global_position - _last_frame_position) / delta
 	else:
-		_apply_deceleration(delta)
+		velocity = Vector3.ZERO
+	_last_frame_position = global_position
 
-	# 7. Actualización del sistema de animaciones
-	_update_animation_state(delta)
+	# 8. Actualización de animaciones según estado de movimiento
+	_update_animation_state()
 
-	# 8. Movimiento físico
-	if is_inside_tree():
-		move_and_slide()
+func _on_movement_started(_from: Vector2i, _to: Vector2i) -> void:
+	if _anim_playback != null:
+		_anim_playback.travel("Locomotion")
 
-func _apply_deceleration(delta: float) -> void:
-	velocity.x = move_toward(velocity.x, 0.0, friction * delta)
-	velocity.z = move_toward(velocity.z, 0.0, friction * delta)
+func _on_movement_finished(_from: Vector2i, _to: Vector2i) -> void:
+	if movement_component != null and not movement_component.is_moving:
+		if _anim_playback != null:
+			_anim_playback.travel("Idle")
 
-## Actualiza el AnimationTree sincronizando Idle, Caminar, Trotar y Correr según la velocidad real
-func _update_animation_state(_delta: float) -> void:
-	if _anim_tree == null or _anim_playback == null:
+## Actualiza el AnimationTree sincronizando Idle y Locomotion según el estado del MovementComponent
+func _update_animation_state() -> void:
+	if _anim_tree == null or _anim_playback == null or movement_component == null:
 		return
 
-	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
-
-	if horizontal_speed < 0.15:
-		_anim_playback.travel("Idle")
-	else:
+	if movement_component.is_moving:
 		_anim_playback.travel("Locomotion")
-		_anim_tree.set("parameters/Locomotion/blend_position", horizontal_speed)
+		var blend_pos: float = movement_component.profile.cells_per_second if movement_component.profile != null else normal_cells_per_second
+		_anim_tree.set("parameters/Locomotion/blend_position", blend_pos)
+	else:
+		_anim_playback.travel("Idle")
+
