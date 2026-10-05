@@ -13,6 +13,7 @@ const _RulesScript = preload("res://src/gameplay/movement/movement_rules.gd")
 const _ProfileScript = preload("res://src/gameplay/movement/movement_profile.gd")
 const _RequestScript = preload("res://src/gameplay/movement/movement_request.gd")
 const _ResultScript = preload("res://src/gameplay/movement/movement_result.gd")
+const _ComponentScript = preload("res://src/gameplay/movement/movement_component.gd")
 
 func _init() -> void:
 	print("==================================================")
@@ -23,6 +24,7 @@ func _init() -> void:
 	_test_world_navigation_grid()
 	_test_chunk_manager_navigation_sync()
 	_test_movement_rules_navigation_grid()
+	_test_movement_component_unavailable_retry()
 	print("==================================================")
 	print(" ALL WORLD NAVIGATION TESTS PASSED!")
 	print("==================================================")
@@ -251,3 +253,55 @@ func _test_movement_rules_navigation_grid() -> void:
 	assert(res_high.reason == _ResultScript.REASON_FALL_TOO_HIGH, "Reason is FALL_TOO_HIGH")
 
 	print("    [PASS] MovementRules against WorldNavigationGrid")
+
+func _test_movement_component_unavailable_retry() -> void:
+	print(" -> Testing MovementComponent reactive waiting for UNAVAILABLE chunks...")
+	var grid = _NavGridScript.new(1.0, 16, Vector3.ZERO)
+	var comp = _ComponentScript.new()
+	comp.setup(grid, null, null, Vector2i(15, 0))
+
+	# Chunk (0, 0) registered
+	var cells_00 := {}
+	for y in range(16):
+		for x in range(16):
+			var pos := Vector2i(x, y)
+			var c = _WorldCellScript.new(pos)
+			c.elevation_level = 1
+			c.height = 1.0
+			c.is_walkable = true
+			cells_00[pos] = c
+	var chunk_00 = _NavChunkScript.from_cells(Vector2i(0, 0), Rect2i(0, 0, 16, 16), cells_00)
+	grid.register_chunk(chunk_00)
+
+	# Attempt to step from (15, 0) into unregistered Chunk (1, 0) at (16, 0)
+	var req := _RequestScript.new(Vector2i(1, 0), &"player")
+	var res = comp.request_movement(req)
+	assert(not res.accepted, "Move towards unavailable chunk rejected")
+	assert(res.reason == _ResultScript.REASON_CHUNK_UNAVAILABLE, "Reason is CHUNK_UNAVAILABLE")
+	assert("pending_unavailable_request" in comp, "MovementComponent must have pending_unavailable_request property")
+	assert(comp.pending_unavailable_request == req, "Request is stored in pending_unavailable_request")
+	assert(not comp.is_moving, "Component is not moving while waiting")
+
+	# Register Chunk (1, 0)
+	var cells_10 := {}
+	for y in range(16):
+		for x in range(16):
+			var pos := Vector2i(16 + x, y)
+			var c = _WorldCellScript.new(pos)
+			c.elevation_level = 1
+			c.height = 1.0
+			c.is_walkable = true
+			cells_10[pos] = c
+	var chunk_10 = _NavChunkScript.from_cells(Vector2i(1, 0), Rect2i(16, 0, 16, 16), cells_10)
+
+	# When chunk is registered, MovementComponent must reactively retry and start moving
+	grid.register_chunk(chunk_10)
+	assert(comp.is_moving, "Component started moving reactively upon chunk registration")
+	assert(comp.target_cell == Vector2i(16, 0), "Target cell is (16, 0)")
+	assert(comp.pending_unavailable_request == null, "Pending request cleared")
+
+	# Complete transition
+	comp.process_movement(1.0)
+	assert(comp.current_cell == Vector2i(16, 0), "Transition completed into new chunk")
+
+	print("    [PASS] MovementComponent reactive wait and retry")

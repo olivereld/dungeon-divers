@@ -8,6 +8,8 @@ extends Node
 signal movement_started(from_cell: Vector2i, to_cell: Vector2i)
 signal movement_finished(from_cell: Vector2i, to_cell: Vector2i)
 signal movement_failed(request: MovementRequest, result: MovementResult)
+signal fall_started(from_cell: Vector2i, to_cell: Vector2i)
+signal fall_finished(from_cell: Vector2i, to_cell: Vector2i)
 signal cell_changed(new_cell: Vector2i)
 signal facing_changed(new_facing: Vector2i)
 signal state_changed(is_moving: bool)
@@ -22,7 +24,7 @@ const _OccupancyScript = preload("res://src/gameplay/movement/movement_occupancy
 @export var profile: MovementProfile = null
 
 ## Referencias compartidas del sistema de movimiento
-var grid: MovementGrid = null
+var grid: Object = null
 var occupancy: MovementOccupancy = null
 var rules: MovementRules = null
 var target_actor: Node3D = null
@@ -33,9 +35,13 @@ var target_cell: Vector2i = Vector2i.ZERO
 var is_moving: bool = false
 var progress: float = 0.0
 var facing: Vector2i = Vector2i(0, 1) # Default: Sur (+Z)
+var current_transition_type: int = _ResultScript.TransitionType.WALK
 
 ## Buffer de una sola solicitud siguiente
 var buffered_request: MovementRequest = null
+
+## Solicitud pendiente en espera de que un chunk se vuelva READY (sin polling por frame)
+var pending_unavailable_request: MovementRequest = null
 
 ## Desplazamiento Y para alinear visualmente los pies del modelo en la cota del terreno
 var y_offset: float = 0.0
@@ -55,18 +61,22 @@ func _ready() -> void:
 		rules = _RulesScript.new()
 
 func _exit_tree() -> void:
+	_disconnect_grid_signals()
 	if occupancy != null and target_actor != null:
 		occupancy.unregister_entity(target_actor)
 
 ## Configura el componente conectándolo con el grid y sistemas de movimiento.
 func setup(
-	p_grid: MovementGrid,
+	p_grid: Object,
 	p_occupancy: MovementOccupancy = null,
 	p_rules: MovementRules = null,
 	p_initial_cell: Vector2i = Vector2i.ZERO,
 	p_y_offset: float = 0.0
 ) -> void:
+	_disconnect_grid_signals()
 	grid = p_grid
+	_connect_grid_signals()
+
 	occupancy = p_occupancy
 	rules = p_rules if p_rules != null else _RulesScript.new()
 	y_offset = p_y_offset
@@ -75,11 +85,45 @@ func setup(
 	is_moving = false
 	progress = 0.0
 	buffered_request = null
+	pending_unavailable_request = null
 
 	if occupancy != null and target_actor != null:
 		occupancy.occupy(current_cell, target_actor)
 
 	_teleport_actor_to_cell(current_cell)
+
+func _connect_grid_signals() -> void:
+	if grid != null and grid.has_signal("chunk_registered"):
+		if not grid.chunk_registered.is_connected(_on_grid_chunk_registered):
+			grid.chunk_registered.connect(_on_grid_chunk_registered)
+	if grid != null and grid.has_signal("chunk_unregistered"):
+		if not grid.chunk_unregistered.is_connected(_on_grid_chunk_unregistered):
+			grid.chunk_unregistered.connect(_on_grid_chunk_unregistered)
+
+func _disconnect_grid_signals() -> void:
+	if grid != null and grid.has_signal("chunk_registered"):
+		if grid.chunk_registered.is_connected(_on_grid_chunk_registered):
+			grid.chunk_registered.disconnect(_on_grid_chunk_registered)
+	if grid != null and grid.has_signal("chunk_unregistered"):
+		if grid.chunk_unregistered.is_connected(_on_grid_chunk_unregistered):
+			grid.chunk_unregistered.disconnect(_on_grid_chunk_unregistered)
+
+func _on_grid_chunk_registered(_coord: Vector2i) -> void:
+	if is_moving or pending_unavailable_request == null:
+		return
+	var target_candidate := current_cell + pending_unavailable_request.direction
+	if grid.has_method("get_cell_availability"):
+		if grid.get_cell_availability(target_candidate) == 0: # READY
+			var req: MovementRequest = pending_unavailable_request
+			pending_unavailable_request = null
+			_attempt_transition(req)
+
+func _on_grid_chunk_unregistered(_coord: Vector2i) -> void:
+	if pending_unavailable_request != null:
+		var target_candidate := current_cell + pending_unavailable_request.direction
+		if grid.has_method("get_cell_availability"):
+			if grid.get_cell_availability(target_candidate) != 0:
+				pending_unavailable_request = null
 
 ## Teletransporta la entidad a una celda específica sin interpolación.
 func teleport_to_cell(cell: Vector2i) -> void:
@@ -136,8 +180,14 @@ func _attempt_transition(request: MovementRequest) -> MovementResult:
 	)
 
 	if not res.accepted:
+		if res.reason == _ResultScript.REASON_CHUNK_UNAVAILABLE:
+			pending_unavailable_request = request
+		else:
+			pending_unavailable_request = null
 		movement_failed.emit(request, res)
 		return res
+
+	pending_unavailable_request = null
 
 	# 2. Reservar atómicamente la celda de destino
 	if occupancy != null and target_actor != null:
@@ -150,7 +200,10 @@ func _attempt_transition(request: MovementRequest) -> MovementResult:
 	target_cell = next_cell
 	is_moving = true
 	progress = 0.0
+	current_transition_type = res.transition_type
 
+	if current_transition_type == _ResultScript.TransitionType.FALL:
+		fall_started.emit(current_cell, target_cell)
 	movement_started.emit(current_cell, target_cell)
 	state_changed.emit(true)
 	return res
@@ -169,6 +222,9 @@ func process_movement(delta: float) -> void:
 		return
 
 	var cps: float = profile.cells_per_second if profile != null else 4.0
+	if current_transition_type == _ResultScript.TransitionType.FALL:
+		var mult: float = profile.fall_speed_multiplier if profile != null else 1.4
+		cps *= mult
 	progress += cps * delta
 
 	if progress >= 1.0:
@@ -184,11 +240,15 @@ func _complete_movement() -> void:
 		occupancy.release(current_cell, target_actor)
 
 	var from_c: Vector2i = current_cell
+	var finished_type: int = current_transition_type
 	current_cell = target_cell
 	is_moving = false
 	progress = 0.0
+	current_transition_type = _ResultScript.TransitionType.WALK
 
 	cell_changed.emit(current_cell)
+	if finished_type == _ResultScript.TransitionType.FALL:
+		fall_finished.emit(from_c, target_cell)
 	movement_finished.emit(from_c, target_cell)
 	state_changed.emit(false)
 
@@ -204,7 +264,18 @@ func _update_presentation(p: float, delta: float) -> void:
 
 	var world_from: Vector3 = grid.cell_to_world(current_cell, y_offset)
 	var world_to: Vector3 = grid.cell_to_world(target_cell, y_offset)
-	var target_pos := world_from.lerp(world_to, p)
+
+	var target_pos: Vector3
+	if current_transition_type == _ResultScript.TransitionType.FALL:
+		# Trayectoria de caída: desplazamiento horizontal con caída vertical acelerada
+		var horiz_x: float = lerpf(world_from.x, world_to.x, p)
+		var horiz_z: float = lerpf(world_from.z, world_to.z, p)
+		var drop_t: float = clampf((p - 0.2) / 0.8, 0.0, 1.0)
+		var vert_y: float = lerpf(world_from.y, world_to.y, drop_t * drop_t)
+		target_pos = Vector3(horiz_x, vert_y, horiz_z)
+	else:
+		target_pos = world_from.lerp(world_to, p)
+
 	if target_actor.is_inside_tree():
 		target_actor.global_position = target_pos
 	else:
@@ -226,7 +297,7 @@ func _turn_actor_towards_facing(delta: float) -> void:
 
 func _teleport_actor_to_cell(cell: Vector2i) -> void:
 	if target_actor != null and grid != null:
-		var target_pos := grid.cell_to_world(cell, y_offset)
+		var target_pos: Vector3 = grid.cell_to_world(cell, y_offset)
 		if target_actor.is_inside_tree():
 			target_actor.global_position = target_pos
 		else:
