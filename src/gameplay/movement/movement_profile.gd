@@ -39,8 +39,18 @@ enum DiagonalCornerRule {
 ## Máximo desnivel de elevación ascendente permitido (+levels).
 @export var max_step_up: int = 1
 
-## Máximo desnivel de elevación descendente permitido (-levels).
+## Máximo desnivel de elevación descendente permitido caminando (-levels).
 @export var max_step_down: int = 1
+
+## Permite o bloquea caídas hacia celdas inferiores que excedan max_step_down.
+@export var can_fall: bool = true
+
+## Máximo desnivel de niveles de elevación permitidos para una caída segura.
+## Desniveles mayores a este valor son letales/infranqueables y se rechazan (REASON_FALL_TOO_HIGH).
+@export var max_fall_height: int = 6
+
+## Multiplicador de velocidad de caída para el avance vertical en caída.
+@export var fall_speed_multiplier: float = 1.4
 
 ## Modalidad de interacción con celdas de agua.
 @export var water_mode: WaterMode = WaterMode.LAND

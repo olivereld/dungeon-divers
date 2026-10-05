@@ -16,6 +16,7 @@ func _init() -> void:
 	_test_cell_world_conversions()
 	_test_movement_rules()
 	_test_movement_occupancy()
+	_test_dynamic_chunk_query()
 
 	print("==================================================")
 	print(" ALL MOVEMENT UNIT TESTS PASSED!")
@@ -117,23 +118,39 @@ func is_water(pos: Vector2i) -> bool:
 	var grid: MovementGrid = MovementGrid.new(1.0, Vector3.ZERO)
 	grid.setup_from_cells(cells_dict, hydro_mock)
 
-	# 1. Misma elevación permitida
+	# 1. Misma elevación permitida (WALK)
 	var res: MovementResult = rules.validate_transition(Vector2i(0, 0), Vector2i(1, 0), grid, profile)
 	assert(res.accepted == true, "Same elevation walkable transition must be accepted")
+	assert(res.transition_type == _ResultScript.TransitionType.WALK, "Transition type must be WALK")
 
-	# 2. +1 nivel permitido (max_step_up = 1)
+	# 2. +1 nivel permitido (STEP_UP, max_step_up = 1)
 	res = rules.validate_transition(Vector2i(0, 0), Vector2i(0, 1), grid, profile)
 	assert(res.accepted == true, "+1 elevation step up must be accepted")
+	assert(res.transition_type == _ResultScript.TransitionType.STEP_UP, "Transition type must be STEP_UP")
 
 	# 3. +2 niveles rechazado
 	res = rules.validate_transition(Vector2i(0, 0), Vector2i(0, -1), grid, profile)
 	assert(res.accepted == false, "+2 elevation must be rejected")
 	assert(res.reason == _ResultScript.REASON_ELEVATION_TOO_HIGH, "Reason must be ELEVATION_TOO_HIGH")
 
-	# 4. -2 niveles rechazado
+	# 4. -2 niveles con can_fall = true -> Aceptado como FALL
 	res = rules.validate_transition(Vector2i(0, 0), Vector2i(-1, 0), grid, profile)
-	assert(res.accepted == false, "-2 elevation must be rejected")
-	assert(res.reason == _ResultScript.REASON_ELEVATION_TOO_LOW, "Reason must be ELEVATION_TOO_LOW")
+	assert(res.accepted == true, "-2 elevation with can_fall=true must be accepted as FALL")
+	assert(res.transition_type == _ResultScript.TransitionType.FALL, "Transition type must be FALL")
+
+	# 4B. -2 niveles con can_fall = false -> Rechazado con ELEVATION_TOO_LOW
+	profile.can_fall = false
+	res = rules.validate_transition(Vector2i(0, 0), Vector2i(-1, 0), grid, profile)
+	assert(res.accepted == false, "-2 elevation with can_fall=false must be rejected")
+	assert(res.reason == _ResultScript.REASON_FALL_NOT_ALLOWED, "Reason must be FALL_NOT_ALLOWED")
+	profile.can_fall = true
+
+	# 4C. Caída que excede max_fall_height -> Rechazada con FALL_TOO_HIGH
+	c_down2.elevation_level = -10 # delta = -12 > max_fall_height (6)
+	res = rules.validate_transition(Vector2i(0, 0), Vector2i(-1, 0), grid, profile)
+	assert(res.accepted == false, "Fall exceeding max_fall_height must be rejected")
+	assert(res.reason == _ResultScript.REASON_FALL_TOO_HIGH, "Reason must be FALL_TOO_HIGH")
+	c_down2.elevation_level = 0
 
 	# 5. Celda bloqueada rechazada
 	res = rules.validate_transition(Vector2i(1, 0), Vector2i(2, 0), grid, profile)
@@ -229,3 +246,45 @@ func _test_movement_occupancy() -> void:
 	assert(occ.is_occupied(target_cell) == false, "Cell must be free after entity unregistration")
 
 	print("    [PASS] movement occupancy & reservations")
+
+func _test_dynamic_chunk_query() -> void:
+	print(" -> Testing dynamic chunk/world queries on MovementGrid...")
+	var grid: MovementGrid = MovementGrid.new(1.0, Vector3.ZERO)
+
+	# Mock chunk provider object simulating ChunkWorld / WorldChunkManager
+	var mock_chunk_system = RefCounted.new()
+	var dynamic_cells: Dictionary = {}
+
+	# Define custom method dynamically via lambda or custom provider callable
+	var provider_func = func(c: Vector2i):
+		return dynamic_cells.get(c, null)
+
+	grid.cell_provider = provider_func
+	grid.setup_from_source(mock_chunk_system, 1.0, Vector3.ZERO)
+
+	# 1. Querying an ungenerated cell
+	var ungen_cell := Vector2i(100, 200)
+	assert(grid.has_cell(ungen_cell) == false, "Ungenerated cell should not exist in grid")
+	assert(grid.get_cell(ungen_cell) == null, "get_cell for ungenerated cell must return null")
+
+	# 2. Simulate chunk generation on the fly across chunk boundaries
+	var cell_chunk_0 := Vector2i(15, 15)
+	var wc_0 = _WorldCellScript.new(cell_chunk_0)
+	wc_0.height = 4.2
+	wc_0.elevation_level = 4
+	dynamic_cells[cell_chunk_0] = wc_0
+
+	var cell_chunk_1 := Vector2i(16, 15) # Next chunk coordinate
+	var wc_1 = _WorldCellScript.new(cell_chunk_1)
+	wc_1.height = 4.2
+	wc_1.elevation_level = 4
+	dynamic_cells[cell_chunk_1] = wc_1
+
+	# MovementGrid must see newly generated cells immediately without any rebuild/reset
+	assert(grid.has_cell(cell_chunk_0) == true, "Newly generated chunk cell 0 must be accessible")
+	assert(grid.has_cell(cell_chunk_1) == true, "Newly generated chunk cell 1 must be accessible")
+	assert(absf(grid.get_height(cell_chunk_0) - 4.2) < 0.001, "Height must match dynamic source")
+	assert(grid.get_cell(cell_chunk_1) == wc_1, "get_cell must return exact WorldCell instance")
+
+	print("    [PASS] dynamic chunk queries on MovementGrid")
+

@@ -21,6 +21,7 @@ func _init() -> void:
 	_run_synthetic_scenario_integration()
 	_run_input_buffering_integration()
 	_run_8way_movement_integration()
+	_run_fall_mechanic_integration()
 	_run_world_generator_pipeline_integration()
 
 	print("==================================================")
@@ -273,6 +274,105 @@ func _run_8way_movement_integration() -> void:
 	assert(player.get_current_cell() == Vector2i(3, 1), "Player reached (3, 1)")
 
 	print("    [PASS] 8-way native transitions & diagonal corner blocking")
+
+func _run_fall_mechanic_integration() -> void:
+	print(" -> Testing cliff fall locomotion mechanic (FALL vs WALK / STEP_DOWN)...")
+
+	var root := Node3D.new()
+	var cells_dict := {}
+
+	# A: (0, 0) - Cliff top, level 5, height 5.0
+	var c_top = _WorldCellScript.new(Vector2i(0, 0))
+	c_top.elevation_level = 5
+	c_top.height = 5.0
+	c_top.is_walkable = true
+	cells_dict[Vector2i(0, 0)] = c_top
+
+	# B: (1, 0) - Lower terrace, level 2, height 2.0 (delta = -3 => FALL)
+	var c_ledge = _WorldCellScript.new(Vector2i(1, 0))
+	c_ledge.elevation_level = 2
+	c_ledge.height = 2.0
+	c_ledge.is_walkable = true
+	cells_dict[Vector2i(1, 0)] = c_ledge
+
+	# C: (0, 1) - Abyss / lethal fall, level -5, height -5.0 (delta = -10 => FALL_TOO_HIGH)
+	var c_abyss = _WorldCellScript.new(Vector2i(0, 1))
+	c_abyss.elevation_level = -5
+	c_abyss.height = -5.0
+	c_abyss.is_walkable = true
+	cells_dict[Vector2i(0, 1)] = c_abyss
+
+	var grid: MovementGrid = _GridScript.new(1.0, Vector3.ZERO)
+	grid.setup_from_cells(cells_dict)
+
+	var occupancy: MovementOccupancy = _OccupancyScript.new()
+	var comp: MovementComponent = _ComponentScript.new()
+	var profile: MovementProfile = _ProfileScript.new()
+	profile.max_step_down = 1
+	profile.can_fall = true
+	profile.max_fall_height = 6
+	profile.fall_speed_multiplier = 1.5
+	profile.cells_per_second = 2.0 # 0.5s baseline
+	comp.profile = profile
+
+	var actor := Node3D.new()
+	root.add_child(actor)
+	actor.position = grid.cell_to_world(Vector2i(0, 0))
+	comp.target_actor = actor
+	comp.setup(grid, occupancy, null, Vector2i(0, 0))
+
+	# Track signals
+	var fall_started_called := [false, Vector2i.ZERO]
+	var fall_finished_called := [false, Vector2i.ZERO]
+	comp.fall_started.connect(func(from_c: Vector2i, to_c: Vector2i):
+		fall_started_called[0] = true
+		fall_started_called[1] = to_c
+	)
+	comp.fall_finished.connect(func(from_c: Vector2i, to_c: Vector2i):
+		fall_finished_called[0] = true
+		fall_finished_called[1] = to_c
+	)
+
+	# 1. Fall exceeding max_fall_height must be blocked
+	var req_abyss := _RequestScript.new(Vector2i(0, 1), &"player")
+	var res_abyss: MovementResult = comp.request_movement(req_abyss)
+	assert(res_abyss.accepted == false, "Fall exceeding max_fall_height must be rejected")
+	assert(res_abyss.reason == _ResultScript.REASON_FALL_TOO_HIGH, "Reason must be FALL_TOO_HIGH")
+
+	# 2. Fall when can_fall = false must be rejected
+	profile.can_fall = false
+	var req_cliff := _RequestScript.new(Vector2i(1, 0), &"player")
+	var res_no_fall: MovementResult = comp.request_movement(req_cliff)
+	assert(res_no_fall.accepted == false, "Fall must be rejected when can_fall is false")
+	assert(res_no_fall.reason == _ResultScript.REASON_FALL_NOT_ALLOWED, "Reason must be FALL_NOT_ALLOWED")
+	profile.can_fall = true
+
+	# 3. Valid fall transition: (0, 0) -> (1, 0)
+	var res_fall: MovementResult = comp.request_movement(req_cliff)
+	assert(res_fall.accepted == true, "Valid fall must be accepted")
+	assert(res_fall.transition_type == _ResultScript.TransitionType.FALL, "Transition type must be FALL")
+	assert(comp.current_transition_type == _ResultScript.TransitionType.FALL, "Component transition type must be FALL")
+	assert(fall_started_called[0] == true, "fall_started signal must have fired")
+	assert(fall_started_called[1] == Vector2i(1, 0), "fall_started target must be (1, 0)")
+
+	# 4. Check horizontal step-off & parabolic descent animation
+	# At t = 0.05s (progress ~0.15 < 0.2), actor stepped out horizontally before steep vertical drop
+	comp.process_movement(0.05)
+	assert(actor.position.y > 4.5, "Actor should stay near top ledge height before drop starts")
+
+	# At t = 0.2s, actor is well into parabolic descent
+	comp.process_movement(0.15)
+	assert(actor.position.y < 4.5 and actor.position.y > 2.0, "Actor is descending vertically")
+
+	# Complete the fall movement
+	comp.process_movement(0.5)
+	assert(comp.is_moving == false, "Fall movement must be finished")
+	assert(comp.current_cell == Vector2i(1, 0), "Current cell must be target (1, 0)")
+	assert(absf(actor.position.y - 2.0) < 0.01, "Actor Y position must land exactly on surface (2.0)")
+	assert(fall_finished_called[0] == true, "fall_finished signal must have fired")
+	assert(fall_finished_called[1] == Vector2i(1, 0), "fall_finished target must be (1, 0)")
+
+	print("    [PASS] cliff fall locomotion mechanic")
 
 func _run_world_generator_pipeline_integration() -> void:
 	print(" -> Testing full world pipeline integration with real generated terrain...")

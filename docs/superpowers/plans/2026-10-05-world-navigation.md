@@ -55,7 +55,7 @@
     - `func has_cell(global_cell: Vector2i) -> bool`
     - `static func from_cells(p_coord: Vector2i, p_core: Rect2i, p_cells: Dictionary) -> WorldNavigationChunk`
 
-- [ ] **Step 1: Write initial test for `WorldNavigationCell` and `WorldNavigationChunk`**
+- [x] **Step 1: Write initial test for `WorldNavigationCell` and `WorldNavigationChunk`**
 
 Create `tests/integration/test_world_navigation_integration.gd`:
 ```gdscript
@@ -106,12 +106,12 @@ func _test_nav_chunk_construction() -> void:
 	print("    [PASS] WorldNavigationChunk construction and queries")
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: FAIL (script preload errors for non-existent files).
 
-- [ ] **Step 3: Implement `WorldNavigationCell` and `WorldNavigationChunk`**
+- [x] **Step 3: Implement `WorldNavigationCell` and `WorldNavigationChunk`**
 
 Create `src/world_generator/navigation/world_navigation_cell.gd`:
 ```gdscript
@@ -232,12 +232,12 @@ func get_cell(global_cell: Vector2i) -> WorldNavigationCell:
 	)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/world_generator/navigation/world_navigation_cell.gd src/world_generator/navigation/world_navigation_chunk.gd tests/integration/test_world_navigation_integration.gd
@@ -266,7 +266,7 @@ git commit -m "feat(navigation): add WorldNavigationCell and WorldNavigationChun
   - `ChunkGenerationScheduler._worker_loop`:
     Transports `"navigation_chunk": chunk_data.navigation_chunk` in `_completed_results`.
 
-- [ ] **Step 1: Write failing test asserting `WorldNavigationStage` execution and scheduler result**
+- [x] **Step 1: Write failing test asserting `WorldNavigationStage` execution and scheduler result**
 
 In `tests/integration/test_world_navigation_integration.gd`, add `_test_pipeline_navigation_stage()`:
 ```gdscript
@@ -294,12 +294,12 @@ func _test_pipeline_navigation_stage() -> void:
 ```
 Call `_test_pipeline_navigation_stage()` in `_init()`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: FAIL (`navigation_chunk` not on `ChunkData` or is null).
 
-- [ ] **Step 3: Implement `WorldNavigationStage` and modify `ChunkData`, `WorldPipeline`, and `ChunkGenerationScheduler`**
+- [x] **Step 3: Implement `WorldNavigationStage` and modify `ChunkData`, `WorldPipeline`, and `ChunkGenerationScheduler`**
 
 Create `src/world_generator/navigation/world_navigation_stage.gd`:
 ```gdscript
@@ -364,12 +364,12 @@ In `src/world_generator/chunks/chunk_generation_scheduler.gd`, include `navigati
 		_mutex.unlock()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/world_generator/navigation/world_navigation_stage.gd src/world_generator/chunks/chunk_data.gd src/world_generator/facade/world_pipeline.gd src/world_generator/chunks/chunk_generation_scheduler.gd tests/integration/test_world_navigation_integration.gd
@@ -404,7 +404,7 @@ git commit -m "feat(navigation): integrate WorldNavigationStage into pipeline be
     - `func cell_to_world(cell: Vector2i, y_offset: float = 0.0) -> Vector3`
     - `func world_to_cell(world_pos: Vector3) -> Vector2i`
 
-- [ ] **Step 1: Write failing test for `WorldNavigationGrid` registration, boundary resolution, and queries**
+- [x] **Step 1: Write failing test for `WorldNavigationGrid` registration, boundary resolution, and queries**
 
 In `tests/integration/test_world_navigation_integration.gd`, add `_test_world_navigation_grid()`:
 ```gdscript
@@ -477,12 +477,12 @@ func _test_world_navigation_grid() -> void:
 ```
 Call `_test_world_navigation_grid()` in `_init()`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: FAIL (cannot load `world_navigation_grid.gd`).
 
-- [ ] **Step 3: Implement `WorldNavigationGrid`**
+- [x] **Step 3: Implement `WorldNavigationGrid`**
 
 Create `src/world_generator/navigation/world_navigation_grid.gd`:
 ```gdscript
@@ -603,12 +603,12 @@ func world_to_cell(world_pos: Vector3) -> Vector2i:
 	return Vector2i(int(floor(local_x)), int(floor(local_z)))
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/world_generator/navigation/world_navigation_grid.gd tests/integration/test_world_navigation_integration.gd
@@ -630,7 +630,7 @@ git commit -m "feat(navigation): implement WorldNavigationGrid global chunk regi
   - `WorldChunkManager.navigation_grid: WorldNavigationGrid`: Registered upon chunk completion, unregistered upon chunk unload.
   - `ChunkWorld.navigation_grid: WorldNavigationGrid`: Public accessor for movement systems.
 
-- [ ] **Step 1: Write failing test verifying lifecycle synchronization between ChunkManager and NavigationGrid**
+- [x] **Step 1: Write failing test verifying lifecycle synchronization between ChunkManager and NavigationGrid**
 
 In `tests/integration/test_world_navigation_integration.gd`, add `_test_chunk_manager_navigation_sync()`:
 ```gdscript
@@ -665,12 +665,12 @@ func _test_chunk_manager_navigation_sync() -> void:
 ```
 Call `_test_chunk_manager_navigation_sync()` in `_init()`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: FAIL (`manager.navigation_grid` does not exist).
 
-- [ ] **Step 3: Update `WorldChunkManager` and `ChunkWorld`**
+- [x] **Step 3: Update `WorldChunkManager` and `ChunkWorld`**
 
 In `src/world_generator/chunks/chunk_manager.gd`:
 ```gdscript
@@ -723,12 +723,12 @@ func initialize(...):
 	navigation_grid = chunk_manager.navigation_grid
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/world_generator/chunks/chunk_manager.gd src/world_generator/chunks/chunk_world.gd tests/integration/test_world_navigation_integration.gd
@@ -758,7 +758,7 @@ git commit -m "feat(navigation): connect WorldChunkManager and ChunkWorld to Wor
       - `delta < -profile.max_step_down`: queries `grid.find_lower_support(to_cell, profile.max_fall_height)` to classify `FALL`, or rejects with `REASON_NO_SURFACE_BELOW` / `REASON_FALL_TOO_HIGH` / `REASON_FALL_NOT_ALLOWED`.
     - Evaluates diagonal corners using `_is_cell_passable`.
 
-- [ ] **Step 1: Write failing test for `MovementRules` with `WorldNavigationGrid`**
+- [x] **Step 1: Write failing test for `MovementRules` with `WorldNavigationGrid`**
 
 In `tests/integration/test_world_navigation_integration.gd`, add `_test_movement_rules_navigation_grid()`:
 ```gdscript
@@ -845,12 +845,12 @@ func _test_movement_rules_navigation_grid() -> void:
 ```
 Call `_test_movement_rules_navigation_grid()` in `_init()`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: FAIL (`REASON_CHUNK_UNAVAILABLE` not found).
 
-- [ ] **Step 3: Update `MovementResult` and `MovementRules`**
+- [x] **Step 3: Update `MovementResult` and `MovementRules`**
 
 In `src/gameplay/movement/movement_result.gd`, add:
 ```gdscript
@@ -917,12 +917,12 @@ Update `validate_transition` to accept either `MovementGrid` or `WorldNavigation
 				transition_type = _ResultScript.TransitionType.FALL
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/gameplay/movement/movement_result.gd src/gameplay/movement/movement_rules.gd tests/integration/test_world_navigation_integration.gd
@@ -944,7 +944,7 @@ git commit -m "feat(movement): adapt MovementRules to WorldNavigationGrid and RE
   - Connects to `grid.chunk_registered` (if available): On signal, if `pending_unavailable_request` target cell is now `READY`, automatically re-attempts movement without per-frame polling.
   - Connects to `grid.chunk_unregistered` (if available): Discards pending request if the target chunk was cancelled or unloaded.
 
-- [ ] **Step 1: Write failing test for reactive wait on UNAVAILABLE chunk**
+- [x] **Step 1: Write failing test for reactive wait on UNAVAILABLE chunk**
 
 In `tests/integration/test_world_navigation_integration.gd`, add `_test_movement_component_unavailable_retry()`:
 ```gdscript
@@ -1003,12 +1003,12 @@ func _test_movement_component_unavailable_retry() -> void:
 ```
 Call `_test_movement_component_unavailable_retry()` in `_init()`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: FAIL (`pending_unavailable_request` not on `MovementComponent`).
 
-- [ ] **Step 3: Implement reactive wait in `MovementComponent`**
+- [x] **Step 3: Implement reactive wait in `MovementComponent`**
 
 In `src/gameplay/movement/movement_component.gd`:
 Add:
@@ -1068,12 +1068,12 @@ In `_attempt_transition`:
 		return res
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/gameplay/movement/movement_component.gd tests/integration/test_world_navigation_integration.gd
@@ -1094,7 +1094,7 @@ git commit -m "feat(movement): implement reactive chunk waiting in MovementCompo
   - Integration scenario covering 2x2 adjacent chunks, crossing chunk boundaries, walkability, step up/down, falls, corner cutting, and chunk availability.
   - Performance measurement comparing `generate_chunk` vs `generate_chunk` with `WorldNavigationStage`.
 
-- [ ] **Step 1: Add end-to-end multi-chunk pipeline integration and benchmark to the test suite**
+- [x] **Step 1: Add end-to-end multi-chunk pipeline integration and benchmark to the test suite**
 
 In `tests/integration/test_world_navigation_integration.gd`, add `_test_full_pipeline_cross_chunk_integration()`:
 ```gdscript
@@ -1143,17 +1143,17 @@ func _test_full_pipeline_cross_chunk_integration() -> void:
 ```
 Call `_test_full_pipeline_cross_chunk_integration()` in `_init()`.
 
-- [ ] **Step 2: Run new integration test suite**
+- [x] **Step 2: Run new integration test suite**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Expected: PASS with all tests passing.
 
-- [ ] **Step 3: Run existing movement integration tests to ensure zero regressions**
+- [x] **Step 3: Run existing movement integration tests to ensure zero regressions**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://src/gameplay/movement/tests/test_movement_integration.gd`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/integration/test_world_navigation_integration.gd
@@ -1175,7 +1175,7 @@ git commit -m "test(navigation): complete end-to-end integration and performance
   - `MovementGrid`: Adapts transparently to forward queries to `WorldNavigationGrid` if `world_source` is a `ChunkWorld` or `WorldChunkManager` with `navigation_grid`.
   - Removes direct dependency of movement on `WorldResult` snapshots for dynamic chunk streaming.
 
-- [ ] **Step 1: Update `MovementGrid.get_cell`, `is_walkable`, etc., to query `navigation_grid` if available**
+- [x] **Step 1: Update `MovementGrid.get_cell`, `is_walkable`, etc., to query `navigation_grid` if available**
 
 In `src/gameplay/movement/movement_grid.gd`, add forwarding when `world_source` has `navigation_grid`:
 ```gdscript
@@ -1196,13 +1196,13 @@ func _get_nav_grid() -> Object:
 ```
 Update `is_walkable`, `get_elevation_level`, `get_height` to query `_get_nav_grid()` if present before falling back to `_cells`.
 
-- [ ] **Step 2: Run both test suites**
+- [x] **Step 2: Run both test suites**
 
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://tests/integration/test_world_navigation_integration.gd`
 Run: `& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script res://src/gameplay/movement/tests/test_movement_integration.gd`
 Expected: PASS for both.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/gameplay/movement/movement_grid.gd
