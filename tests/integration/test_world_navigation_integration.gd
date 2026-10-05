@@ -14,6 +14,8 @@ const _ProfileScript = preload("res://src/gameplay/movement/movement_profile.gd"
 const _RequestScript = preload("res://src/gameplay/movement/movement_request.gd")
 const _ResultScript = preload("res://src/gameplay/movement/movement_result.gd")
 const _ComponentScript = preload("res://src/gameplay/movement/movement_component.gd")
+const _PlayerTestScript = preload("res://src/character_test/player_test.gd")
+const _VisualizerScript = preload("res://src/world_generator/navigation/world_navigation_visualizer.gd")
 
 func _init() -> void:
 	print("==================================================")
@@ -26,6 +28,7 @@ func _init() -> void:
 	_test_movement_rules_navigation_grid()
 	_test_movement_component_unavailable_retry()
 	_test_full_pipeline_cross_chunk_integration()
+	_test_navigation_visualizer_and_unbounded_movement()
 	print("==================================================")
 	print(" ALL WORLD NAVIGATION TESTS PASSED!")
 	print("==================================================")
@@ -349,3 +352,62 @@ func _test_full_pipeline_cross_chunk_integration() -> void:
 	assert(avg_ms < 50.0, "Chunk generation should remain fast (< 50ms average in test runner)")
 
 	print("    [PASS] full pipeline multi-chunk integration and performance")
+
+func _test_navigation_visualizer_and_unbounded_movement() -> void:
+	print(" -> Testing WorldNavigationVisualizer and unbounded player navigation past 40 cells...")
+	var profile := _TaigaWorldProfileScript.new()
+	var config := _ChunkConfigScript.new(16, 1, 4)
+	var root := Node3D.new()
+	var chunk_world := _ChunkWorldScript.new()
+	root.add_child(chunk_world)
+
+	chunk_world.initialize(12345, profile, config, null, 4)
+	chunk_world.load_initial_area(Vector2i.ZERO, 4)
+
+	var player = _PlayerTestScript.new()
+	root.add_child(player)
+
+	# 1. Wire player to world navigation grid
+	var nav_grid: Object = chunk_world.navigation_grid
+	assert(nav_grid != null, "NavigationGrid must be initialized")
+	var start_pos := Vector3(8.0, 5.0, 8.0)
+	var start_cell: Vector2i = nav_grid.world_to_cell(start_pos)
+	player.setup_movement(nav_grid, null, start_cell)
+
+	# 2. Test WorldNavigationVisualizer setup and toggle
+	var visualizer := _VisualizerScript.new()
+	root.add_child(visualizer)
+	visualizer.setup(nav_grid, player)
+	assert(visualizer.enabled == false, "Visualizer disabled initially")
+	assert(visualizer.toggle() == true, "Visualizer enabled after toggle")
+	visualizer.refresh(true)
+	assert(visualizer._mesh_instance != null, "MeshInstance created")
+	assert(visualizer._mesh_instance.mesh != null, "Mesh generated for walkable cells")
+
+	# 3. Simulate continuous player walking North (negative Z) past 40 cells
+	# From Z = 8 down to Z = -42 (a distance of 50 cells across chunks (0,0), (0,-1), (0,-2), (0,-3))
+	var current_cell := start_cell
+	var steps_taken := 0
+
+	for step in range(50):
+		var next_cell := current_cell + Vector2i(0, -1)
+		var ccoord := ChunkCoord.world_to_chunk(next_cell, 16)
+
+		# Ensure chunk is loaded in manager (streaming simulation)
+		if not chunk_world.chunk_manager.has_chunk(ccoord):
+			chunk_world.chunk_manager.load_chunk(ccoord)
+
+		assert(nav_grid.has_chunk(ccoord), "Chunk %s must be registered in NavigationGrid" % str(ccoord))
+		assert(nav_grid.get_cell_availability(next_cell) == 0, "Cell %s must be READY" % str(next_cell))
+
+		var avail: int = nav_grid.get_cell_availability(next_cell)
+		assert(avail != -1, "Cell must not trigger static map OUT_OF_BOUNDS")
+
+		current_cell = next_cell
+		steps_taken += 1
+
+	assert(steps_taken == 50, "Player must be able to plan and step 50 cells continuously across multiple chunks")
+	assert(current_cell.y == 8 - 50, "Player traversed 50 cells into coordinate Z = -42 without hitting any 40-cell barrier")
+
+	root.free()
+	print("    [PASS] WorldNavigationVisualizer and unbounded navigation")

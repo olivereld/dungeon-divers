@@ -61,7 +61,7 @@ func _setup_movement_component() -> void:
 	movement_component.profile.turn_speed = 12.0
 
 func setup_movement(
-	p_grid: MovementGrid,
+	p_grid: Object,
 	p_occupancy: MovementOccupancy = null,
 	p_initial_cell: Vector2i = Vector2i.ZERO
 ) -> void:

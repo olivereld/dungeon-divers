@@ -256,9 +256,9 @@ func _setup_movement_component() -> void:
 		movement_component.movement_finished.connect(_on_movement_finished)
 	_last_frame_position = global_position if is_inside_tree() else position
 
-## Configura el componente de movimiento con el MovementGrid y MovementOccupancy del mundo activo.
+## Configura el componente de movimiento con la autoridad de navegación (WorldNavigationGrid o MovementGrid).
 func setup_movement(
-	p_grid: MovementGrid,
+	p_grid: Object,
 	p_occupancy: MovementOccupancy = null,
 	p_initial_cell: Vector2i = Vector2i.ZERO
 ) -> void:
@@ -279,20 +279,44 @@ func get_target_cell() -> Vector2i:
 func is_moving() -> bool:
 	return movement_component.is_moving if movement_component != null else false
 
+func _find_world_navigation_grid() -> Object:
+	# 1. Buscar en la jerarquía de ancestros (padre, abuelo, etc.)
+	var p: Node = get_parent()
+	while p != null:
+		if "navigation_grid" in p and p.navigation_grid != null:
+			return p.navigation_grid
+		if "chunk_world" in p and p.chunk_world != null and "navigation_grid" in p.chunk_world and p.chunk_world.navigation_grid != null:
+			return p.chunk_world.navigation_grid
+		if p.has_node("ChunkWorld"):
+			var cw = p.get_node("ChunkWorld")
+			if "navigation_grid" in cw and cw.navigation_grid != null:
+				return cw.navigation_grid
+		p = p.get_parent()
+
+	# 2. Buscar en la raíz de la escena actual
+	if is_inside_tree() and get_tree() != null:
+		var scene_root: Node = get_tree().current_scene
+		if scene_root != null:
+			if "navigation_grid" in scene_root and scene_root.navigation_grid != null:
+				return scene_root.navigation_grid
+			if "chunk_world" in scene_root and scene_root.chunk_world != null and "navigation_grid" in scene_root.chunk_world and scene_root.chunk_world.navigation_grid != null:
+				return scene_root.chunk_world.navigation_grid
+			var cw: Node = scene_root.find_child("ChunkWorld", true, false)
+			if cw != null and "navigation_grid" in cw and cw.navigation_grid != null:
+				return cw.navigation_grid
+
+	return null
+
 func _ensure_grid_exists() -> void:
-	if movement_component != null and movement_component.grid == null:
-		var fallback_grid: MovementGrid = _MovementGridScript.new(1.0, Vector3.ZERO)
-		var center_cell := fallback_grid.world_to_cell(global_position)
-		var dummy_cells := {}
-		for cy in range(center_cell.y - 40, center_cell.y + 41):
-			for cx in range(center_cell.x - 40, center_cell.x + 41):
-				var c = _WorldCellScript.new(Vector2i(cx, cy))
-				c.height = global_position.y
-				c.elevation_level = 0
-				c.is_walkable = true
-				dummy_cells[Vector2i(cx, cy)] = c
-		fallback_grid.setup_from_cells(dummy_cells)
-		movement_component.setup(fallback_grid, null, null, center_cell, 0.0)
+	if movement_component == null or movement_component.grid != null:
+		return
+
+	# Resolver la autoridad de navegación procedural del mundo activo en lugar de generar un grid local ficticio
+	var nav_grid: Object = _find_world_navigation_grid()
+	if nav_grid != null:
+		var current_pos: Vector3 = global_position if is_inside_tree() else position
+		var initial_cell: Vector2i = nav_grid.world_to_cell(current_pos)
+		setup_movement(nav_grid, null, initial_cell)
 
 func _physics_process(delta: float) -> void:
 	if not is_visible_in_tree():
@@ -372,7 +396,7 @@ func _physics_process(delta: float) -> void:
 				movement_component.profile.cells_per_second = cps
 
 			# 6. Envío de MovementRequest de 8 direcciones
-			if movement_component != null:
+			if movement_component != null and movement_component.grid != null:
 				var req := _MovementRequestScript.new(grid_dir, &"player")
 				movement_component.request_movement(req)
 	else:

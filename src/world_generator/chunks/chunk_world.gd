@@ -160,6 +160,34 @@ func flush_async_queue(timeout_ms: int = 10000) -> void:
 func set_tracked_target(target: Node3D) -> void:
 	tracked_target = target
 	if tracked_target != null:
+		if navigation_grid != null:
+			if tracked_target.has_method("setup_movement"):
+				var comp = tracked_target.get("movement_component")
+				if comp == null or comp.grid == null:
+					var target_pos: Vector3 = tracked_target.global_position if tracked_target.is_inside_tree() else tracked_target.position
+					var initial_cell: Vector2i = navigation_grid.world_to_cell(target_pos)
+					if not navigation_grid.is_walkable(initial_cell):
+						for r in range(1, 10):
+							var found := false
+							for dx in range(-r, r + 1):
+								for dy in range(-r, r + 1):
+									var cand := initial_cell + Vector2i(dx, dy)
+									if navigation_grid.is_walkable(cand):
+										initial_cell = cand
+										found = true
+										break
+								if found:
+									break
+							if found:
+								break
+					tracked_target.setup_movement(navigation_grid, null, initial_cell)
+			elif "movement_component" in tracked_target and tracked_target.movement_component != null:
+				var comp = tracked_target.movement_component
+				if comp.grid == null:
+					var target_pos: Vector3 = tracked_target.global_position if tracked_target.is_inside_tree() else tracked_target.position
+					var initial_cell: Vector2i = navigation_grid.world_to_cell(target_pos)
+					comp.setup(navigation_grid, null, null, initial_cell)
+
 		_last_tracked_pos = tracked_target.global_position if tracked_target.is_inside_tree() else tracked_target.position
 		update_player_streaming()
 

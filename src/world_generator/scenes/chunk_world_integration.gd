@@ -12,6 +12,7 @@ const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometr
 const _ChunkConfigScript = preload("res://src/world_generator/chunks/chunk_config.gd")
 const _WorldPipelineScript = preload("res://src/world_generator/facade/world_pipeline.gd")
 const _DungeonSessionDataScript = preload("res://src/world_generator/poi/dungeon_session_data.gd")
+const _WorldNavVisualizerScript = preload("res://src/world_generator/navigation/world_navigation_visualizer.gd")
 
 @export var world_seed: int = 12345
 @export var render_distance: int = 4
@@ -21,6 +22,7 @@ var player: CharacterBody3D = null
 var camera_rig: IsometricCameraRig = null
 var sun_light: DirectionalLight3D = null
 var world_environment: WorldEnvironment = null
+var nav_visualizer: WorldNavigationVisualizer = null
 
 var profile: WorldProfile = null
 var config: ChunkConfig = null
@@ -30,6 +32,7 @@ var shared_hydrology: HydrologyResult = null
 var _hud_layer: CanvasLayer = null
 var _info_label: Label = null
 var _water_toggle_btn: Button = null
+var _nav_toggle_btn: Button = null
 
 
 func _ready() -> void:
@@ -99,10 +102,29 @@ func _setup_player() -> void:
 	else:
 		var start_cell := chunk_world.get_cell_at_world_pos(Vector2i(8, 8))
 		var start_y: float = start_cell.height if start_cell != null else 10.0
-		start_pos = Vector3(8.0, start_y + 1.2, 8.0)
+		start_pos = Vector3(8.0, start_y, 8.0)
 
 	player.position = start_pos
 	add_child(player)
+
+	# Conectar al jugador directamente con el WorldNavigationGrid del mundo procedural
+	if chunk_world != null and chunk_world.navigation_grid != null:
+		var start_cell_coord: Vector2i = chunk_world.navigation_grid.world_to_cell(start_pos)
+		if not chunk_world.navigation_grid.is_walkable(start_cell_coord):
+			for r in range(1, 10):
+				var found := false
+				for dx in range(-r, r + 1):
+					for dy in range(-r, r + 1):
+						var cand := start_cell_coord + Vector2i(dx, dy)
+						if chunk_world.navigation_grid.is_walkable(cand):
+							start_cell_coord = cand
+							found = true
+							break
+					if found:
+						break
+				if found:
+					break
+		player.setup_movement(chunk_world.navigation_grid, null, start_cell_coord)
 
 	# Cámara isométrica orbital de producción (IsometricCameraRig)
 	camera_rig = _IsometricCameraRigScript.new()
@@ -123,6 +145,14 @@ func _setup_player() -> void:
 
 	# Conectar player como autoridad de streaming
 	chunk_world.set_tracked_target(player)
+
+	# Visualizador táctico de navegación (Celdas caminables / bloqueadas en tiempo real)
+	nav_visualizer = _WorldNavVisualizerScript.new()
+	nav_visualizer.name = "NavigationVisualizer"
+	nav_visualizer.enabled = true
+	add_child(nav_visualizer)
+	if chunk_world != null and chunk_world.navigation_grid != null:
+		nav_visualizer.setup(chunk_world.navigation_grid, player)
 
 
 func _setup_hud() -> void:
@@ -161,6 +191,13 @@ func _setup_hud() -> void:
 	_water_toggle_btn.pressed.connect(_on_toggle_water_pressed)
 	vbox.add_child(_water_toggle_btn)
 
+	_nav_toggle_btn = Button.new()
+	_nav_toggle_btn.name = "NavToggleBtn"
+	_nav_toggle_btn.text = "🧭 Celdas Caminables [V]: Activas"
+	_nav_toggle_btn.focus_mode = Control.FOCUS_NONE
+	_nav_toggle_btn.pressed.connect(_on_toggle_nav_pressed)
+	vbox.add_child(_nav_toggle_btn)
+
 	var dist_hbox := HBoxContainer.new()
 	dist_hbox.add_theme_constant_override("separation", 6)
 	vbox.add_child(dist_hbox)
@@ -189,6 +226,17 @@ func _toggle_water() -> void:
 		var is_vis: bool = chunk_world.toggle_water_visible()
 		if _water_toggle_btn != null:
 			_water_toggle_btn.text = "💧 Ocultar Malla de Agua [H]" if is_vis else "🌊 Mostrar Malla de Agua [H]"
+
+
+func _on_toggle_nav_pressed() -> void:
+	_toggle_nav_visualizer()
+
+
+func _toggle_nav_visualizer() -> void:
+	if nav_visualizer != null:
+		var is_on: bool = nav_visualizer.toggle()
+		if _nav_toggle_btn != null:
+			_nav_toggle_btn.text = "🧭 Celdas Caminables [V]: Activas" if is_on else "🧭 Celdas Caminables [V]: Ocultas"
 
 
 func _increase_render_distance() -> void:
@@ -252,9 +300,22 @@ func _update_hud() -> void:
 			mgr.stats_generated,
 			mgr.stats_discarded
 		]
-	text += "Malla de Agua: %s\n" % ("Visible" if chunk_world.water_visible else "Oculta")
+	if chunk_world != null and chunk_world.navigation_grid != null:
+		var cur_cell: Vector2i = chunk_world.navigation_grid.world_to_cell(p_pos)
+		var is_walk: bool = chunk_world.navigation_grid.is_walkable(cur_cell)
+		var h_val: float = chunk_world.navigation_grid.get_height(cur_cell)
+		var elev: int = chunk_world.navigation_grid.get_elevation_level(cur_cell)
+		text += "Celda Actual: (%d, %d) | Altura: %.2f | Elev: %d | %s\n" % [
+			cur_cell.x, cur_cell.y, h_val, elev, "🟢 TRANSITABLE" if is_walk else "🔴 BLOQUEADA"
+		]
+	var is_nav_vis: bool = (nav_visualizer != null and nav_visualizer.enabled)
+	text += "Malla de Agua: %s | Cuadrícula de Navegación [V]: %s\n" % [
+		"Visible" if chunk_world.water_visible else "Oculta",
+		"🟢 VISIBLE" if is_nav_vis else "⚪ OCULTA"
+	]
 	text += "-----------------------------------\n"
 	text += "[WASD / Flechas]: Mover personaje\n"
+	text += "[V]: Mostrar / Ocultar Celdas Caminables (Verde/Rojo)\n"
 	text += "[Q / E]: Rotar cámara orbital 45°\n"
 	text += "[Rueda Mouse]: Zoom In / Out\n"
 	text += "[Espacio]: Saltar\n"
@@ -283,6 +344,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			camera_rig.yaw_degrees -= 45.0
 		elif ke.keycode == KEY_E:
 			camera_rig.yaw_degrees += 45.0
+		elif ke.keycode == KEY_V:
+			_toggle_nav_visualizer()
 		elif ke.keycode == KEY_H:
 			_toggle_water()
 		elif ke.keycode == KEY_J or ke.keycode == KEY_MINUS or ke.keycode == KEY_KP_SUBTRACT:
