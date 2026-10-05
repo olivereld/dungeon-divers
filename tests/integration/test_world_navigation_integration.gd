@@ -6,6 +6,7 @@ const _WorldCellScript = preload("res://src/world_generator/data/world_cell.gd")
 const _WorldPipelineScript = preload("res://src/world_generator/facade/world_pipeline.gd")
 const _TaigaWorldProfileScript = preload("res://src/world_generator/profiles/taiga_world_profile.gd")
 const _ChunkConfigScript = preload("res://src/world_generator/chunks/chunk_config.gd")
+const _NavGridScript = preload("res://src/world_generator/navigation/world_navigation_grid.gd")
 
 func _init() -> void:
 	print("==================================================")
@@ -13,6 +14,7 @@ func _init() -> void:
 	print("==================================================")
 	_test_nav_chunk_construction()
 	_test_pipeline_navigation_stage()
+	_test_world_navigation_grid()
 	print("==================================================")
 	print(" ALL WORLD NAVIGATION TESTS PASSED!")
 	print("==================================================")
@@ -65,3 +67,68 @@ func _test_pipeline_navigation_stage() -> void:
 		assert(not chunk_data.navigation_chunk.has_cell(seam_pos), "Seam cell must not be in navigation_chunk")
 
 	print("    [PASS] WorldNavigationStage execution and seam exclusion")
+
+func _test_world_navigation_grid() -> void:
+	print(" -> Testing WorldNavigationGrid cross-chunk queries and availability...")
+	var grid = _NavGridScript.new(1.0, 16, Vector3.ZERO)
+
+	var cell_a := Vector2i(15, 5) # Inside Chunk (0, 0)
+	var cell_b := Vector2i(16, 5) # Inside Chunk (1, 0)
+
+	assert(grid.get_cell_availability(cell_a) == _NavGridScript.Availability.UNAVAILABLE, "Unregistered chunk must be UNAVAILABLE")
+	assert(not grid.has_cell(cell_a), "Unregistered cell has_cell is false")
+
+	# Create two adjacent navigation chunks
+	var cells_00 := {}
+	for y in range(16):
+		for x in range(16):
+			var pos := Vector2i(x, y)
+			var c = _WorldCellScript.new(pos)
+			c.elevation_level = 1
+			c.height = 1.0
+			c.is_walkable = true
+			cells_00[pos] = c
+	var chunk_00 = _NavChunkScript.from_cells(Vector2i(0, 0), Rect2i(0, 0, 16, 16), cells_00)
+
+	var cells_10 := {}
+	for y in range(16):
+		for x in range(16):
+			var pos := Vector2i(16 + x, y)
+			var c = _WorldCellScript.new(pos)
+			c.elevation_level = 1
+			c.height = 1.0
+			c.is_walkable = (x != 0 or y != 0) # (16, 0) unwalkable, (16, 5) walkable
+			cells_10[pos] = c
+	var chunk_10 = _NavChunkScript.from_cells(Vector2i(1, 0), Rect2i(16, 0, 16, 16), cells_10)
+
+	var registered_signal_coords: Array[Vector2i] = []
+	grid.chunk_registered.connect(func(c: Vector2i): registered_signal_coords.append(c))
+
+	grid.register_chunk(chunk_00)
+	assert(grid.has_chunk(Vector2i(0, 0)), "Chunk (0, 0) is registered")
+	assert(grid.get_cell_availability(cell_a) == _NavGridScript.Availability.READY, "Cell A is now READY")
+	assert(grid.get_cell_availability(cell_b) == _NavGridScript.Availability.UNAVAILABLE, "Cell B is still UNAVAILABLE")
+
+	grid.register_chunk(chunk_10)
+	assert(registered_signal_coords.size() == 2, "Two chunk_registered signals fired")
+	assert(grid.get_cell_availability(cell_b) == _NavGridScript.Availability.READY, "Cell B is now READY")
+
+	# Cross-chunk queries
+	assert(grid.is_walkable(cell_a), "Cell A walkable")
+	assert(grid.is_walkable(cell_b), "Cell B walkable across seam")
+	assert(not grid.is_walkable(Vector2i(16, 0)), "Cell (16, 0) unwalkable")
+
+	# Spatial conversion
+	var w_pos := grid.cell_to_world(Vector2i(16, 5))
+	assert(grid.world_to_cell(w_pos) == Vector2i(16, 5), "cell_to_world <-> world_to_cell roundtrip")
+
+	# Lower support primitive
+	var support = grid.find_lower_support(cell_b, 4)
+	assert(support["found"] == true, "Support found on cell_b")
+	assert(support["elevation_level"] == 1, "Support elevation matches")
+
+	# Unregister
+	grid.unregister_chunk(Vector2i(1, 0))
+	assert(grid.get_cell_availability(cell_b) == _NavGridScript.Availability.UNAVAILABLE, "Cell B becomes UNAVAILABLE after unregister")
+
+	print("    [PASS] WorldNavigationGrid cross-chunk queries and availability")
