@@ -9,6 +9,10 @@ const _ChunkConfigScript = preload("res://src/world_generator/chunks/chunk_confi
 const _NavGridScript = preload("res://src/world_generator/navigation/world_navigation_grid.gd")
 const _ChunkManagerScript = preload("res://src/world_generator/chunks/chunk_manager.gd")
 const _ChunkWorldScript = preload("res://src/world_generator/chunks/chunk_world.gd")
+const _RulesScript = preload("res://src/gameplay/movement/movement_rules.gd")
+const _ProfileScript = preload("res://src/gameplay/movement/movement_profile.gd")
+const _RequestScript = preload("res://src/gameplay/movement/movement_request.gd")
+const _ResultScript = preload("res://src/gameplay/movement/movement_result.gd")
 
 func _init() -> void:
 	print("==================================================")
@@ -18,6 +22,7 @@ func _init() -> void:
 	_test_pipeline_navigation_stage()
 	_test_world_navigation_grid()
 	_test_chunk_manager_navigation_sync()
+	_test_movement_rules_navigation_grid()
 	print("==================================================")
 	print(" ALL WORLD NAVIGATION TESTS PASSED!")
 	print("==================================================")
@@ -163,3 +168,86 @@ func _test_chunk_manager_navigation_sync() -> void:
 	world.queue_free()
 
 	print("    [PASS] WorldChunkManager and ChunkWorld navigation lifecycle sync")
+
+func _test_movement_rules_navigation_grid() -> void:
+	print(" -> Testing MovementRules against WorldNavigationGrid...")
+	var grid = _NavGridScript.new(1.0, 16, Vector3.ZERO)
+	var rules = _RulesScript.new()
+	var profile = _ProfileScript.new()
+	profile.max_step_up = 1
+	profile.max_step_down = 1
+	profile.can_fall = true
+	profile.max_fall_height = 4
+
+	var cells := {}
+	# From (5, 5): Level 3, Walkable
+	var c_from = _WorldCellScript.new(Vector2i(5, 5))
+	c_from.elevation_level = 3
+	c_from.height = 3.0
+	c_from.is_walkable = true
+	cells[Vector2i(5, 5)] = c_from
+
+	# Walk: (6, 5): Level 3
+	var c_walk = _WorldCellScript.new(Vector2i(6, 5))
+	c_walk.elevation_level = 3
+	c_walk.height = 3.0
+	c_walk.is_walkable = true
+	cells[Vector2i(6, 5)] = c_walk
+
+	# Step up: (5, 6): Level 4 (delta = +1)
+	var c_up = _WorldCellScript.new(Vector2i(5, 6))
+	c_up.elevation_level = 4
+	c_up.height = 4.0
+	c_up.is_walkable = true
+	cells[Vector2i(5, 6)] = c_up
+
+	# Fall: (5, 4): Level 1 (delta = -2, exceeds max_step_down=1, <= max_fall=4)
+	var c_fall = _WorldCellScript.new(Vector2i(5, 4))
+	c_fall.elevation_level = 1
+	c_fall.height = 1.0
+	c_fall.is_walkable = true
+	cells[Vector2i(5, 4)] = c_fall
+
+	# Fall too high: (4, 5): Level -3 (delta = -6 > 4)
+	var c_abyss = _WorldCellScript.new(Vector2i(4, 5))
+	c_abyss.elevation_level = -3
+	c_abyss.height = -3.0
+	c_abyss.is_walkable = true
+	cells[Vector2i(4, 5)] = c_abyss
+
+	# Border cell for unavailable test: (15, 5) -> (16, 5)
+	var c_border = _WorldCellScript.new(Vector2i(15, 5))
+	c_border.elevation_level = 3
+	c_border.height = 3.0
+	c_border.is_walkable = true
+	cells[Vector2i(15, 5)] = c_border
+
+	var chunk = _NavChunkScript.from_cells(Vector2i(0, 0), Rect2i(0, 0, 16, 16), cells)
+	grid.register_chunk(chunk)
+
+	# 1. Test UNAVAILABLE chunk/cell (direction (1, 0) into unregistered chunk (1, 0))
+	var res_unavail = rules.validate_transition(Vector2i(15, 5), Vector2i(16, 5), grid, profile)
+	assert(not res_unavail.accepted, "Unavailable target rejected")
+	assert(res_unavail.reason == _ResultScript.REASON_CHUNK_UNAVAILABLE, "Reason is CHUNK_UNAVAILABLE")
+
+	# 2. Test WALK
+	var res_walk = rules.validate_transition(Vector2i(5, 5), Vector2i(6, 5), grid, profile)
+	assert(res_walk.accepted, "Walk accepted")
+	assert(res_walk.transition_type == _ResultScript.TransitionType.WALK, "Transition is WALK")
+
+	# 3. Test STEP_UP
+	var res_up = rules.validate_transition(Vector2i(5, 5), Vector2i(5, 6), grid, profile)
+	assert(res_up.accepted, "Step up accepted")
+	assert(res_up.transition_type == _ResultScript.TransitionType.STEP_UP, "Transition is STEP_UP")
+
+	# 4. Test FALL
+	var res_fall = rules.validate_transition(Vector2i(5, 5), Vector2i(5, 4), grid, profile)
+	assert(res_fall.accepted, "Fall accepted")
+	assert(res_fall.transition_type == _ResultScript.TransitionType.FALL, "Transition is FALL")
+
+	# 5. Test FALL_TOO_HIGH
+	var res_high = rules.validate_transition(Vector2i(5, 5), Vector2i(4, 5), grid, profile)
+	assert(not res_high.accepted, "Abyss fall rejected")
+	assert(res_high.reason == _ResultScript.REASON_FALL_TOO_HIGH, "Reason is FALL_TOO_HIGH")
+
+	print("    [PASS] MovementRules against WorldNavigationGrid")
