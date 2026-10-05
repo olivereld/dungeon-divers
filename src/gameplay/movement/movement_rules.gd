@@ -30,7 +30,8 @@ func validate_transition(
 		return _ResultScript.reject(_ResultScript.REASON_DIRECTION_NOT_ALLOWED, from_cell, to_cell)
 
 	# 2. Disponibilidad de chunks / existencia de celdas
-	if grid.has_method("get_cell_availability"):
+	var has_avail: bool = grid.has_method("get_cell_availability") and grid.get_cell_availability(from_cell) != -1
+	if has_avail:
 		if grid.get_cell_availability(from_cell) != 0: # 0 == READY
 			return _ResultScript.reject(_ResultScript.REASON_CHUNK_UNAVAILABLE, from_cell, to_cell)
 		if grid.get_cell_availability(to_cell) != 0:
@@ -122,7 +123,7 @@ func _is_cell_passable(
 	grid: Object,
 	profile: MovementProfile
 ) -> bool:
-	if grid.has_method("get_cell_availability"):
+	if grid.has_method("get_cell_availability") and grid.get_cell_availability(cell) != -1:
 		if grid.get_cell_availability(cell) != 0:
 			return false
 	else:
