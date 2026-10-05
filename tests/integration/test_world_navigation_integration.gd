@@ -25,6 +25,7 @@ func _init() -> void:
 	_test_chunk_manager_navigation_sync()
 	_test_movement_rules_navigation_grid()
 	_test_movement_component_unavailable_retry()
+	_test_full_pipeline_cross_chunk_integration()
 	print("==================================================")
 	print(" ALL WORLD NAVIGATION TESTS PASSED!")
 	print("==================================================")
@@ -305,3 +306,46 @@ func _test_movement_component_unavailable_retry() -> void:
 	assert(comp.current_cell == Vector2i(16, 0), "Transition completed into new chunk")
 
 	print("    [PASS] MovementComponent reactive wait and retry")
+
+func _test_full_pipeline_cross_chunk_integration() -> void:
+	print(" -> Testing end-to-end multi-chunk pipeline integration with real terrain...")
+	var profile := _TaigaWorldProfileScript.new()
+	var config := _ChunkConfigScript.new()
+	var manager = _ChunkManagerScript.new(4242, profile, config)
+
+	# Generate 2 adjacent chunks: (0, 0) and (1, 0)
+	var c0 = manager.load_chunk(Vector2i(0, 0))
+	var c1 = manager.load_chunk(Vector2i(1, 0))
+	assert(c0 != null and c1 != null, "Chunks generated")
+	assert(manager.navigation_grid.has_chunk(Vector2i(0, 0)), "Chunk 0,0 registered")
+	assert(manager.navigation_grid.has_chunk(Vector2i(1, 0)), "Chunk 1,0 registered")
+
+	# Find boundary transition between (0, 0) and (1, 0)
+	var boundary_x := 15
+	var target_x := 16
+	var found_valid_transition := false
+
+	var rules = _RulesScript.new()
+	var m_profile = _ProfileScript.new()
+
+	for y in range(16):
+		var from_c := Vector2i(boundary_x, y)
+		var to_c := Vector2i(target_x, y)
+		var res = rules.validate_transition(from_c, to_c, manager.navigation_grid, m_profile)
+		if res.accepted:
+			found_valid_transition = true
+			break
+
+	assert(found_valid_transition, "Real terrain must have at least one valid boundary transition across adjacent chunks")
+
+	# Performance benchmark
+	print(" -> Benchmarking WorldNavigationStage overhead...")
+	var t0 := Time.get_ticks_usec()
+	for i in range(10):
+		_WorldPipelineScript.generate_chunk(1000 + i, Vector2i(i, 0), profile, config, null)
+	var t_total_ms := float(Time.get_ticks_usec() - t0) / 1000.0
+	var avg_ms := t_total_ms / 10.0
+	print("    Average chunk generation time with WorldNavigation: %.2f ms" % avg_ms)
+	assert(avg_ms < 50.0, "Chunk generation should remain fast (< 50ms average in test runner)")
+
+	print("    [PASS] full pipeline multi-chunk integration and performance")
