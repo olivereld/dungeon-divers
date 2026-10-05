@@ -232,6 +232,7 @@ func _worker_loop() -> void:
 			_completed_results.append({
 				"coord": req.coord,
 				"chunk_data": chunk_data,
+				"navigation_chunk": chunk_data.navigation_chunk if chunk_data != null else null,
 				"token": req.token,
 				"enqueue_time_usec": req.enqueue_time_usec,
 				"queue_time_ms": queue_time_ms,

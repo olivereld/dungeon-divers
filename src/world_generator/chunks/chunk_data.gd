@@ -11,6 +11,7 @@ var is_generated: bool = false
 
 var seam_cells: Dictionary = {}
 var pois: Array = []
+var navigation_chunk: RefCounted = null
 
 func _init(p_coord: Vector2i = Vector2i.ZERO, p_core: Rect2i = Rect2i(), p_gen: Rect2i = Rect2i()) -> void:
 	coord = p_coord
