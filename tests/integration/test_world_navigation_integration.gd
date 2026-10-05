@@ -7,6 +7,8 @@ const _WorldPipelineScript = preload("res://src/world_generator/facade/world_pip
 const _TaigaWorldProfileScript = preload("res://src/world_generator/profiles/taiga_world_profile.gd")
 const _ChunkConfigScript = preload("res://src/world_generator/chunks/chunk_config.gd")
 const _NavGridScript = preload("res://src/world_generator/navigation/world_navigation_grid.gd")
+const _ChunkManagerScript = preload("res://src/world_generator/chunks/chunk_manager.gd")
+const _ChunkWorldScript = preload("res://src/world_generator/chunks/chunk_world.gd")
 
 func _init() -> void:
 	print("==================================================")
@@ -15,6 +17,7 @@ func _init() -> void:
 	_test_nav_chunk_construction()
 	_test_pipeline_navigation_stage()
 	_test_world_navigation_grid()
+	_test_chunk_manager_navigation_sync()
 	print("==================================================")
 	print(" ALL WORLD NAVIGATION TESTS PASSED!")
 	print("==================================================")
@@ -132,3 +135,31 @@ func _test_world_navigation_grid() -> void:
 	assert(grid.get_cell_availability(cell_b) == _NavGridScript.Availability.UNAVAILABLE, "Cell B becomes UNAVAILABLE after unregister")
 
 	print("    [PASS] WorldNavigationGrid cross-chunk queries and availability")
+
+func _test_chunk_manager_navigation_sync() -> void:
+	print(" -> Testing WorldChunkManager and ChunkWorld publishing to WorldNavigationGrid...")
+	var profile := _TaigaWorldProfileScript.new()
+	var config := _ChunkConfigScript.new()
+	var manager = _ChunkManagerScript.new(12345, profile, config)
+
+	assert("navigation_grid" in manager, "WorldChunkManager must have navigation_grid member")
+	assert(manager.navigation_grid != null, "WorldChunkManager must instantiate navigation_grid")
+
+	# Synchronous load
+	var coord := Vector2i(0, 0)
+	var chunk_data = manager.load_chunk(coord)
+	assert(chunk_data != null, "ChunkData loaded")
+	assert(manager.navigation_grid.has_chunk(coord), "NavigationGrid must have registered chunk on load")
+
+	# Unload
+	manager.unload_chunk(coord)
+	assert(not manager.navigation_grid.has_chunk(coord), "NavigationGrid must unregister chunk on unload")
+
+	# ChunkWorld coordinator test
+	var world = _ChunkWorldScript.new()
+	world.initialize(12345, profile, config)
+	assert("navigation_grid" in world, "ChunkWorld must have navigation_grid member")
+	assert(world.navigation_grid != null, "ChunkWorld must expose navigation_grid")
+	world.queue_free()
+
+	print("    [PASS] WorldChunkManager and ChunkWorld navigation lifecycle sync")

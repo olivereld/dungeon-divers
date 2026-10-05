@@ -10,6 +10,7 @@ const _WorldPipelineScript = preload("res://src/world_generator/facade/world_pip
 const _ChunkGenerationSchedulerScript = preload("res://src/world_generator/chunks/chunk_generation_scheduler.gd")
 const _DungeonPOIGeneratorScript = preload("res://src/world_generator/poi/dungeon_poi_generator.gd")
 const _HydrologyRegionCacheScript = preload("res://src/world_generator/chunks/hydrology_region_cache.gd")
+const _WorldNavigationGridScript = preload("res://src/world_generator/navigation/world_navigation_grid.gd")
 
 signal chunk_loaded(coord: Vector2i, chunk_data: ChunkData)
 signal chunk_unloaded(coord: Vector2i)
@@ -25,6 +26,9 @@ var profile: WorldProfile = null
 var config: ChunkConfig = null
 var shared_hydrology: HydrologyResult = null
 var hydrology_cache: RefCounted = null
+
+## Autoridad global de datos de navegación (WorldNavigationGrid)
+var navigation_grid: RefCounted = null
 
 ## Chunks actualmente cargados e integrados en memoria (Vector2i -> ChunkData)
 var loaded_chunks: Dictionary = {}
@@ -88,6 +92,10 @@ func _init(
 		hydrology_cache.shared_hydrology = shared_hydrology
 	scheduler = _ChunkGenerationSchedulerScript.new()
 	poi_generator = _DungeonPOIGeneratorScript.new()
+	navigation_grid = _WorldNavigationGridScript.new(
+		profile.cell_size if profile != null else 1.0,
+		config.chunk_size if config != null else 16
+	)
 
 
 func is_water(world_x: int, world_z: int) -> bool:
@@ -184,6 +192,8 @@ func load_chunk(coord: Vector2i) -> ChunkData:
 
 	loaded_chunks[coord] = chunk_data
 	chunk_states[coord] = ChunkState.LOADED
+	if navigation_grid != null and chunk_data.navigation_chunk != null:
+		navigation_grid.register_chunk(chunk_data.navigation_chunk)
 	_attach_pois_to_chunk(chunk_data)
 	chunk_loaded.emit(coord, chunk_data)
 	return chunk_data
@@ -197,6 +207,9 @@ func unload_chunk(coord: Vector2i) -> void:
 		scheduler.invalidate_token(coord, _next_token)
 
 	chunk_states.erase(coord)
+
+	if navigation_grid != null:
+		navigation_grid.unregister_chunk(coord)
 
 	if not loaded_chunks.has(coord):
 		return
@@ -307,6 +320,8 @@ func poll_completed() -> Array[Vector2i]:
 			loaded_chunks[coord] = chunk_data
 			chunk_states[coord] = ChunkState.LOADED
 			stats_loaded += 1
+			if navigation_grid != null and chunk_data.navigation_chunk != null:
+				navigation_grid.register_chunk(chunk_data.navigation_chunk)
 
 			if item.has("queue_time_ms"):
 				stats_queue_times.append(item["queue_time_ms"])

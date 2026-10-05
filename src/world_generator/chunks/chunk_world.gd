@@ -24,6 +24,7 @@ var profile: WorldProfile = null
 var config: ChunkConfig = null
 var shared_hydrology: HydrologyResult = null
 var chunk_manager: RefCounted = null
+var navigation_grid: RefCounted = null
 var streaming_controller: RefCounted = null
 var activation_scheduler: RefCounted = null
 
@@ -99,6 +100,7 @@ func initialize(
 		config,
 		shared_hydrology
 	)
+	navigation_grid = chunk_manager.navigation_grid
 
 	streaming_controller = _ChunkStreamingControllerScript.new(config)
 	activation_scheduler = _ChunkActivationSchedulerScript.new()
