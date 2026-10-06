@@ -61,6 +61,7 @@ const DIRECTIONS_8: Array[Vector2i] = [
 
 var movement_component: MovementComponent = null
 var _last_8way_index: int = -1 # -1=sin input previo
+var _move_initiating_octant: int = -1 # Octante que inició el paso activo
 var _last_frame_position: Vector3 = Vector3.ZERO
 
 var _visual_root: Node3D = null
@@ -366,6 +367,7 @@ func _physics_process(delta: float) -> void:
 		if v.length() >= 0.2:
 			var angle: float = atan2(v.y, v.x) # Rango [-PI, PI]
 			var chosen_octant: int = -1
+			var is_new_press: bool = (_last_8way_index == -1)
 
 			# Histéresis angular: si ya había una dirección activa, aplicar zona de adherencia (+/- 8°)
 			# evitando alternancias indeseadas entre diagonal y cardinal al mantener el input
@@ -378,7 +380,8 @@ func _physics_process(delta: float) -> void:
 
 			if chosen_octant == -1:
 				chosen_octant = posmod(int(round(angle / (PI / 4.0))), 8)
-				_last_8way_index = chosen_octant
+
+			_last_8way_index = chosen_octant
 
 			var grid_dir: Vector2i = DIRECTIONS_8[chosen_octant]
 
@@ -397,10 +400,29 @@ func _physics_process(delta: float) -> void:
 
 			# 6. Envío de MovementRequest de 8 direcciones
 			if movement_component != null and movement_component.grid != null:
-				var req := _MovementRequestScript.new(grid_dir, &"player")
-				movement_component.request_movement(req)
+				var should_send: bool = false
+				if not movement_component.is_moving:
+					should_send = true
+				else:
+					# Si está en movimiento:
+					# - Si es una nueva pulsación o dirección distinta, se permite bufferizar de inmediato (cola de giro o doble tap).
+					# - Si es la misma pulsación sostenida que inició el paso actual, solo se bufferiza
+					#   en la fase final de la celda (progress >= 0.65) para encadenar fluidamente al mantener presionado.
+					#   Esto evita que un toque rápido (tap) bufferice automáticamente una segunda casilla.
+					var is_same_held_input: bool = (chosen_octant == _move_initiating_octant) and not is_new_press
+					if not is_same_held_input or movement_component.progress >= 0.65:
+						should_send = true
+
+				if should_send:
+					var req := _MovementRequestScript.new(grid_dir, &"player")
+					var res := movement_component.request_movement(req)
+					if res != null and res.accepted:
+						_move_initiating_octant = chosen_octant
 	else:
 		_last_8way_index = -1
+		_move_initiating_octant = -1
+		if movement_component != null:
+			movement_component.clear_buffer()
 
 	# 7. Velocidad aparente para shaders/efectos de agua (no gobierna la física)
 	if delta > 0.0 and movement_component != null and movement_component.is_moving:
@@ -412,12 +434,17 @@ func _physics_process(delta: float) -> void:
 	# 8. Actualización de animaciones según estado de movimiento
 	_update_animation_state()
 
-func _on_movement_started(_from: Vector2i, _to: Vector2i) -> void:
+func _on_movement_started(from: Vector2i, to: Vector2i) -> void:
+	var dir := to - from
+	var idx: int = DIRECTIONS_8.find(dir)
+	if idx != -1:
+		_move_initiating_octant = idx
 	if _anim_playback != null:
 		_anim_playback.travel("Locomotion")
 
 func _on_movement_finished(_from: Vector2i, _to: Vector2i) -> void:
 	if movement_component != null and not movement_component.is_moving:
+		_move_initiating_octant = -1
 		if _anim_playback != null:
 			_anim_playback.travel("Idle")
 

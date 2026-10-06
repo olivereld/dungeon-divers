@@ -144,6 +144,10 @@ func teleport_to_cell(cell: Vector2i) -> void:
 	cell_changed.emit(current_cell)
 	state_changed.emit(false)
 
+## Limpia cualquier solicitud pendiente en buffer.
+func clear_buffer() -> void:
+	buffered_request = null
+
 ## Solicita un movimiento. Si ya se está moviendo, almacena en buffer el último input.
 func request_movement(request: MovementRequest) -> MovementResult:
 	if request == null or not request.is_valid():

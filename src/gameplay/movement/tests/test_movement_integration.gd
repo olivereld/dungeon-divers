@@ -23,6 +23,7 @@ func _init() -> void:
 	_run_8way_movement_integration()
 	_run_fall_mechanic_integration()
 	_run_world_generator_pipeline_integration()
+	_run_single_step_vs_continuous_hold_test()
 
 	print("==================================================")
 	print(" ALL MOVEMENT INTEGRATION TESTS PASSED!")
@@ -415,3 +416,68 @@ func _run_world_generator_pipeline_integration() -> void:
 	assert(moved == true, "Player must successfully move to at least one valid neighboring cell on real terrain")
 
 	print("    [PASS] full world pipeline integration")
+ 
+func _run_single_step_vs_continuous_hold_test() -> void:
+	print(" -> Testing single-tap (1 cell only) vs continuous hold input chaining...")
+	var cells_dict := {}
+	for i in range(10):
+		var c = _WorldCellScript.new(Vector2i(i, 0))
+		c.elevation_level = 0
+		c.height = 0.0
+		c.is_walkable = true
+		cells_dict[Vector2i(i, 0)] = c
+
+	var grid: MovementGrid = _GridScript.new(1.0, Vector3.ZERO)
+	grid.setup_from_cells(cells_dict)
+
+	var comp: MovementComponent = _ComponentScript.new()
+	comp.profile = _ProfileScript.new()
+	comp.profile.cells_per_second = 4.0 # 0.25s per cell
+	comp.setup(grid, null, null, Vector2i(0, 0))
+
+	# 1. Simular pulsación única (tap):
+	# Se envía movimiento a (1, 0)
+	var req1 := _RequestScript.new(Vector2i(1, 0), &"player")
+	var res1 := comp.request_movement(req1)
+	assert(res1.accepted == true, "Move to (1, 0) must be accepted")
+	assert(comp.is_moving == true, "Must be moving")
+
+	# Mientras se mueve a mitad de camino, comp.buffered_request podría tener un buffer accidental si se llamó
+	comp.process_movement(0.1)
+	var req_extra := _RequestScript.new(Vector2i(1, 0), &"player")
+	comp.request_movement(req_extra)
+	assert(comp.buffered_request != null, "Buffer contains extra tap request")
+
+	# Al soltar la tecla (tap), el sistema invoca clear_buffer()
+	comp.clear_buffer()
+	assert(comp.buffered_request == null, "Buffer must be null after clear_buffer()")
+
+	# Completar el movimiento de la primera casilla
+	comp.process_movement(0.2)
+	assert(comp.current_cell == Vector2i(1, 0), "Must be at (1, 0)")
+	assert(comp.is_moving == false, "Must stop after exactly 1 cell because buffer was cleared on tap release")
+
+	# 2. Simular mantener presionado (hold):
+	# Se inicia movimiento a (2, 0)
+	var req2 := _RequestScript.new(Vector2i(1, 0), &"player")
+	var res2 := comp.request_movement(req2)
+	assert(res2.accepted == true, "Move to (2, 0) accepted")
+
+	# En la fase final (progress >= 0.65), la tecla se mantiene presionada -> se almacena el buffer
+	comp.process_movement(0.2) # progress = 0.8
+	var req_chain := _RequestScript.new(Vector2i(1, 0), &"player")
+	comp.request_movement(req_chain)
+	assert(comp.buffered_request == req_chain, "Buffer stored chained move because key is still held")
+
+	# Al completarse el movimiento, se encadena automáticamente a (3, 0) sin detenerse
+	comp.process_movement(0.1)
+	assert(comp.current_cell == Vector2i(2, 0), "Finished step 2")
+	assert(comp.is_moving == true, "Immediately chained into step 3")
+	assert(comp.target_cell == Vector2i(3, 0), "Targeting (3, 0)")
+
+	# Completar el paso encadenado
+	comp.process_movement(0.25)
+	assert(comp.current_cell == Vector2i(3, 0), "Finished step 3 at (3, 0)")
+	assert(comp.is_moving == false, "Stopped after step 3")
+
+	print("    [PASS] single-tap (1 cell only) vs continuous hold input chaining")
