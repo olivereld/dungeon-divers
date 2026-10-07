@@ -8,6 +8,11 @@ extends Node
 signal movement_started(from_cell: Vector2i, to_cell: Vector2i)
 signal movement_finished(from_cell: Vector2i, to_cell: Vector2i)
 signal movement_failed(request: MovementRequest, result: MovementResult)
+signal drop_started(from_cell: Vector2i, to_cell: Vector2i)
+signal drop_takeoff(from_cell: Vector2i, to_cell: Vector2i)
+signal drop_finished(from_cell: Vector2i, to_cell: Vector2i)
+signal jump_up_started(from_cell: Vector2i, to_cell: Vector2i)
+signal jump_up_finished(from_cell: Vector2i, to_cell: Vector2i)
 signal fall_started(from_cell: Vector2i, to_cell: Vector2i)
 signal fall_finished(from_cell: Vector2i, to_cell: Vector2i)
 signal cell_changed(new_cell: Vector2i)
@@ -36,6 +41,7 @@ var is_moving: bool = false
 var progress: float = 0.0
 var facing: Vector2i = Vector2i(0, 1) # Default: Sur (+Z)
 var current_transition_type: int = _ResultScript.TransitionType.WALK
+var _drop_windup_remaining: float = 0.0
 
 ## Buffer de una sola solicitud siguiente
 var buffered_request: MovementRequest = null
@@ -138,6 +144,7 @@ func teleport_to_cell(cell: Vector2i) -> void:
 	target_cell = cell
 	is_moving = false
 	progress = 0.0
+	_drop_windup_remaining = 0.0
 	buffered_request = null
 
 	_teleport_actor_to_cell(cell)
@@ -180,7 +187,8 @@ func _attempt_transition(request: MovementRequest) -> MovementResult:
 		grid,
 		active_profile,
 		occupancy,
-		target_actor
+		target_actor,
+		request.is_jump
 	)
 
 	if not res.accepted:
@@ -206,7 +214,12 @@ func _attempt_transition(request: MovementRequest) -> MovementResult:
 	progress = 0.0
 	current_transition_type = res.transition_type
 
-	if current_transition_type == _ResultScript.TransitionType.FALL:
+	if current_transition_type == _ResultScript.TransitionType.DROP:
+		_drop_windup_remaining = profile.drop_windup_time if profile != null else 0.0
+		drop_started.emit(current_cell, target_cell)
+	elif current_transition_type == _ResultScript.TransitionType.JUMP_UP:
+		jump_up_started.emit(current_cell, target_cell)
+	elif current_transition_type == _ResultScript.TransitionType.FALL:
 		fall_started.emit(current_cell, target_cell)
 	movement_started.emit(current_cell, target_cell)
 	state_changed.emit(true)
@@ -225,11 +238,38 @@ func process_movement(delta: float) -> void:
 		_turn_actor_towards_facing(delta)
 		return
 
+	if current_transition_type == _ResultScript.TransitionType.DROP and _drop_windup_remaining > 0.0:
+		_drop_windup_remaining -= delta
+		_turn_actor_towards_facing(delta)
+		if _drop_windup_remaining <= 0.0:
+			_drop_windup_remaining = 0.0
+			drop_takeoff.emit(current_cell, target_cell)
+		else:
+			_update_presentation(0.0, delta)
+			return
+
 	var cps: float = profile.cells_per_second if profile != null else 4.0
-	if current_transition_type == _ResultScript.TransitionType.FALL:
+	if current_transition_type == _ResultScript.TransitionType.DROP:
+		if profile != null and profile.drop_flight_time > 0.0:
+			var drop_levels: int = 1
+			if grid != null and grid.has_method("get_cell_elevation"):
+				drop_levels = maxi(1, int(abs(grid.get_cell_elevation(current_cell) - grid.get_cell_elevation(target_cell))))
+			var total_flight: float = profile.drop_flight_time + float(drop_levels - 1) * 0.06
+			progress += delta / maxf(total_flight, 0.05)
+		else:
+			var mult: float = profile.drop_speed_multiplier if profile != null else 1.2
+			cps *= mult
+			progress += cps * delta
+	elif current_transition_type == _ResultScript.TransitionType.JUMP_UP:
+		var mult: float = profile.jump_up_speed_multiplier if profile != null else 1.0
+		cps *= mult
+		progress += cps * delta
+	elif current_transition_type == _ResultScript.TransitionType.FALL:
 		var mult: float = profile.fall_speed_multiplier if profile != null else 1.4
 		cps *= mult
-	progress += cps * delta
+		progress += cps * delta
+	else:
+		progress += cps * delta
 
 	if progress >= 1.0:
 		progress = 1.0
@@ -248,10 +288,15 @@ func _complete_movement() -> void:
 	current_cell = target_cell
 	is_moving = false
 	progress = 0.0
+	_drop_windup_remaining = 0.0
 	current_transition_type = _ResultScript.TransitionType.WALK
 
 	cell_changed.emit(current_cell)
-	if finished_type == _ResultScript.TransitionType.FALL:
+	if finished_type == _ResultScript.TransitionType.DROP:
+		drop_finished.emit(from_c, target_cell)
+	elif finished_type == _ResultScript.TransitionType.JUMP_UP:
+		jump_up_finished.emit(from_c, target_cell)
+	elif finished_type == _ResultScript.TransitionType.FALL:
 		fall_finished.emit(from_c, target_cell)
 	movement_finished.emit(from_c, target_cell)
 	state_changed.emit(false)
@@ -270,7 +315,24 @@ func _update_presentation(p: float, delta: float) -> void:
 	var world_to: Vector3 = grid.cell_to_world(target_cell, y_offset)
 
 	var target_pos: Vector3
-	if current_transition_type == _ResultScript.TransitionType.FALL:
+	if current_transition_type == _ResultScript.TransitionType.DROP:
+		# Trayectoria parabólica en arco hacia superficie inferior
+		# Impulso inicial manteniéndose en cota alta y aceleración por gravedad al descender
+		var t: float = clampf(p, 0.0, 1.0)
+		var horiz_x: float = lerpf(world_from.x, world_to.x, t)
+		var horiz_z: float = lerpf(world_from.z, world_to.z, t)
+		var fall_t: float = clampf((t - 0.2) / 0.8, 0.0, 1.0)
+		var base_y: float = lerpf(world_from.y, world_to.y, fall_t * fall_t)
+		var arc_h: float = profile.drop_arc_height if profile != null else 0.35
+		var arc: float = 4.0 * arc_h * t * (1.0 - t)
+		target_pos = Vector3(horiz_x, base_y + arc, horiz_z)
+	elif current_transition_type == _ResultScript.TransitionType.JUMP_UP:
+		var t: float = clampf(p, 0.0, 1.0)
+		var base_pos: Vector3 = world_from.lerp(world_to, t)
+		var arc_h: float = profile.drop_arc_height if profile != null else 0.35
+		var arc: float = 4.0 * arc_h * t * (1.0 - t)
+		target_pos = base_pos + Vector3.UP * arc
+	elif current_transition_type == _ResultScript.TransitionType.FALL:
 		# Trayectoria de caída: desplazamiento horizontal con caída vertical acelerada
 		var horiz_x: float = lerpf(world_from.x, world_to.x, p)
 		var horiz_z: float = lerpf(world_from.z, world_to.z, p)
@@ -307,3 +369,105 @@ func _teleport_actor_to_cell(cell: Vector2i) -> void:
 		else:
 			target_actor.position = target_pos
 		_turn_actor_towards_facing(0.0)
+
+## Busca la mejor dirección de salto (DROP hacia abajo o JUMP_UP hacia arriba),
+## priorizando la orientación donde mira el actor (siempre que la celda destino esté desocupada).
+func find_best_jump_direction(p_facing: Vector2 = Vector2.ZERO) -> Vector2i:
+	if grid == null:
+		return Vector2i.ZERO
+
+	var facing_v := p_facing
+	if facing_v == Vector2.ZERO:
+		if facing != Vector2i.ZERO:
+			facing_v = Vector2(facing.x, facing.y).normalized()
+		elif target_actor != null:
+			var rot_y: float = target_actor.rotation.y
+			facing_v = Vector2(-sin(rot_y), -cos(rot_y)).normalized()
+		else:
+			facing_v = Vector2(0, 1)
+
+	var active_rules: MovementRules = rules if rules != null else _RulesScript.new()
+	var active_profile: MovementProfile = profile if profile != null else _ProfileScript.new()
+	var cur_level: int = grid.get_elevation_level(current_cell) if grid.has_method("get_elevation_level") else 0
+
+	var candidate_dirs: Array[Vector2i] = [
+		Vector2i(0, -1), # Norte
+		Vector2i(0, 1),  # Sur
+		Vector2i(1, 0),  # Este
+		Vector2i(-1, 0), # Oeste
+	]
+
+	var best_dir := Vector2i.ZERO
+	var best_dot: float = -999.0
+	var best_delta_abs: int = 999
+
+	for dir in candidate_dirs:
+		var target: Vector2i = current_cell + dir
+		var res: MovementResult = active_rules.validate_transition(
+			current_cell,
+			target,
+			grid,
+			active_profile,
+			occupancy,
+			target_actor,
+			true # is_jump
+		)
+
+		if not res.accepted:
+			continue
+
+		var target_level: int = grid.get_elevation_level(target) if grid.has_method("get_elevation_level") else cur_level
+		var delta_level: int = target_level - cur_level
+		if delta_level == 0:
+			continue
+
+		var dir_v := Vector2(dir.x, dir.y).normalized()
+		var dot: float = facing_v.dot(dir_v)
+		var delta_abs: int = absi(delta_level)
+
+		# Mayor prioridad a la orientación donde mira el personaje (dot),
+		# y ante alineaciones equivalentes, menor desnivel (más próxima).
+		if dot > best_dot or (is_equal_approx(dot, best_dot) and delta_abs < best_delta_abs):
+			best_dot = dot
+			best_delta_abs = delta_abs
+			best_dir = dir
+
+	return best_dir
+
+## Ejecuta un salto hacia una celda con desnivel (arriba o abajo). Si no se especifica dirección,
+## busca automáticamente la mejor según la orientación del personaje.
+func request_jump(p_direction: Vector2i = Vector2i.ZERO) -> MovementResult:
+	if is_moving:
+		return null
+
+	var jump_dir := p_direction
+	if jump_dir != Vector2i.ZERO:
+		# Comprobar si la dirección indicada tiene un desnivel válido desocupado
+		var active_rules: MovementRules = rules if rules != null else _RulesScript.new()
+		var active_profile: MovementProfile = profile if profile != null else _ProfileScript.new()
+		var test_res = active_rules.validate_transition(
+			current_cell,
+			current_cell + jump_dir,
+			grid,
+			active_profile,
+			occupancy,
+			target_actor,
+			true
+		)
+		var cur_level: int = grid.get_elevation_level(current_cell) if grid.has_method("get_elevation_level") else 0
+		var tgt_level: int = grid.get_elevation_level(current_cell + jump_dir) if grid.has_method("get_elevation_level") else cur_level
+		if not test_res.accepted or tgt_level == cur_level:
+			# Si la dirección presionada no es un desnivel saltable válido, buscar la mejor dirección alternativa
+			jump_dir = Vector2i.ZERO
+
+	if jump_dir == Vector2i.ZERO:
+		jump_dir = find_best_jump_direction()
+
+	if jump_dir == Vector2i.ZERO:
+		return null
+
+	var req := _RequestScript.new(jump_dir, &"player", true)
+	return request_movement(req)
+
+func is_in_drop_windup() -> bool:
+	return is_moving and current_transition_type == _ResultScript.TransitionType.DROP and _drop_windup_remaining > 0.0

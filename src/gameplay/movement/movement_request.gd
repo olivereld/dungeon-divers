@@ -6,10 +6,12 @@ extends RefCounted
 
 var direction: Vector2i = Vector2i.ZERO
 var source: StringName = &""
+var is_jump: bool = false
 
-func _init(p_direction: Vector2i = Vector2i.ZERO, p_source: StringName = &"") -> void:
+func _init(p_direction: Vector2i = Vector2i.ZERO, p_source: StringName = &"", p_is_jump: bool = false) -> void:
 	direction = p_direction
 	source = p_source
+	is_jump = p_is_jump
 
 func is_valid() -> bool:
 	return direction != Vector2i.ZERO and abs(direction.x) <= 1 and abs(direction.y) <= 1

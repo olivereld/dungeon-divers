@@ -53,7 +53,9 @@ func execute(context: WorldGenerationContext) -> void:
 		else:
 			cell.slope_category = SlopeCategory.CLIFF
 
-		var is_walkable := (cell.slope <= profile.max_walkable_slope)
+		var is_walkable := true
+		if profile.elevation_step_height <= 0.0:
+			is_walkable = (cell.slope <= profile.max_walkable_slope)
 		var hydro = context.result.hydrology
 		var in_water := false
 		if hydro != null and hydro.has_method("is_water") and hydro.is_water(pos):

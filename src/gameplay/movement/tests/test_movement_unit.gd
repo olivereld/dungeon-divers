@@ -152,6 +152,36 @@ func is_water(pos: Vector2i) -> bool:
 	assert(res.reason == _ResultScript.REASON_FALL_TOO_HIGH, "Reason must be FALL_TOO_HIGH")
 	c_down2.elevation_level = 0
 
+	# 4D. require_jump_for_elevation = true: bloquea caminar automáticamente con desniveles
+	profile.require_jump_for_elevation = true
+	# Caminata normal (+1 nivel) -> Rechazada con REASON_JUMP_REQUIRED
+	res = rules.validate_transition(Vector2i(0, 0), Vector2i(0, 1), grid, profile, null, null, false)
+	assert(res.accepted == false, "Walking up elevation when require_jump=true must be rejected")
+	assert(res.reason == _ResultScript.REASON_JUMP_REQUIRED, "Reason must be JUMP_REQUIRED")
+
+	# Salto explícito (+1 nivel, is_jump = true) -> Aceptado como JUMP_UP
+	res = rules.validate_transition(Vector2i(0, 0), Vector2i(0, 1), grid, profile, null, null, true)
+	assert(res.accepted == true, "Explicit jump up must be accepted")
+	assert(res.transition_type == _ResultScript.TransitionType.JUMP_UP, "Transition type must be JUMP_UP")
+
+	# Caminata normal (-2 niveles) -> Rechazada con REASON_JUMP_REQUIRED
+	profile.can_drop = true
+	res = rules.validate_transition(Vector2i(0, 0), Vector2i(-1, 0), grid, profile, null, null, false)
+	assert(res.accepted == false, "Walking off cliff when require_jump=true must be rejected")
+	assert(res.reason == _ResultScript.REASON_JUMP_REQUIRED, "Reason must be JUMP_REQUIRED")
+
+	# Salto explícito (-2 niveles, is_jump = true) -> Aceptado como DROP
+	res = rules.validate_transition(Vector2i(0, 0), Vector2i(-1, 0), grid, profile, null, null, true)
+	assert(res.accepted == true, "Explicit jump down must be accepted as DROP")
+	assert(res.transition_type == _ResultScript.TransitionType.DROP, "Transition type must be DROP")
+
+	# Mismo nivel (0 delta) sigue permitido caminando
+	res = rules.validate_transition(Vector2i(0, 0), Vector2i(1, 0), grid, profile, null, null, false)
+	assert(res.accepted == true, "Walking on same elevation must still be accepted")
+	assert(res.transition_type == _ResultScript.TransitionType.WALK, "Transition must be WALK")
+	profile.require_jump_for_elevation = false
+	profile.can_drop = false
+
 	# 5. Celda bloqueada rechazada
 	res = rules.validate_transition(Vector2i(1, 0), Vector2i(2, 0), grid, profile)
 	assert(res.accepted == false, "Unwalkable cell must be rejected")

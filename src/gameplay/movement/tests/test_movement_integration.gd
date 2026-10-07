@@ -22,6 +22,8 @@ func _init() -> void:
 	_run_input_buffering_integration()
 	_run_8way_movement_integration()
 	_run_fall_mechanic_integration()
+	_run_drop_mechanic_integration()
+	_run_manual_jump_elevation_test()
 	_run_world_generator_pipeline_integration()
 	_run_single_step_vs_continuous_hold_test()
 
@@ -481,3 +483,214 @@ func _run_single_step_vs_continuous_hold_test() -> void:
 	assert(comp.is_moving == false, "Stopped after step 3")
 
 	print("    [PASS] single-tap (1 cell only) vs continuous hold input chaining")
+
+func _run_drop_mechanic_integration() -> void:
+	print(" -> Testing controlled cliff DROP parabolic arc locomotion mechanic...")
+	var cells_dict := {}
+
+	# A: (0, 0) - Cliff top, level 4, height 4.0
+	var c_top = _WorldCellScript.new(Vector2i(0, 0))
+	c_top.elevation_level = 4
+	c_top.height = 4.0
+	c_top.is_walkable = true
+	cells_dict[Vector2i(0, 0)] = c_top
+
+	# B: (1, 0) - Lower ledge, level 1, height 1.0 (delta = -3 => within max_drop_distance 4 => DROP)
+	var c_ledge = _WorldCellScript.new(Vector2i(1, 0))
+	c_ledge.elevation_level = 1
+	c_ledge.height = 1.0
+	c_ledge.is_walkable = true
+	cells_dict[Vector2i(1, 0)] = c_ledge
+
+	# C: (0, 1) - Too deep, level -2, height -2.0 (delta = -6 => exceeds max_drop_distance 4)
+	var c_deep = _WorldCellScript.new(Vector2i(0, 1))
+	c_deep.elevation_level = -2
+	c_deep.height = -2.0
+	c_deep.is_walkable = true
+	cells_dict[Vector2i(0, 1)] = c_deep
+
+	var grid: MovementGrid = _GridScript.new(1.0, Vector3.ZERO)
+	grid.setup_from_cells(cells_dict)
+
+	var comp: MovementComponent = _ComponentScript.new()
+	var profile: MovementProfile = _ProfileScript.new()
+	profile.can_drop = true
+	profile.max_drop_distance = 4
+	profile.drop_arc_height = 0.4
+	profile.can_fall = false # Only controlled DROP allowed
+	profile.cells_per_second = 2.0
+	comp.profile = profile
+
+	var root := Node3D.new()
+	var actor := Node3D.new()
+	root.add_child(actor)
+	comp.target_actor = actor
+	comp.setup(grid, null, null, Vector2i(0, 0))
+
+	var flags := {"started": false, "finished": false}
+	comp.drop_started.connect(func(_from, _to): flags["started"] = true)
+	comp.drop_finished.connect(func(_from, _to): flags["finished"] = true)
+
+	# 1. Movimiento hacia precipicio demasiado profundo (delta = -6 > 4) -> REJECT
+	var req_deep := _RequestScript.new(Vector2i(0, 1), &"player")
+	var res_deep: MovementResult = comp.request_movement(req_deep)
+	assert(res_deep.accepted == false, "Deep cliff beyond max_drop_distance must be rejected")
+	assert(res_deep.reason == _ResultScript.REASON_DROP_TOO_HIGH, "Reason must be DROP_TOO_HIGH")
+
+	# 2. Movimiento hacia repisa válida (delta = -3 <= 4) -> ACCEPT como DROP
+	var req_drop := _RequestScript.new(Vector2i(1, 0), &"player")
+	var res_drop: MovementResult = comp.request_movement(req_drop)
+	assert(res_drop.accepted == true, "Valid cliff drop must be accepted")
+	assert(res_drop.transition_type == _ResultScript.TransitionType.DROP, "Transition type must be DROP")
+	assert(flags["started"] == true, "drop_started signal must have fired")
+
+	# 3. Verificar trayectoria en el punto medio del salto
+	# Con cps = 2.0 y mult = 1.2, cps efectivo = 2.4. En 0.208s, progress ~= 0.5.
+	comp.process_movement(0.208)
+	assert(absf(comp.progress - 0.5) < 0.05, "Progress around 0.5")
+	assert(actor.position.y > 2.5, "Actor position must have vertical parabolic arc height above linear baseline")
+
+	# 4. Completar el salto DROP
+	comp.process_movement(0.3)
+	assert(comp.current_cell == Vector2i(1, 0), "Actor reached landing cell (1, 0)")
+	assert(comp.is_moving == false, "Actor finished DROP transition")
+	assert(flags["finished"] == true, "drop_finished signal must have fired")
+	assert(absf(actor.position.y - 1.0) < 0.01, "Actor landed exactly on target height Y=1.0")
+
+	root.free()
+	print("    [PASS] controlled cliff DROP parabolic arc locomotion mechanic")
+
+func _run_manual_jump_elevation_test() -> void:
+	print(" -> Testing manual jump elevation transitions with facing priority & occupancy...")
+	var cells_dict := {}
+
+	# (0, 0): Nivel 2, Y=2.0 (Celda base)
+	var c00 = _WorldCellScript.new(Vector2i(0, 0))
+	c00.elevation_level = 2
+	c00.height = 2.0
+	c00.is_walkable = true
+	cells_dict[Vector2i(0, 0)] = c00
+
+	# (-1, 0): Nivel 2, Y=2.0 (Plano Oeste)
+	var cw = _WorldCellScript.new(Vector2i(-1, 0))
+	cw.elevation_level = 2
+	cw.height = 2.0
+	cw.is_walkable = true
+	cells_dict[Vector2i(-1, 0)] = cw
+
+	# (1, 0): Nivel 0, Y=0.0 (Precipicio saltable Este, delta = -2)
+	var ce = _WorldCellScript.new(Vector2i(1, 0))
+	ce.elevation_level = 0
+	ce.height = 0.0
+	ce.is_walkable = true
+	cells_dict[Vector2i(1, 0)] = ce
+
+	# (0, -1): Nivel 3, Y=3.0 (Escalón/repisa superior Norte, delta = +1)
+	var cn = _WorldCellScript.new(Vector2i(0, -1))
+	cn.elevation_level = 3
+	cn.height = 3.0
+	cn.is_walkable = true
+	cells_dict[Vector2i(0, -1)] = cn
+
+	# (0, 1): Nivel 0, Y=0.0 (Precipicio saltable Sur, delta = -2)
+	var cs = _WorldCellScript.new(Vector2i(0, 1))
+	cs.elevation_level = 0
+	cs.height = 0.0
+	cs.is_walkable = true
+	cells_dict[Vector2i(0, 1)] = cs
+
+	var grid := MovementGrid.new(1.0, Vector3.ZERO)
+	grid.setup_from_cells(cells_dict)
+
+	var occupancy := _OccupancyScript.new()
+	var comp := _ComponentScript.new()
+	var profile := _ProfileScript.new()
+	profile.cells_per_second = 4.0
+	profile.can_drop = true
+	profile.max_drop_distance = 4
+	profile.max_step_up = 1
+	profile.drop_arc_height = 0.35
+	profile.require_jump_for_elevation = true
+	comp.profile = profile
+
+	var root := Node3D.new()
+	var actor := Node3D.new()
+	root.add_child(actor)
+	comp.target_actor = actor
+	comp.setup(grid, occupancy, null, Vector2i(0, 0))
+
+	var jump_up_flags := {"started": false, "finished": false}
+	comp.jump_up_started.connect(func(_from, _to): jump_up_flags["started"] = true)
+	comp.jump_up_finished.connect(func(_from, _to): jump_up_flags["finished"] = true)
+
+	# 1. Caminata normal: bloqueada en desniveles cuando require_jump_for_elevation = true
+	var req_walk_flat := _RequestScript.new(Vector2i(-1, 0), &"player")
+	var res_walk_flat = comp.request_movement(req_walk_flat)
+	assert(res_walk_flat.accepted == true, "Walking on same elevation is accepted")
+	comp.process_movement(0.3) # Completar caminata plana a (-1, 0)
+	assert(comp.current_cell == Vector2i(-1, 0))
+
+	# Volver a (0, 0)
+	var req_back := _RequestScript.new(Vector2i(1, 0), &"player")
+	comp.request_movement(req_back)
+	comp.process_movement(0.3)
+	assert(comp.current_cell == Vector2i(0, 0))
+
+	# Intentar caminar normalmente hacia el acantilado Este (1, 0) -> Rechazado con REASON_JUMP_REQUIRED
+	var req_walk_drop := _RequestScript.new(Vector2i(1, 0), &"player")
+	var res_walk_drop = comp.request_movement(req_walk_drop)
+	assert(res_walk_drop.accepted == false, "Walking off cliff must be blocked when require_jump=true")
+	assert(res_walk_drop.reason == _ResultScript.REASON_JUMP_REQUIRED, "Reason must be JUMP_REQUIRED")
+
+	# Intentar caminar normalmente hacia la repisa superior Norte (0, -1) -> Rechazado con REASON_JUMP_REQUIRED
+	var req_walk_up := _RequestScript.new(Vector2i(0, -1), &"player")
+	var res_walk_up = comp.request_movement(req_walk_up)
+	assert(res_walk_up.accepted == false, "Walking up cliff must be blocked when require_jump=true")
+	assert(res_walk_up.reason == _ResultScript.REASON_JUMP_REQUIRED, "Reason must be JUMP_REQUIRED")
+
+	# 2. Prioridad de orientación hacia el salto mirando al Este (+X / (1, 0))
+	comp.facing = Vector2i(1, 0)
+	var best_jump_east = comp.find_best_jump_direction()
+	assert(best_jump_east == Vector2i(1, 0), "Facing East must prioritize jumping East down the cliff")
+
+	# 3. Salto manual al acantilado con request_jump()
+	var res_jump_east = comp.request_jump()
+	assert(res_jump_east != null and res_jump_east.accepted == true, "Manual jump request East must be accepted")
+	assert(res_jump_east.transition_type == _ResultScript.TransitionType.DROP, "Transition must be DROP")
+	comp.process_movement(0.3) # Completar descenso
+	assert(comp.current_cell == Vector2i(1, 0))
+
+	# Teleportar de vuelta a (0, 0) para probar salto hacia arriba
+	comp.teleport_to_cell(Vector2i(0, 0))
+
+	# 4. Mirando al Norte (0, -1) hacia la repisa superior
+	comp.facing = Vector2i(0, -1)
+	var best_jump_north = comp.find_best_jump_direction()
+	assert(best_jump_north == Vector2i(0, -1), "Facing North must prioritize jumping North up to ledge")
+
+	var res_jump_up = comp.request_jump()
+	assert(res_jump_up != null and res_jump_up.accepted == true, "Manual jump request North must be accepted")
+	assert(res_jump_up.transition_type == _ResultScript.TransitionType.JUMP_UP, "Transition must be JUMP_UP")
+	assert(jump_up_flags["started"] == true, "jump_up_started must have fired")
+
+	# Verificar arco parabólico en el ascenso
+	comp.process_movement(0.1) # Mitad del camino
+	assert(actor.position.y > 2.5, "Ascending jump must display vertical parabolic arc above linear baseline")
+	comp.process_movement(0.3) # Completar salto hacia arriba
+	assert(comp.current_cell == Vector2i(0, -1))
+	assert(jump_up_flags["finished"] == true, "jump_up_finished must have fired")
+	assert(absf(actor.position.y - 3.0) < 0.01, "Actor landed on upper ledge height Y=3.0")
+
+	# 5. Comprobar que celdas ocupadas no se eligen como salto
+	comp.teleport_to_cell(Vector2i(0, 0))
+	var dummy_blocker := Node3D.new()
+	root.add_child(dummy_blocker)
+	occupancy.occupy(Vector2i(0, -1), dummy_blocker) # Norte ocupado
+
+	comp.facing = Vector2i(0, -1) # Mira al Norte ocupado
+	var best_skip_occupied = comp.find_best_jump_direction()
+	assert(best_skip_occupied != Vector2i(0, -1), "Occupied cell must be skipped even if facing it")
+	assert(best_skip_occupied == Vector2i(1, 0) or best_skip_occupied == Vector2i(0, 1), "Must fallback to an unoccupied jumpable cell")
+
+	root.free()
+	print("    [PASS] manual jump elevation transitions with facing priority & occupancy")

@@ -17,11 +17,18 @@ const ANIM_SOURCES: Dictionary = {
 	"trot": "res://assets/animations/human/human_01_slow_run.fbx",
 	"run": "res://assets/animations/human/human_01_fast_run.fbx",
 	"stop": "res://assets/animations/human/human_01_run_stop.fbx",
+	"jump_down_takeoff": "res://assets/animations/human/human_01_jump_down_takeoff.res",
+	"jump_down_start": "res://assets/animations/human/human_01_jump_down_takeoff.res",
+	"jump_down_air": "res://assets/animations/human/human_01_jump_down_air.res",
+	"jump_down_fall": "res://assets/animations/human/human_01_jump_down_air.res",
+	"jump_down_land": "res://assets/animations/human/human_01_jump_down_land.res",
+	"stand_up": "res://assets/animations/human/human_01_stand_up.res",
 }
 
 const _MovementComponentScript = preload("res://src/gameplay/movement/movement_component.gd")
 const _MovementRequestScript = preload("res://src/gameplay/movement/movement_request.gd")
 const _MovementProfileScript = preload("res://src/gameplay/movement/movement_profile.gd")
+const _MovementResultScript = preload("res://src/gameplay/movement/movement_result.gd")
 const _MovementGridScript = preload("res://src/gameplay/movement/movement_grid.gd")
 const _MovementOccupancyScript = preload("res://src/gameplay/movement/movement_occupancy.gd")
 const _WorldCellScript = preload("res://src/world_generator/data/world_cell.gd")
@@ -62,6 +69,9 @@ const DIRECTIONS_8: Array[Vector2i] = [
 var movement_component: MovementComponent = null
 var _last_8way_index: int = -1 # -1=sin input previo
 var _move_initiating_octant: int = -1 # Octante que inició el paso activo
+var _space_was_down: bool = false
+var _is_dropping: bool = false
+var _is_landing: bool = false
 var _last_frame_position: Vector3 = Vector3.ZERO
 
 var _visual_root: Node3D = null
@@ -164,6 +174,35 @@ func _setup_animations_and_tree(model: Node3D) -> void:
 
 	state_machine.add_node("Locomotion", blend_space)
 
+	# Estados de Salto hacia abajo (Jump Down)
+	var takeoff_node := AnimationNodeAnimation.new()
+	takeoff_node.animation = &"jump_down_takeoff"
+	state_machine.add_node("Takeoff", takeoff_node)
+
+	var air_tree := AnimationNodeBlendTree.new()
+	var air_anim := AnimationNodeAnimation.new()
+	air_anim.animation = &"jump_down_air"
+	var air_scale := AnimationNodeTimeScale.new()
+	air_tree.add_node("Anim", air_anim)
+	air_tree.add_node("TimeScale", air_scale)
+	air_tree.connect_node("TimeScale", 0, "Anim")
+	air_tree.connect_node("output", 0, "TimeScale")
+	state_machine.add_node("Air", air_tree)
+
+	var land_node := AnimationNodeAnimation.new()
+	land_node.animation = &"jump_down_land"
+	state_machine.add_node("Land", land_node)
+
+	var stand_tree := AnimationNodeBlendTree.new()
+	var stand_anim := AnimationNodeAnimation.new()
+	stand_anim.animation = &"stand_up"
+	var stand_scale := AnimationNodeTimeScale.new()
+	stand_tree.add_node("Anim", stand_anim)
+	stand_tree.add_node("TimeScale", stand_scale)
+	stand_tree.connect_node("TimeScale", 0, "Anim")
+	stand_tree.connect_node("output", 0, "TimeScale")
+	state_machine.add_node("StandUp", stand_tree)
+
 	# Transiciones suaves (crossfade)
 	var trans_idle_to_loco := AnimationNodeStateMachineTransition.new()
 	trans_idle_to_loco.xfade_time = 0.2
@@ -175,6 +214,51 @@ func _setup_animations_and_tree(model: Node3D) -> void:
 
 	var trans_start := AnimationNodeStateMachineTransition.new()
 	state_machine.add_transition("Start", "Idle", trans_start)
+
+	# Anticipación y despegue en el borde (0.15s crossfade)
+	var trans_to_takeoff := AnimationNodeStateMachineTransition.new()
+	trans_to_takeoff.xfade_time = 0.15
+	state_machine.add_transition("Idle", "Takeoff", trans_to_takeoff)
+	state_machine.add_transition("Locomotion", "Takeoff", trans_to_takeoff)
+
+	# Despegue hacia Vuelo en el aire: cambio inmediato al despegar (o auto al terminar)
+	var trans_takeoff_to_air := AnimationNodeStateMachineTransition.new()
+	trans_takeoff_to_air.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_IMMEDIATE
+	trans_takeoff_to_air.advance_mode = AnimationNodeStateMachineTransition.ADVANCE_MODE_AUTO
+	trans_takeoff_to_air.xfade_time = 0.05
+	state_machine.add_transition("Takeoff", "Air", trans_takeoff_to_air)
+
+	# Vuelo hacia Aterrizaje al impactar con el suelo
+	var trans_air_to_land := AnimationNodeStateMachineTransition.new()
+	trans_air_to_land.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_IMMEDIATE
+	trans_air_to_land.xfade_time = 0.06
+	state_machine.add_transition("Air", "Land", trans_air_to_land)
+	state_machine.add_transition("Takeoff", "Land", trans_air_to_land)
+
+	# Aterrizaje hacia Levantarse (StandUp): AUTO al terminar la absorción de impacto (0.37s)
+	var trans_land_to_stand := AnimationNodeStateMachineTransition.new()
+	trans_land_to_stand.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_AT_END
+	trans_land_to_stand.advance_mode = AnimationNodeStateMachineTransition.ADVANCE_MODE_AUTO
+	trans_land_to_stand.xfade_time = 0.20
+	state_machine.add_transition("Land", "StandUp", trans_land_to_stand)
+
+	# Levantarse hacia Idle: AUTO al completar la incorporación erguida
+	var trans_stand_to_idle := AnimationNodeStateMachineTransition.new()
+	trans_stand_to_idle.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_AT_END
+	trans_stand_to_idle.advance_mode = AnimationNodeStateMachineTransition.ADVANCE_MODE_AUTO
+	trans_stand_to_idle.xfade_time = 0.35
+	state_machine.add_transition("StandUp", "Idle", trans_stand_to_idle)
+
+	# Cancelación fluida a Locomotion si el jugador presiona WASD
+	var trans_land_to_loco := AnimationNodeStateMachineTransition.new()
+	trans_land_to_loco.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_IMMEDIATE
+	trans_land_to_loco.xfade_time = 0.15
+	state_machine.add_transition("Land", "Locomotion", trans_land_to_loco)
+
+	var trans_stand_to_loco := AnimationNodeStateMachineTransition.new()
+	trans_stand_to_loco.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_IMMEDIATE
+	trans_stand_to_loco.xfade_time = 0.15
+	state_machine.add_transition("StandUp", "Locomotion", trans_stand_to_loco)
 
 	# Instanciar y conectar AnimationTree
 	_anim_tree = model.get_node_or_null("AnimationTree")
@@ -190,6 +274,8 @@ func _setup_animations_and_tree(model: Node3D) -> void:
 	_anim_playback = _anim_tree.get("parameters/playback")
 	if _anim_playback != null:
 		_anim_playback.start("Idle")
+	_anim_tree.set("parameters/StandUp/TimeScale/scale", 1.35)
+	_anim_tree.set("parameters/Air/TimeScale/scale", 1.0)
 
 ## Retargetea y empaqueta las animaciones FBX para que coincidan con la estructura esqueletal de Aldeano
 static func _get_or_create_anim_library() -> AnimationLibrary:
@@ -200,6 +286,12 @@ static func _get_or_create_anim_library() -> AnimationLibrary:
 
 	for anim_name in ANIM_SOURCES:
 		var p: String = ANIM_SOURCES[anim_name]
+		if p.ends_with(".res"):
+			var anim_res: Animation = load(p)
+			if anim_res != null:
+				_cached_anim_library.add_animation(anim_name, anim_res)
+			continue
+
 		var scn: PackedScene = load(p)
 		if scn == null:
 			continue
@@ -251,10 +343,28 @@ func _setup_movement_component() -> void:
 		movement_component.profile = _MovementProfileScript.new()
 	movement_component.profile.cells_per_second = normal_cells_per_second
 	movement_component.profile.turn_speed = turn_speed
+	movement_component.profile.can_drop = true
+	movement_component.profile.max_drop_distance = 4
+	movement_component.profile.drop_arc_height = 0.35
+	movement_component.profile.drop_windup_time = 0.35
+	movement_component.profile.drop_flight_time = 0.48
+	movement_component.profile.drop_speed_multiplier = 1.0
+	movement_component.profile.jump_up_speed_multiplier = 0.85
+	movement_component.profile.require_jump_for_elevation = true
 	if not movement_component.movement_started.is_connected(_on_movement_started):
 		movement_component.movement_started.connect(_on_movement_started)
 	if not movement_component.movement_finished.is_connected(_on_movement_finished):
 		movement_component.movement_finished.connect(_on_movement_finished)
+	if not movement_component.drop_started.is_connected(_on_drop_started):
+		movement_component.drop_started.connect(_on_drop_started)
+	if not movement_component.drop_takeoff.is_connected(_on_drop_takeoff):
+		movement_component.drop_takeoff.connect(_on_drop_takeoff)
+	if not movement_component.drop_finished.is_connected(_on_drop_finished):
+		movement_component.drop_finished.connect(_on_drop_finished)
+	if not movement_component.jump_up_started.is_connected(_on_jump_up_started):
+		movement_component.jump_up_started.connect(_on_jump_up_started)
+	if not movement_component.jump_up_finished.is_connected(_on_jump_up_finished):
+		movement_component.jump_up_finished.connect(_on_jump_up_finished)
 	_last_frame_position = global_position if is_inside_tree() else position
 
 ## Configura el componente de movimiento con la autoridad de navegación (WorldNavigationGrid o MovementGrid).
@@ -319,6 +429,15 @@ func _ensure_grid_exists() -> void:
 		var initial_cell: Vector2i = nav_grid.world_to_cell(current_pos)
 		setup_movement(nav_grid, null, initial_cell)
 
+func _is_jump_active() -> bool:
+	if _is_dropping:
+		return true
+	if movement_component != null and movement_component.is_moving:
+		var tt: int = movement_component.current_transition_type
+		if tt == _MovementResultScript.TransitionType.DROP or tt == _MovementResultScript.TransitionType.JUMP_UP or tt == _MovementResultScript.TransitionType.FALL:
+			return true
+	return false
+
 func _physics_process(delta: float) -> void:
 	if not is_visible_in_tree():
 		velocity = Vector3.ZERO
@@ -348,7 +467,7 @@ func _physics_process(delta: float) -> void:
 			right.y = 0.0
 			right = right.normalized()
 
-	# 3. Captura de Input (WASD y Teclas de Flecha)
+	# 3. Captura de Input Direccional (WASD y Teclas de Flecha)
 	var raw_input := Vector2.ZERO
 	if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W):
 		raw_input.y -= 1.0
@@ -359,6 +478,10 @@ func _physics_process(delta: float) -> void:
 	if Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
 		raw_input.x += 1.0
 
+	var grid_dir: Vector2i = Vector2i.ZERO
+	var chosen_octant: int = -1
+	var is_new_press: bool = false
+
 	# 4. Proyección a plano XZ y cuantización 8-way con histéresis angular
 	if raw_input != Vector2.ZERO:
 		var move_intent_3d: Vector3 = (right * raw_input.x) + (forward * -raw_input.y)
@@ -366,11 +489,9 @@ func _physics_process(delta: float) -> void:
 
 		if v.length() >= 0.2:
 			var angle: float = atan2(v.y, v.x) # Rango [-PI, PI]
-			var chosen_octant: int = -1
-			var is_new_press: bool = (_last_8way_index == -1)
+			is_new_press = (_last_8way_index == -1)
 
 			# Histéresis angular: si ya había una dirección activa, aplicar zona de adherencia (+/- 8°)
-			# evitando alternancias indeseadas entre diagonal y cardinal al mantener el input
 			if _last_8way_index >= 0 and _last_8way_index < 8:
 				var current_center_angle: float = wrapf(float(_last_8way_index) * (PI / 4.0), -PI, PI)
 				var angle_diff: float = absf(wrapf(angle - current_center_angle, -PI, PI))
@@ -382,56 +503,69 @@ func _physics_process(delta: float) -> void:
 				chosen_octant = posmod(int(round(angle / (PI / 4.0))), 8)
 
 			_last_8way_index = chosen_octant
-
-			var grid_dir: Vector2i = DIRECTIONS_8[chosen_octant]
-
-			# 5. Modificadores de velocidad (Sprint / Caminata forzada)
-			var is_sprinting: bool = Input.is_key_pressed(KEY_SHIFT)
-			var is_walking_forced: bool = Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_ALT)
-
-			var cps: float = normal_cells_per_second
-			if is_walking_forced:
-				cps = walk_cells_per_second
-			elif is_sprinting:
-				cps = sprint_cells_per_second
-
-			if movement_component != null and movement_component.profile != null:
-				movement_component.profile.cells_per_second = cps
-
-			# 6. Envío de MovementRequest de 8 direcciones
-			if movement_component != null and movement_component.grid != null:
-				var should_send: bool = false
-				if not movement_component.is_moving:
-					should_send = true
-				else:
-					# Si está en movimiento:
-					# - Si es una nueva pulsación o dirección distinta, se permite bufferizar de inmediato (cola de giro o doble tap).
-					# - Si es la misma pulsación sostenida que inició el paso actual, solo se bufferiza
-					#   en la fase final de la celda (progress >= 0.65) para encadenar fluidamente al mantener presionado.
-					#   Esto evita que un toque rápido (tap) bufferice automáticamente una segunda casilla.
-					var is_same_held_input: bool = (chosen_octant == _move_initiating_octant) and not is_new_press
-					if not is_same_held_input or movement_component.progress >= 0.65:
-						should_send = true
-
-				if should_send:
-					var req := _MovementRequestScript.new(grid_dir, &"player")
-					var res := movement_component.request_movement(req)
-					if res != null and res.accepted:
-						_move_initiating_octant = chosen_octant
+			grid_dir = DIRECTIONS_8[chosen_octant]
 	else:
 		_last_8way_index = -1
 		_move_initiating_octant = -1
-		if movement_component != null:
+		if movement_component != null and not _is_jump_active():
 			movement_component.clear_buffer()
 
-	# 7. Velocidad aparente para shaders/efectos de agua (no gobierna la física)
+	# 5. Modificadores de velocidad (Sprint / Caminata forzada)
+	var is_sprinting: bool = Input.is_key_pressed(KEY_SHIFT)
+	var is_walking_forced: bool = Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_ALT)
+
+	var cps: float = normal_cells_per_second
+	if is_walking_forced:
+		cps = walk_cells_per_second
+	elif is_sprinting:
+		cps = sprint_cells_per_second
+
+	if movement_component != null and movement_component.profile != null:
+		movement_component.profile.cells_per_second = cps
+
+	# 6. Acción de Salto Explícito (Spacebar / ui_accept)
+	var space_down: bool = Input.is_key_pressed(KEY_SPACE) or Input.is_action_pressed("ui_accept")
+	var jump_just_pressed: bool = (space_down and not _space_was_down) or Input.is_action_just_pressed("ui_accept")
+	_space_was_down = space_down
+
+	var jumped_this_frame: bool = false
+	if jump_just_pressed and movement_component != null and not movement_component.is_moving and not _is_jump_active():
+		var preferred_dir: Vector2i = Vector2i.ZERO
+		if chosen_octant >= 0 and chosen_octant < 8:
+			preferred_dir = DIRECTIONS_8[chosen_octant]
+		elif _last_8way_index >= 0 and _last_8way_index < 8:
+			preferred_dir = DIRECTIONS_8[_last_8way_index]
+
+		var jump_res := movement_component.request_jump(preferred_dir)
+		if jump_res != null and jump_res.accepted:
+			jumped_this_frame = true
+
+	# 7. Envío de MovementRequest de 8 direcciones (solo en tierra y si no está en salto)
+	if not jumped_this_frame and not _is_jump_active() and movement_component != null and movement_component.grid != null:
+		if chosen_octant != -1 and grid_dir != Vector2i.ZERO:
+			var should_send: bool = false
+			if not movement_component.is_moving:
+				should_send = true
+			else:
+				var is_same_held_input: bool = (chosen_octant == _move_initiating_octant) and not is_new_press
+				if not is_same_held_input or movement_component.progress >= 0.65:
+					should_send = true
+
+			if should_send:
+				var req := _MovementRequestScript.new(grid_dir, &"player")
+				var res := movement_component.request_movement(req)
+				if res != null and res.accepted:
+					_is_landing = false
+					_move_initiating_octant = chosen_octant
+
+	# 8. Velocidad aparente para shaders/efectos de agua (no gobierna la física)
 	if delta > 0.0 and movement_component != null and movement_component.is_moving:
 		velocity = (global_position - _last_frame_position) / delta
 	else:
 		velocity = Vector3.ZERO
 	_last_frame_position = global_position
 
-	# 8. Actualización de animaciones según estado de movimiento
+	# 9. Actualización de animaciones según estado de movimiento
 	_update_animation_state()
 
 func _on_movement_started(from: Vector2i, to: Vector2i) -> void:
@@ -439,24 +573,79 @@ func _on_movement_started(from: Vector2i, to: Vector2i) -> void:
 	var idx: int = DIRECTIONS_8.find(dir)
 	if idx != -1:
 		_move_initiating_octant = idx
-	if _anim_playback != null:
+	if _anim_playback != null and not _is_jump_active():
 		_anim_playback.travel("Locomotion")
 
 func _on_movement_finished(_from: Vector2i, _to: Vector2i) -> void:
 	if movement_component != null and not movement_component.is_moving:
 		_move_initiating_octant = -1
-		if _anim_playback != null:
+		if _anim_playback != null and not _is_jump_active() and not _is_landing:
 			_anim_playback.travel("Idle")
 
-## Actualiza el AnimationTree sincronizando Idle y Locomotion según el estado del MovementComponent
+func _on_drop_started(_from: Vector2i, _to: Vector2i) -> void:
+	_is_dropping = true
+	_is_landing = false
+	if _anim_playback != null:
+		_anim_playback.travel("Takeoff")
+
+func _on_drop_takeoff(_from: Vector2i, _to: Vector2i) -> void:
+	if _anim_playback != null:
+		if _anim_tree != null and movement_component != null and movement_component.grid != null:
+			var drop_levels: int = 1
+			if movement_component.grid.has_method("get_cell_elevation"):
+				drop_levels = maxi(1, int(abs(movement_component.grid.get_cell_elevation(_from) - movement_component.grid.get_cell_elevation(_to))))
+			var total_flight: float = 0.48 + float(drop_levels - 1) * 0.06
+			_anim_tree.set("parameters/Air/TimeScale/scale", 0.48 / total_flight)
+		_anim_playback.travel("Air")
+
+func _on_drop_finished(_from: Vector2i, _to: Vector2i) -> void:
+	_is_dropping = false
+	_is_landing = true
+	if _anim_playback != null:
+		_anim_playback.travel("Land")
+
+func _on_jump_up_started(_from: Vector2i, _to: Vector2i) -> void:
+	_is_dropping = true
+	_is_landing = false
+	if _anim_playback != null:
+		_anim_playback.travel("Air")
+
+func _on_jump_up_finished(_from: Vector2i, _to: Vector2i) -> void:
+	_is_dropping = false
+	_is_landing = true
+	if _anim_playback != null:
+		_anim_playback.travel("Land")
+
+## Actualiza el AnimationTree sincronizando Idle, Locomotion o Salto según el estado del MovementComponent
 func _update_animation_state() -> void:
 	if _anim_tree == null or _anim_playback == null or movement_component == null:
 		return
 
-	if movement_component.is_moving:
+	var current_node := String(_anim_playback.get_current_node())
+
+	# 1. Si está activo un salto o en fases de despegue/vuelo, preservar y salir de inmediato
+	if _is_jump_active() or current_node == "Takeoff" or current_node == "Air":
+		return
+
+	# 2. Si ya volvió a Idle tras StandUp o reposo, resetear banderas
+	if current_node == "Idle":
+		_is_landing = false
+		_is_dropping = false
+
+	# 3. Si está en fase de aterrizaje o reincorporación (Land o StandUp)
+	if _is_landing or current_node == "Land" or current_node == "StandUp":
+		# Solo permitir interrupción si el jugador inicia una caminata real en tierra
+		if movement_component.is_moving and not _is_jump_active():
+			_is_landing = false
+			_anim_playback.travel("Locomotion")
+			var blend_pos: float = movement_component.profile.cells_per_second if movement_component.profile != null else normal_cells_per_second
+			_anim_tree.set("parameters/Locomotion/blend_position", blend_pos)
+		return
+
+	# 4. Movimiento normal en tierra vs Idle
+	if movement_component.is_moving and not _is_jump_active():
 		_anim_playback.travel("Locomotion")
 		var blend_pos: float = movement_component.profile.cells_per_second if movement_component.profile != null else normal_cells_per_second
 		_anim_tree.set("parameters/Locomotion/blend_position", blend_pos)
-	else:
+	elif not _is_jump_active() and not _is_landing:
 		_anim_playback.travel("Idle")
-

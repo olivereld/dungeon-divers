@@ -42,6 +42,31 @@ enum DiagonalCornerRule {
 ## Máximo desnivel de elevación descendente permitido caminando (-levels).
 @export var max_step_down: int = 1
 
+## Si es true, el movimiento normal por input no cambia de nivel automáticamente en los bordes.
+## Requiere una acción explícita de salto (Spacebar / is_jump = true) para subir o bajar desniveles.
+@export var require_jump_for_elevation: bool = false
+
+## Permite o bloquea descensos controlados en arco (DROP) hacia celdas inferiores.
+@export var can_drop: bool = false
+
+## Máximo desnivel de elevación permitido para un descenso controlado (DROP).
+@export var max_drop_distance: int = 4
+
+## Altura del arco parabólico visual durante la transición DROP.
+@export var drop_arc_height: float = 0.35
+
+## Multiplicador de velocidad de avance para la trayectoria en arco de DROP (si drop_flight_time == 0).
+@export var drop_speed_multiplier: float = 1.2
+
+## Tiempo de preparación/anticipación estático en el borde antes de despegar en DROP (en segundos).
+@export var drop_windup_time: float = 0.0
+
+## Tiempo fijo de vuelo en el aire durante DROP (en segundos). Si > 0, es independiente del input de carrera/caminar.
+@export var drop_flight_time: float = 0.0
+
+## Multiplicador de velocidad de avance para saltos hacia arriba (JUMP_UP).
+@export var jump_up_speed_multiplier: float = 1.0
+
 ## Permite o bloquea caídas hacia celdas inferiores que excedan max_step_down.
 @export var can_fall: bool = true
 
