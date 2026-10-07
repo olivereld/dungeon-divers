@@ -18,10 +18,28 @@ var raw_height: float = 0.0
 ## (evita que otros sistemas deban re-inferir el nivel a partir de height).
 var elevation_level: int = 0
 var normalized_height: float = 0.0
+
+## Alias semántico de la elevación normalizada [0.0, 1.0] para Climate y Biome selection.
+var elevation_normalized: float:
+	get:
+		return normalized_height
+	set(value):
+		normalized_height = value
+
 var slope: float = 0.0
 var slope_category: int = 0
 var is_walkable: bool = true
 var hydraulic_influence: float = 0.0
+
+# --- Clima y Bioma ---
+## Temperatura macro ambiental en rango [0.0, 1.0] (0 = gélido/polar, 1 = tórrido/cálido).
+var temperature: float = 0.5
+
+## Humedad ambiental en rango [0.0, 1.0] (0 = árido/seco, 1 = saturado/húmedo).
+var moisture: float = 0.5
+
+## Identificador del bioma asignado según reglas de selección climática (T/M/E).
+var biome_id: StringName = &"taiga"
 
 # Ecology
 enum CanopyZone {
@@ -33,7 +51,6 @@ enum CanopyZone {
 
 var forest_density: float = 0.0
 var clearing_density: float = 0.0
-var moisture: float = 0.0
 var canopy_zone: int = CanopyZone.CLEARING
 
 func _init(p_pos: Vector2i = Vector2i.ZERO) -> void:

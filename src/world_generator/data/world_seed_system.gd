@@ -5,6 +5,7 @@ const VERSION_TAG: String = "world_v1"
 
 const DOMAIN_TERRAIN: String = "terrain"
 const DOMAIN_HYDROLOGY: String = "hydrology"
+const DOMAIN_CLIMATE: String = "climate"
 const DOMAIN_ECOLOGY: String = "ecology"
 const DOMAIN_VEGETATION: String = "vegetation"
 const DOMAIN_POI: String = "poi"

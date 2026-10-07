@@ -2,6 +2,8 @@ class_name WorldPipeline
 extends RefCounted
 
 const _HydrologyStageScript = preload("res://src/world_generator/stages/hydrology_stage.gd")
+const _ClimateStageScript = preload("res://src/world_generator/climate/climate_stage.gd")
+const _BiomeStageScript = preload("res://src/world_generator/biomes/biome_stage.gd")
 const _WorldNavigationStageScript = preload("res://src/world_generator/navigation/world_navigation_stage.gd")
 
 static func generate(seed_val: int, profile: WorldProfile = null) -> WorldResult:
@@ -159,6 +161,8 @@ static func _execute_stages(context: WorldGenerationContext, profiler: Variant =
 	var stage_specs: Array[Dictionary] = [
 		{"name": "terrain_ms", "stage": TerrainStage.new()},
 		{"name": "hydrology_ms", "stage": _HydrologyStageScript.new()},
+		{"name": "climate_ms", "stage": _ClimateStageScript.new()},
+		{"name": "biome_ms", "stage": _BiomeStageScript.new()},
 		{"name": "ecology_ms", "stage": EcologyStage.new()},
 		{"name": "navigation_ms", "stage": NavigationStage.new()},
 		{"name": "world_navigation_ms", "stage": _WorldNavigationStageScript.new()},

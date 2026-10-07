@@ -3,11 +3,14 @@ extends WorldStage
 
 const _RockConfigScript = preload("res://src/rock_generation/config/rock_config.gd")
 const _RockSizeConfigScript = preload("res://src/rock_generation/config/rock_size_config.gd")
+const _BiomeRegistryScript = preload("res://src/world_generator/biomes/biome_registry.gd")
 
 func execute(context: WorldGenerationContext) -> void:
 	var profile: WorldProfile = context.profile
 	var veg_seed: int = WorldSeedSystem.derive_seed(context.master_seed, WorldSeedSystem.DOMAIN_VEGETATION)
 	context.result.vegetation.clear()
+
+	var biome_reg: RefCounted = _BiomeRegistryScript.get_default()
 
 	# Configuración de rocas desde el contrato RockConfig
 	var rock_config = profile.get("rock_config") if profile != null and profile.get("rock_config") != null else _RockConfigScript.create_default_taiga()
@@ -180,12 +183,23 @@ func execute(context: WorldGenerationContext) -> void:
 				continue
 
 			var t_cand0 := Time.get_ticks_usec() if is_profiling else 0
+
+			# Resolver perfiles del bioma de la celda
+			var biome_def = biome_reg.get_definition(cell.biome_id) if cell.biome_id != StringName() else null
+			var veg_prof = biome_def.vegetation_profile if biome_def != null else null
+			var rock_prof = biome_def.rock_profile if biome_def != null else null
+
 			# 1. Conifer Candidates (recolectados en eval_bounds para thinning determinista)
-			if cell.forest_density > 0.05 and cell.is_walkable and cell.slope_category <= NavigationStage.SlopeCategory.GENTLE and local_slope <= 22.0:
-				var spawn_chance := cell.forest_density * profile.tree_density
+			var cell_tree_density: float = veg_prof.tree_density if veg_prof != null else profile.tree_density
+			var cell_max_tree_slope: float = veg_prof.max_tree_slope if veg_prof != null else 22.0
+			var cell_tree_sc_min: float = veg_prof.tree_scale_min if veg_prof != null else 0.8
+			var cell_tree_sc_max: float = veg_prof.tree_scale_max if veg_prof != null else 1.3
+
+			if cell.forest_density > 0.05 and cell.is_walkable and cell.slope_category <= NavigationStage.SlopeCategory.GENTLE and local_slope <= cell_max_tree_slope:
+				var spawn_chance := cell.forest_density * cell_tree_density
 				if rng.randf() < spawn_chance:
 					var rot_y := rng.randf_range(0.0, TAU)
-					var sc := rng.randf_range(0.8, 1.3)
+					var sc := rng.randf_range(cell_tree_sc_min, cell_tree_sc_max)
 					var priority := rng.randf()
 					tree_candidates.append({
 						"pos_2d": pos_2d,
@@ -199,26 +213,41 @@ func execute(context: WorldGenerationContext) -> void:
 			var pos_in_core := core_bounds.has_point(Vector2i(floori(pos_2d.x), floori(pos_2d.y)))
 
 			# 2. Shrub Placement (solo dentro del core del chunk o mundo)
-			if pos_in_core and cell.slope_category <= NavigationStage.SlopeCategory.GENTLE and cell.clearing_density > 0.15 and local_slope <= 25.0:
-				if rng.randf() < profile.shrub_density * cell.clearing_density:
+			var cell_shrub_density: float = veg_prof.shrub_density if veg_prof != null else profile.shrub_density
+			var cell_max_shrub_slope: float = veg_prof.max_shrub_slope if veg_prof != null else 25.0
+			var cell_shrub_sc_min: float = veg_prof.shrub_scale_min if veg_prof != null else 0.5
+			var cell_shrub_sc_max: float = veg_prof.shrub_scale_max if veg_prof != null else 0.9
+
+			if pos_in_core and cell.slope_category <= NavigationStage.SlopeCategory.GENTLE and cell.clearing_density > 0.15 and local_slope <= cell_max_shrub_slope:
+				if rng.randf() < cell_shrub_density * cell.clearing_density:
 					var rot_y := rng.randf_range(0.0, TAU)
-					var sc := rng.randf_range(0.5, 0.9)
+					var sc := rng.randf_range(cell_shrub_sc_min, cell_shrub_sc_max)
 					context.result.vegetation.append(
 						WorldVegetationItem.new(WorldVegetationItem.Type.SHRUB, pos_3d, rot_y, sc)
 					)
 
 			# 3. Rock Placement (solo dentro del core del chunk o mundo)
-			if pos_in_core and ((cell.slope_category in [NavigationStage.SlopeCategory.STEEP, NavigationStage.SlopeCategory.CLIFF] or (cell.slope_category == NavigationStage.SlopeCategory.GENTLE and cell.slope > rock_min_slope) or local_slope > 20.0) and local_slope < rock_max_slope):
-				if rng.randf() < rock_density:
-					var size_roll: float = rng.randf() * total_w
+			var cell_rock_density: float = rock_prof.rock_density if rock_prof != null else rock_density
+			var cell_rock_min_slope: float = rock_prof.min_slope_degrees if rock_prof != null else rock_min_slope
+			var cell_rock_max_slope: float = rock_prof.max_slope_degrees if rock_prof != null else rock_max_slope
+			var cell_cat_weights: Dictionary = rock_prof.category_weights if rock_prof != null else cat_weights
+
+			var c_w_large: float = float(cell_cat_weights.get("large", w_large))
+			var c_w_med: float = float(cell_cat_weights.get("medium", w_med))
+			var c_w_small: float = float(cell_cat_weights.get("small", w_small))
+			var c_total_w: float = maxf(0.001, c_w_large + c_w_med + c_w_small)
+
+			if pos_in_core and ((cell.slope_category in [NavigationStage.SlopeCategory.STEEP, NavigationStage.SlopeCategory.CLIFF] or (cell.slope_category == NavigationStage.SlopeCategory.GENTLE and cell.slope > cell_rock_min_slope) or local_slope > 20.0) and local_slope < cell_rock_max_slope):
+				if rng.randf() < cell_rock_density:
+					var size_roll: float = rng.randf() * c_total_w
 					var rot_y := rng.randf_range(0.0, TAU)
 					var cat_id: int
 					var cat_key: String
 
-					if size_roll < w_large:
+					if size_roll < c_w_large:
 						cat_id = _RockSizeConfigScript.Category.LARGE
 						cat_key = "large"
-					elif size_roll < w_large + w_med:
+					elif size_roll < c_w_large + c_w_med:
 						cat_id = _RockSizeConfigScript.Category.MEDIUM
 						cat_key = "medium"
 					else:
@@ -251,7 +280,7 @@ func execute(context: WorldGenerationContext) -> void:
 							var sat_cell := Vector2i(floori(sat_x / stage_cell_size), floori(sat_z / stage_cell_size))
 							if core_bounds.has_point(sat_cell):
 								var s_surf = _sample_surface(context.result, sat_x, sat_z, stage_cell_size)
-								if s_surf.get("slope", 0.0) < rock_max_slope:
+								if s_surf.get("slope", 0.0) < cell_rock_max_slope:
 									var s_sc: float
 									if not sat_profiles.is_empty():
 										var sat_p: Dictionary = sat_profiles[s_idx % sat_profiles.size()]
@@ -267,6 +296,7 @@ func execute(context: WorldGenerationContext) -> void:
 
 			if is_profiling:
 				t_candidate_us += (Time.get_ticks_usec() - t_cand0)
+
 
 	# -------------------------------------------------------------------------
 	# RESOLUCIÓN POISSON DETERMINISTA (Orden-Independiente / Luby's Thinning)
