@@ -8,12 +8,14 @@ const _EcologyProfileScript = preload("res://src/world_generator/biomes/profiles
 const _VegetationProfileScript = preload("res://src/world_generator/biomes/profiles/vegetation_profile.gd")
 const _RockProfileScript = preload("res://src/world_generator/biomes/profiles/rock_profile.gd")
 const _RenderingProfileScript = preload("res://src/world_generator/biomes/profiles/rendering_profile.gd")
+const _FoliageProfileScript = preload("res://src/world_generator/foliage/foliage_profile.gd")
 
 @export var id: StringName = &"taiga"
 @export var display_name: String = "Taiga"
 
 @export var ecology_profile: Resource
 @export var vegetation_profile: Resource
+@export var foliage_profile: Resource
 @export var rock_profile: Resource
 @export var rendering_profile: Resource
 
@@ -23,7 +25,8 @@ func _init(
 	p_eco: Resource = null,
 	p_veg: Resource = null,
 	p_rock: Resource = null,
-	p_rend: Resource = null
+	p_rend: Resource = null,
+	p_foliage: Resource = null
 ) -> void:
 	id = p_id
 	display_name = p_name
@@ -31,3 +34,4 @@ func _init(
 	vegetation_profile = p_veg if p_veg != null else _VegetationProfileScript.new()
 	rock_profile = p_rock if p_rock != null else _RockProfileScript.new()
 	rendering_profile = p_rend if p_rend != null else _RenderingProfileScript.new()
+	foliage_profile = p_foliage if p_foliage != null else _FoliageProfileScript.new()

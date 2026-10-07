@@ -16,6 +16,7 @@ const _IsometricCameraRigScript = preload("res://src/presentation/camera/isometr
 const _DungeonEntrancePOIViewScript = preload("res://src/world_generator/presentation/dungeon_entrance_poi_view.gd")
 const _ChunkStreamingControllerScript = preload("res://src/world_generator/chunks/chunk_streaming_controller.gd")
 const _ChunkActivationSchedulerScript = preload("res://src/world_generator/chunks/chunk_activation_scheduler.gd")
+const _FoliageRendererScript = preload("res://src/world_generator/foliage/rendering/foliage_renderer.gd")
 
 @export var world_seed: int = 12345
 @export var render_distance: int = 2
@@ -408,19 +409,22 @@ func _build_chunk_view_direct(coord: Vector2i, chunk_data: ChunkData) -> void:
 
 
 
-## Instancia la vegetación del chunk posicionada relativamente a su ChunkView
-## reutilizando exactamente el pipeline de WorldRenderer (Pino GLB + shader + RockGeneration).
+## Instancia la vegetación y el follaje procedural del chunk posicionados relativamente a su ChunkView.
 func _spawn_chunk_vegetation(
 	chunk_view: Node3D,
 	chunk_data: ChunkData,
 	origin: Vector2i,
 	cell_size: float
 ) -> void:
-	if chunk_data.vegetation.is_empty():
-		return
-
 	var origin_3d := Vector3(float(origin.x) * cell_size, 0.0, float(origin.y) * cell_size)
-	WorldRenderer.spawn_vegetation(chunk_view, chunk_data.vegetation, origin_3d, profile)
+
+	if chunk_data != null and not chunk_data.vegetation.is_empty():
+		WorldRenderer.spawn_vegetation(chunk_view, chunk_data.vegetation, origin_3d, profile)
+
+	if chunk_data != null and "foliage" in chunk_data and chunk_data.foliage != null:
+		var fol_node = _FoliageRendererScript.build_chunk_foliage_node(chunk_data.foliage, [], origin_3d)
+		if fol_node != null:
+			chunk_view.add_child(fol_node)
 
 
 ## Crea y configura un IsometricCameraRig programado para enfocar un objetivo o el centro activo.

@@ -251,8 +251,14 @@ func _decrease_render_distance() -> void:
 		chunk_world.set_render_distance(render_distance)
 
 
+func _toggle_hud() -> void:
+	if _hud_layer != null:
+		_hud_layer.visible = not _hud_layer.visible
+
+
 func _process(_delta: float) -> void:
-	_update_hud()
+	if _hud_layer != null and _hud_layer.visible:
+		_update_hud()
 	_handle_debug_inputs()
 
 
@@ -314,6 +320,7 @@ func _update_hud() -> void:
 		"🟢 VISIBLE" if is_nav_vis else "⚪ OCULTA"
 	]
 	text += "-----------------------------------\n"
+	text += "[F1]: Ocultar / Mostrar Interfaz (UI)\n"
 	text += "[WASD / Flechas]: Mover personaje (plano)\n"
 	text += "[Espacio]: Saltar borde saltable (arriba / abajo)\n"
 	text += "[V]: Cuadrícula Táctica (Verde: Plano, Azul: Borde saltable, Rojo: Bloqueado)\n"
@@ -328,6 +335,12 @@ func _update_hud() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.is_pressed() and not event.is_echo():
+		var ke := event as InputEventKey
+		if ke.keycode == KEY_F1:
+			_toggle_hud()
+			return
+
 	if camera_rig == null:
 		return
 

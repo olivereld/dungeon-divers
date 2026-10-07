@@ -11,6 +11,8 @@ const _EcologyProfileScript = preload("res://src/world_generator/biomes/profiles
 const _VegetationProfileScript = preload("res://src/world_generator/biomes/profiles/vegetation_profile.gd")
 const _RockProfileScript = preload("res://src/world_generator/biomes/profiles/rock_profile.gd")
 const _RenderingProfileScript = preload("res://src/world_generator/biomes/profiles/rendering_profile.gd")
+const _FoliageProfileScript = preload("res://src/world_generator/foliage/foliage_profile.gd")
+const _FoliageSpeciesScript = preload("res://src/world_generator/foliage/foliage_species.gd")
 
 static var _default_instance = null
 
@@ -32,7 +34,8 @@ static func create_default_registry() -> RefCounted:
 		_create_taiga_ecology(),
 		_create_taiga_vegetation(),
 		_create_taiga_rocks(),
-		_create_taiga_rendering()
+		_create_taiga_rendering(),
+		_create_taiga_foliage()
 	)
 	var taiga_rule = _BiomeSelectionRuleScript.new(_BiomeIdScript.TAIGA, 0.0, 0.40, 0.40, 1.0, 0.0, 1.0, 10)
 	reg.register_biome(taiga_def, [taiga_rule])
@@ -44,7 +47,8 @@ static func create_default_registry() -> RefCounted:
 		_create_tundra_ecology(),
 		_create_tundra_vegetation(),
 		_create_tundra_rocks(),
-		_create_tundra_rendering()
+		_create_tundra_rendering(),
+		_create_tundra_foliage()
 	)
 	var tundra_rule = _BiomeSelectionRuleScript.new(_BiomeIdScript.TUNDRA, 0.0, 0.35, 0.0, 0.40, 0.0, 1.0, 10)
 	reg.register_biome(tundra_def, [tundra_rule])
@@ -56,7 +60,8 @@ static func create_default_registry() -> RefCounted:
 		_create_forest_ecology(),
 		_create_forest_vegetation(),
 		_create_forest_rocks(),
-		_create_forest_rendering()
+		_create_forest_rendering(),
+		_create_forest_foliage()
 	)
 	var forest_rule = _BiomeSelectionRuleScript.new(_BiomeIdScript.TEMPERATE_FOREST, 0.35, 0.70, 0.35, 1.0, 0.0, 1.0, 10)
 	# Regla fallback universal con prioridad 0 para garantizar 100% de cobertura del espacio 3D (T/M/E)
@@ -70,7 +75,8 @@ static func create_default_registry() -> RefCounted:
 		_create_desert_ecology(),
 		_create_desert_vegetation(),
 		_create_desert_rocks(),
-		_create_desert_rendering()
+		_create_desert_rendering(),
+		_create_desert_foliage()
 	)
 	var desert_rule = _BiomeSelectionRuleScript.new(_BiomeIdScript.DESERT, 0.65, 1.0, 0.0, 0.35, 0.0, 1.0, 10)
 	reg.register_biome(desert_def, [desert_rule])
@@ -82,7 +88,8 @@ static func create_default_registry() -> RefCounted:
 		_create_jungle_ecology(),
 		_create_jungle_vegetation(),
 		_create_jungle_rocks(),
-		_create_jungle_rendering()
+		_create_jungle_rendering(),
+		_create_jungle_foliage()
 	)
 	var jungle_rule = _BiomeSelectionRuleScript.new(_BiomeIdScript.JUNGLE, 0.65, 1.0, 0.60, 1.0, 0.0, 1.0, 10)
 	reg.register_biome(jungle_def, [jungle_rule])
@@ -94,7 +101,8 @@ static func create_default_registry() -> RefCounted:
 		_create_alpine_ecology(),
 		_create_alpine_vegetation(),
 		_create_alpine_rocks(),
-		_create_alpine_rendering()
+		_create_alpine_rendering(),
+		_create_alpine_foliage()
 	)
 	var alpine_rule = _BiomeSelectionRuleScript.new(_BiomeIdScript.ALPINE, 0.0, 0.45, 0.0, 1.0, 0.70, 1.0, 20)
 	reg.register_biome(alpine_def, [alpine_rule])
@@ -301,3 +309,130 @@ static func _create_alpine_rendering() -> Resource:
 	rend.clearing_color = Color("#6c786a")
 	rend.rock_color = Color("#757a73")
 	return rend
+
+static func _create_taiga_foliage() -> Resource:
+	var sp_med = _FoliageSpeciesScript.new(
+		&"grass_medium",
+		"Medium Boreal Grass",
+		"res://assets/texture/foliage/grass/medium_grass_01.jpg",
+		1.0,
+		Vector3(0.85, 0.9, 0.85),
+		Vector3(1.2, 1.3, 1.2),
+		26.0,
+		Color(0.18, 0.25, 0.14),
+		Color(0.42, 0.58, 0.28),
+		2
+	)
+	var sp_large = _FoliageSpeciesScript.new(
+		&"grass_large",
+		"Large Boreal Grass",
+		"res://assets/texture/foliage/grass/large_grass_01.jpg",
+		0.6,
+		Vector3(0.9, 1.0, 0.9),
+		Vector3(1.3, 1.4, 1.3),
+		24.0,
+		Color(0.15, 0.22, 0.12),
+		Color(0.38, 0.52, 0.25),
+		3
+	)
+	return _FoliageProfileScript.new(0.9, [sp_med, sp_large], 26.0, 0.8)
+
+static func _create_forest_foliage() -> Resource:
+	var sp_med = _FoliageSpeciesScript.new(
+		&"grass_medium",
+		"Temperate Grass",
+		"res://assets/texture/foliage/grass/medium_grass_01.jpg",
+		1.0,
+		Vector3(0.85, 0.9, 0.85),
+		Vector3(1.2, 1.3, 1.2),
+		28.0,
+		Color(0.18, 0.28, 0.12),
+		Color(0.52, 0.75, 0.35),
+		2
+	)
+	var sp_single = _FoliageSpeciesScript.new(
+		&"grass_single",
+		"Meadow Grass",
+		"res://assets/texture/foliage/grass/single_grass_01.jpg",
+		0.8,
+		Vector3(0.8, 0.8, 0.8),
+		Vector3(1.1, 1.2, 1.1),
+		28.0,
+		Color(0.20, 0.32, 0.14),
+		Color(0.58, 0.82, 0.40),
+		2
+	)
+	return _FoliageProfileScript.new(1.1, [sp_med, sp_single], 28.0, 0.75)
+
+static func _create_tundra_foliage() -> Resource:
+	var sp_single = _FoliageSpeciesScript.new(
+		&"grass_single",
+		"Tundra Lichen Grass",
+		"res://assets/texture/foliage/grass/single_grass_01.jpg",
+		1.0,
+		Vector3(0.7, 0.6, 0.7),
+		Vector3(0.95, 0.85, 0.95),
+		22.0,
+		Color(0.28, 0.27, 0.20),
+		Color(0.55, 0.52, 0.38),
+		2
+	)
+	return _FoliageProfileScript.new(0.4, [sp_single], 22.0, 0.7)
+
+static func _create_desert_foliage() -> Resource:
+	var sp_single = _FoliageSpeciesScript.new(
+		&"grass_single",
+		"Arid Scrub Grass",
+		"res://assets/texture/foliage/grass/single_grass_01.jpg",
+		1.0,
+		Vector3(0.7, 0.7, 0.7),
+		Vector3(1.0, 1.0, 1.0),
+		20.0,
+		Color(0.42, 0.36, 0.22),
+		Color(0.78, 0.68, 0.42),
+		2
+	)
+	return _FoliageProfileScript.new(0.15, [sp_single], 20.0, 0.5)
+
+static func _create_jungle_foliage() -> Resource:
+	var sp_large = _FoliageSpeciesScript.new(
+		&"grass_large",
+		"Jungle Fern Grass",
+		"res://assets/texture/foliage/grass/large_grass_01.jpg",
+		1.0,
+		Vector3(1.0, 1.1, 1.0),
+		Vector3(1.4, 1.6, 1.4),
+		30.0,
+		Color(0.12, 0.28, 0.10),
+		Color(0.35, 0.78, 0.25),
+		3
+	)
+	var sp_med = _FoliageSpeciesScript.new(
+		&"grass_medium",
+		"Rainforest Grass",
+		"res://assets/texture/foliage/grass/medium_grass_01.jpg",
+		1.0,
+		Vector3(0.9, 0.9, 0.9),
+		Vector3(1.3, 1.3, 1.3),
+		30.0,
+		Color(0.15, 0.32, 0.12),
+		Color(0.40, 0.82, 0.30),
+		2
+	)
+	return _FoliageProfileScript.new(1.4, [sp_large, sp_med], 30.0, 0.6)
+
+static func _create_alpine_foliage() -> Resource:
+	var sp_single = _FoliageSpeciesScript.new(
+		&"grass_single",
+		"Alpine Tuft Grass",
+		"res://assets/texture/foliage/grass/single_grass_01.jpg",
+		1.0,
+		Vector3(0.7, 0.65, 0.7),
+		Vector3(0.95, 0.9, 0.95),
+		24.0,
+		Color(0.22, 0.28, 0.22),
+		Color(0.48, 0.58, 0.46),
+		2
+	)
+	return _FoliageProfileScript.new(0.35, [sp_single], 24.0, 0.7)
+

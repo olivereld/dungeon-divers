@@ -5,6 +5,7 @@ const _HydrologyStageScript = preload("res://src/world_generator/stages/hydrolog
 const _ClimateStageScript = preload("res://src/world_generator/climate/climate_stage.gd")
 const _BiomeStageScript = preload("res://src/world_generator/biomes/biome_stage.gd")
 const _WorldNavigationStageScript = preload("res://src/world_generator/navigation/world_navigation_stage.gd")
+const _FoliageGeneratorScript = preload("res://src/world_generator/foliage/foliage_generator.gd")
 
 static func generate(seed_val: int, profile: WorldProfile = null) -> WorldResult:
 	if profile == null:
@@ -182,3 +183,11 @@ static func _execute_stages(context: WorldGenerationContext, profiler: Variant =
 			profiler[spec["name"]] = float(t1 - t0) / 1000.0
 		else:
 			stage.execute(context)
+
+	# Foliage procedural ligado a biomas
+	var t_fol0 := Time.get_ticks_usec() if is_profiling else 0
+	var bounds: Rect2i = context.get_core_bounds() if context.has_method("get_core_bounds") else Rect2i(0, 0, context.profile.width, context.profile.height)
+	var foliage_gen := _FoliageGeneratorScript.new()
+	context.result.foliage = foliage_gen.generate_foliage(context.result, context.master_seed, bounds, context.profile)
+	if is_profiling:
+		profiler["foliage_ms"] = float(Time.get_ticks_usec() - t_fol0) / 1000.0

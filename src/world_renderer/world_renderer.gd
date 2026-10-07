@@ -8,6 +8,7 @@ const _RockSizeProfileScript = preload("res://src/rock_generation/rock_size_prof
 const _RockInstanceScript = preload("res://src/rock_generation/rock_instance.gd")
 const _RockConfigScript = preload("res://src/rock_generation/config/rock_config.gd")
 const _RockSizeConfigScript = preload("res://src/rock_generation/config/rock_size_config.gd")
+const _FoliageRendererScript = preload("res://src/world_generator/foliage/rendering/foliage_renderer.gd")
 
 static var _rock_gen_instance = null
 static func _get_rock_gen():
@@ -63,6 +64,12 @@ func render_world(
 
 	# 3. Vegetation MultiMeshes
 	_spawn_vegetation_multimeshes(root, result, profile)
+
+	# 4. Foliage MultiMeshes (Césped y plantas procedurales)
+	if "foliage" in result and result.foliage != null:
+		var foliage_node = _FoliageRendererScript.build_chunk_foliage_node(result.foliage, [], Vector3.ZERO)
+		if foliage_node != null:
+			root.add_child(foliage_node)
 
 	return root
 
@@ -352,6 +359,10 @@ static func _bake_bush_mesh(orig_mesh: Mesh, xform: Transform3D, mat: Material, 
 				sm.set_shader_parameter("shadow_tint", Color(0.18, 0.32, 0.24, 1.0))
 				sm.set_shader_parameter("shadow_wrap", 0.45)
 				sm.set_shader_parameter("direct_light_strength", 0.85)
+				sm.set_shader_parameter("trunk_height_threshold", 0.15)
+				sm.set_shader_parameter("canopy_height_range", 0.70)
+				sm.set_shader_parameter("wind_strength", 0.04)
+				sm.set_shader_parameter("wind_speed", 1.6)
 				final_mat = sm
 
 		if final_mat == null and surface_mat != null:

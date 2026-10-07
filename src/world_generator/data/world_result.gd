@@ -9,6 +9,7 @@ var canopy_trees: Array = []  # Array[WorldVegetationItem] within canopy influen
 var spawn_position: Vector3 = Vector3.ZERO
 var hydrology: RefCounted = null  # HydrologyResult
 var cached_water_surface: RefCounted = null  # WaterSurfaceData cache
+var foliage: RefCounted = null  # FoliageChunkData
 var metadata: Dictionary = {}
 
 func get_cell(pos: Vector2i) -> WorldCell:
