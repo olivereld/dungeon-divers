@@ -36,15 +36,31 @@ enum DiagonalCornerRule {
 ## Regla de validación para esquinas ortogonales en movimientos diagonales.
 @export var diagonal_corner_rule: DiagonalCornerRule = DiagonalCornerRule.BOTH_BLOCKED
 
-## Máximo desnivel de elevación ascendente permitido (+levels).
-@export var max_step_up: int = 1
+## Desnivel de elevación ascendente transitable automáticamente caminando sin saltar.
+@export var max_walk_step_up: int = 1
 
-## Máximo desnivel de elevación descendente permitido caminando (-levels).
-@export var max_step_down: int = 1
+## Máximo desnivel de elevación ascendente permitido mediante salto (JUMP_UP, hasta 3 bloques).
+@export var max_jump_up: int = 1
 
-## Si es true, el movimiento normal por input no cambia de nivel automáticamente en los bordes.
-## Requiere una acción explícita de salto (Spacebar / is_jump = true) para subir o bajar desniveles.
+## Desnivel de elevación descendente transitable automáticamente caminando sin saltar.
+@export var max_walk_step_down: int = 1
+
+## Si es true, el movimiento normal por input no cambia de nivel automáticamente en los bordes (fuerza max_walk=0).
 @export var require_jump_for_elevation: bool = false
+
+## Alias de retrocompatibilidad para max_jump_up.
+var max_step_up: int:
+	get:
+		return max_jump_up
+	set(val):
+		max_jump_up = val
+
+## Alias de retrocompatibilidad para max_walk_step_down.
+var max_step_down: int:
+	get:
+		return max_walk_step_down
+	set(val):
+		max_walk_step_down = val
 
 ## Permite o bloquea descensos controlados en arco (DROP) hacia celdas inferiores.
 @export var can_drop: bool = false

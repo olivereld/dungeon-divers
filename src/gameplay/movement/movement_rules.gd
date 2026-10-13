@@ -60,8 +60,10 @@ func validate_transition(
 		var target_level: int = grid.get_elevation_level(to_cell)
 		var delta_level: int = target_level - cur_level
 
-		var max_up: int = profile.max_step_up if profile != null else 1
-		var max_down: int = profile.max_step_down if profile != null else 1
+		var walk_up: int = profile.max_walk_step_up if profile != null else 1
+		var jump_up: int = profile.max_jump_up if profile != null else 1
+		var walk_down: int = profile.max_walk_step_down if profile != null else 1
+		var max_drop: int = profile.max_drop_distance if profile != null else 4
 		var require_jump: bool = profile.require_jump_for_elevation if profile != null else false
 
 		# Si el perfil requiere salto manual para cambiar de elevación y no es un salto explícito:
@@ -71,48 +73,45 @@ func validate_transition(
 		if delta_level == 0:
 			transition_type = _ResultScript.TransitionType.WALK
 		elif delta_level > 0:
-			if delta_level <= max_up:
+			if delta_level <= walk_up and not is_jump:
+				transition_type = _ResultScript.TransitionType.STEP_UP
+			elif delta_level <= jump_up:
 				transition_type = _ResultScript.TransitionType.JUMP_UP if is_jump else _ResultScript.TransitionType.STEP_UP
 			else:
 				return _ResultScript.reject(_ResultScript.REASON_ELEVATION_TOO_HIGH, from_cell, to_cell)
 		else: # delta_level < 0
-			if delta_level >= -max_down:
-				transition_type = _ResultScript.TransitionType.DROP if is_jump else _ResultScript.TransitionType.STEP_DOWN
+			var abs_delta: int = absi(delta_level)
+			if abs_delta <= walk_down and not is_jump:
+				transition_type = _ResultScript.TransitionType.STEP_DOWN
+			elif abs_delta <= max_drop and profile != null and profile.can_drop:
+				if grid.has_method("find_lower_support"):
+					var support: Dictionary = grid.find_lower_support(to_cell, max_drop)
+					if not support.get("found", false) or not support.get("walkable", false):
+						return _ResultScript.reject(_ResultScript.REASON_NO_SURFACE_BELOW, from_cell, to_cell)
+				transition_type = _ResultScript.TransitionType.DROP
 			else:
-				# Desnivel abrupto hacia abajo: evaluar descenso en arco (DROP) o caída (FALL)
-				var abs_delta: int = absi(delta_level)
-				var can_drop: bool = profile.can_drop if profile != null else false
-				var max_drop: int = profile.max_drop_distance if profile != null else 4
+				# Si no puede realizar DROP o excede max_drop, evaluar caída (FALL) si está habilitada
+				var can_fall: bool = profile.can_fall if profile != null else true
+				if not can_fall:
+					if profile != null and profile.can_drop and abs_delta > max_drop:
+						return _ResultScript.reject(_ResultScript.REASON_DROP_TOO_HIGH, from_cell, to_cell)
+					elif profile != null and profile.can_drop:
+						return _ResultScript.reject(_ResultScript.REASON_DROP_NOT_ALLOWED, from_cell, to_cell)
+					else:
+						return _ResultScript.reject(_ResultScript.REASON_FALL_NOT_ALLOWED, from_cell, to_cell)
 
-				if can_drop and abs_delta <= max_drop:
-					if grid.has_method("find_lower_support"):
-						var support: Dictionary = grid.find_lower_support(to_cell, max_drop)
-						if not support.get("found", false) or not support.get("walkable", false):
-							return _ResultScript.reject(_ResultScript.REASON_NO_SURFACE_BELOW, from_cell, to_cell)
-					transition_type = _ResultScript.TransitionType.DROP
-				else:
-					# Si no puede realizar DROP o excede max_drop, evaluar caída (FALL) si está habilitada
-					var can_fall: bool = profile.can_fall if profile != null else true
-					if not can_fall:
-						if can_drop and abs_delta > max_drop:
-							return _ResultScript.reject(_ResultScript.REASON_DROP_TOO_HIGH, from_cell, to_cell)
-						elif can_drop:
-							return _ResultScript.reject(_ResultScript.REASON_DROP_NOT_ALLOWED, from_cell, to_cell)
-						else:
-							return _ResultScript.reject(_ResultScript.REASON_FALL_NOT_ALLOWED, from_cell, to_cell)
+				var max_fall: int = profile.max_fall_height if profile != null else 6
+				if abs_delta > max_fall:
+					if profile != null and profile.can_drop:
+						return _ResultScript.reject(_ResultScript.REASON_DROP_TOO_HIGH, from_cell, to_cell)
+					return _ResultScript.reject(_ResultScript.REASON_FALL_TOO_HIGH, from_cell, to_cell)
 
-					var max_fall: int = profile.max_fall_height if profile != null else 6
-					if abs_delta > max_fall:
-						if can_drop:
-							return _ResultScript.reject(_ResultScript.REASON_DROP_TOO_HIGH, from_cell, to_cell)
-						return _ResultScript.reject(_ResultScript.REASON_FALL_TOO_HIGH, from_cell, to_cell)
+				if grid.has_method("find_lower_support"):
+					var support: Dictionary = grid.find_lower_support(to_cell, max_fall)
+					if not support.get("found", false) or not support.get("walkable", false):
+						return _ResultScript.reject(_ResultScript.REASON_NO_SURFACE_BELOW, from_cell, to_cell)
 
-					if grid.has_method("find_lower_support"):
-						var support: Dictionary = grid.find_lower_support(to_cell, max_fall)
-						if not support.get("found", false) or not support.get("walkable", false):
-							return _ResultScript.reject(_ResultScript.REASON_NO_SURFACE_BELOW, from_cell, to_cell)
-
-					transition_type = _ResultScript.TransitionType.FALL
+				transition_type = _ResultScript.TransitionType.FALL
 
 	# 6. Obstáculos estáticos en destino (interfaz conceptual)
 	if static_obstacle_checker.is_valid():

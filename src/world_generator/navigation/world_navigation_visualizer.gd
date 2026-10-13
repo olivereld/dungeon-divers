@@ -218,8 +218,8 @@ func _evaluate_jumpable_edges(cell: Vector2i, p_profile: MovementProfile) -> Dic
 		return res
 
 	var cur_level: int = grid.get_elevation_level(cell)
-	var max_up: int = p_profile.max_step_up if p_profile != null else max_jump_up_height
-	var max_down: int = p_profile.max_step_down if p_profile != null else 1
+	var max_up: int = p_profile.max_jump_up if p_profile != null else max_jump_up_height
+	var max_down: int = p_profile.max_walk_step_down if p_profile != null else 1
 	var can_drop: bool = p_profile.can_drop if p_profile != null else true
 	var max_drop: int = p_profile.max_drop_distance if p_profile != null else max_jump_down_height
 

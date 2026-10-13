@@ -100,6 +100,32 @@ func find_lower_support(cell: Vector2i, max_depth: int = 6) -> Dictionary:
 		"walkable": walkable_val
 	}
 
+## Analiza formalmente las propiedades espaciales y topológicas de una transición A -> B.
+func analyze_transition(from_cell: Vector2i, to_cell: Vector2i) -> Dictionary:
+	var res := {
+		"valid": false,
+		"from_level": 0,
+		"to_level": 0,
+		"delta_level": 0,
+		"from_height": 0.0,
+		"to_height": 0.0,
+		"from_walkable": false,
+		"to_walkable": false,
+		"is_same_level": true
+	}
+	if not has_cell(from_cell) or not has_cell(to_cell):
+		return res
+	res.valid = true
+	res.from_level = get_elevation_level(from_cell)
+	res.to_level = get_elevation_level(to_cell)
+	res.delta_level = res.to_level - res.from_level
+	res.from_height = get_height(from_cell)
+	res.to_height = get_height(to_cell)
+	res.from_walkable = is_walkable(from_cell)
+	res.to_walkable = is_walkable(to_cell)
+	res.is_same_level = (res.delta_level == 0)
+	return res
+
 # --- Conversiones Espaciales (Cell <-> World) ---
 
 func cell_to_world(cell: Vector2i, y_offset: float = 0.0) -> Vector3:

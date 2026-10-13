@@ -218,3 +218,32 @@ func is_water(cell: Vector2i) -> bool:
 
 func get_bounds() -> Rect2i:
 	return _bounds
+
+## Analiza formalmente la transición A -> B delegando en la autoridad de navegación si existe.
+func analyze_transition(from_cell: Vector2i, to_cell: Vector2i) -> Dictionary:
+	var nav: Object = _get_nav_grid()
+	if nav != null and nav.has_method("analyze_transition"):
+		return nav.analyze_transition(from_cell, to_cell)
+	var res := {
+		"valid": false,
+		"from_level": 0,
+		"to_level": 0,
+		"delta_level": 0,
+		"from_height": 0.0,
+		"to_height": 0.0,
+		"from_walkable": false,
+		"to_walkable": false,
+		"is_same_level": true
+	}
+	if not has_cell(from_cell) or not has_cell(to_cell):
+		return res
+	res.valid = true
+	res.from_level = get_elevation_level(from_cell)
+	res.to_level = get_elevation_level(to_cell)
+	res.delta_level = res.to_level - res.from_level
+	res.from_height = get_height(from_cell)
+	res.to_height = get_height(to_cell)
+	res.from_walkable = is_walkable(from_cell)
+	res.to_walkable = is_walkable(to_cell)
+	res.is_same_level = (res.delta_level == 0)
+	return res

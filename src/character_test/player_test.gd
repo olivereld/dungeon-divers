@@ -344,7 +344,9 @@ func _setup_movement_component() -> void:
 	movement_component.profile.cells_per_second = normal_cells_per_second
 	movement_component.profile.turn_speed = turn_speed
 	movement_component.profile.can_drop = true
-	movement_component.profile.max_step_up = 3
+	movement_component.profile.max_walk_step_up = 0
+	movement_component.profile.max_jump_up = 3
+	movement_component.profile.max_walk_step_down = 0
 	movement_component.profile.max_drop_distance = 4
 	movement_component.profile.drop_arc_height = 0.35
 	movement_component.profile.drop_windup_time = 0.35
@@ -531,7 +533,8 @@ func _physics_process(delta: float) -> void:
 	_space_was_down = space_down
 
 	var jumped_this_frame: bool = false
-	if jump_just_pressed and movement_component != null and not movement_component.is_moving and not _is_jump_active():
+	var want_jump: bool = jump_just_pressed or (space_down and not is_moving())
+	if want_jump and movement_component != null and not movement_component.is_moving and not _is_jump_active():
 		var preferred_dir: Vector2i = Vector2i.ZERO
 		if chosen_octant >= 0 and chosen_octant < 8:
 			preferred_dir = DIRECTIONS_8[chosen_octant]
