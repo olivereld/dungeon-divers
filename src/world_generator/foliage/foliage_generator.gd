@@ -130,10 +130,10 @@ func generate_foliage(
 
 			# 3. Resolver bioma y foliage_profile
 			var biome_def = biome_reg.get_definition(cell.biome_id) if cell.biome_id != StringName() else null
-			if biome_def == null or biome_def.foliage_profile == null:
+			var fol_prof = biome_def.foliage_profile if (biome_def != null and biome_def.foliage_profile != null) else (profile.foliage_profile if profile != null else null)
+			if fol_prof == null:
 				continue
 
-			var fol_prof = biome_def.foliage_profile
 			var species_list: Array = fol_prof.species
 			if species_list.is_empty():
 				continue
@@ -142,20 +142,28 @@ func generate_foliage(
 			if cell.slope > fol_prof.max_slope:
 				continue
 
-			# 5. Sistema de Coverage Continuo y Clustering:
-			# Combina el ruido macro de parches con atenuación por pendiente y densidad del bioma
-			var noise_val: float = (macro_noise.get_noise_2d(float(x), float(y)) + 1.0) * 0.5
+			# 5. Sistema de Cobertura Ecológica de Parches y Clasificación de Zona
+			var patch_cov: float = evaluate_patch_coverage_at(pos, master_seed, fol_prof)
 			var slope_factor: float = clampf(1.0 - (cell.slope / maxf(fol_prof.max_slope, 1.0)), 0.0, 1.0)
-			var coverage: float = noise_val * slope_factor * fol_prof.base_density
+			var zone_id: int = evaluate_ecological_zone(cell)
+			var canopy_atten: float = compute_canopy_attenuation(cell, 0.0, fol_prof)
 
-			# Umbral de claros limpios: por debajo de 0.28 el suelo permanece limpio (senderos/claros naturales)
-			if coverage < 0.28:
+			var zone_mult: float = 1.0
+			if fol_prof.zone_densities != null and fol_prof.zone_densities.has(zone_id):
+				zone_mult = float(fol_prof.zone_densities[zone_id].get("grass", 1.0))
+
+			# Umbral de claros limpios aplicado sobre la señal de parches
+			var clear_thresh: float = fol_prof.clearing_threshold if fol_prof.clearing_threshold > 0.0 else 0.25
+			if patch_cov < clear_thresh:
 				continue
 
-			# Si la celda tiene vegetación, genera un mechón con cuerpo (mínimo 3 briznas, hasta 7 en zonas densas)
-			var norm_cov: float = clampf((coverage - 0.28) / 0.72, 0.0, 1.0)
-			var target_density: float = 3.0 + norm_cov * 4.0
-			var base_count: int = int(floor(target_density))
+			# Densidad modulada por bioma, zona ecológica, dosel arbóreo y pendiente
+			var norm_cov: float = clampf((patch_cov - clear_thresh) / maxf(1.0 - clear_thresh, 0.01), 0.0, 1.0)
+			var target_density: float = (1.5 + norm_cov * 4.5) * fol_prof.base_density * canopy_atten * zone_mult * slope_factor
+			if target_density < 0.25:
+				continue
+
+			var base_count: int = maxi(1, int(floor(target_density)))
 			var remainder: float = fmod(target_density, 1.0)
 
 			# Sumar pesos de especies
@@ -201,15 +209,7 @@ func generate_foliage(
 				var world_y := cell.height
 
 				var rot_y := rng.randf_range(0.0, TAU)
-				var is_single: bool = (chosen_species.id == &"grass_single" or String(chosen_species.id).ends_with("_single"))
-				var sc_mult: float = rng.randf_range(0.85, 1.15) if is_single else rng.randf_range(0.95, 1.30)
-				# Aumento de grosor horizontal para dar volumen a las matas de hierba media y grande
-				var horiz_boost: float = 1.0 if is_single else rng.randf_range(1.25, 1.45)
-				var scale := Vector3(
-					rng.randf_range(chosen_species.scale_min.x, chosen_species.scale_max.x) * sc_mult * horiz_boost,
-					rng.randf_range(chosen_species.scale_min.y, chosen_species.scale_max.y) * sc_mult,
-					rng.randf_range(chosen_species.scale_min.z, chosen_species.scale_max.z) * sc_mult * horiz_boost
-				)
+				var scale: Vector3 = sample_weighted_scale(chosen_species, rng, zone_id)
 
 				var tr := Transform3D()
 				tr.basis = Basis(Vector3.UP, rot_y).scaled(scale)
