@@ -48,7 +48,7 @@
   - `clearing_threshold: float = 0.35` (umbral para formación de claros limpios)
   - `zone_densities: Dictionary` (densidades relativas por zona: PLAINS, FOREST_EDGE, etc.)
 
-- [ ] **Paso 1: Escribir el test que falla `tests/test_foliage_ecology_contracts.gd`**
+- [x] **Paso 1: Escribir el test que falla `tests/test_foliage_ecology_contracts.gd`**
 
 ```gdscript
 extends SceneTree
