@@ -47,8 +47,50 @@ enum DiagonalCornerRule {
 ## Por defecto 0: cualquier borde o risco requiere salto manual.
 @export var max_walk_step_down: int = 0
 
+## Desnivel físico métrico máximo transitable automáticamente caminando sin saltar hacia arriba.
+## Por defecto 0.0: no se camina ningún desnivel físico hacia arriba sin saltar.
+@export var max_walk_step_height: float = 0.0
+
+## Máxima altura física métrica permitida mediante salto ascendente (JUMP_UP, hasta 6m / 3 bloques de 2m).
+@export var max_jump_height: float = 6.0
+
+## Desnivel físico métrico máximo transitable automáticamente caminando sin saltar hacia abajo.
+## Por defecto 0.0: cualquier borde físico requiere salto manual.
+@export var max_walk_step_down_height: float = 0.0
+
+## Máxima altura física métrica permitida para un descenso controlado (DROP, hasta 8m / 4 bloques de 2m).
+@export var max_drop_height: float = 8.0
+
 ## Si es true, el movimiento normal por input no cambia de nivel automáticamente en los bordes (fuerza max_walk=0).
 @export var require_jump_for_elevation: bool = false
+
+## Retorna la altura física efectiva transitable caminando hacia arriba, respetando max_walk_step_up si max_walk_step_height no fue configurado explícitamente.
+func get_effective_walk_step_up_height() -> float:
+	if max_walk_step_height > 0.0:
+		return max_walk_step_height
+	if max_walk_step_up > 0:
+		return float(max_walk_step_up) * 2.0
+	return 0.0
+
+## Retorna la altura física máxima efectiva para JUMP_UP.
+func get_effective_jump_up_height() -> float:
+	if max_jump_height > 0.0:
+		return max_jump_height
+	return float(max_jump_up) * 2.0
+
+## Retorna la altura física efectiva transitable caminando hacia abajo.
+func get_effective_walk_step_down_height() -> float:
+	if max_walk_step_down_height > 0.0:
+		return max_walk_step_down_height
+	if max_walk_step_down > 0:
+		return float(max_walk_step_down) * 2.0
+	return 0.0
+
+## Retorna la altura física máxima efectiva para DROP.
+func get_effective_drop_height() -> float:
+	if max_drop_height > 0.0:
+		return max_drop_height
+	return float(max_drop_distance) * 2.0
 
 ## Alias de retrocompatibilidad para max_jump_up.
 var max_step_up: int:

@@ -55,49 +55,82 @@ func validate_transition(
 
 	# 5. Desnivel de elevación discreta y clasificación de transición (WALK / STEP_UP / STEP_DOWN / FALL / DROP / JUMP_UP)
 	var transition_type: int = _ResultScript.TransitionType.WALK
-	if water_mode != _ProfileScript.WaterMode.FLY:
-		var cur_level: int = grid.get_elevation_level(from_cell)
-		var target_level: int = grid.get_elevation_level(to_cell)
-		var delta_level: int = target_level - cur_level
+	if water_mode != _ProfileScript.WaterMode.FLY and (grid.has_method("analyze_transition") or grid.has_method("get_elevation_level")):
+		var delta_level: int = 0
+		var delta_h: float = 0.0
+
+		if grid.has_method("analyze_transition"):
+			var trans: Dictionary = grid.analyze_transition(from_cell, to_cell)
+			delta_level = trans.get("delta_level", 0)
+			delta_h = trans.get("delta_height", 0.0)
+		else:
+			var cur_lvl: int = grid.get_elevation_level(from_cell)
+			var tgt_lvl: int = grid.get_elevation_level(to_cell)
+			delta_level = tgt_lvl - cur_lvl
+			if grid.has_method("get_height"):
+				delta_h = grid.get_height(to_cell) - grid.get_height(from_cell)
+			else:
+				delta_h = float(delta_level) * 2.0
 
 		var walk_up: int = profile.max_walk_step_up if profile != null else 0
+		var walk_up_h: float = profile.get_effective_walk_step_up_height() if profile != null and profile.has_method("get_effective_walk_step_up_height") else (float(walk_up) * 2.0)
 		var jump_up: int = profile.max_jump_up if profile != null else 3
+		var jump_up_h: float = profile.get_effective_jump_up_height() if profile != null and profile.has_method("get_effective_jump_up_height") else (float(jump_up) * 2.0)
 		var walk_down: int = profile.max_walk_step_down if profile != null else 0
+		var walk_down_h: float = profile.get_effective_walk_step_down_height() if profile != null and profile.has_method("get_effective_walk_step_down_height") else (float(walk_down) * 2.0)
 		var max_drop: int = profile.max_drop_distance if profile != null else 4
+		var max_drop_h: float = profile.get_effective_drop_height() if profile != null and profile.has_method("get_effective_drop_height") else (float(max_drop) * 2.0)
 		var require_jump: bool = profile.require_jump_for_elevation if profile != null else false
 
-		# Si el perfil requiere salto manual para cambiar de elevación y no es un salto explícito:
-		if require_jump and delta_level != 0 and not is_jump:
+		var is_rise: bool = (delta_h > 0.05) or (delta_level > 0)
+		var is_drop: bool = (delta_h < -0.05) or (delta_level < 0)
+
+		if require_jump and (is_rise or is_drop) and not is_jump:
 			return _ResultScript.reject(_ResultScript.REASON_JUMP_REQUIRED, from_cell, to_cell)
 
-		if delta_level == 0:
+		if not is_rise and not is_drop:
 			transition_type = _ResultScript.TransitionType.WALK
-		elif delta_level > 0:
-			if delta_level <= walk_up and not is_jump:
+		elif is_rise:
+			var can_walk_step: bool = (delta_level <= walk_up) and (delta_h <= walk_up_h + 0.01)
+			if can_walk_step and not is_jump:
 				transition_type = _ResultScript.TransitionType.STEP_UP
-			elif delta_level <= jump_up:
+			elif delta_level <= jump_up and delta_h <= jump_up_h + 0.01:
 				if not is_jump:
-					return _ResultScript.reject(_ResultScript.REASON_JUMP_REQUIRED, from_cell, to_cell)
+					return _ResultScript.reject(
+						_ResultScript.REASON_JUMP_REQUIRED,
+						from_cell,
+						to_cell
+					)
 				transition_type = _ResultScript.TransitionType.JUMP_UP
 			else:
-				return _ResultScript.reject(_ResultScript.REASON_ELEVATION_TOO_HIGH, from_cell, to_cell)
-		else: # delta_level < 0
+				return _ResultScript.reject(
+					_ResultScript.REASON_ELEVATION_TOO_HIGH,
+					from_cell,
+					to_cell
+				)
+		else: # is_drop
 			var abs_delta: int = absi(delta_level)
-			if abs_delta <= walk_down and not is_jump:
+			var abs_delta_h: float = absf(delta_h)
+
+			var can_walk_step_down: bool = (abs_delta <= walk_down) and (abs_delta_h <= walk_down_h + 0.01)
+			if can_walk_step_down and not is_jump:
 				transition_type = _ResultScript.TransitionType.STEP_DOWN
-			elif abs_delta <= max_drop and profile != null and profile.can_drop:
+			elif abs_delta <= max_drop and abs_delta_h <= max_drop_h + 0.01 and profile != null and profile.can_drop:
 				if not is_jump:
-					return _ResultScript.reject(_ResultScript.REASON_JUMP_REQUIRED, from_cell, to_cell)
+					return _ResultScript.reject(
+						_ResultScript.REASON_JUMP_REQUIRED,
+						from_cell,
+						to_cell
+					)
 				if grid.has_method("find_lower_support"):
 					var support: Dictionary = grid.find_lower_support(to_cell, max_drop)
 					if not support.get("found", false) or not support.get("walkable", false):
 						return _ResultScript.reject(_ResultScript.REASON_NO_SURFACE_BELOW, from_cell, to_cell)
 				transition_type = _ResultScript.TransitionType.DROP
 			else:
-				# Si no puede realizar DROP o excede max_drop, evaluar caída (FALL) si está habilitada
 				var can_fall: bool = profile.can_fall if profile != null else true
 				if not can_fall:
-					if profile != null and profile.can_drop and abs_delta > max_drop:
+					if profile != null and profile.can_drop and (abs_delta > max_drop or abs_delta_h > max_drop_h):
 						return _ResultScript.reject(_ResultScript.REASON_DROP_TOO_HIGH, from_cell, to_cell)
 					elif profile != null and profile.can_drop:
 						return _ResultScript.reject(_ResultScript.REASON_DROP_NOT_ALLOWED, from_cell, to_cell)
@@ -105,7 +138,8 @@ func validate_transition(
 						return _ResultScript.reject(_ResultScript.REASON_FALL_NOT_ALLOWED, from_cell, to_cell)
 
 				var max_fall: int = profile.max_fall_height if profile != null else 6
-				if abs_delta > max_fall:
+				var max_fall_h: float = float(max_fall) * 2.0
+				if abs_delta > max_fall or abs_delta_h > max_fall_h:
 					if profile != null and profile.can_drop:
 						return _ResultScript.reject(_ResultScript.REASON_DROP_TOO_HIGH, from_cell, to_cell)
 					return _ResultScript.reject(_ResultScript.REASON_FALL_TOO_HIGH, from_cell, to_cell)

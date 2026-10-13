@@ -47,6 +47,8 @@ const _NEIGHBOR_DIRS: Array[Vector2i] = [
 @export_group("Jump Elevation Limits")
 @export var max_jump_up_height: int = 3       ## Máxima altura saltable hacia arriba (+levels)
 @export var max_jump_down_height: int = 4     ## Máxima altura saltable en descenso (-levels)
+@export var max_jump_up_physical_height: float = 6.0   ## Máxima altura física saltable (+metros)
+@export var max_jump_down_physical_height: float = 8.0 ## Máxima altura física saltable en descenso (-metros)
 
 var grid: Object = null
 var tracked_target: Node3D = null
@@ -214,44 +216,59 @@ func _get_active_profile() -> MovementProfile:
 ## Evalúa si una celda transitable tiene vecinos con desniveles válidos para saltar hacia abajo o subir.
 func _evaluate_jumpable_edges(cell: Vector2i, p_profile: MovementProfile) -> Dictionary:
 	var res := {"can_jump_down": false, "can_jump_up": false}
-	if grid == null or not grid.has_method("get_elevation_level"):
+	if grid == null:
 		return res
 
-	var cur_level: int = grid.get_elevation_level(cell)
-	var max_up: int = p_profile.max_jump_up if p_profile != null else max_jump_up_height
-	var max_down: int = p_profile.max_walk_step_down if p_profile != null else 1
+	var max_up_lvl: int = p_profile.max_jump_up if p_profile != null else max_jump_up_height
+	var max_up_h: float = p_profile.get_effective_jump_up_height() if p_profile != null and p_profile.has_method("get_effective_jump_up_height") else (p_profile.max_jump_height if p_profile != null and "max_jump_height" in p_profile else max_jump_up_physical_height)
+
 	var can_drop: bool = p_profile.can_drop if p_profile != null else true
-	var max_drop: int = p_profile.max_drop_distance if p_profile != null else max_jump_down_height
+	var max_drop_lvl: int = p_profile.max_drop_distance if p_profile != null else max_jump_down_height
+	var max_drop_h: float = p_profile.get_effective_drop_height() if p_profile != null and p_profile.has_method("get_effective_drop_height") else (p_profile.max_drop_height if p_profile != null and "max_drop_height" in p_profile else max_jump_down_physical_height)
 
 	for dir in _NEIGHBOR_DIRS:
 		var n_cell := cell + dir
 
-		if grid.has_method("get_cell_availability"):
-			if grid.get_cell_availability(n_cell) != 0:
+		var trans: Dictionary = {}
+		if grid.has_method("analyze_transition"):
+			trans = grid.analyze_transition(cell, n_cell)
+			if not trans.get("valid", false) or not trans.get("to_walkable", false):
 				continue
-		elif grid.has_method("has_cell"):
-			if not grid.has_cell(n_cell):
+		else:
+			if grid.has_method("get_cell_availability"):
+				if grid.get_cell_availability(n_cell) != 0:
+					continue
+			elif grid.has_method("has_cell") and not grid.has_cell(n_cell):
 				continue
-
-		if grid.has_method("is_walkable") and not grid.is_walkable(n_cell):
-			continue
+			if grid.has_method("is_walkable") and not grid.is_walkable(n_cell):
+				continue
+			var cur_lvl: int = grid.get_elevation_level(cell) if grid.has_method("get_elevation_level") else 0
+			var tgt_lvl: int = grid.get_elevation_level(n_cell) if grid.has_method("get_elevation_level") else 0
+			var cur_h: float = grid.get_height(cell) if grid.has_method("get_height") else 0.0
+			var tgt_h: float = grid.get_height(n_cell) if grid.has_method("get_height") else 0.0
+			trans = {
+				"delta_level": tgt_lvl - cur_lvl,
+				"delta_height": tgt_h - cur_h
+			}
 
 		if grid.has_method("is_water") and grid.is_water(n_cell):
 			var water_mode: int = p_profile.water_mode if p_profile != null else _ProfileScript.WaterMode.LAND
 			if water_mode == _ProfileScript.WaterMode.LAND:
 				continue
 
-		var n_level: int = grid.get_elevation_level(n_cell)
-		var delta: int = n_level - cur_level
+		var delta_lvl: int = trans.get("delta_level", 0)
+		var delta_h: float = trans.get("delta_height", 0.0)
 
-		# 1. Bajar (STEP_DOWN o salto DROP hacia abajo)
-		if delta < 0:
-			if delta >= -max_down or (can_drop and absi(delta) <= max_drop):
+		# 1. Bajar (delta negativo físico o de nivel)
+		if delta_h < -0.05 or delta_lvl < 0:
+			var abs_h: float = absf(delta_h)
+			var abs_lvl: int = absi(delta_lvl)
+			if can_drop and abs_h <= max_drop_h + 0.01 and abs_lvl <= max_drop_lvl:
 				res.can_jump_down = true
 
-		# 2. Subir (escalón STEP_UP hacia arriba)
-		elif delta > 0:
-			if delta <= max_up:
+		# 2. Subir (delta positivo físico o de nivel)
+		elif delta_h > 0.05 or delta_lvl > 0:
+			if delta_h <= max_up_h + 0.01 and delta_lvl <= max_up_lvl:
 				res.can_jump_up = true
 
 		if res.can_jump_down and res.can_jump_up:

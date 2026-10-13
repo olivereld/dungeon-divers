@@ -13,6 +13,7 @@ func _init() -> void:
 	print("==================================================")
 	_test_movement_rules_jump_up_limits()
 	_test_visualizer_detection_limits()
+	_test_physical_height_same_level()
 	print("==================================================")
 	print(" ALL JUMPABLE ELEVATION TESTS PASSED!")
 	print("==================================================")
@@ -191,3 +192,67 @@ func _test_visualizer_detection_limits() -> void:
 	assert(info_from_5.can_jump_down == false, "5-block cliff exceeds max_drop (4), can_jump_down must be false")
 
 	print("    [PASS] WorldNavigationVisualizer accurately flags jump up and drop edges")
+
+func _test_physical_height_same_level() -> void:
+	print(" -> Testing physical height difference with same elevation_level...")
+	var grid := _NavGridScript.new(1.0, 16, Vector3.ZERO)
+	var profile := _ProfileScript.new()
+	profile.max_walk_step_up = 0
+	profile.max_jump_up = 3
+	profile.max_walk_step_down = 0
+	profile.max_drop_distance = 4
+	profile.can_drop = true
+
+	var cells := {}
+	# Celda inferior: (1, 1), level = 2, height = 2.0
+	var c_low := _WorldCellScript.new(Vector2i(1, 1))
+	c_low.elevation_level = 2
+	c_low.height = 2.0
+	c_low.is_walkable = true
+	cells[Vector2i(1, 1)] = c_low
+
+	# Celda superior: (2, 1), level = 2 (mismo nivel!), height = 3.0 (+1.0 bloque físico)
+	var c_high := _WorldCellScript.new(Vector2i(2, 1))
+	c_high.elevation_level = 2
+	c_high.height = 3.0
+	c_high.is_walkable = true
+	cells[Vector2i(2, 1)] = c_high
+
+	var chunk := _NavChunkScript.from_cells(Vector2i.ZERO, Rect2i(0, 0, 16, 16), cells)
+	grid.register_chunk(chunk)
+
+	# 1. analyze_transition
+	var trans := grid.analyze_transition(Vector2i(1, 1), Vector2i(2, 1))
+	assert(trans.delta_level == 0, "delta_level must be 0")
+	assert(absf(trans.delta_height - 1.0) < 0.001, "delta_height must be 1.0")
+	assert(trans.is_same_height == false, "is_same_height must be false")
+
+	# 2. MovementRules
+	var rules := _RulesScript.new()
+	var res_walk := rules.validate_transition(Vector2i(1, 1), Vector2i(2, 1), grid, profile, null, null, false)
+	assert(not res_walk.accepted, "Walk against +1.0m height wall without jump must be rejected")
+	assert(res_walk.reason == _RulesScript._ResultScript.REASON_JUMP_REQUIRED, "Reason must be REASON_JUMP_REQUIRED")
+
+	var res_jump := rules.validate_transition(Vector2i(1, 1), Vector2i(2, 1), grid, profile, null, null, true)
+	assert(res_jump.accepted, "Jump against +1.0m height wall must be accepted")
+	assert(res_jump.transition_type == _RulesScript._ResultScript.TransitionType.JUMP_UP, "Transition must be JUMP_UP")
+
+	# Descendiendo desde c_high (2, 1) hacia c_low (1, 1) sin saltar
+	var res_walk_down := rules.validate_transition(Vector2i(2, 1), Vector2i(1, 1), grid, profile, null, null, false)
+	assert(not res_walk_down.accepted, "Walking off -1.0m physical ledge without jump must be rejected")
+	assert(res_walk_down.reason == _RulesScript._ResultScript.REASON_JUMP_REQUIRED, "Reason must be REASON_JUMP_REQUIRED")
+
+	var res_drop := rules.validate_transition(Vector2i(2, 1), Vector2i(1, 1), grid, profile, null, null, true)
+	assert(res_drop.accepted, "Jump down -1.0m physical ledge must be accepted as DROP")
+	assert(res_drop.transition_type == _RulesScript._ResultScript.TransitionType.DROP, "Transition must be DROP")
+
+	# 3. Visualizer
+	var vis := _VisualizerScript.new()
+	vis.grid = grid
+	var info_low := vis._evaluate_jumpable_edges(Vector2i(1, 1), profile)
+	assert(info_low.can_jump_up == true, "c_low must detect can_jump_up = true for +1.0m physical step")
+
+	var info_high := vis._evaluate_jumpable_edges(Vector2i(2, 1), profile)
+	assert(info_high.can_jump_down == true, "c_high must detect can_jump_down = true for -1.0m physical step")
+
+	print("    [PASS] Physical height difference with same elevation_level correctly validated and visualized as jumpable")

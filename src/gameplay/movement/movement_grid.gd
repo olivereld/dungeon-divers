@@ -231,9 +231,11 @@ func analyze_transition(from_cell: Vector2i, to_cell: Vector2i) -> Dictionary:
 		"delta_level": 0,
 		"from_height": 0.0,
 		"to_height": 0.0,
+		"delta_height": 0.0,
 		"from_walkable": false,
 		"to_walkable": false,
-		"is_same_level": true
+		"is_same_level": true,
+		"is_same_height": true
 	}
 	if not has_cell(from_cell) or not has_cell(to_cell):
 		return res
@@ -243,7 +245,9 @@ func analyze_transition(from_cell: Vector2i, to_cell: Vector2i) -> Dictionary:
 	res.delta_level = res.to_level - res.from_level
 	res.from_height = get_height(from_cell)
 	res.to_height = get_height(to_cell)
+	res.delta_height = res.to_height - res.from_height
 	res.from_walkable = is_walkable(from_cell)
 	res.to_walkable = is_walkable(to_cell)
 	res.is_same_level = (res.delta_level == 0)
+	res.is_same_height = (absf(res.delta_height) <= 0.05)
 	return res
