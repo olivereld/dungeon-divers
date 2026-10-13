@@ -37,13 +37,15 @@ enum DiagonalCornerRule {
 @export var diagonal_corner_rule: DiagonalCornerRule = DiagonalCornerRule.BOTH_BLOCKED
 
 ## Desnivel de elevación ascendente transitable automáticamente caminando sin saltar.
-@export var max_walk_step_up: int = 1
+## Por defecto 0: cualquier elevación vertical requiere salto manual.
+@export var max_walk_step_up: int = 0
 
 ## Máximo desnivel de elevación ascendente permitido mediante salto (JUMP_UP, hasta 3 bloques).
-@export var max_jump_up: int = 1
+@export var max_jump_up: int = 3
 
 ## Desnivel de elevación descendente transitable automáticamente caminando sin saltar.
-@export var max_walk_step_down: int = 1
+## Por defecto 0: cualquier borde o risco requiere salto manual.
+@export var max_walk_step_down: int = 0
 
 ## Si es true, el movimiento normal por input no cambia de nivel automáticamente en los bordes (fuerza max_walk=0).
 @export var require_jump_for_elevation: bool = false

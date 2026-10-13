@@ -123,7 +123,20 @@ func _test_movement_rules_jump_up_limits() -> void:
 	assert(drop_4.accepted, "Drop of -4 levels must be accepted")
 	assert(drop_4.transition_type == _RulesScript._ResultScript.TransitionType.DROP, "Transition must be DROP")
 
-	print("    [PASS] MovementRules enforces jump for all elevation changes when require_jump_for_elevation = true")
+	# 10. Con require_jump_for_elevation = false pero max_walk_step_up = 0 y max_walk_step_down = 0:
+	# Caminar a +1 o -1 sin saltar DEBE ser rechazado con REASON_JUMP_REQUIRED (no degradar a STEP_UP ni caer)
+	profile.require_jump_for_elevation = false
+	profile.max_walk_step_up = 0
+	profile.max_walk_step_down = 0
+	var walk_no_req_up := rules.validate_transition(Vector2i(5, 5), Vector2i(6, 5), grid, profile, null, null, false)
+	assert(not walk_no_req_up.accepted, "Walking +1 with walk_up=0 must be rejected even if require_jump_for_elevation=false")
+	assert(walk_no_req_up.reason == _RulesScript._ResultScript.REASON_JUMP_REQUIRED, "Reason must be REASON_JUMP_REQUIRED")
+
+	var walk_no_req_down := rules.validate_transition(Vector2i(6, 5), Vector2i(5, 5), grid, profile, null, null, false)
+	assert(not walk_no_req_down.accepted, "Walking down -1 with walk_down=0 must be rejected even if require_jump_for_elevation=false")
+	assert(walk_no_req_down.reason == _RulesScript._ResultScript.REASON_JUMP_REQUIRED, "Reason must be REASON_JUMP_REQUIRED")
+
+	print("    [PASS] MovementRules enforces jump for all elevation changes (both require_jump_for_elevation true and false with walk=0)")
 
 func _test_visualizer_detection_limits() -> void:
 	print(" -> Testing WorldNavigationVisualizer jumpable edge detection...")

@@ -107,6 +107,8 @@ func is_water(pos: Vector2i) -> bool:
 	var npc = _NPCTestScript.new()
 	root.add_child(npc)
 	npc.setup_movement(grid, occupancy, Vector2i(1, 0))
+	npc.movement_component.profile.max_walk_step_up = 1
+	npc.movement_component.profile.max_jump_up = 1
 
 	assert(player.get_current_cell() == Vector2i(0, 0), "Player initial cell must be (0, 0)")
 	assert(npc.movement_component.current_cell == Vector2i(1, 0), "NPC initial cell must be (1, 0)")
@@ -537,10 +539,18 @@ func _run_drop_mechanic_integration() -> void:
 	assert(res_deep.accepted == false, "Deep cliff beyond max_drop_distance must be rejected")
 	assert(res_deep.reason == _ResultScript.REASON_DROP_TOO_HIGH, "Reason must be DROP_TOO_HIGH")
 
-	# 2. Movimiento hacia repisa válida (delta = -3 <= 4) -> ACCEPT como DROP
+	# 2. Movimiento hacia repisa válida (delta = -3 <= 4)
+	# Caminar hacia el risco sin saltar debe ser rechazado con REASON_JUMP_REQUIRED
+	var req_walk_cliff := _RequestScript.new(Vector2i(1, 0), &"player")
+	var res_walk_cliff: MovementResult = comp.request_movement(req_walk_cliff)
+	assert(res_walk_cliff.accepted == false, "Walking off cliff without jump must be rejected")
+	assert(res_walk_cliff.reason == _ResultScript.REASON_JUMP_REQUIRED, "Reason must be REASON_JUMP_REQUIRED")
+
+	# Con salto explícito (is_jump = true) -> ACCEPT como DROP
 	var req_drop := _RequestScript.new(Vector2i(1, 0), &"player")
+	req_drop.is_jump = true
 	var res_drop: MovementResult = comp.request_movement(req_drop)
-	assert(res_drop.accepted == true, "Valid cliff drop must be accepted")
+	assert(res_drop.accepted == true, "Valid cliff drop with jump must be accepted")
 	assert(res_drop.transition_type == _ResultScript.TransitionType.DROP, "Transition type must be DROP")
 	assert(flags["started"] == true, "drop_started signal must have fired")
 

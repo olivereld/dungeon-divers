@@ -53,8 +53,9 @@ func _test_movement_rules() -> void:
 	print(" -> Testing movement rules validation...")
 	var rules: MovementRules = MovementRules.new()
 	var profile: MovementProfile = MovementProfile.new()
-	profile.max_step_up = 1
-	profile.max_step_down = 1
+	profile.max_walk_step_up = 1
+	profile.max_jump_up = 1
+	profile.max_walk_step_down = 1
 
 	var cells_dict := {}
 
@@ -181,6 +182,12 @@ func is_water(pos: Vector2i) -> bool:
 	assert(res.transition_type == _ResultScript.TransitionType.WALK, "Transition must be WALK")
 	profile.require_jump_for_elevation = false
 	profile.can_drop = false
+
+	# 4E. Perfil por defecto (max_walk_step_up = 0): rechaza caminar a +1 nivel sin salto explícito
+	var default_prof := MovementProfile.new()
+	res = rules.validate_transition(Vector2i(0, 0), Vector2i(0, 1), grid, default_prof, null, null, false)
+	assert(res.accepted == false, "Default profile rejects walking up elevation without jump")
+	assert(res.reason == _ResultScript.REASON_JUMP_REQUIRED, "Reason must be JUMP_REQUIRED")
 
 	# 5. Celda bloqueada rechazada
 	res = rules.validate_transition(Vector2i(1, 0), Vector2i(2, 0), grid, profile)

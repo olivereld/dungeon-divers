@@ -60,9 +60,9 @@ func validate_transition(
 		var target_level: int = grid.get_elevation_level(to_cell)
 		var delta_level: int = target_level - cur_level
 
-		var walk_up: int = profile.max_walk_step_up if profile != null else 1
-		var jump_up: int = profile.max_jump_up if profile != null else 1
-		var walk_down: int = profile.max_walk_step_down if profile != null else 1
+		var walk_up: int = profile.max_walk_step_up if profile != null else 0
+		var jump_up: int = profile.max_jump_up if profile != null else 3
+		var walk_down: int = profile.max_walk_step_down if profile != null else 0
 		var max_drop: int = profile.max_drop_distance if profile != null else 4
 		var require_jump: bool = profile.require_jump_for_elevation if profile != null else false
 
@@ -76,7 +76,9 @@ func validate_transition(
 			if delta_level <= walk_up and not is_jump:
 				transition_type = _ResultScript.TransitionType.STEP_UP
 			elif delta_level <= jump_up:
-				transition_type = _ResultScript.TransitionType.JUMP_UP if is_jump else _ResultScript.TransitionType.STEP_UP
+				if not is_jump:
+					return _ResultScript.reject(_ResultScript.REASON_JUMP_REQUIRED, from_cell, to_cell)
+				transition_type = _ResultScript.TransitionType.JUMP_UP
 			else:
 				return _ResultScript.reject(_ResultScript.REASON_ELEVATION_TOO_HIGH, from_cell, to_cell)
 		else: # delta_level < 0
@@ -84,6 +86,8 @@ func validate_transition(
 			if abs_delta <= walk_down and not is_jump:
 				transition_type = _ResultScript.TransitionType.STEP_DOWN
 			elif abs_delta <= max_drop and profile != null and profile.can_drop:
+				if not is_jump:
+					return _ResultScript.reject(_ResultScript.REASON_JUMP_REQUIRED, from_cell, to_cell)
 				if grid.has_method("find_lower_support"):
 					var support: Dictionary = grid.find_lower_support(to_cell, max_drop)
 					if not support.get("found", false) or not support.get("walkable", false):
