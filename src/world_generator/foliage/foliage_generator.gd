@@ -39,6 +39,55 @@ func evaluate_patch_coverage_at(pos: Vector2i, master_seed: int, profile: Foliag
 	var val_f: float = (f_noise.get_noise_2d(float(pos.x), float(pos.y)) + 1.0) * 0.5
 	return clampf(val_l * 0.65 + val_f * 0.35, 0.0, 1.0)
 
+func sample_weighted_scale(species: FoliageSpecies, rng: RandomNumberGenerator, zone_id: int = 0) -> Vector3:
+	if species == null:
+		return Vector3.ONE
+
+	var weights: Dictionary = species.scale_weights if (species.scale_weights != null and not species.scale_weights.is_empty()) else {"small": 0.70, "medium": 0.25, "large": 0.05}
+	var w_small: float = float(weights.get("small", 0.70))
+	var w_med: float = float(weights.get("medium", 0.25))
+	var w_large: float = float(weights.get("large", 0.05))
+	var total_w: float = maxf(0.001, w_small + w_med + w_large)
+
+	var roll: float = rng.randf() * total_w
+	var sc_mult: float = 1.0
+
+	var r_small: Vector2 = species.small_mult_range if species.small_mult_range != Vector2.ZERO else Vector2(0.75, 0.95)
+	var r_med: Vector2 = species.medium_mult_range if species.medium_mult_range != Vector2.ZERO else Vector2(0.95, 1.15)
+	var r_large: Vector2 = species.large_mult_range if species.large_mult_range != Vector2.ZERO else Vector2(1.15, 1.35)
+
+	if roll < w_small:
+		sc_mult = rng.randf_range(r_small.x, r_small.y)
+	elif roll < w_small + w_med:
+		sc_mult = rng.randf_range(r_med.x, r_med.y)
+	else:
+		sc_mult = rng.randf_range(r_large.x, r_large.y)
+
+	var zone_mult: float = 1.0
+	if zone_id == _FoliageProfileScript.EcologicalZone.PLAINS or zone_id == _FoliageProfileScript.EcologicalZone.CLEARING:
+		zone_mult = rng.randf_range(0.95, 1.18)
+	elif zone_id == _FoliageProfileScript.EcologicalZone.DENSE_FOREST:
+		zone_mult = rng.randf_range(0.75, 0.95)
+	elif zone_id == _FoliageProfileScript.EcologicalZone.OPEN_FOREST:
+		zone_mult = rng.randf_range(0.85, 1.05)
+
+	var base_sc_x: float = rng.randf_range(species.scale_min.x, species.scale_max.x)
+	var base_sc_y: float = rng.randf_range(species.scale_min.y, species.scale_max.y)
+	var base_sc_z: float = rng.randf_range(species.scale_min.z, species.scale_max.z)
+
+	return Vector3(
+		base_sc_x * sc_mult * zone_mult,
+		base_sc_y * sc_mult * zone_mult,
+		base_sc_z * sc_mult * zone_mult
+	)
+
+func compute_canopy_attenuation(cell: WorldCell, nearby_trees_density: float, profile: FoliageProfile) -> float:
+	var atten_floor: float = profile.canopy_attenuation_factor if profile != null else 0.35
+	var tree_factor: float = nearby_trees_density
+	if cell != null:
+		tree_factor = maxf(tree_factor, cell.forest_density)
+	return clampf(1.0 - (tree_factor * (1.0 - atten_floor)), atten_floor, 1.0)
+
 func generate_foliage(
 	result: WorldResult,
 	master_seed: int,
