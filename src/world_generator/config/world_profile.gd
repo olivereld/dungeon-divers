@@ -137,6 +137,7 @@ func get_hydrology_noise_frequency() -> float:
 
 # Vegetation Visuals (Autumn / Biome Tinting)
 @export_group("Vegetation Visuals")
+@export var foliage_profile: Resource = null
 @export var foliage_tint: Color = Color.WHITE
 @export var foliage_tint_variants: Array[Color] = []
 

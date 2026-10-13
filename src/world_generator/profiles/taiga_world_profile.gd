@@ -1,10 +1,13 @@
 class_name TaigaWorldProfile
 extends WorldProfile
 
+const _BiomeRegistryScript = preload("res://src/world_generator/biomes/biome_registry.gd")
+
 func _init() -> void:
 	width = 64
 	height = 64
 	cell_size = 1.0
+	foliage_profile = _BiomeRegistryScript.get_default().get_definition(&"taiga").foliage_profile
 
 	# Taiga Physical Terrain Scale (Hierarchy: Macro 140m, Medium 45m, Detail 10m)
 	macro_wavelength = 140.0

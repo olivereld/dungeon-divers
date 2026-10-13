@@ -311,6 +311,20 @@ static func _create_alpine_rendering() -> Resource:
 	return rend
 
 static func _create_taiga_foliage() -> Resource:
+	var sp_micro = _FoliageSpeciesScript.new(
+		&"grass_micro",
+		"Micro Boreal Grass",
+		"res://assets/texture/foliage/grass/large_grass_01.jpg",
+		1.5,
+		Vector3(0.50, 0.40, 0.50),
+		Vector3(0.85, 0.75, 0.85),
+		28.0,
+		Color(0.20, 0.20, 0.10),
+		Color(0.38, 0.44, 0.18),
+		2
+	)
+	sp_micro.scale_category = _FoliageSpeciesScript.ScaleCategory.MICRO
+
 	var sp_med = _FoliageSpeciesScript.new(
 		&"grass_medium",
 		"Medium Boreal Grass Clump",
@@ -323,6 +337,8 @@ static func _create_taiga_foliage() -> Resource:
 		Color(0.38, 0.44, 0.18),
 		3
 	)
+	sp_med.scale_category = _FoliageSpeciesScript.ScaleCategory.MEDIUM
+
 	var sp_large = _FoliageSpeciesScript.new(
 		&"grass_large",
 		"Large Boreal Grass Clump",
@@ -335,7 +351,9 @@ static func _create_taiga_foliage() -> Resource:
 		Color(0.35, 0.40, 0.16),
 		3
 	)
-	return _FoliageProfileScript.new(1.1, [sp_med, sp_large], 26.0, 0.8)
+	sp_large.scale_category = _FoliageSpeciesScript.ScaleCategory.MEDIUM
+
+	return _FoliageProfileScript.new(1.1, [sp_micro, sp_med, sp_large], 26.0, 0.8)
 
 static func _create_forest_foliage() -> Resource:
 	var sp_med = _FoliageSpeciesScript.new(
