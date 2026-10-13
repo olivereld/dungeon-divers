@@ -344,12 +344,14 @@ func _setup_movement_component() -> void:
 	movement_component.profile.cells_per_second = normal_cells_per_second
 	movement_component.profile.turn_speed = turn_speed
 	movement_component.profile.can_drop = true
+	movement_component.profile.max_step_up = 3
 	movement_component.profile.max_drop_distance = 4
 	movement_component.profile.drop_arc_height = 0.35
 	movement_component.profile.drop_windup_time = 0.35
 	movement_component.profile.drop_flight_time = 0.48
 	movement_component.profile.drop_speed_multiplier = 1.0
-	movement_component.profile.jump_up_speed_multiplier = 0.85
+	movement_component.profile.jump_up_speed_multiplier = 1.0
+	movement_component.profile.jump_up_flight_time = 0.48
 	movement_component.profile.require_jump_for_elevation = true
 	if not movement_component.movement_started.is_connected(_on_movement_started):
 		movement_component.movement_started.connect(_on_movement_started)
@@ -592,10 +594,13 @@ func _on_drop_takeoff(_from: Vector2i, _to: Vector2i) -> void:
 	if _anim_playback != null:
 		if _anim_tree != null and movement_component != null and movement_component.grid != null:
 			var drop_levels: int = 1
-			if movement_component.grid.has_method("get_cell_elevation"):
+			if movement_component.grid.has_method("get_elevation_level"):
+				drop_levels = maxi(1, int(abs(movement_component.grid.get_elevation_level(_from) - movement_component.grid.get_elevation_level(_to))))
+			elif movement_component.grid.has_method("get_cell_elevation"):
 				drop_levels = maxi(1, int(abs(movement_component.grid.get_cell_elevation(_from) - movement_component.grid.get_cell_elevation(_to))))
-			var total_flight: float = 0.48 + float(drop_levels - 1) * 0.06
-			_anim_tree.set("parameters/Air/TimeScale/scale", 0.48 / total_flight)
+			var base_flight: float = movement_component.profile.drop_flight_time if (movement_component.profile != null and movement_component.profile.drop_flight_time > 0.0) else 0.48
+			var total_flight: float = base_flight + float(drop_levels - 1) * 0.06
+			_anim_tree.set("parameters/Air/TimeScale/scale", 0.48 / maxf(total_flight, 0.05))
 		_anim_playback.travel("Air")
 
 func _on_drop_finished(_from: Vector2i, _to: Vector2i) -> void:
@@ -608,6 +613,15 @@ func _on_jump_up_started(_from: Vector2i, _to: Vector2i) -> void:
 	_is_dropping = true
 	_is_landing = false
 	if _anim_playback != null:
+		if _anim_tree != null and movement_component != null and movement_component.grid != null:
+			var jump_levels: int = 1
+			if movement_component.grid.has_method("get_elevation_level"):
+				jump_levels = maxi(1, int(abs(movement_component.grid.get_elevation_level(_from) - movement_component.grid.get_elevation_level(_to))))
+			elif movement_component.grid.has_method("get_cell_elevation"):
+				jump_levels = maxi(1, int(abs(movement_component.grid.get_cell_elevation(_from) - movement_component.grid.get_cell_elevation(_to))))
+			var base_flight: float = movement_component.profile.jump_up_flight_time if (movement_component.profile != null and movement_component.profile.jump_up_flight_time > 0.0) else (movement_component.profile.drop_flight_time if movement_component.profile != null else 0.48)
+			var total_flight: float = base_flight + float(jump_levels - 1) * 0.06
+			_anim_tree.set("parameters/Air/TimeScale/scale", 0.48 / maxf(total_flight, 0.05))
 		_anim_playback.travel("Air")
 
 func _on_jump_up_finished(_from: Vector2i, _to: Vector2i) -> void:

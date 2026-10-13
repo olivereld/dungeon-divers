@@ -39,10 +39,14 @@ const _NEIGHBOR_DIRS: Array[Vector2i] = [
 @export var color_blocked := Color(0.92, 0.16, 0.16, 0.42)  # Rojo
 @export var color_player := Color(1.0, 0.88, 0.15, 0.70)   # Amarillo
 @export var color_unavailable := Color(0.65, 0.65, 0.65, 0.20) # Gris
-@export var color_jump_down := Color(0.12, 0.65, 0.98, 0.48) # Azul cian (salto hacia abajo)
-@export var color_jump_up := Color(0.22, 0.45, 0.98, 0.48)   # Azul cobalto (escalón hacia arriba)
-@export var color_jump_both := Color(0.16, 0.55, 0.98, 0.50) # Azul (ambas transiciones)
+@export var color_jump_down := Color(0.08, 0.72, 1.0, 0.65) # Azul cian brillante (salto hacia abajo)
+@export var color_jump_up := Color(0.12, 0.50, 1.0, 0.65)   # Azul eléctrico brillante (escalón / subida)
+@export var color_jump_both := Color(0.10, 0.60, 1.0, 0.65) # Azul puro (ambas transiciones)
 @export var highlight_jumpable_edges: bool = true
+
+@export_group("Jump Elevation Limits")
+@export var max_jump_up_height: int = 3       ## Máxima altura saltable hacia arriba (+levels)
+@export var max_jump_down_height: int = 4     ## Máxima altura saltable en descenso (-levels)
 
 var grid: Object = null
 var tracked_target: Node3D = null
@@ -214,10 +218,10 @@ func _evaluate_jumpable_edges(cell: Vector2i, p_profile: MovementProfile) -> Dic
 		return res
 
 	var cur_level: int = grid.get_elevation_level(cell)
-	var max_up: int = p_profile.max_step_up if p_profile != null else 1
+	var max_up: int = p_profile.max_step_up if p_profile != null else max_jump_up_height
 	var max_down: int = p_profile.max_step_down if p_profile != null else 1
 	var can_drop: bool = p_profile.can_drop if p_profile != null else true
-	var max_drop: int = p_profile.max_drop_distance if p_profile != null else 4
+	var max_drop: int = p_profile.max_drop_distance if p_profile != null else max_jump_down_height
 
 	for dir in _NEIGHBOR_DIRS:
 		var n_cell := cell + dir

@@ -313,56 +313,72 @@ static func _create_alpine_rendering() -> Resource:
 static func _create_taiga_foliage() -> Resource:
 	var sp_med = _FoliageSpeciesScript.new(
 		&"grass_medium",
-		"Medium Boreal Grass",
+		"Medium Boreal Grass Clump",
 		"res://assets/texture/foliage/grass/medium_grass_01.jpg",
-		1.0,
-		Vector3(0.85, 0.9, 0.85),
-		Vector3(1.2, 1.3, 1.2),
+		1.2,
+		Vector3(0.95, 0.95, 0.95),
+		Vector3(1.30, 1.40, 1.30),
 		26.0,
-		Color(0.18, 0.25, 0.14),
-		Color(0.42, 0.58, 0.28),
-		2
+		Color(0.20, 0.20, 0.10),
+		Color(0.38, 0.44, 0.18),
+		3
 	)
 	var sp_large = _FoliageSpeciesScript.new(
 		&"grass_large",
-		"Large Boreal Grass",
+		"Large Boreal Grass Clump",
 		"res://assets/texture/foliage/grass/large_grass_01.jpg",
-		0.6,
-		Vector3(0.9, 1.0, 0.9),
-		Vector3(1.3, 1.4, 1.3),
+		0.8,
+		Vector3(1.0, 1.1, 1.0),
+		Vector3(1.4, 1.5, 1.4),
 		24.0,
-		Color(0.15, 0.22, 0.12),
-		Color(0.38, 0.52, 0.25),
+		Color(0.18, 0.18, 0.09),
+		Color(0.35, 0.40, 0.16),
 		3
 	)
-	return _FoliageProfileScript.new(0.9, [sp_med, sp_large], 26.0, 0.8)
+	return _FoliageProfileScript.new(1.1, [sp_med, sp_large], 26.0, 0.8)
 
 static func _create_forest_foliage() -> Resource:
 	var sp_med = _FoliageSpeciesScript.new(
 		&"grass_medium",
-		"Temperate Grass",
+		"Temperate Grass Clump",
 		"res://assets/texture/foliage/grass/medium_grass_01.jpg",
-		1.0,
-		Vector3(0.85, 0.9, 0.85),
-		Vector3(1.2, 1.3, 1.2),
+		1.3,
+		Vector3(0.95, 0.95, 0.95),
+		Vector3(1.35, 1.40, 1.35),
 		28.0,
-		Color(0.18, 0.28, 0.12),
-		Color(0.52, 0.75, 0.35),
-		2
+		Color(0.21, 0.21, 0.10),
+		Color(0.40, 0.45, 0.18),
+		3
+	)
+	var sp_large = _FoliageSpeciesScript.new(
+		&"grass_large",
+		"Large Meadow Grass Clump",
+		"res://assets/texture/foliage/grass/large_grass_01.jpg",
+		0.7,
+		Vector3(1.0, 1.1, 1.0),
+		Vector3(1.4, 1.5, 1.4),
+		26.0,
+		Color(0.19, 0.19, 0.09),
+		Color(0.36, 0.42, 0.17),
+		3
 	)
 	var sp_single = _FoliageSpeciesScript.new(
 		&"grass_single",
-		"Meadow Grass",
+		"Meadow Accent Grass",
 		"res://assets/texture/foliage/grass/single_grass_01.jpg",
-		0.8,
-		Vector3(0.8, 0.8, 0.8),
-		Vector3(1.1, 1.2, 1.1),
+		0.2,
+		Vector3(0.40, 0.35, 0.40),
+		Vector3(0.60, 0.50, 0.60),
 		28.0,
-		Color(0.20, 0.32, 0.14),
-		Color(0.58, 0.82, 0.40),
-		2
+		Color(0.22, 0.22, 0.11),
+		Color(0.42, 0.48, 0.20),
+		2,
+		"",
+		true,
+		0.05,
+		0.85
 	)
-	return _FoliageProfileScript.new(1.1, [sp_med, sp_single], 28.0, 0.75)
+	return _FoliageProfileScript.new(1.25, [sp_med, sp_large, sp_single], 28.0, 0.75)
 
 static func _create_tundra_foliage() -> Resource:
 	var sp_single = _FoliageSpeciesScript.new(
@@ -370,12 +386,16 @@ static func _create_tundra_foliage() -> Resource:
 		"Tundra Lichen Grass",
 		"res://assets/texture/foliage/grass/single_grass_01.jpg",
 		1.0,
-		Vector3(0.7, 0.6, 0.7),
-		Vector3(0.95, 0.85, 0.95),
+		Vector3(0.35, 0.30, 0.35),
+		Vector3(0.50, 0.42, 0.50),
 		22.0,
 		Color(0.28, 0.27, 0.20),
 		Color(0.55, 0.52, 0.38),
-		2
+		2,
+		"",
+		true,
+		0.05,
+		0.85
 	)
 	return _FoliageProfileScript.new(0.4, [sp_single], 22.0, 0.7)
 
@@ -385,12 +405,16 @@ static func _create_desert_foliage() -> Resource:
 		"Arid Scrub Grass",
 		"res://assets/texture/foliage/grass/single_grass_01.jpg",
 		1.0,
-		Vector3(0.7, 0.7, 0.7),
-		Vector3(1.0, 1.0, 1.0),
+		Vector3(0.35, 0.30, 0.35),
+		Vector3(0.55, 0.45, 0.55),
 		20.0,
 		Color(0.42, 0.36, 0.22),
 		Color(0.78, 0.68, 0.42),
-		2
+		2,
+		"",
+		true,
+		0.05,
+		0.85
 	)
 	return _FoliageProfileScript.new(0.15, [sp_single], 20.0, 0.5)
 
@@ -403,8 +427,8 @@ static func _create_jungle_foliage() -> Resource:
 		Vector3(1.0, 1.1, 1.0),
 		Vector3(1.4, 1.6, 1.4),
 		30.0,
-		Color(0.12, 0.28, 0.10),
-		Color(0.35, 0.78, 0.25),
+		Color(0.12, 0.18, 0.08),
+		Color(0.28, 0.48, 0.16),
 		3
 	)
 	var sp_med = _FoliageSpeciesScript.new(
@@ -415,8 +439,8 @@ static func _create_jungle_foliage() -> Resource:
 		Vector3(0.9, 0.9, 0.9),
 		Vector3(1.3, 1.3, 1.3),
 		30.0,
-		Color(0.15, 0.32, 0.12),
-		Color(0.40, 0.82, 0.30),
+		Color(0.14, 0.20, 0.09),
+		Color(0.32, 0.52, 0.18),
 		2
 	)
 	return _FoliageProfileScript.new(1.4, [sp_large, sp_med], 30.0, 0.6)
@@ -427,12 +451,16 @@ static func _create_alpine_foliage() -> Resource:
 		"Alpine Tuft Grass",
 		"res://assets/texture/foliage/grass/single_grass_01.jpg",
 		1.0,
-		Vector3(0.7, 0.65, 0.7),
-		Vector3(0.95, 0.9, 0.95),
+		Vector3(0.35, 0.30, 0.35),
+		Vector3(0.50, 0.42, 0.50),
 		24.0,
 		Color(0.22, 0.28, 0.22),
 		Color(0.48, 0.58, 0.46),
-		2
+		2,
+		"",
+		true,
+		0.05,
+		0.85
 	)
 	return _FoliageProfileScript.new(0.35, [sp_single], 24.0, 0.7)
 

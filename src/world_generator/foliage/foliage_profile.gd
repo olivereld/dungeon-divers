@@ -10,8 +10,8 @@ extends Resource
 @export var water_clearance: float = 0.75
 @export var max_slope: float = 28.0
 @export var noise_frequency: float = 0.08
-@export var wind_strength: float = 0.4
-@export var wind_speed: float = 1.5
+@export var wind_strength: float = 0.25
+@export var wind_speed: float = 1.6
 
 func _init(
 	p_base_density: float = 1.0,

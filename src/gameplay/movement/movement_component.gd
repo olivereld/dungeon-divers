@@ -252,7 +252,9 @@ func process_movement(delta: float) -> void:
 	if current_transition_type == _ResultScript.TransitionType.DROP:
 		if profile != null and profile.drop_flight_time > 0.0:
 			var drop_levels: int = 1
-			if grid != null and grid.has_method("get_cell_elevation"):
+			if grid != null and grid.has_method("get_elevation_level"):
+				drop_levels = maxi(1, int(abs(grid.get_elevation_level(current_cell) - grid.get_elevation_level(target_cell))))
+			elif grid != null and grid.has_method("get_cell_elevation"):
 				drop_levels = maxi(1, int(abs(grid.get_cell_elevation(current_cell) - grid.get_cell_elevation(target_cell))))
 			var total_flight: float = profile.drop_flight_time + float(drop_levels - 1) * 0.06
 			progress += delta / maxf(total_flight, 0.05)
@@ -261,9 +263,24 @@ func process_movement(delta: float) -> void:
 			cps *= mult
 			progress += cps * delta
 	elif current_transition_type == _ResultScript.TransitionType.JUMP_UP:
-		var mult: float = profile.jump_up_speed_multiplier if profile != null else 1.0
-		cps *= mult
-		progress += cps * delta
+		var flight_time: float = 0.0
+		if profile != null:
+			if profile.jump_up_flight_time > 0.0:
+				flight_time = profile.jump_up_flight_time
+			elif profile.drop_flight_time > 0.0:
+				flight_time = profile.drop_flight_time
+		if flight_time > 0.0:
+			var jump_levels: int = 1
+			if grid != null and grid.has_method("get_elevation_level"):
+				jump_levels = maxi(1, int(abs(grid.get_elevation_level(current_cell) - grid.get_elevation_level(target_cell))))
+			elif grid != null and grid.has_method("get_cell_elevation"):
+				jump_levels = maxi(1, int(abs(grid.get_cell_elevation(current_cell) - grid.get_cell_elevation(target_cell))))
+			var total_flight: float = flight_time + float(jump_levels - 1) * 0.06
+			progress += delta / maxf(total_flight, 0.05)
+		else:
+			var mult: float = profile.jump_up_speed_multiplier if profile != null else 1.0
+			cps *= mult
+			progress += cps * delta
 	elif current_transition_type == _ResultScript.TransitionType.FALL:
 		var mult: float = profile.fall_speed_multiplier if profile != null else 1.4
 		cps *= mult
@@ -328,10 +345,18 @@ func _update_presentation(p: float, delta: float) -> void:
 		target_pos = Vector3(horiz_x, base_y + arc, horiz_z)
 	elif current_transition_type == _ResultScript.TransitionType.JUMP_UP:
 		var t: float = clampf(p, 0.0, 1.0)
-		var base_pos: Vector3 = world_from.lerp(world_to, t)
+		var horiz_x: float = lerpf(world_from.x, world_to.x, t)
+		var horiz_z: float = lerpf(world_from.z, world_to.z, t)
 		var arc_h: float = profile.drop_arc_height if profile != null else 0.35
-		var arc: float = 4.0 * arc_h * t * (1.0 - t)
-		target_pos = base_pos + Vector3.UP * arc
+		var peak_y: float = maxf(world_from.y, world_to.y) + arc_h
+		var vert_y: float
+		if t < 0.6:
+			var u: float = t / 0.6
+			vert_y = lerpf(world_from.y, peak_y, sin(u * PI * 0.5))
+		else:
+			var u: float = (t - 0.6) / 0.4
+			vert_y = lerpf(peak_y, world_to.y, u * u)
+		target_pos = Vector3(horiz_x, vert_y, horiz_z)
 	elif current_transition_type == _ResultScript.TransitionType.FALL:
 		# Trayectoria de caída: desplazamiento horizontal con caída vertical acelerada
 		var horiz_x: float = lerpf(world_from.x, world_to.x, p)
@@ -339,6 +364,21 @@ func _update_presentation(p: float, delta: float) -> void:
 		var drop_t: float = clampf((p - 0.2) / 0.8, 0.0, 1.0)
 		var vert_y: float = lerpf(world_from.y, world_to.y, drop_t * drop_t)
 		target_pos = Vector3(horiz_x, vert_y, horiz_z)
+	elif current_transition_type == _ResultScript.TransitionType.STEP_UP:
+		var t: float = clampf(p, 0.0, 1.0)
+		var horiz_x: float = lerpf(world_from.x, world_to.x, t)
+		var horiz_z: float = lerpf(world_from.z, world_to.z, t)
+		var step_t: float = smoothstep(0.0, 1.0, t)
+		var step_arc: float = 0.15 * 4.0 * t * (1.0 - t)
+		var step_y: float = lerpf(world_from.y, world_to.y, step_t) + step_arc
+		target_pos = Vector3(horiz_x, step_y, horiz_z)
+	elif current_transition_type == _ResultScript.TransitionType.STEP_DOWN:
+		var t: float = clampf(p, 0.0, 1.0)
+		var horiz_x: float = lerpf(world_from.x, world_to.x, t)
+		var horiz_z: float = lerpf(world_from.z, world_to.z, t)
+		var step_t: float = smoothstep(0.0, 1.0, t)
+		var step_y: float = lerpf(world_from.y, world_to.y, step_t)
+		target_pos = Vector3(horiz_x, step_y, horiz_z)
 	else:
 		target_pos = world_from.lerp(world_to, p)
 
@@ -390,11 +430,15 @@ func find_best_jump_direction(p_facing: Vector2 = Vector2.ZERO) -> Vector2i:
 	var active_profile: MovementProfile = profile if profile != null else _ProfileScript.new()
 	var cur_level: int = grid.get_elevation_level(current_cell) if grid.has_method("get_elevation_level") else 0
 
-	var candidate_dirs: Array[Vector2i] = [
+	var candidate_dirs: Array[Vector2i] = active_profile.allowed_directions if (active_profile != null and not active_profile.allowed_directions.is_empty()) else [
 		Vector2i(0, -1), # Norte
-		Vector2i(0, 1),  # Sur
 		Vector2i(1, 0),  # Este
+		Vector2i(0, 1),  # Sur
 		Vector2i(-1, 0), # Oeste
+		Vector2i(1, -1), # Noreste
+		Vector2i(1, 1),  # Sureste
+		Vector2i(-1, 1), # Suroeste
+		Vector2i(-1, -1) # Noroeste
 	]
 
 	var best_dir := Vector2i.ZERO

@@ -11,8 +11,8 @@ static func build_multimesh(
 	instances: Array,
 	colors: PackedColorArray = PackedColorArray(),
 	origin_offset: Vector3 = Vector3.ZERO,
-	wind_strength: float = 0.35,
-	wind_speed: float = 2.0
+	wind_strength: float = 0.25,
+	wind_speed: float = 1.6
 ) -> MultiMeshInstance3D:
 	if species == null or instances.is_empty():
 		return null

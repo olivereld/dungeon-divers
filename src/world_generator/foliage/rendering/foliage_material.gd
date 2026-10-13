@@ -14,12 +14,15 @@ static func get_shader() -> Shader:
 	return _shader
 
 ## Crea o recupera del caché un ShaderMaterial configurado para la especie de foliage indicada
-static func get_or_create_material(species: Resource, wind_strength: float = 0.35, wind_speed: float = 2.0) -> ShaderMaterial:
+static func get_or_create_material(species: Resource, wind_strength: float = 0.25, wind_speed: float = 1.6) -> ShaderMaterial:
 	if species == null:
 		return null
 
+	var actual_wind_strength: float = species.wind_strength if ("wind_strength" in species and species.wind_strength >= 0.0) else wind_strength
+	var actual_wind_speed: float = species.wind_speed if ("wind_speed" in species and species.wind_speed >= 0.0) else wind_speed
+
 	var sp_id: StringName = species.id if "id" in species else &"default"
-	var cache_key := "%s_ws%.2f_sp%.2f" % [String(sp_id), wind_strength, wind_speed]
+	var cache_key := "%s_ws%.2f_sp%.2f" % [String(sp_id), actual_wind_strength, actual_wind_speed]
 
 	if _material_cache.has(cache_key) and _material_cache[cache_key] != null:
 		return _material_cache[cache_key]
@@ -37,8 +40,21 @@ static func get_or_create_material(species: Resource, wind_strength: float = 0.3
 	if "color_top" in species:
 		mat.set_shader_parameter("color_top", species.color_top)
 
-	mat.set_shader_parameter("wind_strength", wind_strength)
-	mat.set_shader_parameter("wind_speed", wind_speed)
+	if "gradient_texture_path" in species and not species.gradient_texture_path.is_empty():
+		var grad_tex = load(species.gradient_texture_path)
+		if grad_tex != null:
+			mat.set_shader_parameter("gradient_texture", grad_tex)
+			mat.set_shader_parameter("use_gradient_texture", true)
+		else:
+			mat.set_shader_parameter("use_gradient_texture", false)
+	else:
+		mat.set_shader_parameter("use_gradient_texture", false)
+
+	if "use_upward_normals" in species:
+		mat.set_shader_parameter("use_upward_normals", species.use_upward_normals)
+
+	mat.set_shader_parameter("wind_strength", actual_wind_strength)
+	mat.set_shader_parameter("wind_speed", actual_wind_speed)
 
 	_material_cache[cache_key] = mat
 	return mat

@@ -30,6 +30,7 @@ func generate_foliage(
 	macro_noise.frequency = 0.08
 
 	var hydro = result.hydrology
+	var rng := RandomNumberGenerator.new()
 
 	for y in range(bounds.position.y, bounds.end.y):
 		for x in range(bounds.position.x, bounds.end.x):
@@ -63,15 +64,21 @@ func generate_foliage(
 			if cell.slope > fol_prof.max_slope:
 				continue
 
-			# 5. Muestreo de ruido macro espacial para parches naturales de claros
+			# 5. Sistema de Coverage Continuo y Clustering:
+			# Combina el ruido macro de parches con atenuación por pendiente y densidad del bioma
 			var noise_val: float = (macro_noise.get_noise_2d(float(x), float(y)) + 1.0) * 0.5
-			if noise_val < 0.20:
-				continue # Claro natural sin césped denso
+			var slope_factor: float = clampf(1.0 - (cell.slope / maxf(fol_prof.max_slope, 1.0)), 0.0, 1.0)
+			var coverage: float = noise_val * slope_factor * fol_prof.base_density
 
-			# Densidad efectiva en la celda
-			var effective_density: float = fol_prof.base_density * noise_val
-			var base_count: int = int(floor(effective_density * 3.0))
-			var remainder: float = fmod(effective_density * 3.0, 1.0)
+			# Umbral de claros limpios: por debajo de 0.28 el suelo permanece limpio (senderos/claros naturales)
+			if coverage < 0.28:
+				continue
+
+			# Si la celda tiene vegetación, genera un mechón con cuerpo (mínimo 3 briznas, hasta 7 en zonas densas)
+			var norm_cov: float = clampf((coverage - 0.28) / 0.72, 0.0, 1.0)
+			var target_density: float = 3.0 + norm_cov * 4.0
+			var base_count: int = int(floor(target_density))
+			var remainder: float = fmod(target_density, 1.0)
 
 			# Sumar pesos de especies
 			var total_weight: float = 0.0
@@ -83,8 +90,7 @@ func generate_foliage(
 				continue
 
 			# Determinar cantidad determinista de briznas para la celda
-			var cell_hash := int(("%d:%d:%d" % [fol_seed, x, y]).hash()) & 0x7FFFFFFF
-			var rng := RandomNumberGenerator.new()
+			var cell_hash: int = ((fol_seed * 73856093) ^ (x * 19349663) ^ (y * 83492791)) & 0x7FFFFFFF
 			rng.seed = cell_hash
 
 			var blade_count := base_count
@@ -92,12 +98,8 @@ func generate_foliage(
 				blade_count += 1
 
 			for k in range(blade_count):
-				# Sub-semilla aislada para cada brizna
-				var blade_rng := RandomNumberGenerator.new()
-				blade_rng.seed = int(("%d:%d" % [cell_hash, k]).hash()) & 0x7FFFFFFF
-
 				# Selección de especie por ruleta de peso
-				var roll := blade_rng.randf() * total_weight
+				var roll := rng.randf() * total_weight
 				var accumulated := 0.0
 				var chosen_species = species_list[0]
 				for sp in species_list:
@@ -113,28 +115,37 @@ func generate_foliage(
 				if cell.slope > chosen_species.max_slope:
 					continue
 
-				# Jitter sub-celda
-				var jx := (blade_rng.randf() - 0.5) * 0.85
-				var jz := (blade_rng.randf() - 0.5) * 0.85
+				# Jitter sub-celda compacto para agrupar briznas en un mechón con cuerpo
+				var jx := (rng.randf() - 0.5) * 0.75
+				var jz := (rng.randf() - 0.5) * 0.75
 				var world_x := float(x) + 0.5 + jx
 				var world_z := float(y) + 0.5 + jz
 				var world_y := cell.height
 
-				var rot_y := blade_rng.randf_range(0.0, TAU)
-				var sc_mult := blade_rng.randf_range(0.85, 1.25)
+				var rot_y := rng.randf_range(0.0, TAU)
+				var is_single: bool = (chosen_species.id == &"grass_single" or String(chosen_species.id).ends_with("_single"))
+				var sc_mult: float = rng.randf_range(0.85, 1.15) if is_single else rng.randf_range(0.95, 1.30)
+				# Aumento de grosor horizontal para dar volumen a las matas de hierba media y grande
+				var horiz_boost: float = 1.0 if is_single else rng.randf_range(1.25, 1.45)
 				var scale := Vector3(
-					chosen_species.scale_min.x * sc_mult,
-					blade_rng.randf_range(chosen_species.scale_min.y, chosen_species.scale_max.y) * sc_mult,
-					chosen_species.scale_min.z * sc_mult
+					rng.randf_range(chosen_species.scale_min.x, chosen_species.scale_max.x) * sc_mult * horiz_boost,
+					rng.randf_range(chosen_species.scale_min.y, chosen_species.scale_max.y) * sc_mult,
+					rng.randf_range(chosen_species.scale_min.z, chosen_species.scale_max.z) * sc_mult * horiz_boost
 				)
 
 				var tr := Transform3D()
 				tr.basis = Basis(Vector3.UP, rot_y).scaled(scale)
 				tr.origin = Vector3(world_x, world_y, world_z)
 
-				# Variación de tinte sutil por brizna
-				var tint_val := blade_rng.randf_range(0.92, 1.08)
+				# Variación de tinte sutil por brizna armonizada con la paleta de terreno del perfil
+				var tint_val := rng.randf_range(0.94, 1.06)
 				var color := Color(tint_val, tint_val, tint_val, 1.0)
+				if profile != null and "terrain_grass_color" in profile:
+					var g_col: Color = profile.terrain_grass_color
+					var max_g := maxf(g_col.r, maxf(g_col.g, g_col.b))
+					if max_g > 0.01:
+						var norm_g := Color(g_col.r / max_g, g_col.g / max_g, g_col.b / max_g, 1.0)
+						color = color.lerp(norm_g * tint_val, 0.15)
 
 				foliage_data.add_instance(chosen_species.id, tr, color)
 

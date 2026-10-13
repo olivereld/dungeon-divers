@@ -22,8 +22,8 @@ static func build_chunk_foliage_node(
 	foliage_data: RefCounted,
 	species_list: Array = [],
 	origin_offset: Vector3 = Vector3.ZERO,
-	wind_strength: float = 0.35,
-	wind_speed: float = 2.0
+	wind_strength: float = 0.25,
+	wind_speed: float = 1.6
 ) -> Node3D:
 	if foliage_data == null or not ("instances_by_species" in foliage_data):
 		return null

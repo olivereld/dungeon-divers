@@ -64,8 +64,14 @@ enum DiagonalCornerRule {
 ## Tiempo fijo de vuelo en el aire durante DROP (en segundos). Si > 0, es independiente del input de carrera/caminar.
 @export var drop_flight_time: float = 0.0
 
-## Multiplicador de velocidad de avance para saltos hacia arriba (JUMP_UP).
+## Multiplicador de velocidad de avance para saltos hacia arriba (JUMP_UP) si jump_up_flight_time == 0.
 @export var jump_up_speed_multiplier: float = 1.0
+
+## Tiempo fijo de vuelo en el aire durante JUMP_UP (en segundos). Si == 0 y drop_flight_time > 0, hereda drop_flight_time.
+@export var jump_up_flight_time: float = 0.0
+
+## Tiempo de preparación estático antes de despegar en JUMP_UP (en segundos). Por defecto 0.0.
+@export var jump_up_windup_time: float = 0.0
 
 ## Permite o bloquea caídas hacia celdas inferiores que excedan max_step_down.
 @export var can_fall: bool = true

@@ -202,3 +202,13 @@
 
 - [x] **Paso 8.1: Ejecutar benchmark midiendo microsegundos de generación de foliage en worker y tiempo de activación de MultiMesh en Main Thread.**
 - [x] **Paso 8.2: Ejecutar `test_world_all.gd`, `test_foliage_performance.gd` y las pruebas de biomas para confirmar 0 regresiones.**
+
+---
+
+### Fase 3: Mejoras Estilizadas Avanzadas (Cloud Shadows, Upward Normals & Coverage)
+
+- [x] **Upward Normals configurables por especie:** `use_upward_normals = true` en `FoliageSpecies` y `foliage_wind.gdshader`, transformando `NORMAL` a vector perpendicular mundial en view space para iluminación de manto vegetal sedoso continuo sin facetas duras.
+- [x] **Sombras de nubes en tiempo real (Cloud Shadows):** Cálculo de baja frecuencia en GPU (`v_cloud_factor`) que modula la luz solar directa según coordenadas mundiales y tiempo, creando sombras suaves de nubes en movimiento.
+- [x] **Rampa de color macro con 3 tonos:** Integración de `grass_color_1.jpg` combinada con variación horizontal $U$ a escala de mapa, creando parches orgánicos de pradera fresca y dorada.
+- [x] **Sistema de Coverage Continuo:** Mapeo de `coverage = macro_noise * slope_attenuation * biome_density` con distribución no lineal para claros de bosque, senderos y clusters densos sin patrones de cuadrícula.
+- [x] **Optimización de generador:** Reutilización de instancia RNG por hilo y hashing directo entero, reduciendo el tiempo de generación a ~1.4 ms por chunk.
