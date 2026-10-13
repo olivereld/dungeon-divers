@@ -9,6 +9,35 @@ const _FoliageProfileScript = preload("res://src/world_generator/foliage/foliage
 const _FoliageSpeciesScript = preload("res://src/world_generator/foliage/foliage_species.gd")
 const _BiomeRegistryScript = preload("res://src/world_generator/biomes/biome_registry.gd")
 const _NavigationStageScript = preload("res://src/world_generator/stages/navigation_stage.gd")
+func evaluate_ecological_zone(cell: WorldCell, large_noise_val: float = 0.5) -> int:
+	if cell == null:
+		return _FoliageProfileScript.EcologicalZone.PLAINS
+	if cell.clearing_density > 0.65 or cell.forest_density < 0.08:
+		return _FoliageProfileScript.EcologicalZone.PLAINS if cell.forest_density < 0.05 else _FoliageProfileScript.EcologicalZone.CLEARING
+	elif cell.forest_density > 0.60 and cell.clearing_density < 0.20:
+		return _FoliageProfileScript.EcologicalZone.DENSE_FOREST
+	elif cell.forest_density > 0.30:
+		return _FoliageProfileScript.EcologicalZone.OPEN_FOREST
+	else:
+		return _FoliageProfileScript.EcologicalZone.FOREST_EDGE
+
+func evaluate_patch_coverage_at(pos: Vector2i, master_seed: int, profile: FoliageProfile) -> float:
+	var l_freq: float = profile.large_noise_frequency if (profile != null and profile.large_noise_frequency > 0.0) else 0.02
+	var f_freq: float = profile.fine_noise_frequency if (profile != null and profile.fine_noise_frequency > 0.0) else 0.12
+
+	var l_noise := FastNoiseLite.new()
+	l_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	l_noise.seed = (master_seed ^ 0x3F5A) & 0x7FFFFFFF
+	l_noise.frequency = l_freq
+
+	var f_noise := FastNoiseLite.new()
+	f_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	f_noise.seed = (master_seed ^ 0x9B1C) & 0x7FFFFFFF
+	f_noise.frequency = f_freq
+
+	var val_l: float = (l_noise.get_noise_2d(float(pos.x), float(pos.y)) + 1.0) * 0.5
+	var val_f: float = (f_noise.get_noise_2d(float(pos.x), float(pos.y)) + 1.0) * 0.5
+	return clampf(val_l * 0.65 + val_f * 0.35, 0.0, 1.0)
 
 func generate_foliage(
 	result: WorldResult,
