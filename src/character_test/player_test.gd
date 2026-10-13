@@ -80,9 +80,20 @@ var _anim_player: AnimationPlayer = null
 var _anim_tree: AnimationTree = null
 var _anim_playback: AnimationNodeStateMachinePlayback = null
 
+# --- Debug Transition HUD & Logging ---
+@export_group("Debug Overlay")
+@export var show_debug_hud: bool = true
+
+var _debug_hud_layer: CanvasLayer = null
+var _debug_label: Label = null
+var _f3_was_down: bool = false
+var _last_logged_key: String = ""
+var _last_action_desc: String = "IDLE"
+
 func _ready() -> void:
 	_setup_visuals_and_collision()
 	_setup_movement_component()
+	_setup_debug_hud()
 
 func _setup_visuals_and_collision() -> void:
 	# 1. CollisionShape3D (Cápsula de colisión física para el CharacterBody3D)
@@ -542,6 +553,7 @@ func _physics_process(delta: float) -> void:
 			preferred_dir = DIRECTIONS_8[_last_8way_index]
 
 		var jump_res := movement_component.request_jump(preferred_dir)
+		_log_transition_attempt(movement_component.current_cell, preferred_dir, "JUMP", jump_res)
 		if jump_res != null and jump_res.accepted:
 			jumped_this_frame = true
 
@@ -559,6 +571,7 @@ func _physics_process(delta: float) -> void:
 			if should_send:
 				var req := _MovementRequestScript.new(grid_dir, &"player")
 				var res := movement_component.request_movement(req)
+				_log_transition_attempt(movement_component.current_cell, grid_dir, "WALK", res)
 				if res != null and res.accepted:
 					_is_landing = false
 					_move_initiating_octant = chosen_octant
@@ -572,6 +585,9 @@ func _physics_process(delta: float) -> void:
 
 	# 9. Actualización de animaciones según estado de movimiento
 	_update_animation_state()
+
+	# 10. Actualización de overlay HUD de depuración
+	_update_debug_hud(grid_dir)
 
 func _on_movement_started(from: Vector2i, to: Vector2i) -> void:
 	var dir := to - from
@@ -666,3 +682,125 @@ func _update_animation_state() -> void:
 		_anim_tree.set("parameters/Locomotion/blend_position", blend_pos)
 	elif not _is_jump_active() and not _is_landing:
 		_anim_playback.travel("Idle")
+
+# ==============================================================================
+# Debug Transition HUD & Logging
+# ==============================================================================
+
+func _setup_debug_hud() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	_debug_hud_layer = CanvasLayer.new()
+	_debug_hud_layer.name = "DebugHUDLayer"
+	_debug_hud_layer.visible = show_debug_hud
+	add_child(_debug_hud_layer)
+
+	var panel := PanelContainer.new()
+	panel.name = "DebugHUDPanel"
+	panel.offset_left = 16.0
+	panel.offset_top = 16.0
+	panel.offset_right = 440.0
+	panel.offset_bottom = 220.0
+	_debug_hud_layer.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	panel.add_child(margin)
+
+	_debug_label = Label.new()
+	_debug_label.name = "DebugTransitionLabel"
+	_debug_label.text = "Debug Transition HUD (F3 to toggle)\nWaiting for input..."
+	margin.add_child(_debug_label)
+
+func _update_debug_hud(active_dir: Vector2i) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+
+	var f3_pressed: bool = Input.is_key_pressed(KEY_F3)
+	if f3_pressed and not _f3_was_down:
+		show_debug_hud = not show_debug_hud
+		if _debug_hud_layer != null:
+			_debug_hud_layer.visible = show_debug_hud
+	_f3_was_down = f3_pressed
+
+	if not show_debug_hud or _debug_label == null:
+		return
+
+	var cur_cell: Vector2i = movement_component.current_cell if movement_component != null else Vector2i.ZERO
+	var target_cell: Vector2i = cur_cell
+	if active_dir != Vector2i.ZERO:
+		target_cell = cur_cell + active_dir
+	elif _last_8way_index >= 0 and _last_8way_index < 8:
+		target_cell = cur_cell + DIRECTIONS_8[_last_8way_index]
+
+	var grid = movement_component.grid if movement_component != null else null
+	var from_lvl: int = grid.get_elevation_level(cur_cell) if (grid != null and grid.has_method("get_elevation_level")) else 0
+	var from_h: float = grid.get_height(cur_cell) if (grid != null and grid.has_method("get_height")) else 0.0
+	var from_walk: bool = grid.is_walkable(cur_cell) if (grid != null and grid.has_method("is_walkable")) else false
+
+	var to_lvl: int = grid.get_elevation_level(target_cell) if (grid != null and grid.has_method("get_elevation_level")) else 0
+	var to_h: float = grid.get_height(target_cell) if (grid != null and grid.has_method("get_height")) else 0.0
+	var to_walk: bool = grid.is_walkable(target_cell) if (grid != null and grid.has_method("is_walkable")) else false
+
+	var delta_lvl: int = to_lvl - from_lvl
+	var delta_h: float = to_h - from_h
+
+	var hud_text: String = "=== TRANSITION DEBUG (F3 toggle) ===\n"
+	hud_text += "FROM: %s | lvl: %d | h: %.2fm | walk: %s\n" % [str(cur_cell), from_lvl, from_h, str(from_walk)]
+	hud_text += "TO:   %s | lvl: %d | h: %.2fm | walk: %s\n" % [str(target_cell), to_lvl, to_h, str(to_walk)]
+	hud_text += "DELTA: lvl: %+d | height: %+.2fm\n" % [delta_lvl, delta_h]
+	hud_text += "LAST:  %s\n" % _last_action_desc
+	var is_mov: bool = movement_component.is_moving if movement_component != null else false
+	var prog: float = movement_component.progress if movement_component != null else 0.0
+	hud_text += "STATE: moving=%s (progress: %.2f)" % [str(is_mov), prog]
+
+	_debug_label.text = hud_text
+
+func _log_transition_attempt(from_cell: Vector2i, dir: Vector2i, intent: String, res: MovementResult) -> void:
+	if res == null:
+		return
+	var to_cell: Vector2i = res.to_cell if res.to_cell != Vector2i.ZERO else (from_cell + dir)
+	var res_status: String = "ACCEPTED" if res.accepted else "REJECTED"
+	var type_str: String = _transition_type_to_string(res.transition_type)
+	var reason_str: String = String(res.reason)
+	if reason_str.is_empty():
+		reason_str = "none"
+
+	var log_key: String = "%s:%s->%s:%s:%s:%s" % [intent, str(from_cell), str(to_cell), res_status, reason_str, type_str]
+	if log_key == _last_logged_key:
+		return
+	_last_logged_key = log_key
+
+	var grid = movement_component.grid if movement_component != null else null
+	var from_lvl: int = grid.get_elevation_level(from_cell) if (grid != null and grid.has_method("get_elevation_level")) else 0
+	var from_h: float = grid.get_height(from_cell) if (grid != null and grid.has_method("get_height")) else 0.0
+	var to_lvl: int = grid.get_elevation_level(to_cell) if (grid != null and grid.has_method("get_elevation_level")) else 0
+	var to_h: float = grid.get_height(to_cell) if (grid != null and grid.has_method("get_height")) else 0.0
+	var delta_lvl: int = to_lvl - from_lvl
+	var delta_h: float = to_h - from_h
+
+	_last_action_desc = "[%s] %s -> %s | %s (%s, %s)" % [intent, str(from_cell), str(to_cell), res_status, type_str, reason_str]
+
+	print("[NAV TRANSITION] %s %s -> %s (dir %s): %s | type: %s | reason: %s | d_lvl: %+d (from %d to %d) | d_h: %+.2fm (from %.2f to %.2f)" % [
+		intent, str(from_cell), str(to_cell), str(dir), res_status, type_str, reason_str, delta_lvl, from_lvl, to_lvl, delta_h, from_h, to_h
+	])
+
+func _transition_type_to_string(type_id: int) -> String:
+	match type_id:
+		MovementResult.TransitionType.WALK:
+			return "WALK"
+		MovementResult.TransitionType.STEP_UP:
+			return "STEP_UP"
+		MovementResult.TransitionType.STEP_DOWN:
+			return "STEP_DOWN"
+		MovementResult.TransitionType.DROP:
+			return "DROP"
+		MovementResult.TransitionType.FALL:
+			return "FALL"
+		MovementResult.TransitionType.JUMP_UP:
+			return "JUMP_UP"
+		_:
+			return "TYPE_%d" % type_id
