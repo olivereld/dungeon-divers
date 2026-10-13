@@ -4,12 +4,23 @@ extends Resource
 ## Define la representación visual y comportamiento de distribución de una especie de follaje
 ## (por ejemplo, hierba alta, césped corto, flores, juncos). Totalmente independiente del bioma.
 
+enum ScaleCategory {
+	MICRO = 0,   ## Césped / hierba baja (10-35cm)
+	MEDIUM = 1,  ## Hierba alta / helechos / pequeños arbustos (40cm-1.2m)
+	MACRO = 2    ## Arbustos grandes / árboles (1.5-8m+)
+}
+
 @export var id: StringName = &"grass_common"
 @export var display_name: String = "Common Grass"
+@export var scale_category: ScaleCategory = ScaleCategory.MICRO
 @export var texture_path: String = "res://assets/texture/foliage/grass/large_grass_01.jpg"
 @export var density_weight: float = 1.0
 @export var scale_min: Vector3 = Vector3(0.85, 0.85, 0.85)
 @export var scale_max: Vector3 = Vector3(1.25, 1.30, 1.25)
+@export var scale_weights: Dictionary = {"small": 0.70, "medium": 0.25, "large": 0.05}
+@export var small_mult_range: Vector2 = Vector2(0.75, 0.95)
+@export var medium_mult_range: Vector2 = Vector2(0.95, 1.15)
+@export var large_mult_range: Vector2 = Vector2(1.15, 1.35)
 @export var max_slope: float = 25.0
 @export var color_bottom: Color = Color(0.20, 0.20, 0.10)
 @export var color_top: Color = Color(0.38, 0.44, 0.18)
