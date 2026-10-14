@@ -88,7 +88,13 @@ func compute_canopy_attenuation(cell: WorldCell, nearby_trees_density: float, pr
 		tree_factor = maxf(tree_factor, cell.forest_density)
 	return clampf(1.0 - (tree_factor * (1.0 - atten_floor)), atten_floor, 1.0)
 
-func compute_species_effective_weight(species: FoliageSpecies, profile: FoliageProfile, zone_id: int, forest_density: float) -> float:
+func compute_species_effective_weight(
+	species: FoliageSpecies,
+	profile: FoliageProfile,
+	zone_id: int,
+	forest_density: float,
+	in_clump: bool = true
+) -> float:
 	if species == null or profile == null:
 		return 0.0
 	var base_w: float = maxf(species.density_weight, 0.01)
@@ -96,13 +102,17 @@ func compute_species_effective_weight(species: FoliageSpecies, profile: FoliageP
 
 	match species.foliage_type:
 		_FoliageSpeciesScript.FoliageType.MUSHROOM:
+			if not in_clump:
+				return 0.0
 			var zone_mult: float = float(zone_dict.get("mushroom", 0.50))
 			var shade_factor: float = clampf(0.20 + forest_density * 1.60, 0.15, 2.0)
-			return base_w * zone_mult * shade_factor
+			return base_w * zone_mult * shade_factor * 3.5
 		_FoliageSpeciesScript.FoliageType.FLOWER:
+			if not in_clump:
+				return 0.0
 			var zone_mult: float = float(zone_dict.get("flower", 0.80))
 			var sun_factor: float = clampf(1.30 - forest_density * 1.10, 0.10, 1.5)
-			return base_w * zone_mult * sun_factor
+			return base_w * zone_mult * sun_factor * 3.0
 		_: # GRASS
 			var zone_mult: float = float(zone_dict.get("grass", 1.0))
 			return base_w * zone_mult
@@ -125,6 +135,16 @@ func generate_foliage(
 	macro_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	macro_noise.seed = fol_seed
 	macro_noise.frequency = 0.08
+
+	var mush_clump_noise := FastNoiseLite.new()
+	mush_clump_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	mush_clump_noise.seed = (fol_seed ^ 0x5A8E) & 0x7FFFFFFF
+	mush_clump_noise.frequency = 0.14
+
+	var flower_clump_noise := FastNoiseLite.new()
+	flower_clump_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	flower_clump_noise.seed = (fol_seed ^ 0x3D71) & 0x7FFFFFFF
+	flower_clump_noise.frequency = 0.11
 
 	var hydro = result.hydrology
 	var rng := RandomNumberGenerator.new()
@@ -185,11 +205,20 @@ func generate_foliage(
 			var base_count: int = maxi(1, int(floor(target_density)))
 			var remainder: float = fmod(target_density, 1.0)
 
-			# Sumar pesos de especies modulados ecológicamente por hábitat
+			# Evaluación de racimos/clumps ecológicos para hongos y flores
+			var in_mush_clump: bool = cell.forest_density >= 0.20 and mush_clump_noise.get_noise_2d(float(x), float(y)) > 0.18
+			var in_flower_clump: bool = cell.forest_density <= 0.35 and flower_clump_noise.get_noise_2d(float(x), float(y)) > 0.20
+
+			# Sumar pesos de especies modulados ecológicamente por hábitat y agrupamiento en racimos
 			var total_weight: float = 0.0
 			for sp in species_list:
 				if sp != null:
-					total_weight += compute_species_effective_weight(sp, fol_prof, zone_id, cell.forest_density)
+					var is_clumped: bool = true
+					if sp.foliage_type == _FoliageSpeciesScript.FoliageType.MUSHROOM:
+						is_clumped = in_mush_clump
+					elif sp.foliage_type == _FoliageSpeciesScript.FoliageType.FLOWER:
+						is_clumped = in_flower_clump
+					total_weight += compute_species_effective_weight(sp, fol_prof, zone_id, cell.forest_density, is_clumped)
 
 			if total_weight <= 0.0001:
 				continue
@@ -209,7 +238,12 @@ func generate_foliage(
 				var chosen_species = species_list[0]
 				for sp in species_list:
 					if sp != null:
-						accumulated += compute_species_effective_weight(sp, fol_prof, zone_id, cell.forest_density)
+						var is_clumped: bool = true
+						if sp.foliage_type == _FoliageSpeciesScript.FoliageType.MUSHROOM:
+							is_clumped = in_mush_clump
+						elif sp.foliage_type == _FoliageSpeciesScript.FoliageType.FLOWER:
+							is_clumped = in_flower_clump
+						accumulated += compute_species_effective_weight(sp, fol_prof, zone_id, cell.forest_density, is_clumped)
 						if roll <= accumulated:
 							chosen_species = sp
 							break

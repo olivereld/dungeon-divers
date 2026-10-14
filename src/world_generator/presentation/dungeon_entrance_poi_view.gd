@@ -62,18 +62,19 @@ func _build_visuals() -> void:
 	else:
 		_build_fallback_visuals()
 
-	# Etiqueta flotante con datos del POI y aviso para interactuar
+	# Etiqueta flotante con datos del POI y aviso para interactuar estilizada
 	_prompt_label = Label3D.new()
 	_prompt_label.name = "PromptLabel"
 	_prompt_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_prompt_label.no_depth_test = true
-	_prompt_label.position = Vector3(0.0, 5.3, 0.0)
-	_prompt_label.pixel_size = 0.015
-	_prompt_label.font_size = 28
-	_prompt_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	_prompt_label.position = Vector3(0.0, 5.8, 0.0)
+	_prompt_label.pixel_size = 0.014
+	_prompt_label.font_size = 26
+	_prompt_label.modulate = Color(1.0, 0.95, 0.78, 1.0) # Marfil cálido dorado de alta visibilidad
 	_prompt_label.outline_render_priority = 10
-	_prompt_label.outline_modulate = Color.BLACK
-	_prompt_label.outline_size = 6
+	_prompt_label.outline_modulate = Color(0.10, 0.06, 0.14, 0.95) # Borde oscuro para máximo contraste
+	_prompt_label.outline_size = 8
+	_prompt_label.shaded = false
 	
 	var d_id: String = String(poi.identity.dungeon_id) if (poi != null and "identity" in poi and poi.identity != null) else "Dungeon"
 	var tier: int = poi.tier if (poi != null and "tier" in poi) else 1
@@ -128,26 +129,40 @@ func _build_necropolis_visuals(scene: PackedScene) -> void:
 	_apply_necropolis_terrain_shading(profile)
 
 func _apply_necropolis_terrain_shading(profile: RefCounted) -> void:
-	var t_mesh: MeshInstance3D = null
-	var parent_node: Node = get_parent()
-	if parent_node != null:
-		t_mesh = parent_node.get_node_or_null("TerrainMesh") as MeshInstance3D
-		if t_mesh == null and parent_node.get_parent() != null:
-			t_mesh = parent_node.get_parent().get_node_or_null("TerrainMesh") as MeshInstance3D
+	if poi == null or not ("world_position" in poi):
+		return
 
+	var radii := Vector4(
+		profile.entrance_clear_radius,
+		profile.funeral_ground_radius,
+		profile.corruption_radius,
+		profile.transition_radius
+	)
+
+	var parent_node: Node = get_parent()
+	if parent_node == null:
+		return
+
+	# Aplicar al terreno del chunk que aloja el POI
+	var t_mesh: MeshInstance3D = parent_node.get_node_or_null("TerrainMesh") as MeshInstance3D
 	if t_mesh != null:
 		var mat = t_mesh.get_surface_override_material(0) as ShaderMaterial
-		if mat != null and poi != null and "world_position" in poi:
+		if mat != null:
 			mat.set_shader_parameter("poi_nec_center", poi.world_position)
-			mat.set_shader_parameter(
-				"poi_nec_radii",
-				Vector4(
-					profile.entrance_clear_radius,
-					profile.funeral_ground_radius,
-					profile.corruption_radius,
-					profile.transition_radius
-				)
-			)
+			mat.set_shader_parameter("poi_nec_radii", radii)
+
+	# Propagar a todos los chunks hermanos vecinos para erradicar cualquier corte ortogonal
+	var grandparent: Node = parent_node.get_parent()
+	if grandparent != null:
+		for sibling in grandparent.get_children():
+			if sibling == parent_node:
+				continue
+			var s_mesh = sibling.get_node_or_null("TerrainMesh") as MeshInstance3D
+			if s_mesh != null:
+				var sm = s_mesh.get_surface_override_material(0) as ShaderMaterial
+				if sm != null:
+					sm.set_shader_parameter("poi_nec_center", poi.world_position)
+					sm.set_shader_parameter("poi_nec_radii", radii)
 
 func _build_fallback_visuals() -> void:
 	# Fallback para arquetipos que aún no tienen modelo 3D dedicado

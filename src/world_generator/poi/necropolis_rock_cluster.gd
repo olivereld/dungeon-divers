@@ -4,6 +4,7 @@ extends RefCounted
 const _ProfileScript = preload("res://src/world_generator/poi/necropolis_entrance_profile.gd")
 const _RockGenScript = preload("res://src/rock_generation/rock_generation.gd")
 const _RockSizeConfigScript = preload("res://src/rock_generation/config/rock_size_config.gd")
+const _RockMaterialScript = preload("res://src/rock_generation/rock_material.gd")
 
 ## Genera cúmulos de rocas oscuras y erosionadas alrededor de la entrada de la Necrópolis.
 ## Añade atmósfera de cementerio antiguo con lajas y monolitos oscurecidos.
@@ -35,11 +36,14 @@ static func generate_dark_rocks(
 		box.size = Vector3(1.4, 0.9, 1.2)
 		rock_mesh = box
 
-	# Material oscuro de pizarra/granito funerario
-	var dark_mat := StandardMaterial3D.new()
-	dark_mat.albedo_color = Color(0.18, 0.17, 0.20)
-	dark_mat.roughness = 0.95
-	dark_mat.metallic = 0.05
+	# Material estilizado con gradiente de facetas y matiz frío de cripta/pizarra
+	var dark_mat: ShaderMaterial = _RockMaterialScript.create_rock_material(
+		null,
+		-0.3,
+		1.8,
+		0.88,
+		Color(0.68, 0.65, 0.76)
+	)
 
 	# Decidir número de rocas (entre 4 y 8)
 	var rock_count: int = rng.randi_range(5, 8)
@@ -83,11 +87,13 @@ static func generate_dark_rocks(
 
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.use_custom_data = true
 	multimesh.mesh = rock_mesh
 	multimesh.instance_count = transforms.size()
 
 	for i in range(transforms.size()):
 		multimesh.set_instance_transform(i, transforms[i])
+		multimesh.set_instance_custom_data(i, Color(rng.randf_range(0.2, 0.8), 0.0, 0.0, 1.0))
 
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = "DarkRocksMultiMesh"

@@ -29,7 +29,7 @@ static func _get_bone_materials() -> Array[ShaderMaterial]:
 			if ResourceLoader.exists(path):
 				var tex := load(path) as Texture2D
 				mat.set_shader_parameter("texture_albedo", tex)
-			mat.set_shader_parameter("tint_color", Vector3(0.92, 0.90, 0.86))
+			mat.set_shader_parameter("tint_color", Vector3(0.72, 0.70, 0.62))
 			mat.set_shader_parameter("threshold", 0.06)
 			mat.set_shader_parameter("softness", 0.10)
 			_cached_bone_materials.append(mat)
@@ -42,9 +42,9 @@ static func _get_web_material() -> ShaderMaterial:
 		if ResourceLoader.exists(WEB_TEXTURE):
 			var tex := load(WEB_TEXTURE) as Texture2D
 			mat.set_shader_parameter("texture_albedo", tex)
-		# Tinte tenue blanquecino/grisáceo con transparencia para fundirse suavemente con el suelo
-		mat.set_shader_parameter("tint_color", Vector4(0.75, 0.78, 0.82, 0.55))
-		mat.set_shader_parameter("brightness_boost", 1.05)
+		# Tinte tenue blanquecino/grisáceo con 40% de opacidad para fundirse sutilmente con el suelo
+		mat.set_shader_parameter("tint_color", Vector4(0.65, 0.68, 0.72, 0.40))
+		mat.set_shader_parameter("brightness_boost", 0.85)
 		mat.set_shader_parameter("threshold", 0.04)
 		mat.set_shader_parameter("softness", 0.15)
 		_cached_web_material = mat

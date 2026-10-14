@@ -13,6 +13,7 @@ uniform float height_weight : hint_range(0.0, 1.0) = 0.45;
 uniform float variation_strength : hint_range(0.0, 0.5) = 0.15;
 uniform float roughness : hint_range(0.0, 1.0) = 0.85;
 uniform float specular : hint_range(0.0, 1.0) = 0.15;
+uniform vec4 tint_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 
 // Variables interpoladas desde vertex a fragment
 varying float v_height_factor;
@@ -54,7 +55,7 @@ void fragment() {
 	float palette_v = 1.0 - brightness;
 	vec4 rock_color = texture(gradient_palette, vec2(0.5, palette_v));
 
-	ALBEDO = rock_color.rgb;
+	ALBEDO = rock_color.rgb * tint_color.rgb;
 	ROUGHNESS = roughness;
 	SPECULAR = specular;
 }

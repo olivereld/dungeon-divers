@@ -176,7 +176,14 @@ func process_activations(
 					var terrain_mi := MeshInstance3D.new()
 					terrain_mi.name = "TerrainMesh"
 					terrain_mi.mesh = current_task.terrain_mesh
-					terrain_mi.set_surface_override_material(0, _TerrainMaterialScript.create_material(profile))
+					var terrain_mat: ShaderMaterial = _TerrainMaterialScript.create_material(profile) as ShaderMaterial
+					if "pois" in current_task.chunk_data and current_task.chunk_data.pois != null:
+						for poi in current_task.chunk_data.pois:
+							if poi != null and "world_position" in poi and terrain_mat != null:
+								terrain_mat.set_shader_parameter("poi_nec_center", poi.world_position)
+								terrain_mat.set_shader_parameter("poi_nec_radii", Vector4(4.5, 12.0, 22.0, 40.0))
+								break
+					terrain_mi.set_surface_override_material(0, terrain_mat)
 					current_task.chunk_view.add_child(terrain_mi)
 
 					current_task.time_terrain_ms += float(Time.get_ticks_usec() - stage_start) / 1000.0

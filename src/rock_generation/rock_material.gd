@@ -15,7 +15,8 @@ static func create_rock_material(
 	palette_texture: Texture2D = null,
 	min_height: float = -0.3,
 	max_height: float = 1.8,
-	roughness: float = 0.85
+	roughness: float = 0.85,
+	tint_color: Color = Color.WHITE
 ) -> ShaderMaterial:
 	var mat: ShaderMaterial = ShaderMaterial.new()
 	var shader: Shader = _get_or_load_shader()
@@ -35,6 +36,7 @@ static func create_rock_material(
 	mat.set_shader_parameter("variation_strength", 0.15)
 	mat.set_shader_parameter("roughness", roughness)
 	mat.set_shader_parameter("specular", 0.15)
+	mat.set_shader_parameter("tint_color", tint_color)
 
 	return mat
 
