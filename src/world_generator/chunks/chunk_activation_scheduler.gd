@@ -244,8 +244,9 @@ func process_activations(
 								var world_pos_3d := Vector3(float(cell_x) * cell_size + cell_size * 0.5, cell_h, float(cell_z) * cell_size + cell_size * 0.5)
 								var rel_pos = world_pos_3d - current_task.chunk_view.position
 								entrance_node.position = rel_pos
-								if "orientation_deg" in poi:
-									entrance_node.rotation_degrees.y = poi.orientation_deg
+								# entrance_node mantiene rotation = Vector3.ZERO para que sus hijos
+								# (parches de huesos, árboles y rocas) preserven sus offsets del mundo 1:1.
+								# La orientación (orientation_deg) se aplica al modelo de cripta y su portal.
 
 								if dungeon_callback.is_valid():
 									entrance_node.dungeon_enter_requested.connect(dungeon_callback)

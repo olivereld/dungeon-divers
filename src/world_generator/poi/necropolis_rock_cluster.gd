@@ -71,8 +71,13 @@ static func generate_dark_rocks(
 		var wy: float = poi_pos.y
 		if world_query != null and world_query.has_method("get_elevation"):
 			wy = world_query.get_elevation(int(round(wx)), int(round(wz)))
+			var h_e: float = world_query.get_elevation(int(round(wx + 0.8)), int(round(wz)))
+			var h_s: float = world_query.get_elevation(int(round(wx)), int(round(wz + 0.8)))
+			if absf(h_e - wy) > 0.40 or absf(h_s - wy) > 0.40:
+				continue
 
-		var ly: float = wy - poi_pos.y
+		# Asentar la base de la roca ligeramente en el suelo (-0.08m)
+		var ly: float = (wy - poi_pos.y) - 0.08
 
 		# Escala aleatoria y rotación desordenada
 		var s: float = rng.randf_range(0.7, 1.6)

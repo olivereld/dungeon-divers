@@ -93,18 +93,25 @@ static func generate_dead_trees(poi: RefCounted, profile: RefCounted, world_quer
 		var wy: float = poi_pos.y
 		if world_query != null and world_query.has_method("get_elevation"):
 			wy = world_query.get_elevation(int(round(wx)), int(round(wz)))
+			# Comprobar estabilidad del suelo: evitar colocar sobre escalones de acantilado
+			var h_e: float = world_query.get_elevation(int(round(wx + 0.8)), int(round(wz)))
+			var h_s: float = world_query.get_elevation(int(round(wx)), int(round(wz + 0.8)))
+			if absf(h_e - wy) > 0.40 or absf(h_s - wy) > 0.40:
+				continue
 
 		var sc_min: float = profile.dead_tree_scale_min if "dead_tree_scale_min" in profile else 1.8
 		var sc_max: float = profile.dead_tree_scale_max if "dead_tree_scale_max" in profile else 2.8
 		var s: float = rng.randf_range(sc_min, sc_max)
 
-		# La malla en el GLB original está acostada; requiere rotación de +90° en X para erguirse
-		var basis := Basis()
-		basis = basis.rotated(Vector3.UP, rng.randf() * TAU)
-		basis = basis.rotated(Vector3.RIGHT, deg_to_rad(90.0))
-		basis = basis.scaled(Vector3(s, s, s))
+		# La geometría en el GLB original está modelada acostada sobre el plano XZ (Z es la altura).
+		# Debe aplicarse PRIMERO la rotación local de +90° en X para erguirla verticalmente (Z -> Y),
+		# y LUEGO multiplicarla por la rotación de guiñada (yaw) en el eje Y del mundo.
+		var upright := Basis(Vector3.RIGHT, deg_to_rad(90.0))
+		var yaw := Basis(Vector3.UP, rng.randf() * TAU)
+		var basis := (yaw * upright).scaled(Vector3(s, s, s))
 
-		var t := Transform3D(basis, Vector3(wx - poi_pos.x, wy - poi_pos.y, wz - poi_pos.z))
+		# Asentar la base de las raíces ligeramente en el suelo (-0.10m) para evitar que levite
+		var t := Transform3D(basis, Vector3(wx - poi_pos.x, (wy - poi_pos.y) - 0.10, wz - poi_pos.z))
 
 		transforms.append(t)
 		placed_points.append(p2)

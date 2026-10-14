@@ -25,18 +25,24 @@ var _prompt_label: Label3D = null
 
 class _ChunkDataElevationAdapter extends RefCounted:
 	var _cd: Object = null
-	func _init(cd: Object) -> void:
+	var _fallback_h: float = 0.0
+
+	func _init(cd: Object, fallback_h: float = 0.0) -> void:
 		_cd = cd
+		_fallback_h = fallback_h
+
 	func get_elevation(x: int, z: int) -> float:
-		var c = _cd.get_cell_or_seam(Vector2i(x, z))
-		if c != null:
-			return c.height
-		return 0.0
+		if _cd != null and _cd.has_method("get_cell_or_seam"):
+			var c = _cd.get_cell_or_seam(Vector2i(x, z))
+			if c != null:
+				return c.height
+		return _fallback_h
 
 func _init(p_poi: RefCounted = null, p_world_query: Object = null) -> void:
 	poi = p_poi
+	var fallback_h: float = poi.world_position.y if (poi != null and "world_position" in poi) else 0.0
 	if p_world_query != null and not p_world_query.has_method("get_elevation") and p_world_query.has_method("get_cell_or_seam"):
-		world_query = _ChunkDataElevationAdapter.new(p_world_query)
+		world_query = _ChunkDataElevationAdapter.new(p_world_query, fallback_h)
 	else:
 		world_query = p_world_query
 
@@ -82,19 +88,24 @@ func _build_visuals() -> void:
 	add_child(_prompt_label)
 
 func _build_necropolis_visuals(scene: PackedScene) -> void:
-	# 1. Instanciar el modelo 3D detallado de la cripta
+	# 1. Instanciar el modelo 3D detallado de la cripta orientado hacia el claro
 	var model_inst = scene.instantiate()
 	model_inst.name = "NecropolisModel"
 	# Escala a proporciones monumentales (~3.3m ancho, ~4.8m fondo, ~5.0m alto)
 	model_inst.scale = Vector3(5.0, 5.0, 5.0)
 	# Asentar firmemente sobre el terreno (-0.05m para que los escalones y la base descansen en tierra firme)
 	model_inst.position = Vector3(0.0, -0.05, 0.0)
+	if poi != null and "orientation_deg" in poi:
+		model_inst.rotation_degrees.y = poi.orientation_deg
 	add_child(model_inst)
 
 	# 2. Resplandor místico atmosférico saliendo del portal de la cripta
 	var glow := OmniLight3D.new()
 	glow.name = "EntranceGlow"
-	glow.position = Vector3(0.0, 1.8, 0.0)
+	var forward_dir := Vector3.FORWARD
+	if poi != null and "orientation_deg" in poi:
+		forward_dir = forward_dir.rotated(Vector3.UP, deg_to_rad(poi.orientation_deg))
+	glow.position = forward_dir * 1.5 + Vector3(0.0, 1.8, 0.0)
 	glow.light_color = Color(0.25, 0.90, 0.75) # Cian / verde espectral necromántico
 	glow.light_energy = 2.5
 	glow.omni_range = 6.0
@@ -108,6 +119,8 @@ func _build_necropolis_visuals(scene: PackedScene) -> void:
 	box_shape.size = Vector3(3.4, 4.8, 4.8)
 	col_shape.shape = box_shape
 	col_shape.position = Vector3(0.0, 2.4, 0.0)
+	if poi != null and "orientation_deg" in poi:
+		static_body.rotation_degrees.y = poi.orientation_deg
 	static_body.add_child(col_shape)
 	add_child(static_body)
 
