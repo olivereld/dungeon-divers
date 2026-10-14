@@ -37,10 +37,14 @@ func _init() -> void:
 	assert(area != null, "InteractionArea must exist")
 	var glow = view.get_node_or_null("EntranceGlow")
 	assert(glow != null, "Atmospheric EntranceGlow light must exist")
+
+	# Verify artificial cylinder beacon is removed from 3D crypt
+	var beacon = view.get_node_or_null("EntranceBeacon")
+	assert(beacon == null, "EntranceBeacon cylinder must not pierce through the 3D crypt model")
 	
 	view.free()
 
-	# Test fallback for other archetypes (e.g. fortress/catacombs)
+	# Test that other archetypes (e.g. catacombs/taiga) also use the 3D model when available
 	var poi_other = _DungeonPOIScript.new(
 		identity,
 		Vector3(20.0, 5.0, 20.0),
@@ -51,9 +55,9 @@ func _init() -> void:
 	var view_other = _POIViewScript.new(poi_other)
 	view_other._ready()
 	var fallback_cube = view_other.get_node_or_null("EntranceCube")
-	assert(fallback_cube != null, "Other archetypes should use fallback EntranceCube until they have 3D models")
+	assert(fallback_cube == null, "All overworld dungeons should use the 3D crypt model instead of EntranceCube")
 	var other_model = view_other.get_node_or_null("NecropolisModel")
-	assert(other_model == null, "Other archetypes must not instantiate NecropolisModel")
+	assert(other_model != null, "NecropolisModel must be instantiated for all overworld dungeon entrances")
 	view_other.free()
 
 	print("[PASS] test_necropolis_entrance_poi_view")

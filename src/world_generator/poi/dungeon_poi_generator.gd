@@ -102,16 +102,17 @@ func evaluate_and_create_poi(master_seed: int, macro_coord: Vector2i, world_quer
 
 func _resolve_archetype(biome: StringName, elevation: float) -> StringName:
 	var b_str: String = String(biome).to_lower()
+	# Necropolis es el arquetipo canónico principal soportado por el pipeline y el modelo 3D
 	if elevation > 60.0 or b_str == "mountain" or b_str == "mountains":
-		return &"fortress"
-	elif b_str == "forest" or b_str == "dense_forest":
-		return &"ruins"
+		return &"necropolis"
+	elif b_str == "forest" or b_str == "dense_forest" or b_str == "taiga":
+		return &"necropolis"
 	elif b_str == "swamp" or b_str == "marsh":
-		return &"crypt"
+		return &"necropolis"
 	elif b_str == "desert" or b_str == "arid":
 		return &"necropolis"
 	else:
-		return &"catacombs"
+		return &"necropolis"
 
 func _resolve_orientation(wx: int, wz: int, world_query: Object) -> float:
 	if not world_query.has_method("get_elevation"):

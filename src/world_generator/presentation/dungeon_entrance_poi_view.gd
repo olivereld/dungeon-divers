@@ -36,7 +36,9 @@ func _build_visuals() -> void:
 	var arch: String = String(poi.archetype_id) if (poi != null and "archetype_id" in poi) else "necropolis"
 	var necropolis_scene := _get_necropolis_scene()
 
-	if arch == "necropolis" and necropolis_scene != null:
+	# Usar siempre el modelo 3D detallado de cripta/necrópolis si está disponible,
+	# erradicando los cubos provisionales en cualquier bioma del overworld.
+	if necropolis_scene != null:
 		_build_necropolis_visuals(necropolis_scene)
 	else:
 		_build_fallback_visuals()
@@ -78,25 +80,7 @@ func _build_necropolis_visuals(scene: PackedScene) -> void:
 	glow.omni_range = 6.0
 	add_child(glow)
 
-	# 3. Baliza vertical mística estilizada
-	var beacon := MeshInstance3D.new()
-	beacon.name = "EntranceBeacon"
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.5
-	cyl.bottom_radius = 0.5
-	cyl.height = 14.0
-	beacon.mesh = cyl
-	beacon.position = Vector3(0.0, 8.5, 0.0)
-	var b_mat := StandardMaterial3D.new()
-	b_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	b_mat.albedo_color = Color(0.20, 0.90, 0.75, 0.35)
-	b_mat.emission_enabled = true
-	b_mat.emission = Color(0.10, 0.85, 0.65, 1.0)
-	b_mat.emission_energy_multiplier = 3.5
-	beacon.material_override = b_mat
-	add_child(beacon)
-
-	# 4. Colisión física ajustada a la volumetría de la cripta
+	# 3. Colisión física ajustada a la volumetría de la cripta
 	var static_body := StaticBody3D.new()
 	static_body.name = "EntranceCollision"
 	var col_shape := CollisionShape3D.new()
