@@ -17,6 +17,8 @@ const _DungeonEntrancePOIViewScript = preload("res://src/world_generator/present
 const _ChunkStreamingControllerScript = preload("res://src/world_generator/chunks/chunk_streaming_controller.gd")
 const _ChunkActivationSchedulerScript = preload("res://src/world_generator/chunks/chunk_activation_scheduler.gd")
 const _FoliageRendererScript = preload("res://src/world_generator/foliage/rendering/foliage_renderer.gd")
+const _NecropolisProfileScript = preload("res://src/world_generator/poi/necropolis_entrance_profile.gd")
+const _NecropolisEvaluatorScript = preload("res://src/world_generator/poi/necropolis_influence_evaluator.gd")
 
 @export var world_seed: int = 12345
 @export var render_distance: int = 2
@@ -423,16 +425,40 @@ func _spawn_chunk_vegetation(
 		if "pois" in chunk_data and chunk_data.pois != null and not chunk_data.pois.is_empty():
 			final_veg = []
 			var exclusion_radius_sq: float = 4.5 * 4.5
+			var nec_profile = null
 			for item in chunk_data.vegetation:
-				var too_close := false
+				var cull_item := false
 				for poi in chunk_data.pois:
-					if poi != null and "world_position" in poi:
+					if poi == null or not ("world_position" in poi):
+						continue
+					var is_necropolis: bool = ("poi_type" in poi and poi.poi_type == &"necropolis")
+					if is_necropolis:
+						if nec_profile == null:
+							nec_profile = _NecropolisProfileScript.new()
+						var p_seed: int = poi.identity.dungeon_seed if ("identity" in poi and poi.identity != null and "dungeon_seed" in poi.identity) else 12345
+						var eval = _NecropolisEvaluatorScript.evaluate_point(
+							Vector2(item.position.x, item.position.z),
+							Vector2(poi.world_position.x, poi.world_position.z),
+							p_seed,
+							nec_profile
+						)
+						if eval.is_cleared:
+							cull_item = true
+							break
+						elif eval.influence > 0.0:
+							var hash_val: float = absf(sin(item.position.x * 12.9898 + item.position.z * 78.233) * 43758.5453)
+							var rand_prob: float = hash_val - floorf(hash_val)
+							var survival_chance: float = lerpf(1.0, nec_profile.normal_vegetation_multiplier, eval.influence)
+							if rand_prob > survival_chance:
+								cull_item = true
+								break
+					else:
 						var dx: float = item.position.x - poi.world_position.x
 						var dz: float = item.position.z - poi.world_position.z
 						if (dx * dx + dz * dz) < exclusion_radius_sq:
-							too_close = true
+							cull_item = true
 							break
-				if not too_close:
+				if not cull_item:
 					final_veg.append(item)
 
 		WorldRenderer.spawn_vegetation(chunk_view, final_veg, origin_3d, profile)
