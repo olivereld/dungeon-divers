@@ -24,11 +24,11 @@ enum EcologicalZone {
 @export var canopy_attenuation_factor: float = 0.35
 @export var clearing_threshold: float = 0.35
 @export var zone_densities: Dictionary = {
-	EcologicalZone.PLAINS: {"grass": 1.0, "shrub": 0.10, "tree": 0.02},
-	EcologicalZone.FOREST_EDGE: {"grass": 0.80, "shrub": 0.25, "tree": 0.20},
-	EcologicalZone.OPEN_FOREST: {"grass": 0.60, "shrub": 0.35, "tree": 0.40},
-	EcologicalZone.DENSE_FOREST: {"grass": 0.40, "shrub": 0.45, "tree": 0.70},
-	EcologicalZone.CLEARING: {"grass": 0.90, "shrub": 0.15, "tree": 0.05}
+	EcologicalZone.PLAINS: {"grass": 1.0, "flower": 0.85, "mushroom": 0.02, "shrub": 0.10, "tree": 0.02},
+	EcologicalZone.FOREST_EDGE: {"grass": 0.80, "flower": 0.90, "mushroom": 0.45, "shrub": 0.25, "tree": 0.20},
+	EcologicalZone.OPEN_FOREST: {"grass": 0.60, "flower": 0.35, "mushroom": 0.85, "shrub": 0.35, "tree": 0.40},
+	EcologicalZone.DENSE_FOREST: {"grass": 0.35, "flower": 0.10, "mushroom": 1.50, "shrub": 0.45, "tree": 0.70},
+	EcologicalZone.CLEARING: {"grass": 0.90, "flower": 1.30, "mushroom": 0.20, "shrub": 0.15, "tree": 0.05}
 }
 @export var wind_strength: float = 0.25
 @export var wind_speed: float = 1.6
@@ -45,11 +45,11 @@ func _init(
 	water_clearance = p_water_clearance
 	if zone_densities.is_empty():
 		zone_densities = {
-			EcologicalZone.PLAINS: {"grass": 1.0, "shrub": 0.10, "tree": 0.02},
-			EcologicalZone.FOREST_EDGE: {"grass": 0.80, "shrub": 0.25, "tree": 0.20},
-			EcologicalZone.OPEN_FOREST: {"grass": 0.60, "shrub": 0.35, "tree": 0.40},
-			EcologicalZone.DENSE_FOREST: {"grass": 0.40, "shrub": 0.45, "tree": 0.70},
-			EcologicalZone.CLEARING: {"grass": 0.90, "shrub": 0.15, "tree": 0.05}
+			EcologicalZone.PLAINS: {"grass": 1.0, "flower": 0.85, "mushroom": 0.02, "shrub": 0.10, "tree": 0.02},
+			EcologicalZone.FOREST_EDGE: {"grass": 0.80, "flower": 0.90, "mushroom": 0.45, "shrub": 0.25, "tree": 0.20},
+			EcologicalZone.OPEN_FOREST: {"grass": 0.60, "flower": 0.35, "mushroom": 0.85, "shrub": 0.35, "tree": 0.40},
+			EcologicalZone.DENSE_FOREST: {"grass": 0.35, "flower": 0.10, "mushroom": 1.50, "shrub": 0.45, "tree": 0.70},
+			EcologicalZone.CLEARING: {"grass": 0.90, "flower": 1.30, "mushroom": 0.20, "shrub": 0.15, "tree": 0.05}
 		}
 
 func get_species(species_id: StringName):

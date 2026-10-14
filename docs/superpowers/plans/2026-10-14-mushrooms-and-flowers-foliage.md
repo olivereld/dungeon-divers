@@ -131,96 +131,15 @@ git commit -m "feat(foliage): add foliage types and configurable gradient influe
     - Si `sp.tint_with_grass_color` es verdadero, aplica el lerp sutil con `profile.terrain_grass_color`.
     - Si es falso (flores y hongos), aplica una variación luminosa/cromática neutra (`tint_val = rng.randf_range(0.96, 1.04)`), preservando los colores puros del sombrero y los pétalos.
 
-- [ ] **Paso 1: Escribir el test que falla `tests/test_flower_and_mushroom_distribution.gd`**
-
-```gdscript
-extends SceneTree
-
-const _GeneratorScript = preload("res://src/world_generator/foliage/foliage_generator.gd")
-const _SpeciesScript = preload("res://src/world_generator/foliage/foliage_species.gd")
-const _ProfileScript = preload("res://src/world_generator/foliage/foliage_profile.gd")
-
-func _init() -> void:
-	print("Running test_flower_and_mushroom_distribution...")
-	var prof := _ProfileScript.new()
-	assert(prof.zone_densities[_ProfileScript.EcologicalZone.DENSE_FOREST].has("mushroom"), "DENSE_FOREST must have mushroom weight")
-	assert(prof.zone_densities[_ProfileScript.EcologicalZone.CLEARING].has("flower"), "CLEARING must have flower weight")
-	assert(prof.zone_densities[_ProfileScript.EcologicalZone.DENSE_FOREST]["mushroom"] > prof.zone_densities[_ProfileScript.EcologicalZone.PLAINS]["mushroom"], "Mushrooms must have higher density in forest than plains")
-	assert(prof.zone_densities[_ProfileScript.EcologicalZone.CLEARING]["flower"] > prof.zone_densities[_ProfileScript.EcologicalZone.DENSE_FOREST]["flower"], "Flowers must have higher density in clearings than dense forest")
-
-	# Test ecological species weighting helper
-	var gen := _GeneratorScript.new()
-	var sp_grass := _SpeciesScript.new(&"grass", "Grass")
-	sp_grass.foliage_type = _SpeciesScript.FoliageType.GRASS
-
-	var sp_flower := _SpeciesScript.new(&"flower", "Flower")
-	sp_flower.foliage_type = _SpeciesScript.FoliageType.FLOWER
-	sp_flower.canopy_preference = -1.0
-
-	var sp_mush := _SpeciesScript.new(&"mushroom", "Mushroom")
-	sp_mush.foliage_type = _SpeciesScript.FoliageType.MUSHROOM
-	sp_mush.canopy_preference = 1.0
-
-	# In clearing (sunny), flower effective weight should be high, mushroom low
-	var w_flower_clearing = gen.compute_species_effective_weight(sp_flower, prof, _ProfileScript.EcologicalZone.CLEARING, 0.05)
-	var w_mush_clearing = gen.compute_species_effective_weight(sp_mush, prof, _ProfileScript.EcologicalZone.CLEARING, 0.05)
-	assert(w_flower_clearing > w_mush_clearing, "Flowers must dominate clearings over mushrooms")
-
-	# In dense forest (shady), mushroom effective weight should be high, flower low
-	var w_flower_dense = gen.compute_species_effective_weight(sp_flower, prof, _ProfileScript.EcologicalZone.DENSE_FOREST, 0.85)
-	var w_mush_dense = gen.compute_species_effective_weight(sp_mush, prof, _ProfileScript.EcologicalZone.DENSE_FOREST, 0.85)
-	assert(w_mush_dense > w_flower_dense, "Mushrooms must dominate dense forest over flowers")
-
-	print("[PASS] test_flower_and_mushroom_distribution")
-	quit(0)
-```
-
-- [ ] **Paso 2: Ejecutar test para verificar que falla**
-
-Ejecutar:
-```powershell
-& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script tests/test_flower_and_mushroom_distribution.gd
-```
-Esperado: FALLA (`compute_species_effective_weight` no existe).
-
-- [ ] **Paso 3: Implementar `compute_species_effective_weight` y actualizar `foliage_profile.gd` y `foliage_generator.gd`**
-
-En `src/world_generator/foliage/foliage_profile.gd`:
-Actualizar `zone_densities` con las claves `"flower"` y `"mushroom"` en las 5 zonas ecológicas.
-
-En `src/world_generator/foliage/foliage_generator.gd`:
-Añadir método auxiliar:
-```gdscript
-func compute_species_effective_weight(species: FoliageSpecies, profile: FoliageProfile, zone_id: int, forest_density: float) -> float:
-	if species == null or profile == null:
-		return 0.0
-	var base_w: float = maxf(species.density_weight, 0.01)
-	var zone_dict: Dictionary = profile.zone_densities.get(zone_id, {})
-
-	match species.foliage_type:
-		_FoliageSpeciesScript.FoliageType.MUSHROOM:
-			var zone_mult: float = float(zone_dict.get("mushroom", 0.50))
-			var shade_factor: float = clampf(0.20 + forest_density * 1.60, 0.15, 2.0)
-			return base_w * zone_mult * shade_factor
-		_FoliageSpeciesScript.FoliageType.FLOWER:
-			var zone_mult: float = float(zone_dict.get("flower", 0.80))
-			var sun_factor: float = clampf(1.30 - forest_density * 1.10, 0.10, 1.5)
-			return base_w * zone_mult * sun_factor
-		_: # GRASS
-			var zone_mult: float = float(zone_dict.get("grass", 1.0))
-			return base_w * zone_mult
-```
-Y en `generate_foliage`, utilizar `compute_species_effective_weight` al construir la ruleta de selección de especie para cada celda, y verificar `chosen_species.tint_with_grass_color` antes de mezclar con el color de hierba del terreno.
-
-- [ ] **Paso 4: Ejecutar test para verificar que pasa**
-
-Ejecutar:
-```powershell
-& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script tests/test_flower_and_mushroom_distribution.gd
-```
-Esperado: PASS con código de salida 0.
-
-- [ ] **Paso 5: Commit de la Tarea 3**
+- [x] **Paso 1: Escribir el test que falla `tests/test_flower_and_mushroom_distribution.gd`**
+...
+- [x] **Paso 2: Ejecutar test para verificar que falla**
+...
+- [x] **Paso 3: Implementar `compute_species_effective_weight` y actualizar `foliage_profile.gd` y `foliage_generator.gd`**
+...
+- [x] **Paso 4: Ejecutar test para verificar que pasa**
+...
+- [x] **Paso 5: Commit de la Tarea 3**
 
 ```powershell
 git add src/world_generator/foliage/foliage_profile.gd src/world_generator/foliage/foliage_generator.gd tests/test_flower_and_mushroom_distribution.gd

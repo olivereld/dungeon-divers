@@ -88,6 +88,25 @@ func compute_canopy_attenuation(cell: WorldCell, nearby_trees_density: float, pr
 		tree_factor = maxf(tree_factor, cell.forest_density)
 	return clampf(1.0 - (tree_factor * (1.0 - atten_floor)), atten_floor, 1.0)
 
+func compute_species_effective_weight(species: FoliageSpecies, profile: FoliageProfile, zone_id: int, forest_density: float) -> float:
+	if species == null or profile == null:
+		return 0.0
+	var base_w: float = maxf(species.density_weight, 0.01)
+	var zone_dict: Dictionary = profile.zone_densities.get(zone_id, {})
+
+	match species.foliage_type:
+		_FoliageSpeciesScript.FoliageType.MUSHROOM:
+			var zone_mult: float = float(zone_dict.get("mushroom", 0.50))
+			var shade_factor: float = clampf(0.20 + forest_density * 1.60, 0.15, 2.0)
+			return base_w * zone_mult * shade_factor
+		_FoliageSpeciesScript.FoliageType.FLOWER:
+			var zone_mult: float = float(zone_dict.get("flower", 0.80))
+			var sun_factor: float = clampf(1.30 - forest_density * 1.10, 0.10, 1.5)
+			return base_w * zone_mult * sun_factor
+		_: # GRASS
+			var zone_mult: float = float(zone_dict.get("grass", 1.0))
+			return base_w * zone_mult
+
 func generate_foliage(
 	result: WorldResult,
 	master_seed: int,
@@ -166,11 +185,11 @@ func generate_foliage(
 			var base_count: int = maxi(1, int(floor(target_density)))
 			var remainder: float = fmod(target_density, 1.0)
 
-			# Sumar pesos de especies
+			# Sumar pesos de especies modulados ecológicamente por hábitat
 			var total_weight: float = 0.0
 			for sp in species_list:
-				if sp != null and "density_weight" in sp:
-					total_weight += maxf(sp.density_weight, 0.01)
+				if sp != null:
+					total_weight += compute_species_effective_weight(sp, fol_prof, zone_id, cell.forest_density)
 
 			if total_weight <= 0.0001:
 				continue
@@ -184,13 +203,13 @@ func generate_foliage(
 				blade_count += 1
 
 			for k in range(blade_count):
-				# Selección de especie por ruleta de peso
+				# Selección de especie por ruleta de peso ecológico
 				var roll := rng.randf() * total_weight
 				var accumulated := 0.0
 				var chosen_species = species_list[0]
 				for sp in species_list:
 					if sp != null:
-						accumulated += sp.density_weight
+						accumulated += compute_species_effective_weight(sp, fol_prof, zone_id, cell.forest_density)
 						if roll <= accumulated:
 							chosen_species = sp
 							break
@@ -216,9 +235,10 @@ func generate_foliage(
 				tr.origin = Vector3(world_x, world_y, world_z)
 
 				# Variación de tinte sutil por brizna armonizada con la paleta de terreno del perfil
-				var tint_val := rng.randf_range(0.94, 1.06)
+				var tint_val := rng.randf_range(0.95, 1.05)
 				var color := Color(tint_val, tint_val, tint_val, 1.0)
-				if profile != null and "terrain_grass_color" in profile:
+				var should_tint: bool = chosen_species.tint_with_grass_color if ("tint_with_grass_color" in chosen_species) else true
+				if should_tint and profile != null and "terrain_grass_color" in profile:
 					var g_col: Color = profile.terrain_grass_color
 					var max_g := maxf(g_col.r, maxf(g_col.g, g_col.b))
 					if max_g > 0.01:
