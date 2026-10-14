@@ -17,6 +17,7 @@ const _DungeonEntrancePOIViewScript = preload("res://src/world_generator/present
 const _ChunkStreamingControllerScript = preload("res://src/world_generator/chunks/chunk_streaming_controller.gd")
 const _ChunkActivationSchedulerScript = preload("res://src/world_generator/chunks/chunk_activation_scheduler.gd")
 const _FoliageRendererScript = preload("res://src/world_generator/foliage/rendering/foliage_renderer.gd")
+const _FoliageChunkDataScript = preload("res://src/world_generator/foliage/foliage_chunk_data.gd")
 const _NecropolisProfileScript = preload("res://src/world_generator/poi/necropolis_entrance_profile.gd")
 const _NecropolisEvaluatorScript = preload("res://src/world_generator/poi/necropolis_influence_evaluator.gd")
 
@@ -431,7 +432,8 @@ func _spawn_chunk_vegetation(
 				for poi in chunk_data.pois:
 					if poi == null or not ("world_position" in poi):
 						continue
-					var is_necropolis: bool = ("poi_type" in poi and poi.poi_type == &"necropolis")
+					# Todas las entradas a dungeon del juego utilizan la cripta/necrópolis
+					var is_necropolis: bool = true
 					if is_necropolis:
 						if nec_profile == null:
 							nec_profile = _NecropolisProfileScript.new()
@@ -448,7 +450,7 @@ func _spawn_chunk_vegetation(
 						elif eval.influence > 0.0:
 							var hash_val: float = absf(sin(item.position.x * 12.9898 + item.position.z * 78.233) * 43758.5453)
 							var rand_prob: float = hash_val - floorf(hash_val)
-							var survival_chance: float = lerpf(1.0, nec_profile.normal_vegetation_multiplier, eval.influence)
+							var survival_chance: float = lerpf(1.0, 0.06, eval.influence)
 							if rand_prob > survival_chance:
 								cull_item = true
 								break
@@ -463,10 +465,59 @@ func _spawn_chunk_vegetation(
 
 		WorldRenderer.spawn_vegetation(chunk_view, final_veg, origin_3d, profile)
 
+	# Follaje procedural (hierba, flores, hongos): atenuar dentro de la zona de corrupción
 	if chunk_data != null and "foliage" in chunk_data and chunk_data.foliage != null:
-		var fol_node = _FoliageRendererScript.build_chunk_foliage_node(chunk_data.foliage, [], origin_3d)
+		var foliage_data = chunk_data.foliage
+		if "pois" in chunk_data and chunk_data.pois != null and not chunk_data.pois.is_empty():
+			foliage_data = _filter_chunk_foliage_for_pois(chunk_data.foliage, chunk_data.pois, origin_3d)
+
+		var fol_node = _FoliageRendererScript.build_chunk_foliage_node(foliage_data, [], origin_3d)
 		if fol_node != null:
 			chunk_view.add_child(fol_node)
+
+func _filter_chunk_foliage_for_pois(
+	foliage_data: RefCounted,
+	pois: Array,
+	origin_3d: Vector3,
+	nec_profile: RefCounted = null
+) -> RefCounted:
+	if nec_profile == null:
+		nec_profile = _NecropolisProfileScript.new()
+	if not ("instances_by_species" in foliage_data):
+		return foliage_data
+
+	var filtered = _FoliageChunkDataScript.new(foliage_data.chunk_coord if "chunk_coord" in foliage_data else Vector2i.ZERO)
+	for sp_id in foliage_data.instances_by_species:
+		var instances: Array = foliage_data.instances_by_species[sp_id]
+		var colors: PackedColorArray = foliage_data.get_colors_for_species(sp_id)
+		for idx in range(instances.size()):
+			var t: Transform3D = instances[idx]
+			var world_pos_2d := Vector2(origin_3d.x + t.origin.x, origin_3d.z + t.origin.z)
+			var cull_foliage := false
+			for poi in pois:
+				if poi == null or not ("world_position" in poi):
+					continue
+				var p_seed: int = poi.identity.dungeon_seed if ("identity" in poi and poi.identity != null and "dungeon_seed" in poi.identity) else 12345
+				var eval = _NecropolisEvaluatorScript.evaluate_point(
+					world_pos_2d,
+					Vector2(poi.world_position.x, poi.world_position.z),
+					p_seed,
+					nec_profile
+				)
+				if eval.is_cleared:
+					cull_foliage = true
+					break
+				elif eval.influence > 0.0:
+					var hash_val: float = absf(sin(world_pos_2d.x * 23.456 + world_pos_2d.y * 67.891) * 43758.5453)
+					var rand_prob: float = hash_val - floorf(hash_val)
+					var survival_chance: float = lerpf(1.0, 0.08, eval.influence)
+					if rand_prob > survival_chance:
+						cull_foliage = true
+						break
+			if not cull_foliage:
+				var col: Color = colors[idx] if idx < colors.size() else Color.WHITE
+				filtered.add_instance(sp_id, t, col)
+	return filtered
 
 
 ## Crea y configura un IsometricCameraRig programado para enfocar un objetivo o el centro activo.

@@ -96,8 +96,9 @@ func evaluate_and_create_poi(master_seed: int, macro_coord: Vector2i, world_quer
 	var rot_basis := Basis(Vector3.UP, deg_to_rad(orientation_deg))
 	var entrance_xf := Transform3D(rot_basis, world_pos)
 	
-	var bounds_w: int = footprint_radius * 2 + 4
-	var bounds_rect := Rect2i(wx - footprint_radius - 2, wz - footprint_radius - 2, bounds_w, bounds_w)
+	var env_influence_radius: int = 36
+	var bounds_w: int = env_influence_radius * 2
+	var bounds_rect := Rect2i(wx - env_influence_radius, wz - env_influence_radius, bounds_w, bounds_w)
 	
 	var poi = _DungeonPOIScript.new(
 		identity,
@@ -136,22 +137,63 @@ func _resolve_archetype(biome: StringName, elevation: float) -> StringName:
 	else:
 		return &"catacombs"
 
+## Resuelve la orientación óptima para que la fachada y puerta de la cripta miren siempre
+## hacia terreno abierto, despejado y transitable, dando la espalda a montañas o paredes de roca.
 func _resolve_orientation(wx: int, wz: int, world_query: Object) -> float:
 	if not world_query.has_method("get_elevation"):
 		return 0.0
-	
-	# Evaluamos diferencias cardinales de elevación para orientar la entrada apuntando cuesta abajo
-	var h_n: float = world_query.get_elevation(wx, wz - 2)
-	var h_s: float = world_query.get_elevation(wx, wz + 2)
-	var h_w: float = world_query.get_elevation(wx - 2, wz)
-	var h_e: float = world_query.get_elevation(wx + 2, wz)
-	
-	var grad_x: float = h_e - h_w
-	var grad_z: float = h_s - h_n
-	
-	if abs(grad_x) < 0.01 and abs(grad_z) < 0.01:
-		return 0.0
-		
-	# Apuntar hacia donde desciende la pendiente (-grad)
-	var angle_rad: float = atan2(-grad_x, -grad_z)
+
+	var elevation: float = world_query.get_elevation(wx, wz)
+	var candidate_dirs: Array[Vector2] = [
+		Vector2(0, 1),   # Sur (+Z)
+		Vector2(1, 0),   # Este (+X)
+		Vector2(0, -1),  # Norte (-Z)
+		Vector2(-1, 0),  # Oeste (-X)
+		Vector2(0.7071, 0.7071),
+		Vector2(0.7071, -0.7071),
+		Vector2(-0.7071, 0.7071),
+		Vector2(-0.7071, -0.7071)
+	]
+
+	var best_score: float = -999999.0
+	var best_dir: Vector2 = Vector2(0, 1)
+
+	for dir in candidate_dirs:
+		var score: float = 0.0
+
+		# 1. Evaluar espacio libre frontal (donde mira la puerta)
+		for dist in [4.0, 7.0, 10.0]:
+			var sx: int = int(round(float(wx) + dir.x * dist))
+			var sz: int = int(round(float(wz) + dir.y * dist))
+
+			if world_query.has_method("is_water") and world_query.is_water(sx, sz):
+				score -= 80.0
+
+			var h: float = world_query.get_elevation(sx, sz)
+			var diff: float = h - elevation
+			if diff > 0.4:
+				# Montaña, pared o acantilado tapando la puerta: penalizar fuertemente
+				score -= diff * 35.0
+			elif diff <= 0.2 and diff >= -1.0:
+				# Suelo despejado y transitable a nivel o leve pendiente: premiar
+				score += 20.0
+			elif diff < -2.0:
+				# Precipicio abrupto justo al salir: penalizar
+				score -= 25.0
+
+		# 2. Evaluar respaldo trasero (pared o montaña detrás del mausoleo es ideal arquitectónicamente)
+		var back_dir: Vector2 = -dir
+		for dist in [4.0, 7.0]:
+			var bx: int = int(round(float(wx) + back_dir.x * dist))
+			var bz: int = int(round(float(wz) + back_dir.y * dist))
+			var bh: float = world_query.get_elevation(bx, bz)
+			var b_diff: float = bh - elevation
+			if b_diff > 0.5:
+				score += minf(b_diff * 15.0, 30.0)
+
+		if score > best_score:
+			best_score = score
+			best_dir = dir
+
+	var angle_rad: float = atan2(best_dir.x, best_dir.y)
 	return rad_to_deg(angle_rad)

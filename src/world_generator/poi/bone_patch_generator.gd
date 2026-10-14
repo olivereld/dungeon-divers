@@ -42,10 +42,11 @@ static func _get_web_material() -> ShaderMaterial:
 		if ResourceLoader.exists(WEB_TEXTURE):
 			var tex := load(WEB_TEXTURE) as Texture2D
 			mat.set_shader_parameter("texture_albedo", tex)
-		mat.set_shader_parameter("tint_color", Vector4(0.85, 0.88, 0.92, 0.80))
-		mat.set_shader_parameter("brightness_boost", 1.35)
-		mat.set_shader_parameter("threshold", 0.03)
-		mat.set_shader_parameter("softness", 0.12)
+		# Tinte tenue blanquecino/grisáceo con transparencia para fundirse suavemente con el suelo
+		mat.set_shader_parameter("tint_color", Vector4(0.75, 0.78, 0.82, 0.55))
+		mat.set_shader_parameter("brightness_boost", 1.05)
+		mat.set_shader_parameter("threshold", 0.04)
+		mat.set_shader_parameter("softness", 0.15)
 		_cached_web_material = mat
 	return _cached_web_material
 
@@ -82,7 +83,7 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 		var count: int = rng.randi_range(2, 4)
 		for p in range(count):
 			var sub_angle: float = rng.randf() * TAU
-			var sub_dist: float = rng.randf_range(0.3, 2.0)
+			var sub_dist: float = rng.randf_range(0.3, 1.8)
 			var wx: float = cluster_center_x + cos(sub_angle) * sub_dist
 			var wz: float = cluster_center_z + sin(sub_angle) * sub_dist
 
@@ -91,12 +92,16 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 			if dist_to_entrance <= clear_r:
 				continue
 
+			# Evitar generar restos dentro de cuerpos de agua
+			if world_query != null and world_query.has_method("is_water") and world_query.is_water(int(round(wx)), int(round(wz))):
+				continue
+
 			var wy: float = poi_pos.y
 			if world_query != null and world_query.has_method("get_elevation"):
 				wy = world_query.get_elevation(int(round(wx)), int(round(wz)))
 
-			var sc_min: float = profile.bone_patch_scale_min if "bone_patch_scale_min" in profile else 0.8
-			var sc_max: float = profile.bone_patch_scale_max if "bone_patch_scale_max" in profile else 1.6
+			var sc_min: float = profile.bone_patch_scale_min if "bone_patch_scale_min" in profile else 0.7
+			var sc_max: float = profile.bone_patch_scale_max if "bone_patch_scale_max" in profile else 1.15
 			var patch_scale: float = rng.randf_range(sc_min, sc_max)
 
 			var xf := Transform3D()
@@ -110,27 +115,27 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 			bone_instances[tex_idx].append(xf)
 
 		# 3. Superposición (Layering): telaraña en un plano superior sobre el cúmulo de huesos
-		# Probabilidad alta (80%) por cluster para vestir los restos óseos
-		if rng.randf() < 0.80:
+		if rng.randf() < 0.75:
 			var web_dist_to_entrance: float = (Vector2(cluster_center_x, cluster_center_z) - Vector2(poi_pos.x, poi_pos.z)).length()
 			if web_dist_to_entrance > clear_r:
-				var web_wy: float = poi_pos.y
-				if world_query != null and world_query.has_method("get_elevation"):
-					web_wy = world_query.get_elevation(int(round(cluster_center_x)), int(round(cluster_center_z)))
+				if not (world_query != null and world_query.has_method("is_water") and world_query.is_water(int(round(cluster_center_x)), int(round(cluster_center_z)))):
+					var web_wy: float = poi_pos.y
+					if world_query != null and world_query.has_method("get_elevation"):
+						web_wy = world_query.get_elevation(int(round(cluster_center_x)), int(round(cluster_center_z)))
 
-				var web_scale: float = rng.randf_range(1.4, 2.2)
-				var web_xf := Transform3D()
-				web_xf = web_xf.scaled(Vector3(web_scale, 1.0, web_scale))
-				web_xf = web_xf.rotated(Vector3.UP, rng.randf() * TAU)
-				# Plano superior de telarañas: +0.065m a +0.073m (por encima de los cráneos)
-				var web_elevation: float = (web_wy - poi_pos.y) + 0.065 + (rng.randf() * 0.008)
-				web_xf.origin = Vector3(cluster_center_x - poi_pos.x, web_elevation, cluster_center_z - poi_pos.z)
-				web_transforms.append(web_xf)
+					var web_scale: float = rng.randf_range(0.95, 1.35)
+					var web_xf := Transform3D()
+					web_xf = web_xf.scaled(Vector3(web_scale, 1.0, web_scale))
+					web_xf = web_xf.rotated(Vector3.UP, rng.randf() * TAU)
+					# Plano superior de telarañas: +0.065m a +0.073m (por encima de los cráneos)
+					var web_elevation: float = (web_wy - poi_pos.y) + 0.065 + (rng.randf() * 0.008)
+					web_xf.origin = Vector3(cluster_center_x - poi_pos.x, web_elevation, cluster_center_z - poi_pos.z)
+					web_transforms.append(web_xf)
 
 	# 4. Crear MultiMeshInstance3D para cada grupo de huesos
-	var quad_mesh := QuadMesh.new()
-	quad_mesh.size = Vector2(2.2, 2.2)
-	quad_mesh.orientation = QuadMesh.FACE_Y
+	var bone_quad_mesh := QuadMesh.new()
+	bone_quad_mesh.size = Vector2(1.1, 1.1)
+	bone_quad_mesh.orientation = QuadMesh.FACE_Y
 
 	for i in range(bone_materials.size()):
 		var transforms: Array = bone_instances[i]
@@ -141,7 +146,7 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 		mmi.name = "BonesGroup_%d" % i
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = quad_mesh
+		mm.mesh = bone_quad_mesh
 		mm.instance_count = transforms.size()
 
 		for j in range(transforms.size()):
@@ -155,11 +160,15 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 
 	# 5. Crear MultiMeshInstance3D para las telarañas translúcidas superpuestas
 	if not web_transforms.is_empty():
+		var web_quad_mesh := QuadMesh.new()
+		web_quad_mesh.size = Vector2(1.3, 1.3)
+		web_quad_mesh.orientation = QuadMesh.FACE_Y
+
 		var web_mmi := MultiMeshInstance3D.new()
 		web_mmi.name = "WebsGroup"
 		var web_mm := MultiMesh.new()
 		web_mm.transform_format = MultiMesh.TRANSFORM_3D
-		web_mm.mesh = quad_mesh
+		web_mm.mesh = web_quad_mesh
 		web_mm.instance_count = web_transforms.size()
 
 		for j in range(web_transforms.size()):

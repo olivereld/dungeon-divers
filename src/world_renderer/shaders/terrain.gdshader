@@ -227,18 +227,31 @@ void fragment() {
 	float land_roughness = mix(land_floor_roughness, roughness_cliff, cliff_factor);
 	land_roughness = mix(land_roughness, roughness_grass, overhang_mask);
 
-	// Influencia de Necrópolis (Corrupción y Tierra Funeraria)
+	// Influencia de Necrópolis (Corrupción y Tierra Funeraria con Transición de Opacidad Suave)
 	if (poi_nec_center.y > -900.0) {
-		float nec_dist = length(v_world_pos.xz - poi_nec_center.xz);
+		vec2 diff = v_world_pos.xz - poi_nec_center.xz;
+		float nec_dist = length(diff);
 		if (nec_dist < poi_nec_radii.w) {
-			float f_w = clamp(1.0 - (nec_dist / poi_nec_radii.y), 0.0, 1.0);
-			float c_w = clamp(1.0 - ((nec_dist - poi_nec_radii.y) / (poi_nec_radii.z - poi_nec_radii.y)), 0.0, 1.0);
-			float t_w = clamp(1.0 - ((nec_dist - poi_nec_radii.z) / (poi_nec_radii.w - poi_nec_radii.z)), 0.0, 1.0);
+			// Perturbación angular suave para contorno orgánico
+			float angle = atan(diff.y, diff.x);
+			float border_noise = sin(angle * 3.0) * 1.5 + cos(angle * 5.0) * 0.9;
+			float eff_dist = max(0.0, nec_dist + border_noise);
+
+			// Pesos relativos de mezcla
+			float f_w = clamp(1.0 - (eff_dist / poi_nec_radii.y), 0.0, 1.0);
 			vec3 fun_col = texture(funeral_ground_texture, v_world_pos.xz * corruption_uv_scale).rgb;
 			vec3 cor_col = texture(corrupted_ground_texture, v_world_pos.xz * corruption_uv_scale).rgb;
-			vec3 nec_mix = mix(cor_col, fun_col, f_w);
-			float total_inf = max(f_w, max(c_w * 0.75, t_w * 0.35));
-			land_surface = mix(land_surface, nec_mix * vec3(0.75, 0.70, 0.80), total_inf * (1.0 - is_cliff_face * 0.6));
+			vec3 nec_mix = mix(cor_col, fun_col, f_w) * vec3(0.78, 0.74, 0.82);
+
+			// Transición gradual de opacidad entre corruption_radius y transition_radius
+			float opacity = 1.0;
+			if (eff_dist > poi_nec_radii.z) {
+				opacity = smoothstep(poi_nec_radii.w, poi_nec_radii.z, eff_dist);
+			}
+
+			// Mezclar superficie vegetal con la textura de corrupción modulada por la opacidad
+			float blend_weight = opacity * (1.0 - is_cliff_face * 0.6);
+			land_surface = mix(land_surface, nec_mix, blend_weight);
 		}
 	}
 

@@ -94,15 +94,17 @@ static func generate_dead_trees(poi: RefCounted, profile: RefCounted, world_quer
 		if world_query != null and world_query.has_method("get_elevation"):
 			wy = world_query.get_elevation(int(round(wx)), int(round(wz)))
 
-		var sc_min: float = profile.dead_tree_scale_min if "dead_tree_scale_min" in profile else 2.5
-		var sc_max: float = profile.dead_tree_scale_max if "dead_tree_scale_max" in profile else 4.2
+		var sc_min: float = profile.dead_tree_scale_min if "dead_tree_scale_min" in profile else 1.8
+		var sc_max: float = profile.dead_tree_scale_max if "dead_tree_scale_max" in profile else 2.8
 		var s: float = rng.randf_range(sc_min, sc_max)
 
-		var t := Transform3D()
-		t = t.scaled(Vector3(s, s, s))
-		t = t.rotated(Vector3.UP, rng.randf() * TAU)
-		# Posición relativa al nodo POI
-		t.origin = Vector3(wx - poi_pos.x, wy - poi_pos.y, wz - poi_pos.z)
+		# La malla en el GLB original está acostada; requiere rotación de +90° en X para erguirse
+		var basis := Basis()
+		basis = basis.rotated(Vector3.UP, rng.randf() * TAU)
+		basis = basis.rotated(Vector3.RIGHT, deg_to_rad(90.0))
+		basis = basis.scaled(Vector3(s, s, s))
+
+		var t := Transform3D(basis, Vector3(wx - poi_pos.x, wy - poi_pos.y, wz - poi_pos.z))
 
 		transforms.append(t)
 		placed_points.append(p2)
