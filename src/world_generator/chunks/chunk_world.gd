@@ -419,7 +419,23 @@ func _spawn_chunk_vegetation(
 	var origin_3d := Vector3(float(origin.x) * cell_size, 0.0, float(origin.y) * cell_size)
 
 	if chunk_data != null and not chunk_data.vegetation.is_empty():
-		WorldRenderer.spawn_vegetation(chunk_view, chunk_data.vegetation, origin_3d, profile)
+		var final_veg: Array = chunk_data.vegetation
+		if "pois" in chunk_data and chunk_data.pois != null and not chunk_data.pois.is_empty():
+			final_veg = []
+			var exclusion_radius_sq: float = 4.5 * 4.5
+			for item in chunk_data.vegetation:
+				var too_close := false
+				for poi in chunk_data.pois:
+					if poi != null and "world_position" in poi:
+						var dx: float = item.position.x - poi.world_position.x
+						var dz: float = item.position.z - poi.world_position.z
+						if (dx * dx + dz * dz) < exclusion_radius_sq:
+							too_close = true
+							break
+				if not too_close:
+					final_veg.append(item)
+
+		WorldRenderer.spawn_vegetation(chunk_view, final_veg, origin_3d, profile)
 
 	if chunk_data != null and "foliage" in chunk_data and chunk_data.foliage != null:
 		var fol_node = _FoliageRendererScript.build_chunk_foliage_node(chunk_data.foliage, [], origin_3d)

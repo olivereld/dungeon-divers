@@ -48,7 +48,7 @@ func _build_visuals() -> void:
 	_prompt_label.name = "PromptLabel"
 	_prompt_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_prompt_label.no_depth_test = true
-	_prompt_label.position = Vector3(0.0, 5.6, 0.0)
+	_prompt_label.position = Vector3(0.0, 5.3, 0.0)
 	_prompt_label.pixel_size = 0.015
 	_prompt_label.font_size = 28
 	_prompt_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
@@ -65,16 +65,16 @@ func _build_necropolis_visuals(scene: PackedScene) -> void:
 	# 1. Instanciar el modelo 3D detallado de la cripta
 	var model_inst = scene.instantiate()
 	model_inst.name = "NecropolisModel"
-	# Escala a proporciones monumentales (~3.3m ancho, ~4.8m alto, ~5.0m fondo)
+	# Escala a proporciones monumentales (~3.3m ancho, ~4.8m fondo, ~5.0m alto)
 	model_inst.scale = Vector3(5.0, 5.0, 5.0)
-	# Asentar firmemente sobre el terreno (-0.07m bajo la cota Y para evitar que flote en pendientes)
-	model_inst.position = Vector3(0.0, 2.30, 0.0)
+	# Asentar firmemente sobre el terreno (-0.05m para que los escalones y la base descansen en tierra firme)
+	model_inst.position = Vector3(0.0, -0.05, 0.0)
 	add_child(model_inst)
 
 	# 2. Resplandor místico atmosférico saliendo del portal de la cripta
 	var glow := OmniLight3D.new()
 	glow.name = "EntranceGlow"
-	glow.position = Vector3(0.0, 2.2, -0.6)
+	glow.position = Vector3(0.0, 1.8, 0.0)
 	glow.light_color = Color(0.25, 0.90, 0.75) # Cian / verde espectral necromántico
 	glow.light_energy = 2.5
 	glow.omni_range = 6.0
@@ -85,9 +85,9 @@ func _build_necropolis_visuals(scene: PackedScene) -> void:
 	static_body.name = "EntranceCollision"
 	var col_shape := CollisionShape3D.new()
 	var box_shape := BoxShape3D.new()
-	box_shape.size = Vector3(3.6, 5.0, 4.8)
+	box_shape.size = Vector3(3.4, 4.8, 4.8)
 	col_shape.shape = box_shape
-	col_shape.position = Vector3(0.0, 2.4, -2.4)
+	col_shape.position = Vector3(0.0, 2.4, 0.0)
 	static_body.add_child(col_shape)
 	add_child(static_body)
 

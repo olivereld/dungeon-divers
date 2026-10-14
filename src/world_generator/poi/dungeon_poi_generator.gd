@@ -45,10 +45,21 @@ func evaluate_and_create_poi(master_seed: int, macro_coord: Vector2i, world_quer
 	var cand: Dictionary = generate_candidate_for_macro_cell(master_seed, macro_coord, candidate_idx)
 	var wx: int = cand["world_x"]
 	var wz: int = cand["world_z"]
-	
-	# 1. Validación de Huella y Criterios Físicos (no agua, pendiente suave en toda la huella)
-	for dx in range(-footprint_radius, footprint_radius + 1, 3):
-		for dz in range(-footprint_radius, footprint_radius + 1, 3):
+
+	var elevation: float = 0.0
+	if world_query.has_method("get_elevation"):
+		elevation = world_query.get_elevation(wx, wz)
+
+	# 1. Validación de Huella y Criterios Físicos:
+	# El modelo 3D requiere una base firme de al menos 6m ancho x 8m fondo (con escaleras).
+	# Validamos un área de radio rx=3 y rz=4 celdas paso a paso (sin saltos) verificando:
+	# a) Ausencia de agua.
+	# b) Pendiente suave (< max_valid_slope).
+	# c) Estabilidad de terraza: ninguna celda bajo la estructura puede caer por un acantilado o terraza distinta.
+	var check_rx: int = 3
+	var check_rz: int = 4
+	for dx in range(-check_rx, check_rx + 1):
+		for dz in range(-check_rz, check_rz + 1):
 			var sample_x: int = wx + dx
 			var sample_z: int = wz + dz
 			
@@ -60,9 +71,10 @@ func evaluate_and_create_poi(master_seed: int, macro_coord: Vector2i, world_quer
 				if slope > max_valid_slope:
 					return null
 
-	var elevation: float = 0.0
-	if world_query.has_method("get_elevation"):
-		elevation = world_query.get_elevation(wx, wz)
+			if world_query.has_method("get_elevation"):
+				var s_elev: float = world_query.get_elevation(sample_x, sample_z)
+				if absf(s_elev - elevation) > 0.25:
+					return null
 		
 	# 2. Resolución de Arquetipo según entorno (bioma / elevación)
 	var biome: StringName = &"plains"
@@ -100,19 +112,29 @@ func evaluate_and_create_poi(master_seed: int, macro_coord: Vector2i, world_quer
 	
 	return poi
 
+## Busca deterministamente entre múltiples candidatos de la macro-celda hasta encontrar
+## uno que se sitúe sobre una meseta estable y uniforme.
+func find_valid_poi_for_macro_cell(master_seed: int, macro_coord: Vector2i, world_query: Object, max_candidates: int = 16) -> RefCounted:
+	for idx in range(max_candidates):
+		var poi = evaluate_and_create_poi(master_seed, macro_coord, world_query, idx)
+		if poi != null:
+			return poi
+	return null
+
 func _resolve_archetype(biome: StringName, elevation: float) -> StringName:
 	var b_str: String = String(biome).to_lower()
-	# Necropolis es el arquetipo canónico principal soportado por el pipeline y el modelo 3D
 	if elevation > 60.0 or b_str == "mountain" or b_str == "mountains":
-		return &"necropolis"
-	elif b_str == "forest" or b_str == "dense_forest" or b_str == "taiga":
-		return &"necropolis"
+		return &"fortress"
+	elif b_str == "forest" or b_str == "dense_forest":
+		return &"ruins"
 	elif b_str == "swamp" or b_str == "marsh":
-		return &"necropolis"
+		return &"crypt"
 	elif b_str == "desert" or b_str == "arid":
 		return &"necropolis"
-	else:
+	elif b_str == "taiga":
 		return &"necropolis"
+	else:
+		return &"catacombs"
 
 func _resolve_orientation(wx: int, wz: int, world_query: Object) -> float:
 	if not world_query.has_method("get_elevation"):

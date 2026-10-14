@@ -406,8 +406,12 @@ func _attach_pois_to_chunk(chunk_data: ChunkData) -> void:
 		for mx in range(min_mx, max_mx + 1):
 			var m_coord := Vector2i(mx, my)
 			if not _evaluated_pois.has(m_coord):
-				# Evaluación perezosa del POI de la celda
-				var poi = poi_generator.evaluate_and_create_poi(seed_val, m_coord, self)
+				# Evaluación perezosa del POI de la celda buscando una meseta estable
+				var poi = null
+				if poi_generator.has_method("find_valid_poi_for_macro_cell"):
+					poi = poi_generator.find_valid_poi_for_macro_cell(seed_val, m_coord, self, 16)
+				else:
+					poi = poi_generator.evaluate_and_create_poi(seed_val, m_coord, self)
 				_evaluated_pois[m_coord] = poi
 			
 			var candidate_poi = _evaluated_pois[m_coord]
