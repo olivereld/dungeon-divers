@@ -25,21 +25,21 @@ static func _get_baked_mesh() -> Mesh:
 					mi = child
 					break
 			if mi != null:
-				_cached_baked_mesh = _bake_dead_tree(mi.mesh, mi.transform, 2.4)
+				_cached_baked_mesh = _bake_dead_tree(mi.mesh, mi.transform, 5.8)
 			inst.free()
 
 	if _cached_baked_mesh == null:
 		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.2
-		cyl.bottom_radius = 0.4
-		cyl.height = 4.0
+		cyl.top_radius = 0.3
+		cyl.bottom_radius = 0.8
+		cyl.height = 5.8
 		_cached_baked_mesh = cyl
 
 	return _cached_baked_mesh
 
-## Hornea la malla original del GLB con su orientación y asienta las raíces en el suelo
-## Idéntico al patrón _bake_pino_mesh en WorldRenderer.
-static func _bake_dead_tree(orig_mesh: Mesh, xform: Transform3D, scale_factor: float = 2.4) -> ArrayMesh:
+## Hornea la malla original del GLB con su orientación, escalada a tamaño de conífera (~5.8m)
+## y asienta las raíces en el suelo. Idéntico al patrón _bake_pino_mesh en WorldRenderer.
+static func _bake_dead_tree(orig_mesh: Mesh, xform: Transform3D, scale_factor: float = 5.8) -> ArrayMesh:
 	var min_y: float = INF
 	for s in range(orig_mesh.get_surface_count()):
 		var arr: Array = orig_mesh.surface_get_arrays(s)
@@ -50,8 +50,7 @@ static func _bake_dead_tree(orig_mesh: Mesh, xform: Transform3D, scale_factor: f
 	if not is_finite(min_y):
 		min_y = 0.0
 
-	# y_offset hunde las raíces 0.15m en la tierra para que queden naturalmente ancladas
-	var y_offset: float = -min_y - 0.15
+	var ground_embed_m: float = 0.20 # Asienta 20cm en el suelo para raíces firmes
 	var baked := ArrayMesh.new()
 
 	for s in range(orig_mesh.get_surface_count()):
@@ -62,8 +61,7 @@ static func _bake_dead_tree(orig_mesh: Mesh, xform: Transform3D, scale_factor: f
 
 		for i in range(verts.size()):
 			var tv: Vector3 = xform * verts[i]
-			tv.y += y_offset
-			verts[i] = tv * scale_factor
+			verts[i] = Vector3(tv.x * scale_factor, (tv.y - min_y) * scale_factor - ground_embed_m, tv.z * scale_factor)
 
 		if not normals.is_empty():
 			for i in range(normals.size()):
