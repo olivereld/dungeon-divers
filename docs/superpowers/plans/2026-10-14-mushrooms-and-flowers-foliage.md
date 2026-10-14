@@ -90,97 +90,15 @@ git commit -m "feat(foliage): generate botanical gradient textures for flowers a
     `mat.set_shader_parameter("gradient_influence", species.gradient_influence)`
   - Si es menor a 0.0 pero tiene `gradient_texture_path` no vacío, fijar `0.85` para hongos/flores y `0.20` para césped.
 
-- [ ] **Paso 1: Escribir el test que falla `tests/test_foliage_species_types.gd`**
-
-```gdscript
-extends SceneTree
-
-const _SpeciesScript = preload("res://src/world_generator/foliage/foliage_species.gd")
-const _MaterialScript = preload("res://src/world_generator/foliage/rendering/foliage_material.gd")
-
-func _init() -> void:
-	print("Running test_foliage_species_types...")
-	
-	# Test FoliageType enum
-	assert(_SpeciesScript.FoliageType.GRASS == 0, "GRASS must be 0")
-	assert(_SpeciesScript.FoliageType.FLOWER == 1, "FLOWER must be 1")
-	assert(_SpeciesScript.FoliageType.MUSHROOM == 2, "MUSHROOM must be 2")
-
-	# Test new species fields
-	var sp_mush := _SpeciesScript.new(&"mush_amanita", "Amanita", "res://assets/texture/foliage/mushrooms/mushroom_single_1.jpg")
-	sp_mush.foliage_type = _SpeciesScript.FoliageType.MUSHROOM
-	sp_mush.tint_with_grass_color = false
-	sp_mush.gradient_influence = 0.85
-	sp_mush.canopy_preference = 1.0
-	assert(sp_mush.foliage_type == _SpeciesScript.FoliageType.MUSHROOM, "Must assign MUSHROOM type")
-	assert(sp_mush.tint_with_grass_color == false, "Mushroom must not tint with grass color")
-	assert(sp_mush.gradient_influence == 0.85, "Must store gradient_influence")
-	assert(sp_mush.canopy_preference == 1.0, "Must store canopy_preference")
-
-	# Test Material configuration with gradient influence
-	var mat = _MaterialScript.get_or_create_material(sp_mush)
-	assert(mat != null, "Material must not be null")
-	var g_inf = mat.get_shader_parameter("gradient_influence")
-	assert(is_equal_approx(float(g_inf), 0.85), "Shader parameter gradient_influence must match species value (got %s)" % str(g_inf))
-
-	print("[PASS] test_foliage_species_types")
-	quit(0)
-```
-
-- [ ] **Paso 2: Ejecutar test para verificar que falla**
-
-Ejecutar:
-```powershell
-& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script tests/test_foliage_species_types.gd
-```
-Esperado: FALLA (campos no existen en `FoliageSpecies`).
-
-- [ ] **Paso 3: Implementar cambios en `foliage_species.gd`, `foliage_wind.gdshader` y `foliage_material.gd`**
-
-En `src/world_generator/foliage/foliage_species.gd`:
-```gdscript
-enum FoliageType {
-	GRASS = 0,
-	FLOWER = 1,
-	MUSHROOM = 2
-}
-
-@export var foliage_type: FoliageType = FoliageType.GRASS
-@export var tint_with_grass_color: bool = true
-@export var gradient_influence: float = -1.0
-@export var canopy_preference: float = 0.0
-```
-Y actualizar `_init(...)` con los nuevos argumentos y valores por defecto.
-
-En `src/world_renderer/shaders/foliage_wind.gdshader`:
-Línea 12:
-```glsl
-uniform float gradient_influence : hint_range(0.0, 1.0) = 0.20;
-```
-Línea 102:
-```glsl
-		gradient_col = mix(base_gradient, tex_grad, gradient_influence);
-```
-
-En `src/world_generator/foliage/rendering/foliage_material.gd`:
-```gdscript
-	var actual_gradient_influence: float = 0.20
-	if "gradient_influence" in species and species.gradient_influence >= 0.0:
-		actual_gradient_influence = species.gradient_influence
-	elif "foliage_type" in species and species.foliage_type != 0: # FLOWER or MUSHROOM
-		actual_gradient_influence = 0.85
-	mat.set_shader_parameter("gradient_influence", actual_gradient_influence)
-```
-
-- [ ] **Paso 4: Ejecutar test para verificar que pasa**
-
-Ejecutar:
-```powershell
-& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script tests/test_foliage_species_types.gd
-```
-Esperado: PASS con código de salida 0.
-
-- [ ] **Paso 5: Commit de la Tarea 2**
+- [x] **Paso 1: Escribir el test que falla `tests/test_foliage_species_types.gd`**
+...
+- [x] **Paso 2: Ejecutar test para verificar que falla**
+...
+- [x] **Paso 3: Implementar cambios en `foliage_species.gd`, `foliage_wind.gdshader` y `foliage_material.gd`**
+...
+- [x] **Paso 4: Ejecutar test para verificar que pasa**
+...
+- [x] **Paso 5: Commit de la Tarea 2**
 
 ```powershell
 git add src/world_generator/foliage/foliage_species.gd src/world_renderer/shaders/foliage_wind.gdshader src/world_generator/foliage/rendering/foliage_material.gd tests/test_foliage_species_types.gd

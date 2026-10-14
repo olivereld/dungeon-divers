@@ -50,6 +50,13 @@ static func get_or_create_material(species: Resource, wind_strength: float = 0.2
 	else:
 		mat.set_shader_parameter("use_gradient_texture", false)
 
+	var actual_gradient_influence: float = 0.20
+	if "gradient_influence" in species and species.gradient_influence >= 0.0:
+		actual_gradient_influence = species.gradient_influence
+	elif "foliage_type" in species and species.foliage_type != 0:
+		actual_gradient_influence = 0.85
+	mat.set_shader_parameter("gradient_influence", actual_gradient_influence)
+
 	if "use_upward_normals" in species:
 		mat.set_shader_parameter("use_upward_normals", species.use_upward_normals)
 

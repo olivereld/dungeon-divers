@@ -9,6 +9,7 @@ uniform float alpha_scissor_threshold : hint_range(0.0, 1.0) = 0.08;
 // --- Colores y Gradiente Vertical ---
 uniform bool use_gradient_texture = false;
 uniform sampler2D gradient_texture : source_color, filter_linear_mipmap;
+uniform float gradient_influence : hint_range(0.0, 1.0) = 0.20;
 uniform bool use_upward_normals = true;
 uniform vec4 color_bottom : source_color = vec4(0.20, 0.20, 0.10, 1.0);
 uniform vec4 color_top : source_color = vec4(0.38, 0.44, 0.18, 1.0);
@@ -98,8 +99,8 @@ void fragment() {
 		float v = clamp(1.0 - v_height_ratio, 0.02, 0.98);
 		vec3 tex_grad = texture(gradient_texture, vec2(u, v)).rgb;
 
-		// Modulación orgánica sutil sin alterar el balance cálido/oliva calibrado con el terreno
-		gradient_col = mix(base_gradient, base_gradient * (tex_grad * 1.5), 0.20);
+		// Modulación con textura de gradiente botánico
+		gradient_col = mix(base_gradient, tex_grad, gradient_influence);
 	}
 
 	// El detalle de la textura monocromática añade las hebras sin aplastar la raíz a negro
