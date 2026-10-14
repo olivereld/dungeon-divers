@@ -174,90 +174,17 @@ git commit -m "feat(foliage): add ecological habitat weighting for flowers and m
   - **Alpine**:
     - `flower_single_alpine` (`flowers_single_1.jpg`, `flower_gradient_daisy.png`)
 
-- [ ] **Paso 1: Escribir el test que falla `tests/test_biome_flowers_and_mushrooms.gd`**
-
-```gdscript
-extends SceneTree
-
-const _BiomeRegistryScript = preload("res://src/world_generator/biomes/biome_registry.gd")
-const _SpeciesScript = preload("res://src/world_generator/foliage/foliage_species.gd")
-
-func _init() -> void:
-	print("Running test_biome_flowers_and_mushrooms...")
-	var reg = _BiomeRegistryScript.get_default()
-	
-	# Taiga
-	var taiga = reg.get_definition(&"taiga")
-	assert(taiga != null and taiga.foliage_profile != null, "Taiga foliage profile must exist")
-	var has_amanita := false
-	var has_flower := false
-	for sp in taiga.foliage_profile.species:
-		if sp.foliage_type == _SpeciesScript.FoliageType.MUSHROOM:
-			has_amanita = true
-		if sp.foliage_type == _SpeciesScript.FoliageType.FLOWER:
-			has_flower = true
-	assert(has_amanita, "Taiga must include mushroom species")
-	assert(has_flower, "Taiga must include flower species")
-
-	# Temperate Forest
-	var forest = reg.get_definition(&"temperate_forest")
-	var forest_mush := false
-	var forest_flower := false
-	for sp in forest.foliage_profile.species:
-		if sp.foliage_type == _SpeciesScript.FoliageType.MUSHROOM:
-			forest_mush = true
-		if sp.foliage_type == _SpeciesScript.FoliageType.FLOWER:
-			forest_flower = true
-	assert(forest_mush and forest_flower, "Temperate forest must include both mushrooms and flowers")
-
-	print("[PASS] test_biome_flowers_and_mushrooms")
-	quit(0)
-```
-
-- [ ] **Paso 2: Ejecutar test para verificar que falla**
-
-Ejecutar:
-```powershell
-& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script tests/test_biome_flowers_and_mushrooms.gd
-```
-Esperado: FALLA (las especies no están registradas en los biomas).
-
-- [ ] **Paso 3: Configurar especies en `biome_registry.gd`**
-
-En `src/world_generator/biomes/biome_registry.gd`:
-Crear las instancias de `FoliageSpecies` para hongos y flores en:
-- `_create_taiga_foliage()`
-- `_create_forest_foliage()`
-- `_create_tundra_foliage()`
-- `_create_jungle_foliage()`
-- `_create_alpine_foliage()`
-Configurando:
-- `foliage_type`
-- `texture_path`
-- `gradient_texture_path`
-- `color_bottom` y `color_top` calibrados
-- `wind_strength` suave/rígido (0.02 para hongos, 0.14 para flores)
-- `tint_with_grass_color = false`
-
-- [ ] **Paso 4: Ejecutar test para verificar que pasa**
-
-Ejecutar:
-```powershell
-& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script tests/test_biome_flowers_and_mushrooms.gd
-```
-Esperado: PASS con código de salida 0.
-
-- [ ] **Paso 5: Ejecutar la suite completa de tests de biomas y generador para verificar no-regresión**
-
-Ejecutar:
-```powershell
-& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script src/world_generator/tests/test_biome_foliage_profiles.gd
-& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script src/world_generator/tests/test_foliage_generator.gd
-& "C:\Users\olivereld\Documents\Godot_v4.6.1-stable_win64.exe\Godot_v4.6.1-stable_win64_console.exe" --headless --script tests/test_foliage_canopy_and_scale.gd
-```
-Esperado: Todos los tests pasan.
-
-- [ ] **Paso 6: Commit de la Tarea 4**
+- [x] **Paso 1: Escribir el test que falla `tests/test_biome_flowers_and_mushrooms.gd`**
+...
+- [x] **Paso 2: Ejecutar test para verificar que falla**
+...
+- [x] **Paso 3: Configurar especies en `biome_registry.gd`**
+...
+- [x] **Paso 4: Ejecutar test para verificar que pasa**
+...
+- [x] **Paso 5: Ejecutar la suite completa de tests de biomas y generador para verificar no-regresión**
+...
+- [x] **Paso 6: Commit de la Tarea 4**
 
 ```powershell
 git add src/world_generator/biomes/biome_registry.gd tests/test_biome_flowers_and_mushrooms.gd

@@ -353,7 +353,73 @@ static func _create_taiga_foliage() -> Resource:
 	)
 	sp_large.scale_category = _FoliageSpeciesScript.ScaleCategory.MEDIUM
 
-	return _FoliageProfileScript.new(1.1, [sp_micro, sp_med, sp_large], 26.0, 0.8)
+	var sp_amanita = _FoliageSpeciesScript.new(
+		&"mushroom_single_amanita",
+		"Boreal Amanita",
+		"res://assets/texture/foliage/mushrooms/mushroom_single_1.jpg",
+		0.35,
+		Vector3(0.40, 0.40, 0.40),
+		Vector3(0.70, 0.75, 0.70),
+		25.0,
+		Color(0.85, 0.82, 0.72),
+		Color(0.85, 0.20, 0.10),
+		2,
+		"res://assets/texture/foliage/mushrooms/mushroom_gradient_amanita.png",
+		true,
+		0.02,
+		0.5,
+		_FoliageSpeciesScript.FoliageType.MUSHROOM,
+		false,
+		0.85,
+		1.0
+	)
+	sp_amanita.scale_category = _FoliageSpeciesScript.ScaleCategory.MICRO
+
+	var sp_chanterelle = _FoliageSpeciesScript.new(
+		&"mushroom_cluster_chanterelle",
+		"Taiga Chanterelle Cluster",
+		"res://assets/texture/foliage/mushrooms/mushroom_budge_1.jpg",
+		0.25,
+		Vector3(0.50, 0.45, 0.50),
+		Vector3(0.85, 0.80, 0.85),
+		24.0,
+		Color(0.82, 0.70, 0.45),
+		Color(0.92, 0.65, 0.15),
+		3,
+		"res://assets/texture/foliage/mushrooms/mushroom_gradient_chanterelle.png",
+		true,
+		0.02,
+		0.5,
+		_FoliageSpeciesScript.FoliageType.MUSHROOM,
+		false,
+		0.85,
+		1.0
+	)
+	sp_chanterelle.scale_category = _FoliageSpeciesScript.ScaleCategory.MICRO
+
+	var sp_flower = _FoliageSpeciesScript.new(
+		&"flower_cluster_lavender",
+		"Boreal Lavender Patch",
+		"res://assets/texture/foliage/flowers/flowers_group_1.jpg",
+		0.40,
+		Vector3(0.60, 0.55, 0.60),
+		Vector3(0.95, 1.05, 0.95),
+		26.0,
+		Color(0.24, 0.35, 0.16),
+		Color(0.65, 0.38, 0.75),
+		3,
+		"res://assets/texture/foliage/flowers/flower_gradient_lavender.png",
+		true,
+		0.14,
+		1.4,
+		_FoliageSpeciesScript.FoliageType.FLOWER,
+		false,
+		0.85,
+		-1.0
+	)
+	sp_flower.scale_category = _FoliageSpeciesScript.ScaleCategory.MICRO
+
+	return _FoliageProfileScript.new(1.1, [sp_micro, sp_med, sp_large, sp_amanita, sp_chanterelle, sp_flower], 26.0, 0.8)
 
 static func _create_forest_foliage() -> Resource:
 	var sp_med = _FoliageSpeciesScript.new(
@@ -396,7 +462,92 @@ static func _create_forest_foliage() -> Resource:
 		0.05,
 		0.85
 	)
-	return _FoliageProfileScript.new(1.25, [sp_med, sp_large, sp_single], 28.0, 0.75)
+
+	var sp_boletus = _FoliageSpeciesScript.new(
+		&"mushroom_single_boletus",
+		"Porcini Mushroom",
+		"res://assets/texture/foliage/mushrooms/mushroom_single_2.jpg",
+		0.30,
+		Vector3(0.45, 0.45, 0.45),
+		Vector3(0.80, 0.85, 0.80),
+		26.0,
+		Color(0.82, 0.78, 0.68),
+		Color(0.48, 0.28, 0.14),
+		2,
+		"res://assets/texture/foliage/mushrooms/mushroom_gradient_boletus.png",
+		true,
+		0.02,
+		0.5,
+		_FoliageSpeciesScript.FoliageType.MUSHROOM,
+		false,
+		0.85,
+		1.0
+	)
+
+	var sp_mush_dense = _FoliageSpeciesScript.new(
+		&"mushroom_cluster_dense",
+		"Forest Mushroom Colony",
+		"res://assets/texture/foliage/mushrooms/mushroom_budge_2.jpg",
+		0.25,
+		Vector3(0.55, 0.50, 0.55),
+		Vector3(0.90, 0.85, 0.90),
+		25.0,
+		Color(0.80, 0.74, 0.64),
+		Color(0.55, 0.32, 0.16),
+		3,
+		"res://assets/texture/foliage/mushrooms/mushroom_gradient_boletus.png",
+		true,
+		0.02,
+		0.5,
+		_FoliageSpeciesScript.FoliageType.MUSHROOM,
+		false,
+		0.85,
+		1.0
+	)
+
+	var sp_flower_wild = _FoliageSpeciesScript.new(
+		&"flower_single_wild",
+		"Woodland Wildflower",
+		"res://assets/texture/foliage/flowers/flowers_single_1.jpg",
+		0.35,
+		Vector3(0.45, 0.45, 0.45),
+		Vector3(0.75, 0.80, 0.75),
+		28.0,
+		Color(0.22, 0.34, 0.15),
+		Color(0.70, 0.40, 0.80),
+		2,
+		"res://assets/texture/foliage/flowers/flower_gradient_lavender.png",
+		true,
+		0.12,
+		1.3,
+		_FoliageSpeciesScript.FoliageType.FLOWER,
+		false,
+		0.85,
+		-1.0
+	)
+
+	var sp_flower_poppy = _FoliageSpeciesScript.new(
+		&"flower_cluster_poppy",
+		"Meadow Poppy Bed",
+		"res://assets/texture/foliage/flowers/flowers_group_2.jpg",
+		0.35,
+		Vector3(0.65, 0.60, 0.65),
+		Vector3(1.05, 1.10, 1.05),
+		26.0,
+		Color(0.20, 0.30, 0.12),
+		Color(0.88, 0.28, 0.12),
+		3,
+		"res://assets/texture/foliage/flowers/flower_gradient_poppy.png",
+		true,
+		0.14,
+		1.4,
+		_FoliageSpeciesScript.FoliageType.FLOWER,
+		false,
+		0.85,
+		-1.0
+	)
+
+	return _FoliageProfileScript.new(1.25, [sp_med, sp_large, sp_single, sp_boletus, sp_mush_dense, sp_flower_wild, sp_flower_poppy], 28.0, 0.75)
 
 static func _create_tundra_foliage() -> Resource:
 	var sp_single = _FoliageSpeciesScript.new(
@@ -415,7 +566,30 @@ static func _create_tundra_foliage() -> Resource:
 		0.05,
 		0.85
 	)
-	return _FoliageProfileScript.new(0.4, [sp_single], 22.0, 0.7)
+
+	var sp_daisy = _FoliageSpeciesScript.new(
+		&"flower_single_daisy",
+		"Arctic Daisy",
+		"res://assets/texture/foliage/flowers/flowers_single_1.jpg",
+		0.25,
+		Vector3(0.30, 0.28, 0.30),
+		Vector3(0.48, 0.45, 0.48),
+		22.0,
+		Color(0.25, 0.32, 0.18),
+		Color(0.95, 0.92, 0.85),
+		2,
+		"res://assets/texture/foliage/flowers/flower_gradient_daisy.png",
+		true,
+		0.10,
+		1.2,
+		_FoliageSpeciesScript.FoliageType.FLOWER,
+		false,
+		0.85,
+		-1.0
+	)
+	sp_daisy.scale_category = _FoliageSpeciesScript.ScaleCategory.MICRO
+
+	return _FoliageProfileScript.new(0.4, [sp_single, sp_daisy], 22.0, 0.7)
 
 static func _create_desert_foliage() -> Resource:
 	var sp_single = _FoliageSpeciesScript.new(
@@ -461,7 +635,47 @@ static func _create_jungle_foliage() -> Resource:
 		Color(0.32, 0.52, 0.18),
 		2
 	)
-	return _FoliageProfileScript.new(1.4, [sp_large, sp_med], 30.0, 0.6)
+	var sp_mush = _FoliageSpeciesScript.new(
+		&"mushroom_cluster_jungle",
+		"Tropical Spore Cluster",
+		"res://assets/texture/foliage/mushrooms/mushroom_budge_2.jpg",
+		0.35,
+		Vector3(0.60, 0.55, 0.60),
+		Vector3(1.0, 0.95, 1.0),
+		28.0,
+		Color(0.78, 0.70, 0.48),
+		Color(0.95, 0.60, 0.18),
+		3,
+		"res://assets/texture/foliage/mushrooms/mushroom_gradient_chanterelle.png",
+		true,
+		0.02,
+		0.5,
+		_FoliageSpeciesScript.FoliageType.MUSHROOM,
+		false,
+		0.85,
+		1.0
+	)
+	var sp_flower = _FoliageSpeciesScript.new(
+		&"flower_cluster_tropical",
+		"Tropical Orchid Blossom",
+		"res://assets/texture/foliage/flowers/flowers_group_2.jpg",
+		0.45,
+		Vector3(0.75, 0.70, 0.75),
+		Vector3(1.15, 1.20, 1.15),
+		28.0,
+		Color(0.15, 0.30, 0.10),
+		Color(0.92, 0.30, 0.20),
+		3,
+		"res://assets/texture/foliage/flowers/flower_gradient_poppy.png",
+		true,
+		0.15,
+		1.4,
+		_FoliageSpeciesScript.FoliageType.FLOWER,
+		false,
+		0.85,
+		-1.0
+	)
+	return _FoliageProfileScript.new(1.4, [sp_large, sp_med, sp_mush, sp_flower], 30.0, 0.6)
 
 static func _create_alpine_foliage() -> Resource:
 	var sp_single = _FoliageSpeciesScript.new(
@@ -480,5 +694,26 @@ static func _create_alpine_foliage() -> Resource:
 		0.05,
 		0.85
 	)
-	return _FoliageProfileScript.new(0.35, [sp_single], 24.0, 0.7)
+	var sp_alpine_flower = _FoliageSpeciesScript.new(
+		&"flower_single_alpine",
+		"Alpine Edelweiss",
+		"res://assets/texture/foliage/flowers/flowers_single_1.jpg",
+		0.30,
+		Vector3(0.35, 0.32, 0.35),
+		Vector3(0.55, 0.50, 0.55),
+		24.0,
+		Color(0.22, 0.28, 0.20),
+		Color(0.94, 0.92, 0.86),
+		2,
+		"res://assets/texture/foliage/flowers/flower_gradient_daisy.png",
+		true,
+		0.12,
+		1.3,
+		_FoliageSpeciesScript.FoliageType.FLOWER,
+		false,
+		0.85,
+		-1.0
+	)
+	return _FoliageProfileScript.new(0.35, [sp_single, sp_alpine_flower], 24.0, 0.7)
+
 
