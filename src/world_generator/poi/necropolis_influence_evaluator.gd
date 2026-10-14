@@ -14,20 +14,54 @@ enum {
 	ZONE_WILD = 4,
 }
 
+static func is_in_frontal_corridor(
+	pos_2d: Vector2,
+	poi_pos_2d: Vector2,
+	orientation_deg: float,
+	length: float = 7.5,
+	half_width: float = 3.2
+) -> bool:
+	var fwd_3d: Vector3 = Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(orientation_deg))
+	var fwd_2d := Vector2(fwd_3d.x, fwd_3d.z).normalized()
+	var rel := pos_2d - poi_pos_2d
+	var d_fwd: float = rel.dot(fwd_2d)
+	if d_fwd < 0.0 or d_fwd > length:
+		return false
+	var side_dist: float = (rel - fwd_2d * d_fwd).length()
+	return side_dist <= half_width
+
+static func compute_survival_chance(raw_dist: float, in_corridor: bool = false) -> float:
+	if in_corridor or raw_dist <= 5.5:
+		return 0.0
+	elif raw_dist <= 10.0:
+		var t: float = (raw_dist - 5.5) / 4.5
+		return lerpf(0.10, 0.20, t)
+	elif raw_dist <= 18.0:
+		var t: float = (raw_dist - 10.0) / 8.0
+		return lerpf(0.30, 0.50, t)
+	elif raw_dist <= 28.0:
+		var t: float = (raw_dist - 18.0) / 10.0
+		return lerpf(0.60, 0.80, t)
+	else:
+		return 1.0
+
 static func evaluate_point(
 	world_pos_2d: Vector2,
 	poi_pos_2d: Vector2,
 	seed_val: int,
-	profile: RefCounted
+	profile: RefCounted,
+	orientation_deg: float = 0.0
 ) -> Dictionary:
 	var raw_dist: float = (world_pos_2d - poi_pos_2d).length()
+	var in_corridor: bool = is_in_frontal_corridor(world_pos_2d, poi_pos_2d, orientation_deg)
 
-	# Zona inmediata de despeje absoluto (entrada sin obstrucción)
-	if raw_dist <= profile.entrance_clear_radius:
+	# Zona inmediata de despeje ceremonial (núcleo y corredor frontal)
+	if raw_dist <= profile.entrance_clear_radius or in_corridor:
 		return {
 			"influence": 1.0,
 			"zone": ZONE_CLEAR,
-			"is_cleared": true
+			"is_cleared": true,
+			"in_frontal_corridor": in_corridor
 		}
 
 	# Perturbación angular/espacial determinista basada en funciones armónicas
@@ -40,7 +74,8 @@ static func evaluate_point(
 		return {
 			"influence": clampf(t, 0.75, 1.0),
 			"zone": ZONE_FUNERAL,
-			"is_cleared": false
+			"is_cleared": false,
+			"in_frontal_corridor": false
 		}
 	elif effective_dist <= profile.corruption_radius:
 		var span: float = profile.corruption_radius - profile.funeral_ground_radius
@@ -48,7 +83,8 @@ static func evaluate_point(
 		return {
 			"influence": clampf(0.35 + t * 0.40, 0.35, 0.75),
 			"zone": ZONE_CORRUPTION,
-			"is_cleared": false
+			"is_cleared": false,
+			"in_frontal_corridor": false
 		}
 	elif effective_dist <= profile.transition_radius:
 		var span: float = profile.transition_radius - profile.corruption_radius
@@ -56,11 +92,13 @@ static func evaluate_point(
 		return {
 			"influence": clampf(t * 0.35, 0.0, 0.35),
 			"zone": ZONE_TRANSITION,
-			"is_cleared": false
+			"is_cleared": false,
+			"in_frontal_corridor": false
 		}
 	else:
 		return {
 			"influence": 0.0,
 			"zone": ZONE_WILD,
-			"is_cleared": false
+			"is_cleared": false,
+			"in_frontal_corridor": false
 		}

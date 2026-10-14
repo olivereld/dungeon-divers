@@ -227,29 +227,53 @@ void fragment() {
 	float land_roughness = mix(land_floor_roughness, roughness_cliff, cliff_factor);
 	land_roughness = mix(land_roughness, roughness_grass, overhang_mask);
 
-	// Influencia de Necrópolis (Corrupción y Tierra Funeraria con Transición de Opacidad Suave)
+	// Influencia de Necrópolis: Gradiente en 5 niveles espaciales
+	// (Núcleo Cripta -> Tierra Funeral -> Corrupción -> Manchas/Venas Blight -> Mundo Normal)
 	if (poi_nec_center.y > -900.0) {
 		vec2 diff = v_world_pos.xz - poi_nec_center.xz;
 		float nec_dist = length(diff);
 		if (nec_dist < poi_nec_radii.w) {
-			// Perturbación angular suave para contorno orgánico
+			// Perturbación angular suave para contorno orgánico y no un disco circular
 			float angle = atan(diff.y, diff.x);
 			float border_noise = sin(angle * 3.0) * 1.5 + cos(angle * 5.0) * 0.9;
 			float eff_dist = max(0.0, nec_dist + border_noise);
 
-			// Pesos relativos de mezcla
-			float f_w = clamp(1.0 - (eff_dist / poi_nec_radii.y), 0.0, 1.0);
 			vec3 fun_col = texture(funeral_ground_texture, v_world_pos.xz * corruption_uv_scale).rgb;
 			vec3 cor_col = texture(corrupted_ground_texture, v_world_pos.xz * corruption_uv_scale).rgb;
-			vec3 nec_mix = mix(cor_col, fun_col, f_w) * vec3(0.78, 0.74, 0.82);
 
-			// Transición gradual de opacidad entre corruption_radius y transition_radius
-			float opacity = 1.0;
-			if (eff_dist > poi_nec_radii.z) {
-				opacity = smoothstep(poi_nec_radii.w, poi_nec_radii.z, eff_dist);
+			// Nivel 1 & 2: Núcleo y Tierra Funeraria
+			float f_w = 0.0;
+			if (eff_dist <= poi_nec_radii.x) {
+				// Crypt Core: máxima presencia de tierra funeraria oscura y solemne
+				f_w = 1.0;
+			} else if (eff_dist <= poi_nec_radii.y) {
+				// Graveyard: mezcla gradual de tierra funeraria hacia suelo corrupto
+				float span_fg = max(poi_nec_radii.y - poi_nec_radii.x, 0.001);
+				f_w = clamp(1.0 - ((eff_dist - poi_nec_radii.x) / span_fg), 0.0, 1.0);
 			}
 
-			// Mezclar superficie vegetal con la textura de corrupción modulada por la opacidad
+			vec3 nec_mix = mix(cor_col, fun_col, f_w) * vec3(0.78, 0.74, 0.82);
+
+			// Nivel 4: Transición por Manchas / Venas (18m - 28m)
+			// Rompe el manto púrpura continuo en manchas orgánicas que se disuelven en la hierba
+			float opacity = 1.0;
+			if (eff_dist > poi_nec_radii.z) {
+				float span_trans = max(poi_nec_radii.w - poi_nec_radii.z, 0.001);
+				float ring_t = clamp((eff_dist - poi_nec_radii.z) / span_trans, 0.0, 1.0);
+
+				// Ruido procedural multi-escala para generar manchas ('manchas') y venas corruptas
+				float patch_n1 = sin(v_world_pos.x * 0.40 + sin(v_world_pos.z * 0.35) * 2.2) 
+				               * cos(v_world_pos.z * 0.40 + cos(v_world_pos.x * 0.35) * 2.2);
+				float patch_n2 = sin(v_world_pos.x * 0.95 + v_world_pos.z * 0.85) * 0.5 + 0.5;
+				float patch_noise = (patch_n1 * 0.5 + 0.5) * 0.65 + patch_n2 * 0.35;
+
+				// Umbral dinámico: a 18m cubre el 100%, a 28m solo sobreviven pequeños zarcillos
+				float patch_threshold = mix(0.12, 0.86, ring_t);
+				float patch_mask = smoothstep(patch_threshold + 0.14, patch_threshold - 0.14, patch_noise);
+				opacity = (1.0 - ring_t * 0.85) * patch_mask;
+			}
+
+			// Mezclar superficie vegetal con la textura de corrupción modulada por la opacidad y cliff factor
 			float blend_weight = opacity * (1.0 - is_cliff_face * 0.6);
 			land_surface = mix(land_surface, nec_mix, blend_weight);
 		}

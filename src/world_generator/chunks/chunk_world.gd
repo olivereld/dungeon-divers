@@ -438,19 +438,22 @@ func _spawn_chunk_vegetation(
 						if nec_profile == null:
 							nec_profile = _NecropolisProfileScript.new()
 						var p_seed: int = poi.identity.dungeon_seed if ("identity" in poi and poi.identity != null and "dungeon_seed" in poi.identity) else 12345
+						var ori: float = poi.orientation_deg if ("orientation_deg" in poi) else 0.0
 						var eval = _NecropolisEvaluatorScript.evaluate_point(
 							Vector2(item.position.x, item.position.z),
 							Vector2(poi.world_position.x, poi.world_position.z),
 							p_seed,
-							nec_profile
+							nec_profile,
+							ori
 						)
 						if eval.is_cleared:
 							cull_item = true
 							break
 						elif eval.influence > 0.0:
+							var raw_dist: float = (Vector2(item.position.x, item.position.z) - Vector2(poi.world_position.x, poi.world_position.z)).length()
+							var survival_chance: float = _NecropolisEvaluatorScript.compute_survival_chance(raw_dist, eval.get("in_frontal_corridor", false))
 							var hash_val: float = absf(sin(item.position.x * 12.9898 + item.position.z * 78.233) * 43758.5453)
 							var rand_prob: float = hash_val - floorf(hash_val)
-							var survival_chance: float = lerpf(1.0, 0.06, eval.influence)
 							if rand_prob > survival_chance:
 								cull_item = true
 								break
@@ -488,6 +491,7 @@ func _filter_chunk_foliage_for_pois(
 
 	var filtered = _FoliageChunkDataScript.new(foliage_data.chunk_coord if "chunk_coord" in foliage_data else Vector2i.ZERO)
 	for sp_id in foliage_data.instances_by_species:
+		var is_flower_or_shroom: bool = (sp_id != &"grass" and not String(sp_id).begins_with("grass"))
 		var instances: Array = foliage_data.instances_by_species[sp_id]
 		var colors: PackedColorArray = foliage_data.get_colors_for_species(sp_id)
 		for idx in range(instances.size()):
@@ -498,19 +502,28 @@ func _filter_chunk_foliage_for_pois(
 				if poi == null or not ("world_position" in poi):
 					continue
 				var p_seed: int = poi.identity.dungeon_seed if ("identity" in poi and poi.identity != null and "dungeon_seed" in poi.identity) else 12345
+				var ori: float = poi.orientation_deg if ("orientation_deg" in poi) else 0.0
 				var eval = _NecropolisEvaluatorScript.evaluate_point(
 					world_pos_2d,
 					Vector2(poi.world_position.x, poi.world_position.z),
 					p_seed,
-					nec_profile
+					nec_profile,
+					ori
 				)
 				if eval.is_cleared:
 					cull_foliage = true
 					break
-				elif eval.influence > 0.0:
+				
+				var raw_dist: float = (world_pos_2d - Vector2(poi.world_position.x, poi.world_position.z)).length()
+				# En la Necrópolis: cero flores ni hongos dentro de la zona de corrupción (< 18m)
+				if is_flower_or_shroom and raw_dist <= nec_profile.corruption_radius:
+					cull_foliage = true
+					break
+
+				if eval.influence > 0.0:
+					var survival_chance: float = _NecropolisEvaluatorScript.compute_survival_chance(raw_dist, eval.get("in_frontal_corridor", false))
 					var hash_val: float = absf(sin(world_pos_2d.x * 23.456 + world_pos_2d.y * 67.891) * 43758.5453)
 					var rand_prob: float = hash_val - floorf(hash_val)
-					var survival_chance: float = lerpf(1.0, 0.08, eval.influence)
 					if rand_prob > survival_chance:
 						cull_foliage = true
 						break

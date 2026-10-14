@@ -26,10 +26,13 @@ func _init() -> void:
 	
 	var transforms: Array = mmi.get_meta("tree_transforms", [])
 	assert(transforms.size() >= 3, "Must have at least 3 transforms")
+	const _EvaluatorScript = preload("res://src/world_generator/poi/necropolis_influence_evaluator.gd")
 	for i in range(transforms.size()):
 		var t: Transform3D = transforms[i]
 		var dist = Vector2(t.origin.x, t.origin.z).length()
 		assert(dist >= prof.entrance_clear_radius - 0.1, "Dead tree #%d at %.2fm is too close to entrance" % [i, dist])
+		var in_corridor = _EvaluatorScript.is_in_frontal_corridor(Vector2(t.origin.x, t.origin.z), Vector2.ZERO, poi.orientation_deg, 8.5, 3.5)
+		assert(not in_corridor, "Dead tree #%d must not block frontal ceremonial entrance corridor" % i)
 
 	node.free()
 	print("[PASS] test_dead_tree_spawner")

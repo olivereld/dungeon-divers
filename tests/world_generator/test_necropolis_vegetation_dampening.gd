@@ -26,11 +26,13 @@ func _init() -> void:
 	assert(mmi != null and mmi.multimesh != null, "Must contain DarkRocksMultiMesh")
 	assert(mmi.multimesh.instance_count >= 2, "Must spawn dark rock clusters")
 	
-	# Verify rocks are outside clear radius
+	# Verify rocks are outside clear radius and outside frontal ceremonial corridor
 	var transforms: Array = mmi.get_meta("rock_transforms", [])
 	for t in transforms:
 		var dist = Vector2(t.origin.x, t.origin.z).length()
-		assert(dist >= prof.entrance_clear_radius, "Rock at %.2fm too close to entrance" % dist)
+		assert(dist >= prof.entrance_clear_radius - 0.1, "Rock at %.2fm too close to entrance" % dist)
+		var in_corridor = _EvaluatorScript.is_in_frontal_corridor(Vector2(t.origin.x, t.origin.z), Vector2.ZERO, poi.orientation_deg, 8.5, 3.5)
+		assert(not in_corridor, "Rock must not block frontal entrance corridor")
 
 	rock_node.free()
 

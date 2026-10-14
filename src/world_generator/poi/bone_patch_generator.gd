@@ -50,6 +50,8 @@ static func _get_web_material() -> ShaderMaterial:
 		_cached_web_material = mat
 	return _cached_web_material
 
+const _EvaluatorScript = preload("res://src/world_generator/poi/necropolis_influence_evaluator.gd")
+
 static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_query: Object) -> Node3D:
 	var container := Node3D.new()
 	container.name = "BonePatches"
@@ -59,6 +61,10 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 	rng.seed = seed_val ^ 0xB0AE5
 
 	var poi_pos: Vector3 = poi.world_position if (poi != null and "world_position" in poi) else Vector3.ZERO
+	var ori_deg: float = poi.orientation_deg if (poi != null and "orientation_deg" in poi) else 0.0
+	var fwd_3d: Vector3 = Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(ori_deg))
+	var fwd_angle: float = atan2(fwd_3d.z, fwd_3d.x)
+
 	var bone_materials := _get_bone_materials()
 	var web_material := _get_web_material()
 
@@ -68,31 +74,47 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 
 	var web_transforms: Array[Transform3D] = []
 
-	# 1. Generar 5 a 8 centros de clusters orgánicos dentro del cementerio
-	var num_clusters: int = rng.randi_range(5, 8)
-	var clear_r: float = profile.entrance_clear_radius if "entrance_clear_radius" in profile else 4.5
-	var funeral_r: float = profile.funeral_ground_radius if "funeral_ground_radius" in profile else 14.0
+	var clear_r: float = profile.entrance_clear_radius if "entrance_clear_radius" in profile else 5.5
 
-	for c in range(num_clusters):
-		var angle: float = rng.randf() * TAU
-		var dist: float = rng.randf_range(clear_r + 1.2, funeral_r)
-		var cluster_center_x: float = poi_pos.x + cos(angle) * dist
-		var cluster_center_z: float = poi_pos.z + sin(angle) * dist
+	# Clusters organizados con intención narrativa y focal:
+	# 1. Dos túmulos osarios principales flanqueando las escaleras de la cripta (alta concentración)
+	# 2. Cúmulos secundarios en el cementerio (Ring 2) junto a árboles muertos y monolitos
+	# 3. Pequeños fragmentos aislados en la transición exterior
+	var cluster_configs: Array[Dictionary] = [
+		# Osario Mayor Izquierdo (flanco frontal de la cripta)
+		{ "angle_offset": deg_to_rad(-65.0), "dist_min": 5.6, "dist_max": 7.0, "count": rng.randi_range(5, 7), "web_prob": 1.0, "sub_radius": 1.4 },
+		# Osario Mayor Derecho (flanco frontal de la cripta)
+		{ "angle_offset": deg_to_rad(66.0),  "dist_min": 5.8, "dist_max": 7.2, "count": rng.randi_range(5, 7), "web_prob": 1.0, "sub_radius": 1.4 },
+		# Cúmulos cementerio lateral/trasera
+		{ "angle_offset": deg_to_rad(-115.0),"dist_min": 8.0, "dist_max": 11.0,"count": rng.randi_range(3, 4), "web_prob": 0.8, "sub_radius": 1.8 },
+		{ "angle_offset": deg_to_rad(112.0), "dist_min": 8.5, "dist_max": 11.5,"count": rng.randi_range(3, 4), "web_prob": 0.8, "sub_radius": 1.8 },
+		{ "angle_offset": deg_to_rad(162.0), "dist_min": 9.0, "dist_max": 12.5,"count": rng.randi_range(2, 3), "web_prob": 0.6, "sub_radius": 1.6 },
+		# Acentos aislados en borde
+		{ "angle_offset": deg_to_rad(-140.0),"dist_min": 12.5,"dist_max": 15.5,"count": 1, "web_prob": 0.3, "sub_radius": 0.8 },
+		{ "angle_offset": deg_to_rad(140.0), "dist_min": 13.0,"dist_max": 16.0,"count": 1, "web_prob": 0.3, "sub_radius": 0.8 }
+	]
 
-		# 2. Generar 2 a 4 parches de huesos por cluster en el plano base (capa inferior)
-		var count: int = rng.randi_range(2, 4)
+	for cfg in cluster_configs:
+		var base_angle: float = fwd_angle + cfg.angle_offset + rng.randf_range(-0.15, 0.15)
+		var dist: float = rng.randf_range(cfg.dist_min, cfg.dist_max)
+		var cluster_center_x: float = poi_pos.x + cos(base_angle) * dist
+		var cluster_center_z: float = poi_pos.z + sin(base_angle) * dist
+
+		var count: int = cfg.count
 		for p in range(count):
 			var sub_angle: float = rng.randf() * TAU
-			var sub_dist: float = rng.randf_range(0.3, 1.8)
+			var sub_dist: float = rng.randf_range(0.2, cfg.sub_radius)
 			var wx: float = cluster_center_x + cos(sub_angle) * sub_dist
 			var wz: float = cluster_center_z + sin(sub_angle) * sub_dist
+			var p2 := Vector2(wx, wz)
 
-			# Respetar radio de despeje de la entrada
-			var dist_to_entrance: float = (Vector2(wx, wz) - Vector2(poi_pos.x, poi_pos.z)).length()
+			# Despeje estricto: NUNCA en el corredor frontal de entrada
+			if _EvaluatorScript.is_in_frontal_corridor(p2, Vector2(poi_pos.x, poi_pos.z), ori_deg, 8.0, 3.2):
+				continue
+			var dist_to_entrance: float = (p2 - Vector2(poi_pos.x, poi_pos.z)).length()
 			if dist_to_entrance <= clear_r:
 				continue
 
-			# Evitar generar restos dentro de cuerpos de agua
 			if world_query != null and world_query.has_method("is_water") and world_query.is_water(int(round(wx)), int(round(wz))):
 				continue
 
@@ -109,7 +131,6 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 				h_n = world_query.get_elevation(int(round(wx)), int(round(wz - 0.6)))
 				var max_diff: float = maxf(maxf(absf(h_e - wy), absf(h_w - wy)), maxf(absf(h_s - wy), absf(h_n - wy)))
 				if max_diff > 0.25:
-					# Borde de terraza o acantilado: no colocar parche aquí porque levitaría
 					continue
 
 			var sc_min: float = profile.bone_patch_scale_min if "bone_patch_scale_min" in profile else 0.7
@@ -132,40 +153,40 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 			var tex_idx: int = rng.randi() % bone_materials.size()
 			bone_instances[tex_idx].append(xf)
 
-		# 3. Superposición (Layering): telaraña en un plano superior sobre el cúmulo de huesos
-		if rng.randf() < 0.75:
-			var web_dist_to_entrance: float = (Vector2(cluster_center_x, cluster_center_z) - Vector2(poi_pos.x, poi_pos.z)).length()
-			if web_dist_to_entrance > clear_r:
-				if not (world_query != null and world_query.has_method("is_water") and world_query.is_water(int(round(cluster_center_x)), int(round(cluster_center_z)))):
-					var web_wy: float = poi_pos.y
-					var wh_e := web_wy
-					var wh_w := web_wy
-					var wh_s := web_wy
-					var wh_n := web_wy
-					if world_query != null and world_query.has_method("get_elevation"):
-						web_wy = world_query.get_elevation(int(round(cluster_center_x)), int(round(cluster_center_z)))
-						wh_e = world_query.get_elevation(int(round(cluster_center_x + 0.6)), int(round(cluster_center_z)))
-						wh_w = world_query.get_elevation(int(round(cluster_center_x - 0.6)), int(round(cluster_center_z)))
-						wh_s = world_query.get_elevation(int(round(cluster_center_x)), int(round(cluster_center_z + 0.6)))
-						wh_n = world_query.get_elevation(int(round(cluster_center_x)), int(round(cluster_center_z - 0.6)))
-						var web_diff: float = maxf(maxf(absf(wh_e - web_wy), absf(wh_w - web_wy)), maxf(absf(wh_s - web_wy), absf(wh_n - web_wy)))
-						if web_diff > 0.25:
-							continue
+		# Superposición (Layering): telaraña translúcida en un plano superior sobre el cúmulo
+		if rng.randf() < cfg.web_prob:
+			var web_p2 := Vector2(cluster_center_x, cluster_center_z)
+			if not _EvaluatorScript.is_in_frontal_corridor(web_p2, Vector2(poi_pos.x, poi_pos.z), ori_deg, 8.0, 3.2):
+				var web_dist_to_entrance: float = (web_p2 - Vector2(poi_pos.x, poi_pos.z)).length()
+				if web_dist_to_entrance > clear_r:
+					if not (world_query != null and world_query.has_method("is_water") and world_query.is_water(int(round(cluster_center_x)), int(round(cluster_center_z)))):
+						var web_wy: float = poi_pos.y
+						var wh_e := web_wy
+						var wh_w := web_wy
+						var wh_s := web_wy
+						var wh_n := web_wy
+						if world_query != null and world_query.has_method("get_elevation"):
+							web_wy = world_query.get_elevation(int(round(cluster_center_x)), int(round(cluster_center_z)))
+							wh_e = world_query.get_elevation(int(round(cluster_center_x + 0.6)), int(round(cluster_center_z)))
+							wh_w = world_query.get_elevation(int(round(cluster_center_x - 0.6)), int(round(cluster_center_z)))
+							wh_s = world_query.get_elevation(int(round(cluster_center_x)), int(round(cluster_center_z + 0.6)))
+							wh_n = world_query.get_elevation(int(round(cluster_center_x)), int(round(cluster_center_z - 0.6)))
+							var web_diff: float = maxf(maxf(absf(wh_e - web_wy), absf(wh_w - web_wy)), maxf(absf(wh_s - web_wy), absf(wh_n - web_wy)))
+							if web_diff <= 0.25:
+								var web_scale: float = rng.randf_range(0.85, 1.25)
+								var web_normal := Vector3(wh_w - wh_e, 1.2, wh_n - wh_s).normalized()
+								var web_basis := Basis()
+								if web_normal.dot(Vector3.UP) < 0.999:
+									var rot_axis := Vector3.UP.cross(web_normal).normalized()
+									var rot_angle := acos(clampf(Vector3.UP.dot(web_normal), -1.0, 1.0))
+									web_basis = web_basis.rotated(rot_axis, rot_angle)
+								web_basis = web_basis.rotated(web_normal, rng.randf() * TAU)
+								web_basis = web_basis.scaled(Vector3(web_scale, 1.0, web_scale))
 
-					var web_scale: float = rng.randf_range(0.85, 1.15)
-					var web_normal := Vector3(wh_w - wh_e, 1.2, wh_n - wh_s).normalized()
-					var web_basis := Basis()
-					if web_normal.dot(Vector3.UP) < 0.999:
-						var rot_axis := Vector3.UP.cross(web_normal).normalized()
-						var rot_angle := acos(clampf(Vector3.UP.dot(web_normal), -1.0, 1.0))
-						web_basis = web_basis.rotated(rot_axis, rot_angle)
-					web_basis = web_basis.rotated(web_normal, rng.randf() * TAU)
-					web_basis = web_basis.scaled(Vector3(web_scale, 1.0, web_scale))
-
-					# Plano superior de telarañas: rasante a +0.020m sobre los restos
-					var web_elevation: float = (web_wy - poi_pos.y) + 0.020
-					var web_xf := Transform3D(web_basis, Vector3(cluster_center_x - poi_pos.x, web_elevation, cluster_center_z - poi_pos.z))
-					web_transforms.append(web_xf)
+								# Plano superior de telarañas: rasante a +0.020m sobre los restos
+								var web_elevation: float = (web_wy - poi_pos.y) + 0.020
+								var web_xf := Transform3D(web_basis, Vector3(cluster_center_x - poi_pos.x, web_elevation, cluster_center_z - poi_pos.z))
+								web_transforms.append(web_xf)
 
 	# 4. Crear MultiMeshInstance3D para cada grupo de huesos
 	var bone_quad_mesh := QuadMesh.new()

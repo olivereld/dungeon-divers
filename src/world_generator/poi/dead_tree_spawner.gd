@@ -85,6 +85,8 @@ static func _get_material() -> StandardMaterial3D:
 		_cached_material = mat
 	return _cached_material
 
+const _EvaluatorScript = preload("res://src/world_generator/poi/necropolis_influence_evaluator.gd")
+
 static func generate_dead_trees(poi: RefCounted, profile: RefCounted, world_query: Object) -> Node3D:
 	var container := Node3D.new()
 	container.name = "DeadTrees"
@@ -96,66 +98,80 @@ static func generate_dead_trees(poi: RefCounted, profile: RefCounted, world_quer
 	rng.seed = seed_val ^ 0xD3AD7
 
 	var poi_pos: Vector3 = poi.world_position if (poi != null and "world_position" in poi) else Vector3.ZERO
-	var clear_r: float = profile.entrance_clear_radius if "entrance_clear_radius" in profile else 4.5
-	var funeral_r: float = profile.funeral_ground_radius if "funeral_ground_radius" in profile else 14.0
-	var corrupt_r: float = profile.corruption_radius if "corruption_radius" in profile else 24.0
-	var min_dist: float = profile.dead_tree_min_distance if "dead_tree_min_distance" in profile else 4.0
+	var ori_deg: float = poi.orientation_deg if (poi != null and "orientation_deg" in poi) else 0.0
+	var fwd_3d: Vector3 = Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(ori_deg))
+	var fwd_angle: float = atan2(fwd_3d.z, fwd_3d.x)
+
+	var clear_r: float = profile.entrance_clear_radius if "entrance_clear_radius" in profile else 5.5
+	var min_dist: float = profile.dead_tree_min_distance if "dead_tree_min_distance" in profile else 3.8
 
 	var placed_points: Array[Vector2] = []
 	var transforms: Array[Transform3D] = []
 
-	var target_count: int = rng.randi_range(6, 10)
-	var max_attempts: int = 60
+	# Sectores de encuadre asimétrico (como bambalinas teatrales) para siluetear la cripta:
+	# Flanco izquierdo cercano, flanco derecho retrasado, trasera izquierda, trasera derecha y fondo
+	var framing_sectors: Array[Dictionary] = [
+		{ "angle_offset": deg_to_rad(-82.0),  "dist_min": 6.0, "dist_max": 8.5,  "scale_min": 0.95, "scale_max": 1.25 },
+		{ "angle_offset": deg_to_rad(76.0),   "dist_min": 7.5, "dist_max": 10.5, "scale_min": 0.90, "scale_max": 1.20 },
+		{ "angle_offset": deg_to_rad(-145.0), "dist_min": 8.5, "dist_max": 12.5, "scale_min": 1.00, "scale_max": 1.30 },
+		{ "angle_offset": deg_to_rad(152.0),  "dist_min": 9.5, "dist_max": 13.5, "scale_min": 0.90, "scale_max": 1.20 },
+		{ "angle_offset": deg_to_rad(-115.0), "dist_min": 7.8, "dist_max": 11.2, "scale_min": 0.85, "scale_max": 1.15 },
+		{ "angle_offset": deg_to_rad(178.0),  "dist_min": 10.0,"dist_max": 14.5, "scale_min": 0.95, "scale_max": 1.25 }
+	]
 
-	for attempt in range(max_attempts):
+	var target_count: int = rng.randi_range(4, 5)
+
+	for sector in framing_sectors:
 		if transforms.size() >= target_count:
 			break
 
-		var angle: float = rng.randf() * TAU
-		var dist: float = rng.randf_range(clear_r + 1.5, corrupt_r)
-		var wx: float = poi_pos.x + cos(angle) * dist
-		var wz: float = poi_pos.z + sin(angle) * dist
+		var placed := false
+		for attempt in range(8):
+			var angle: float = fwd_angle + sector.angle_offset + rng.randf_range(-0.16, 0.16)
+			var dist: float = rng.randf_range(sector.dist_min, sector.dist_max)
+			var wx: float = poi_pos.x + cos(angle) * dist
+			var wz: float = poi_pos.z + sin(angle) * dist
+			var p2 := Vector2(wx, wz)
 
-		# Comprobar distancia mínima con respecto a la entrada
-		if (Vector2(wx, wz) - Vector2(poi_pos.x, poi_pos.z)).length() < clear_r + 0.5:
-			continue
-
-		# Comprobar distancia mínima entre árboles muertos
-		var too_close := false
-		var p2 := Vector2(wx, wz)
-		for existing in placed_points:
-			if (existing - p2).length() < min_dist:
-				too_close = true
-				break
-		if too_close:
-			continue
-
-		# Comprobar agua
-		if world_query != null and world_query.has_method("is_water") and world_query.is_water(int(round(wx)), int(round(wz))):
-			continue
-
-		var wy: float = poi_pos.y
-		if world_query != null and world_query.has_method("get_elevation"):
-			wy = world_query.get_elevation(int(round(wx)), int(round(wz)))
-			# Comprobar estabilidad del suelo: evitar colocar sobre escalones de acantilado
-			var h_e: float = world_query.get_elevation(int(round(wx + 0.8)), int(round(wz)))
-			var h_s: float = world_query.get_elevation(int(round(wx)), int(round(wz + 0.8)))
-			if absf(h_e - wy) > 0.40 or absf(h_s - wy) > 0.40:
+			# 1. Clearance estricto: NUNCA en el corredor frontal ni dentro del Crypt Core
+			if _EvaluatorScript.is_in_frontal_corridor(p2, Vector2(poi_pos.x, poi_pos.z), ori_deg, 8.5, 3.5):
+				continue
+			if (p2 - Vector2(poi_pos.x, poi_pos.z)).length() < clear_r + 0.3:
 				continue
 
-		# Factor de escala por instancia idéntico a las coníferas en WorldRenderer
-		var s: float = rng.randf_range(0.85, 1.25)
-		var rot_y: float = rng.randf() * TAU
+			# 2. Distancia mínima entre árboles para evitar solapamientos
+			var too_close := false
+			for existing in placed_points:
+				if (existing - p2).length() < min_dist:
+					too_close = true
+					break
+			if too_close:
+				continue
 
-		# La malla horneada ya tiene el tronco erguido y las raíces a nivel de suelo (min_y = -0.15).
-		# Se coloca con rotación puramente vertical sobre Y y a cota wy, exactamente como los pinos.
-		var t := Transform3D()
-		t = t.scaled(Vector3.ONE * s)
-		t = t.rotated(Vector3.UP, rot_y)
-		t.origin = Vector3(wx - poi_pos.x, wy - poi_pos.y, wz - poi_pos.z)
+			# 3. Comprobar que no esté en agua
+			if world_query != null and world_query.has_method("is_water") and world_query.is_water(int(round(wx)), int(round(wz))):
+				continue
 
-		transforms.append(t)
-		placed_points.append(p2)
+			var wy: float = poi_pos.y
+			if world_query != null and world_query.has_method("get_elevation"):
+				wy = world_query.get_elevation(int(round(wx)), int(round(wz)))
+				var h_e: float = world_query.get_elevation(int(round(wx + 0.8)), int(round(wz)))
+				var h_s: float = world_query.get_elevation(int(round(wx)), int(round(wz + 0.8)))
+				if absf(h_e - wy) > 0.40 or absf(h_s - wy) > 0.40:
+					continue
+
+			var s: float = rng.randf_range(sector.scale_min, sector.scale_max)
+			var rot_y: float = rng.randf() * TAU
+
+			var t := Transform3D()
+			t = t.scaled(Vector3.ONE * s)
+			t = t.rotated(Vector3.UP, rot_y)
+			t.origin = Vector3(wx - poi_pos.x, wy - poi_pos.y, wz - poi_pos.z)
+
+			transforms.append(t)
+			placed_points.append(p2)
+			placed = true
+			break
 
 	if not transforms.is_empty():
 		var mmi := MultiMeshInstance3D.new()

@@ -32,6 +32,13 @@ func _init() -> void:
 		
 		var is_web: bool = mmi.get_meta("is_web", false)
 		var transforms: Array = mmi.get_meta("patch_transforms", [])
+		const _EvaluatorScript = preload("res://src/world_generator/poi/necropolis_influence_evaluator.gd")
+		for t in transforms:
+			var in_corridor = _EvaluatorScript.is_in_frontal_corridor(Vector2(t.origin.x, t.origin.z), Vector2.ZERO, poi.orientation_deg, 8.0, 3.2)
+			assert(not in_corridor, "Restos óseos/telaraña no deben bloquear el corredor frontal de entrada")
+			var dist = Vector2(t.origin.x, t.origin.z).length()
+			assert(dist >= prof.entrance_clear_radius - 0.2, "Restos a %.2fm demasiado cerca de la entrada" % dist)
+
 		if is_web:
 			found_webs = true
 			for t in transforms:

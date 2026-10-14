@@ -31,5 +31,21 @@ func _init() -> void:
 	var eval_b = _EvaluatorScript.evaluate_point(poi_center + Vector2(0.0, 20.0), poi_center, seed_val, prof)
 	assert(eval_a.influence != eval_b.influence, "Noise perturbation must create organic non-circular borders")
 
+	# 5. Frontal corridor clearance test
+	# Orientation 0: Vector3.FORWARD is (0, 0, -1), so forward in 2D is (0, -1)
+	var pos_corridor := poi_center + Vector2(0.0, -6.0)
+	assert(_EvaluatorScript.is_in_frontal_corridor(pos_corridor, poi_center, 0.0) == true, "Point in front must be inside corridor")
+	var pos_behind := poi_center + Vector2(0.0, 6.0)
+	assert(_EvaluatorScript.is_in_frontal_corridor(pos_behind, poi_center, 0.0) == false, "Point behind must not be inside corridor")
+	var eval_corridor = _EvaluatorScript.evaluate_point(pos_corridor, poi_center, seed_val, prof, 0.0)
+	assert(eval_corridor.is_cleared == true, "Corridor point must be cleared")
+
+	# 6. Stepped survival curve tests
+	assert(_EvaluatorScript.compute_survival_chance(4.0) == 0.0, "Crypt core must have 0% survival")
+	assert(_EvaluatorScript.compute_survival_chance(8.0) >= 0.10 and _EvaluatorScript.compute_survival_chance(8.0) <= 0.20, "Ring 2 must have 10-20% survival")
+	assert(_EvaluatorScript.compute_survival_chance(15.0) >= 0.30 and _EvaluatorScript.compute_survival_chance(15.0) <= 0.50, "Ring 3 (10-18m) must have 30-50% survival")
+	assert(_EvaluatorScript.compute_survival_chance(22.0) >= 0.60 and _EvaluatorScript.compute_survival_chance(22.0) <= 0.80, "Ring 3 (18-28m) must have 60-80% survival")
+	assert(_EvaluatorScript.compute_survival_chance(35.0) == 1.0, "Outside 28m must have 100% survival")
+
 	print("[PASS] test_necropolis_influence_evaluator")
 	quit(0)

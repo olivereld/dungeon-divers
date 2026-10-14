@@ -5,6 +5,7 @@ const _ProfileScript = preload("res://src/world_generator/poi/necropolis_entranc
 const _RockGenScript = preload("res://src/rock_generation/rock_generation.gd")
 const _RockSizeConfigScript = preload("res://src/rock_generation/config/rock_size_config.gd")
 const _RockMaterialScript = preload("res://src/rock_generation/rock_material.gd")
+const _EvaluatorScript = preload("res://src/world_generator/poi/necropolis_influence_evaluator.gd")
 
 ## Genera cúmulos de rocas oscuras y erosionadas alrededor de la entrada de la Necrópolis.
 ## Añade atmósfera de cementerio antiguo con lajas y monolitos oscurecidos.
@@ -36,37 +37,51 @@ static func generate_dark_rocks(
 		box.size = Vector3(1.4, 0.9, 1.2)
 		rock_mesh = box
 
-	# Material estilizado con gradiente de facetas y matiz frío de cripta/pizarra
+	# Material estilizado con gradiente de facetas y matiz frío/oscuro de pizarra antigua
 	var dark_mat: ShaderMaterial = _RockMaterialScript.create_rock_material(
 		null,
-		-0.3,
-		1.8,
-		0.88,
-		Color(0.68, 0.65, 0.76)
+		-0.35,
+		1.9,
+		0.94,
+		Color(0.36, 0.34, 0.42)
 	)
 
-	# Decidir número de rocas (entre 4 y 8)
-	var rock_count: int = rng.randi_range(5, 8)
+	var ori_deg: float = poi.orientation_deg if (poi != null and "orientation_deg" in poi) else 0.0
+	var fwd_3d: Vector3 = Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(ori_deg))
+	var fwd_angle: float = atan2(fwd_3d.z, fwd_3d.x)
+
+	# Ubicar rocas agrupadas deliberadamente en los flancos y trasera (tipo megalitos funerarios)
+	var cluster_offsets: Array[float] = [
+		deg_to_rad(-85.0), # Flanco izquierdo
+		deg_to_rad(80.0),  # Flanco derecho
+		deg_to_rad(165.0)  # Trasera profunda
+	]
+
+	var rock_count: int = rng.randi_range(5, 7)
 	var transforms: Array[Transform3D] = []
 
-	# Ubicar 2-3 pequeños cúmulos alrededor de la entrada
-	var num_clusters: int = 3
-	var cluster_angles: Array[float] = []
-	for c in range(num_clusters):
-		cluster_angles.append(rng.randf_range(0.0, TAU))
-
 	for i in range(rock_count):
-		var cluster_idx: int = i % num_clusters
-		var base_angle: float = cluster_angles[cluster_idx]
-		var angle: float = base_angle + rng.randf_range(-0.4, 0.4)
+		var base_offset: float = cluster_offsets[i % cluster_offsets.size()]
+		var angle: float = fwd_angle + base_offset + rng.randf_range(-0.35, 0.35)
 		
-		# Distancia entre clearance radius (4.5m) y funeral/corruption (16m)
-		var dist: float = rng.randf_range(profile.entrance_clear_radius + 1.2, profile.funeral_ground_radius + 2.0)
+		# Distancia en Ring 2 (Graveyard: 6.5m - 12.0m)
+		var dist: float = rng.randf_range(profile.entrance_clear_radius + 1.2, profile.funeral_ground_radius - 0.5)
 		
 		var lx: float = cos(angle) * dist
 		var lz: float = sin(angle) * dist
 		var wx: float = poi_pos.x + lx
 		var wz: float = poi_pos.z + lz
+		var p2 := Vector2(wx, wz)
+
+		# Evitar corredor frontal de entrada y Crypt Core
+		if _EvaluatorScript.is_in_frontal_corridor(p2, Vector2(poi_pos.x, poi_pos.z), ori_deg, 8.5, 3.5):
+			continue
+		if (p2 - Vector2(poi_pos.x, poi_pos.z)).length() < profile.entrance_clear_radius:
+			continue
+
+		# Evitar agua
+		if world_query != null and world_query.has_method("is_water") and world_query.is_water(int(round(wx)), int(round(wz))):
+			continue
 
 		var wy: float = poi_pos.y
 		if world_query != null and world_query.has_method("get_elevation"):
@@ -80,7 +95,7 @@ static func generate_dark_rocks(
 		var ly: float = (wy - poi_pos.y) - 0.08
 
 		# Escala aleatoria y rotación desordenada
-		var s: float = rng.randf_range(0.7, 1.6)
+		var s: float = rng.randf_range(0.75, 1.45)
 		var basis := Basis()
 		basis = basis.rotated(Vector3.UP, rng.randf_range(0.0, TAU))
 		basis = basis.rotated(Vector3.RIGHT, rng.randf_range(-0.15, 0.15))

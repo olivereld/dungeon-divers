@@ -5,10 +5,10 @@ extends Resource
 ## Define radios concéntricos de influencia, densidades y escalas sin lógica de generación acoplada.
 
 @export_group("Radii")
-@export var entrance_clear_radius: float = 4.5
+@export var entrance_clear_radius: float = 5.5
 @export var funeral_ground_radius: float = 12.0
-@export var corruption_radius: float = 22.0
-@export var transition_radius: float = 40.0
+@export var corruption_radius: float = 18.0
+@export var transition_radius: float = 28.0
 
 @export_group("Bone Patches")
 @export var bone_patch_density: float = 0.45
