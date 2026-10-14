@@ -3,31 +3,51 @@ extends RefCounted
 
 ## Generador determinista de parches de restos óseos (huesos y telas funerarias) en clusters orgánicos.
 ## Utiliza MultiMeshInstance3D con quads horizontales a ras de suelo orientados sobre el terreno.
+## Implementa shaders de extracción de alpha y superposición estratificada (layering) para que
+## las telarañas se posen de forma translúcida/aditiva sobre los restos óseos y el terreno sin cajas negras.
 
 const BONE_TEXTURES: Array[String] = [
 	"res://assets/texture/foliage/Bones/bones_patch_01.jpg",
 	"res://assets/texture/foliage/Bones/bones_patch_02.jpg",
 	"res://assets/texture/foliage/Bones/bones_patch_03.jpg",
 	"res://assets/texture/foliage/Bones/bones_patch_04.jpg",
-	"res://assets/texture/foliage/Bones/web_patch_01.jpg",
 ]
 
-static var _cached_materials: Array[StandardMaterial3D] = []
+const WEB_TEXTURE: String = "res://assets/texture/foliage/Bones/web_patch_01.jpg"
 
-static func _get_materials() -> Array[StandardMaterial3D]:
-	if _cached_materials.is_empty():
+const _BoneShader = preload("res://src/world_renderer/shaders/bone_patch.gdshader")
+const _WebShader = preload("res://src/world_renderer/shaders/web_patch.gdshader")
+
+static var _cached_bone_materials: Array[ShaderMaterial] = []
+static var _cached_web_material: ShaderMaterial = null
+
+static func _get_bone_materials() -> Array[ShaderMaterial]:
+	if _cached_bone_materials.is_empty():
 		for path in BONE_TEXTURES:
-			var mat := StandardMaterial3D.new()
+			var mat := ShaderMaterial.new()
+			mat.shader = _BoneShader
 			if ResourceLoader.exists(path):
 				var tex := load(path) as Texture2D
-				mat.albedo_texture = tex
-			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-			mat.alpha_scissor_threshold = 0.25
-			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-			mat.roughness = 0.95
-			mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-			_cached_materials.append(mat)
-	return _cached_materials
+				mat.set_shader_parameter("texture_albedo", tex)
+			mat.set_shader_parameter("tint_color", Vector3(0.92, 0.90, 0.86))
+			mat.set_shader_parameter("threshold", 0.06)
+			mat.set_shader_parameter("softness", 0.10)
+			_cached_bone_materials.append(mat)
+	return _cached_bone_materials
+
+static func _get_web_material() -> ShaderMaterial:
+	if _cached_web_material == null:
+		var mat := ShaderMaterial.new()
+		mat.shader = _WebShader
+		if ResourceLoader.exists(WEB_TEXTURE):
+			var tex := load(WEB_TEXTURE) as Texture2D
+			mat.set_shader_parameter("texture_albedo", tex)
+		mat.set_shader_parameter("tint_color", Vector4(0.85, 0.88, 0.92, 0.80))
+		mat.set_shader_parameter("brightness_boost", 1.35)
+		mat.set_shader_parameter("threshold", 0.03)
+		mat.set_shader_parameter("softness", 0.12)
+		_cached_web_material = mat
+	return _cached_web_material
 
 static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_query: Object) -> Node3D:
 	var container := Node3D.new()
@@ -38,10 +58,14 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 	rng.seed = seed_val ^ 0xB0AE5
 
 	var poi_pos: Vector3 = poi.world_position if (poi != null and "world_position" in poi) else Vector3.ZERO
-	var materials := _get_materials()
-	var instances_by_tex: Array[Array] = []
-	for i in range(materials.size()):
-		instances_by_tex.append([])
+	var bone_materials := _get_bone_materials()
+	var web_material := _get_web_material()
+
+	var bone_instances: Array[Array] = []
+	for i in range(bone_materials.size()):
+		bone_instances.append([])
+
+	var web_transforms: Array[Transform3D] = []
 
 	# 1. Generar 5 a 8 centros de clusters orgánicos dentro del cementerio
 	var num_clusters: int = rng.randi_range(5, 8)
@@ -54,11 +78,11 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 		var cluster_center_x: float = poi_pos.x + cos(angle) * dist
 		var cluster_center_z: float = poi_pos.z + sin(angle) * dist
 
-		# 2. Generar 3 a 5 parches por cluster
-		var count: int = rng.randi_range(3, 5)
+		# 2. Generar 2 a 4 parches de huesos por cluster en el plano base (capa inferior)
+		var count: int = rng.randi_range(2, 4)
 		for p in range(count):
 			var sub_angle: float = rng.randf() * TAU
-			var sub_dist: float = rng.randf_range(0.3, 2.4)
+			var sub_dist: float = rng.randf_range(0.3, 2.0)
 			var wx: float = cluster_center_x + cos(sub_angle) * sub_dist
 			var wz: float = cluster_center_z + sin(sub_angle) * sub_dist
 
@@ -78,19 +102,38 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 			var xf := Transform3D()
 			xf = xf.scaled(Vector3(patch_scale, 1.0, patch_scale))
 			xf = xf.rotated(Vector3.UP, rng.randf() * TAU)
-			# Posición relativa al nodo POI (o absoluta si poi_pos es el centro)
-			xf.origin = Vector3(wx - poi_pos.x, (wy - poi_pos.y) + 0.04, wz - poi_pos.z)
+			# Plano base de huesos: +0.035m a +0.043m para rasante sobre el terreno
+			var bone_elevation: float = (wy - poi_pos.y) + 0.035 + (rng.randf() * 0.008)
+			xf.origin = Vector3(wx - poi_pos.x, bone_elevation, wz - poi_pos.z)
 
-			var tex_idx: int = rng.randi() % materials.size()
-			instances_by_tex[tex_idx].append(xf)
+			var tex_idx: int = rng.randi() % bone_materials.size()
+			bone_instances[tex_idx].append(xf)
 
-	# 3. Crear MultiMeshInstance3D por cada textura
-	var quad := QuadMesh.new()
-	quad.size = Vector2(2.2, 2.2)
-	quad.orientation = QuadMesh.FACE_Y
+		# 3. Superposición (Layering): telaraña en un plano superior sobre el cúmulo de huesos
+		# Probabilidad alta (80%) por cluster para vestir los restos óseos
+		if rng.randf() < 0.80:
+			var web_dist_to_entrance: float = (Vector2(cluster_center_x, cluster_center_z) - Vector2(poi_pos.x, poi_pos.z)).length()
+			if web_dist_to_entrance > clear_r:
+				var web_wy: float = poi_pos.y
+				if world_query != null and world_query.has_method("get_elevation"):
+					web_wy = world_query.get_elevation(int(round(cluster_center_x)), int(round(cluster_center_z)))
 
-	for i in range(materials.size()):
-		var transforms: Array = instances_by_tex[i]
+				var web_scale: float = rng.randf_range(1.4, 2.2)
+				var web_xf := Transform3D()
+				web_xf = web_xf.scaled(Vector3(web_scale, 1.0, web_scale))
+				web_xf = web_xf.rotated(Vector3.UP, rng.randf() * TAU)
+				# Plano superior de telarañas: +0.065m a +0.073m (por encima de los cráneos)
+				var web_elevation: float = (web_wy - poi_pos.y) + 0.065 + (rng.randf() * 0.008)
+				web_xf.origin = Vector3(cluster_center_x - poi_pos.x, web_elevation, cluster_center_z - poi_pos.z)
+				web_transforms.append(web_xf)
+
+	# 4. Crear MultiMeshInstance3D para cada grupo de huesos
+	var quad_mesh := QuadMesh.new()
+	quad_mesh.size = Vector2(2.2, 2.2)
+	quad_mesh.orientation = QuadMesh.FACE_Y
+
+	for i in range(bone_materials.size()):
+		var transforms: Array = bone_instances[i]
 		if transforms.is_empty():
 			continue
 
@@ -98,14 +141,34 @@ static func generate_bone_patches(poi: RefCounted, profile: RefCounted, world_qu
 		mmi.name = "BonesGroup_%d" % i
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = quad
+		mm.mesh = quad_mesh
 		mm.instance_count = transforms.size()
 
 		for j in range(transforms.size()):
 			mm.set_instance_transform(j, transforms[j])
 
 		mmi.multimesh = mm
-		mmi.material_override = materials[i]
+		mmi.material_override = bone_materials[i]
+		mmi.set_meta("patch_transforms", transforms)
+		mmi.set_meta("is_web", false)
 		container.add_child(mmi)
+
+	# 5. Crear MultiMeshInstance3D para las telarañas translúcidas superpuestas
+	if not web_transforms.is_empty():
+		var web_mmi := MultiMeshInstance3D.new()
+		web_mmi.name = "WebsGroup"
+		var web_mm := MultiMesh.new()
+		web_mm.transform_format = MultiMesh.TRANSFORM_3D
+		web_mm.mesh = quad_mesh
+		web_mm.instance_count = web_transforms.size()
+
+		for j in range(web_transforms.size()):
+			web_mm.set_instance_transform(j, web_transforms[j])
+
+		web_mmi.multimesh = web_mm
+		web_mmi.material_override = web_material
+		web_mmi.set_meta("patch_transforms", web_transforms)
+		web_mmi.set_meta("is_web", true)
+		container.add_child(web_mmi)
 
 	return container
