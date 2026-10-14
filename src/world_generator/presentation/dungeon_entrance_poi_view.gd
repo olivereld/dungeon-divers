@@ -9,17 +9,36 @@ extends Node3D
 signal dungeon_enter_requested(poi: RefCounted, dungeon_result: RefCounted, player_node: Node3D)
 
 const _DungeonWorldBridgeScript = preload("res://src/world_generator/poi/dungeon_world_bridge.gd")
+const _BonePatchGenScript = preload("res://src/world_generator/poi/bone_patch_generator.gd")
+const _DeadTreeSpawnerScript = preload("res://src/world_generator/poi/dead_tree_spawner.gd")
+const _RockClusterScript = preload("res://src/world_generator/poi/necropolis_rock_cluster.gd")
+const _NecropolisProfileScript = preload("res://src/world_generator/poi/necropolis_entrance_profile.gd")
 const NECROPOLIS_MODEL_PATH: String = "res://models/dungeon/necropolis_entrance/entrance_dungeon_necropolis.glb"
 
 static var _cached_necropolis_scene: PackedScene = null
 
 var poi: RefCounted = null
+var world_query: Object = null
 var _player_inside: bool = false
 var _player_node: CharacterBody3D = null
 var _prompt_label: Label3D = null
 
-func _init(p_poi: RefCounted = null) -> void:
+class _ChunkDataElevationAdapter extends RefCounted:
+	var _cd: Object = null
+	func _init(cd: Object) -> void:
+		_cd = cd
+	func get_elevation(x: int, z: int) -> float:
+		var c = _cd.get_cell_or_seam(Vector2i(x, z))
+		if c != null:
+			return c.height
+		return 0.0
+
+func _init(p_poi: RefCounted = null, p_world_query: Object = null) -> void:
 	poi = p_poi
+	if p_world_query != null and not p_world_query.has_method("get_elevation") and p_world_query.has_method("get_cell_or_seam"):
+		world_query = _ChunkDataElevationAdapter.new(p_world_query)
+	else:
+		world_query = p_world_query
 
 func _ready() -> void:
 	var d_id: String = String(poi.identity.dungeon_id) if (poi != null and "identity" in poi and poi.identity != null) else "unknown"
@@ -90,6 +109,45 @@ func _build_necropolis_visuals(scene: PackedScene) -> void:
 	col_shape.position = Vector3(0.0, 2.4, 0.0)
 	static_body.add_child(col_shape)
 	add_child(static_body)
+
+	# 4. Generar entorno exterior de cementerio: parches de huesos/telas, árboles muertos y rocas oscuras
+	var profile := _NecropolisProfileScript.new()
+	var bone_patches = _BonePatchGenScript.generate_bone_patches(poi, profile, world_query)
+	if bone_patches != null:
+		add_child(bone_patches)
+
+	var dead_trees = _DeadTreeSpawnerScript.generate_dead_trees(poi, profile, world_query)
+	if dead_trees != null:
+		add_child(dead_trees)
+
+	var dark_rocks = _RockClusterScript.generate_dark_rocks(poi, profile, world_query)
+	if dark_rocks != null:
+		add_child(dark_rocks)
+
+	# 5. Aplicar tintado y texturas de suelo corrupto/funerario al shader de terreno circundante
+	_apply_necropolis_terrain_shading(profile)
+
+func _apply_necropolis_terrain_shading(profile: RefCounted) -> void:
+	var t_mesh: MeshInstance3D = null
+	var parent_node: Node = get_parent()
+	if parent_node != null:
+		t_mesh = parent_node.get_node_or_null("TerrainMesh") as MeshInstance3D
+		if t_mesh == null and parent_node.get_parent() != null:
+			t_mesh = parent_node.get_parent().get_node_or_null("TerrainMesh") as MeshInstance3D
+
+	if t_mesh != null:
+		var mat = t_mesh.get_surface_override_material(0) as ShaderMaterial
+		if mat != null and poi != null and "world_position" in poi:
+			mat.set_shader_parameter("poi_nec_center", poi.world_position)
+			mat.set_shader_parameter(
+				"poi_nec_radii",
+				Vector4(
+					profile.entrance_clear_radius,
+					profile.funeral_ground_radius,
+					profile.corruption_radius,
+					profile.transition_radius
+				)
+			)
 
 func _build_fallback_visuals() -> void:
 	# Fallback para arquetipos que aún no tienen modelo 3D dedicado

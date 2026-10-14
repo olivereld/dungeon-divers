@@ -223,7 +223,7 @@ func process_activations(
 								if not current_task.chunk_data.core_bounds.has_point(Vector2i(cell_x, cell_z)):
 									continue
 
-								var entrance_node: Node3D = _DungeonEntrancePOIViewScript.new(poi)
+								var entrance_node: Node3D = _DungeonEntrancePOIViewScript.new(poi, current_task.chunk_data)
 								var cell_h: float = poi.world_position.y
 								if current_task.chunk_data.has_method("get_cell_or_seam"):
 									var c = current_task.chunk_data.get_cell_or_seam(Vector2i(cell_x, cell_z))
