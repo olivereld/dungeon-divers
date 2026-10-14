@@ -3,24 +3,77 @@ extends RefCounted
 
 ## Spawner determinista de árboles muertos (dead_tree_01.glb) mediante MultiMesh.
 ## Distribuye ejemplares retorcidos y secos en las zonas funerarias y de corrupción.
+## Utiliza el mismo patrón canónico de bakeado que los pinos en WorldRenderer (_bake_pino_mesh).
 
 const DEAD_TREE_GLB_PATH: String = "res://models/nature/dead_tree/dead_tree_01.glb"
 const DEAD_TREE_TEX_PATH: String = "res://models/nature/dead_tree/dead_tree_01_Arbol.png"
 
-static var _cached_mesh: Mesh = null
+static var _cached_baked_mesh: Mesh = null
 static var _cached_material: StandardMaterial3D = null
 
-static func _get_mesh() -> Mesh:
-	if _cached_mesh == null and ResourceLoader.exists(DEAD_TREE_GLB_PATH):
+static func _get_baked_mesh() -> Mesh:
+	if _cached_baked_mesh != null:
+		return _cached_baked_mesh
+
+	if ResourceLoader.exists(DEAD_TREE_GLB_PATH):
 		var scn: PackedScene = load(DEAD_TREE_GLB_PATH) as PackedScene
 		if scn != null:
 			var inst: Node = scn.instantiate()
+			var mi: MeshInstance3D = null
 			for child in inst.get_children():
 				if child is MeshInstance3D and child.mesh != null:
-					_cached_mesh = child.mesh
+					mi = child
 					break
+			if mi != null:
+				_cached_baked_mesh = _bake_dead_tree(mi.mesh, mi.transform, 2.4)
 			inst.free()
-	return _cached_mesh
+
+	if _cached_baked_mesh == null:
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.2
+		cyl.bottom_radius = 0.4
+		cyl.height = 4.0
+		_cached_baked_mesh = cyl
+
+	return _cached_baked_mesh
+
+## Hornea la malla original del GLB con su orientación y asienta las raíces en el suelo
+## Idéntico al patrón _bake_pino_mesh en WorldRenderer.
+static func _bake_dead_tree(orig_mesh: Mesh, xform: Transform3D, scale_factor: float = 2.4) -> ArrayMesh:
+	var min_y: float = INF
+	for s in range(orig_mesh.get_surface_count()):
+		var arr: Array = orig_mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		for v in verts:
+			var tv: Vector3 = xform * v
+			min_y = minf(min_y, tv.y)
+	if not is_finite(min_y):
+		min_y = 0.0
+
+	# y_offset hunde las raíces 0.15m en la tierra para que queden naturalmente ancladas
+	var y_offset: float = -min_y - 0.15
+	var baked := ArrayMesh.new()
+
+	for s in range(orig_mesh.get_surface_count()):
+		var arr: Array = orig_mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+		var basis: Basis = xform.basis.orthonormalized()
+
+		for i in range(verts.size()):
+			var tv: Vector3 = xform * verts[i]
+			tv.y += y_offset
+			verts[i] = tv * scale_factor
+
+		if not normals.is_empty():
+			for i in range(normals.size()):
+				normals[i] = (basis * normals[i]).normalized()
+
+		arr[Mesh.ARRAY_VERTEX] = verts
+		arr[Mesh.ARRAY_NORMAL] = normals
+		baked.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+
+	return baked
 
 static func _get_material() -> StandardMaterial3D:
 	if _cached_material == null:
@@ -38,14 +91,7 @@ static func generate_dead_trees(poi: RefCounted, profile: RefCounted, world_quer
 	var container := Node3D.new()
 	container.name = "DeadTrees"
 
-	var mesh: Mesh = _get_mesh()
-	if mesh == null:
-		# Fallback a un cilindro si no se encuentra el modelo 3D
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.2
-		cyl.bottom_radius = 0.4
-		cyl.height = 4.0
-		mesh = cyl
+	var mesh: Mesh = _get_baked_mesh()
 
 	var seed_val: int = poi.identity.dungeon_seed if (poi != null and "identity" in poi and poi.identity != null) else 9999
 	var rng := RandomNumberGenerator.new()
@@ -99,19 +145,16 @@ static func generate_dead_trees(poi: RefCounted, profile: RefCounted, world_quer
 			if absf(h_e - wy) > 0.40 or absf(h_s - wy) > 0.40:
 				continue
 
-		var sc_min: float = profile.dead_tree_scale_min if "dead_tree_scale_min" in profile else 1.8
-		var sc_max: float = profile.dead_tree_scale_max if "dead_tree_scale_max" in profile else 2.8
-		var s: float = rng.randf_range(sc_min, sc_max)
+		# Factor de escala por instancia idéntico a las coníferas en WorldRenderer
+		var s: float = rng.randf_range(0.85, 1.25)
+		var rot_y: float = rng.randf() * TAU
 
-		# La geometría en el GLB original está modelada acostada sobre el plano XZ (Z es la altura).
-		# Debe aplicarse PRIMERO la rotación local de +90° en X para erguirla verticalmente (Z -> Y),
-		# y LUEGO multiplicarla por la rotación de guiñada (yaw) en el eje Y del mundo.
-		var upright := Basis(Vector3.RIGHT, deg_to_rad(90.0))
-		var yaw := Basis(Vector3.UP, rng.randf() * TAU)
-		var basis := (yaw * upright).scaled(Vector3(s, s, s))
-
-		# Asentar la base de las raíces ligeramente en el suelo (-0.10m) para evitar que levite
-		var t := Transform3D(basis, Vector3(wx - poi_pos.x, (wy - poi_pos.y) - 0.10, wz - poi_pos.z))
+		# La malla horneada ya tiene el tronco erguido y las raíces a nivel de suelo (min_y = -0.15).
+		# Se coloca con rotación puramente vertical sobre Y y a cota wy, exactamente como los pinos.
+		var t := Transform3D()
+		t = t.scaled(Vector3.ONE * s)
+		t = t.rotated(Vector3.UP, rot_y)
+		t.origin = Vector3(wx - poi_pos.x, wy - poi_pos.y, wz - poi_pos.z)
 
 		transforms.append(t)
 		placed_points.append(p2)

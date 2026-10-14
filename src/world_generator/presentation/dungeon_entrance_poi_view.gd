@@ -46,6 +46,11 @@ func _init(p_poi: RefCounted = null, p_world_query: Object = null) -> void:
 	else:
 		world_query = p_world_query
 
+	if poi != null and "world_position" in poi and world_query != null and world_query.has_method("get_elevation"):
+		var sampled_h: float = world_query.get_elevation(int(round(poi.world_position.x)), int(round(poi.world_position.z)))
+		if sampled_h > 0.001 and absf(poi.world_position.y - sampled_h) > 0.001:
+			poi.world_position.y = sampled_h
+
 func _ready() -> void:
 	var d_id: String = String(poi.identity.dungeon_id) if (poi != null and "identity" in poi and poi.identity != null) else "unknown"
 	name = "DungeonEntrance_%s" % d_id

@@ -230,7 +230,6 @@ func process_activations(
 								if not current_task.chunk_data.core_bounds.has_point(Vector2i(cell_x, cell_z)):
 									continue
 
-								var entrance_node: Node3D = _DungeonEntrancePOIViewScript.new(poi, current_task.chunk_data)
 								var cell_h: float = poi.world_position.y
 								if current_task.chunk_data.has_method("get_cell_or_seam"):
 									var c = current_task.chunk_data.get_cell_or_seam(Vector2i(cell_x, cell_z))
@@ -241,8 +240,11 @@ func process_activations(
 									if c != null:
 										cell_h = c.height
 
-								var world_pos_3d := Vector3(float(cell_x) * cell_size + cell_size * 0.5, cell_h, float(cell_z) * cell_size + cell_size * 0.5)
-								var rel_pos = world_pos_3d - current_task.chunk_view.position
+								# Sincronizar la posición canónica del POI con la cota física real del terreno
+								poi.world_position = Vector3(float(cell_x) * cell_size + cell_size * 0.5, cell_h, float(cell_z) * cell_size + cell_size * 0.5)
+
+								var entrance_node: Node3D = _DungeonEntrancePOIViewScript.new(poi, current_task.chunk_data)
+								var rel_pos = poi.world_position - current_task.chunk_view.position
 								entrance_node.position = rel_pos
 								# entrance_node mantiene rotation = Vector3.ZERO para que sus hijos
 								# (parches de huesos, árboles y rocas) preserven sus offsets del mundo 1:1.
