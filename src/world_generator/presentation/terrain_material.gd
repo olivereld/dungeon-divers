@@ -11,6 +11,8 @@ const GRASS_TEXTURE_PATH: String = "res://assets/texture/world/grass/Grass_01.pn
 const FOREST_GRASS_TEXTURE_PATH: String = "res://assets/texture/world/grass/Grass_03.png"
 const FOREST_DIRT_TEXTURE_PATH: String = "res://assets/texture/world/dirt/Dirt_04.png"
 const CLIFF_TEXTURE_PATH: String = "res://assets/texture/world/cliff/cliff_02.jpg"
+const CORRUPTED_TEXTURE_PATH: String = "res://assets/texture/world/corruption/floor_corrupted_01.jpg"
+const FUNERAL_TEXTURE_PATH: String = "res://assets/texture/world/corruption/floor_corrupted_cemetary_01.jpg"
 
 static var _cached_shader: Shader = null
 static var _cached_riverbed_tex: Texture2D = null
@@ -19,6 +21,8 @@ static var _cached_grass_tex: Texture2D = null
 static var _cached_forest_grass_tex: Texture2D = null
 static var _cached_forest_dirt_tex: Texture2D = null
 static var _cached_cliff_tex: Texture2D = null
+static var _cached_corrupted_tex: Texture2D = null
+static var _cached_funeral_tex: Texture2D = null
 
 static func _get_shader() -> Shader:
 	if _cached_shader == null and ResourceLoader.exists(TERRAIN_SHADER_PATH):
@@ -55,6 +59,16 @@ static func _get_cliff_texture() -> Texture2D:
 		_cached_cliff_tex = load(CLIFF_TEXTURE_PATH) as Texture2D
 	return _cached_cliff_tex
 
+static func _get_corrupted_texture() -> Texture2D:
+	if _cached_corrupted_tex == null and ResourceLoader.exists(CORRUPTED_TEXTURE_PATH):
+		_cached_corrupted_tex = load(CORRUPTED_TEXTURE_PATH) as Texture2D
+	return _cached_corrupted_tex
+
+static func _get_funeral_texture() -> Texture2D:
+	if _cached_funeral_tex == null and ResourceLoader.exists(FUNERAL_TEXTURE_PATH):
+		_cached_funeral_tex = load(FUNERAL_TEXTURE_PATH) as Texture2D
+	return _cached_funeral_tex
+
 static func create_material(profile: WorldProfile = null, use_shader: bool = true) -> Material:
 	var shader: Shader = _get_shader() if use_shader else null
 	var river_tex: Texture2D = _get_riverbed_texture() if use_shader else null
@@ -63,6 +77,8 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 	var forest_grass_tex: Texture2D = _get_forest_grass_texture() if use_shader else null
 	var forest_dirt_tex: Texture2D = _get_forest_dirt_texture() if use_shader else null
 	var cliff_tex: Texture2D = _get_cliff_texture() if use_shader else null
+	var corrupted_tex: Texture2D = _get_corrupted_texture() if use_shader else null
+	var funeral_tex: Texture2D = _get_funeral_texture() if use_shader else null
 
 	if shader != null and river_tex != null:
 		var mat := ShaderMaterial.new()
@@ -105,6 +121,16 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 			mat.set_shader_parameter("cliff_texture", river_tex)
 		var c_uv: float = float(profile.cliff_uv_scale) if (profile != null and "cliff_uv_scale" in profile) else 0.25
 		mat.set_shader_parameter("cliff_uv_scale", c_uv)
+
+		if corrupted_tex != null:
+			mat.set_shader_parameter("corrupted_ground_texture", corrupted_tex)
+		else:
+			mat.set_shader_parameter("corrupted_ground_texture", forest_dirt_tex if forest_dirt_tex != null else river_tex)
+
+		if funeral_tex != null:
+			mat.set_shader_parameter("funeral_ground_texture", funeral_tex)
+		else:
+			mat.set_shader_parameter("funeral_ground_texture", sand_tex if sand_tex != null else river_tex)
 
 		var rock_off: float = float(profile.shoreline_rock_offset) if (profile != null and "shoreline_rock_offset" in profile) else 0.35
 		var rock_fade: float = float(profile.shoreline_rock_fade) if (profile != null and "shoreline_rock_fade" in profile) else 0.25

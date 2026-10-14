@@ -13,6 +13,12 @@ uniform sampler2D forest_grass_texture : source_color, filter_linear_mipmap, rep
 uniform sampler2D forest_dirt_texture : source_color, filter_linear_mipmap, repeat_enable;
 // Acantilados / paredes verticales de roca (cliff_02.jpg)
 uniform sampler2D cliff_texture : source_color, filter_linear_mipmap, repeat_enable;
+// Corrupción y Suelo Funerario de Necrópolis
+uniform sampler2D corrupted_ground_texture : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D funeral_ground_texture : source_color, filter_linear_mipmap, repeat_enable;
+uniform float corruption_uv_scale : hint_range(0.05, 2.0) = 0.35;
+uniform vec3 poi_nec_center = vec3(0.0, -999.0, 0.0);
+uniform vec4 poi_nec_radii = vec4(4.5, 14.0, 24.0, 32.0); // clear, funeral, corruption, transition
 
 // 2. Escalas de UV (Coordenadas de mundo XZ/YZ/XY)
 uniform float riverbed_uv_scale : hint_range(0.05, 2.0) = 0.35;
@@ -220,6 +226,21 @@ void fragment() {
 	vec3 land_surface = mix(land_floor, cliff_surface, cliff_factor);
 	float land_roughness = mix(land_floor_roughness, roughness_cliff, cliff_factor);
 	land_roughness = mix(land_roughness, roughness_grass, overhang_mask);
+
+	// Influencia de Necrópolis (Corrupción y Tierra Funeraria)
+	if (poi_nec_center.y > -900.0) {
+		float nec_dist = length(v_world_pos.xz - poi_nec_center.xz);
+		if (nec_dist < poi_nec_radii.w) {
+			float f_w = clamp(1.0 - (nec_dist / poi_nec_radii.y), 0.0, 1.0);
+			float c_w = clamp(1.0 - ((nec_dist - poi_nec_radii.y) / (poi_nec_radii.z - poi_nec_radii.y)), 0.0, 1.0);
+			float t_w = clamp(1.0 - ((nec_dist - poi_nec_radii.z) / (poi_nec_radii.w - poi_nec_radii.z)), 0.0, 1.0);
+			vec3 fun_col = texture(funeral_ground_texture, v_world_pos.xz * corruption_uv_scale).rgb;
+			vec3 cor_col = texture(corrupted_ground_texture, v_world_pos.xz * corruption_uv_scale).rgb;
+			vec3 nec_mix = mix(cor_col, fun_col, f_w);
+			float total_inf = max(f_w, max(c_w * 0.75, t_w * 0.35));
+			land_surface = mix(land_surface, nec_mix * vec3(0.75, 0.70, 0.80), total_inf * (1.0 - is_cliff_face * 0.6));
+		}
+	}
 
 	// 4. Factores de mezcla basados en el campo de distancia métrico (SDF en v_color.a)
 	// v_color.a codifica el SDF normalizado de ShorelineResolver:
