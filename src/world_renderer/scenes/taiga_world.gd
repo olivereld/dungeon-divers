@@ -208,6 +208,7 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 90.0, "warp_amplitude": 18.0, "warp_octaves": 2,
 		"forest_wavelength": 65.0, "clearing_wavelength": 30.0, "clearing_threshold": 0.45,
 		"tree_density": 0.35, "min_tree_spacing": 3.2, "shrub_density": 0.35, "rock_density": 0.20,
+		"log_density": 0.08, "stump_density": 0.06,
 		"cell_size": 1.0, "lake_threshold": 0.22, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0,
 		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
@@ -219,6 +220,7 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 120.0, "warp_amplitude": 14.0, "warp_octaves": 2,
 		"forest_wavelength": 80.0, "clearing_wavelength": 40.0, "clearing_threshold": 0.52,
 		"tree_density": 0.55, "min_tree_spacing": 2.4, "shrub_density": 0.50, "rock_density": 0.12,
+		"log_density": 0.09, "stump_density": 0.07,
 		"cell_size": 1.0, "lake_threshold": 0.26, "lake_minimum_area": 6, "hydrology_noise_wavelength": 95.0,
 		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
@@ -230,6 +232,7 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 75.0, "warp_amplitude": 24.0, "warp_octaves": 3,
 		"forest_wavelength": 50.0, "clearing_wavelength": 25.0, "clearing_threshold": 0.40,
 		"tree_density": 0.50, "min_tree_spacing": 2.2, "shrub_density": 0.35, "rock_density": 0.35,
+		"log_density": 0.05, "stump_density": 0.04,
 		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 3, "hydrology_noise_wavelength": 70.0,
 		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
@@ -241,6 +244,7 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 85.0, "warp_amplitude": 15.0, "warp_octaves": 2,
 		"forest_wavelength": 90.0, "clearing_wavelength": 20.0, "clearing_threshold": 0.30,
 		"tree_density": 0.85, "min_tree_spacing": 1.7, "shrub_density": 0.60, "rock_density": 0.15,
+		"log_density": 0.14, "stump_density": 0.10,
 		"cell_size": 1.0, "lake_threshold": 0.20, "lake_minimum_area": 4, "hydrology_noise_wavelength": 80.0,
 		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
@@ -252,6 +256,7 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 100.0, "warp_amplitude": 12.0, "warp_octaves": 2,
 		"forest_wavelength": 45.0, "clearing_wavelength": 55.0, "clearing_threshold": 0.65,
 		"tree_density": 0.28, "min_tree_spacing": 2.2, "shrub_density": 0.65, "rock_density": 0.10,
+		"log_density": 0.06, "stump_density": 0.05,
 		"cell_size": 1.0, "lake_threshold": 0.30, "lake_minimum_area": 6, "hydrology_noise_wavelength": 90.0,
 		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
@@ -263,6 +268,7 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 70.0, "warp_amplitude": 22.0, "warp_octaves": 2,
 		"forest_wavelength": 55.0, "clearing_wavelength": 28.0, "clearing_threshold": 0.50,
 		"tree_density": 0.42, "min_tree_spacing": 2.2, "shrub_density": 0.45, "rock_density": 0.30,
+		"log_density": 0.07, "stump_density": 0.05,
 		"cell_size": 1.0, "lake_threshold": 0.28, "lake_minimum_area": 3, "hydrology_noise_wavelength": 65.0,
 		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	},
@@ -274,6 +280,7 @@ const PRESETS: Dictionary = {
 		"warp_wavelength": 80.0, "warp_amplitude": 10.0, "warp_octaves": 2,
 		"forest_wavelength": 40.0, "clearing_wavelength": 40.0, "clearing_threshold": 0.72,
 		"tree_density": 0.15, "min_tree_spacing": 3.2, "shrub_density": 0.25, "rock_density": 0.45,
+		"log_density": 0.02, "stump_density": 0.02,
 		"cell_size": 1.0, "lake_threshold": 0.18, "lake_minimum_area": 4, "hydrology_noise_wavelength": 75.0,
 		"water_field_resolution": 128.0, "contour_simplification_tolerance": 0.08, "minimum_contour_edge": 0.05, "minimum_polygon_area": 0.20
 	}
@@ -670,11 +677,15 @@ func _update_telemetry(result: WorldResult, duration_ms: float) -> void:
 	var conifers := 0
 	var shrubs := 0
 	var rocks := 0
+	var logs := 0
+	var stumps := 0
 	for item: WorldVegetationItem in result.vegetation:
 		match item.type:
 			WorldVegetationItem.Type.CONIFER: conifers += 1
 			WorldVegetationItem.Type.SHRUB: shrubs += 1
 			WorldVegetationItem.Type.ROCK: rocks += 1
+			WorldVegetationItem.Type.WOOD_LOG: logs += 1
+			WorldVegetationItem.Type.STUMP: stumps += 1
 
 	var val_report := WorldValidator.validate(result)
 	var walkable_pct: float = val_report.get("walkable_ratio", 0.0) * 100.0
@@ -1347,6 +1358,8 @@ func _build_left_panel() -> void:
 	_add_slider(panel_terrain_vbox, "min_tree_spacing", "Espaciado Mínimo", profile.min_tree_spacing, 0.5, 8.0, 0.1, Color("#14b8a6"))
 	_add_slider(panel_terrain_vbox, "shrub_density", "Densidad Arbustos", profile.shrub_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
 	_add_slider(panel_terrain_vbox, "rock_density", "Densidad Rocas", profile.rock_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
+	_add_slider(panel_terrain_vbox, "log_density", "Densidad Troncos", profile.log_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
+	_add_slider(panel_terrain_vbox, "stump_density", "Densidad Tocones", profile.stump_density, 0.0, 1.0, 0.01, Color("#14b8a6"))
 	_add_slider(panel_terrain_vbox, "vegetation_bank_clearance", "Margen Orilla (m)", profile.vegetation_bank_clearance, 0.0, 5.0, 0.25, Color("#14b8a6"))
 
 	_add_left_section(panel_terrain_vbox, "ESCALA DEL MUNDO", "⛶", Color("#38bdf8"))

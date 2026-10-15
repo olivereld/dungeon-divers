@@ -13,5 +13,11 @@ func _init() -> void:
 	var funeral_tex = mat.get_shader_parameter("funeral_ground_texture")
 	assert(funeral_tex != null, "funeral_ground_texture must be set on material")
 	
+	# Verify corrupted cliff textures are loaded
+	var cliff_cor1 = mat.get_shader_parameter("cliff_corrupted_texture")
+	assert(cliff_cor1 != null, "cliff_corrupted_texture must be set on material")
+	var cliff_cor2 = mat.get_shader_parameter("cliff_corrupted_secondary_texture")
+	assert(cliff_cor2 != null, "cliff_corrupted_secondary_texture must be set on material")
+
 	print("[PASS] test_terrain_corruption_material")
 	quit(0)

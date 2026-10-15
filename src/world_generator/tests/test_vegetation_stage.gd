@@ -10,7 +10,13 @@ func _init() -> void:
 
 	assert(context.result.vegetation.size() > 0, "Vegetation items must be generated")
 	var item: WorldVegetationItem = context.result.vegetation[0]
-	assert(item.type in [WorldVegetationItem.Type.CONIFER, WorldVegetationItem.Type.SHRUB, WorldVegetationItem.Type.ROCK])
+	assert(item.type in [
+		WorldVegetationItem.Type.CONIFER,
+		WorldVegetationItem.Type.SHRUB,
+		WorldVegetationItem.Type.ROCK,
+		WorldVegetationItem.Type.WOOD_LOG,
+		WorldVegetationItem.Type.STUMP
+	])
 	assert(item.scale > 0.0)
 
 	# Test determinism

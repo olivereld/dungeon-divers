@@ -294,6 +294,42 @@ func execute(context: WorldGenerationContext) -> void:
 										WorldVegetationItem.new(WorldVegetationItem.Type.ROCK, s_pos, rng.randf_range(0.0, TAU), s_sc)
 									)
 
+			# 4. Wood Log Placement (Troncos caídos sobre el manto del bosque y claros)
+			var cell_log_density: float = veg_prof.log_density if (veg_prof != null and "log_density" in veg_prof) else (profile.log_density if (profile != null and "log_density" in profile) else 0.08)
+			var cell_max_log_slope: float = 24.0
+			var cell_log_sc_min: float = veg_prof.log_scale_min if (veg_prof != null and "log_scale_min" in veg_prof) else (profile.log_scale_min if (profile != null and "log_scale_min" in profile) else 0.9)
+			var cell_log_sc_max: float = veg_prof.log_scale_max if (veg_prof != null and "log_scale_max" in veg_prof) else (profile.log_scale_max if (profile != null and "log_scale_max" in profile) else 1.4)
+
+			if pos_in_core and cell.slope_category <= NavigationStage.SlopeCategory.GENTLE and local_slope <= cell_max_log_slope:
+				var log_env_factor: float = clampf(cell.forest_density * 1.2 + (1.0 - cell.clearing_density) * 0.4, 0.1, 1.2)
+				if rng.randf() < cell_log_density * log_env_factor * 0.35:
+					var rot_y := rng.randf_range(0.0, TAU)
+					var sc := rng.randf_range(cell_log_sc_min, cell_log_sc_max)
+					var jx := rng.randf_range(-0.35, 0.35)
+					var jz := rng.randf_range(-0.35, 0.35)
+					var log_pos := Vector3(pos_3d.x + jx, pos_3d.y, pos_3d.z + jz)
+					context.result.vegetation.append(
+						WorldVegetationItem.new(WorldVegetationItem.Type.WOOD_LOG, log_pos, rot_y, sc)
+					)
+
+			# 5. Stump Placement (Tocones de árboles en masas boscosas)
+			var cell_stump_density: float = veg_prof.stump_density if (veg_prof != null and "stump_density" in veg_prof) else (profile.stump_density if (profile != null and "stump_density" in profile) else 0.06)
+			var cell_max_stump_slope: float = 22.0
+			var cell_stump_sc_min: float = veg_prof.stump_scale_min if (veg_prof != null and "stump_scale_min" in veg_prof) else (profile.stump_scale_min if (profile != null and "stump_scale_min" in profile) else 0.85)
+			var cell_stump_sc_max: float = veg_prof.stump_scale_max if (veg_prof != null and "stump_scale_max" in veg_prof) else (profile.stump_scale_max if (profile != null and "stump_scale_max" in profile) else 1.25)
+
+			if pos_in_core and cell.slope_category <= NavigationStage.SlopeCategory.GENTLE and local_slope <= cell_max_stump_slope:
+				var stump_env_factor: float = clampf(cell.forest_density * 1.4 + cell.clearing_density * 0.3, 0.1, 1.3)
+				if rng.randf() < cell_stump_density * stump_env_factor * 0.30:
+					var rot_y := rng.randf_range(0.0, TAU)
+					var sc := rng.randf_range(cell_stump_sc_min, cell_stump_sc_max)
+					var jx := rng.randf_range(-0.30, 0.30)
+					var jz := rng.randf_range(-0.30, 0.30)
+					var stump_pos := Vector3(pos_3d.x + jx, pos_3d.y, pos_3d.z + jz)
+					context.result.vegetation.append(
+						WorldVegetationItem.new(WorldVegetationItem.Type.STUMP, stump_pos, rot_y, sc)
+					)
+
 			if is_profiling:
 				t_candidate_us += (Time.get_ticks_usec() - t_cand0)
 

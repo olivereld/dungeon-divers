@@ -496,8 +496,12 @@ func _filter_chunk_foliage_for_pois(
 		var colors: PackedColorArray = foliage_data.get_colors_for_species(sp_id)
 		for idx in range(instances.size()):
 			var t: Transform3D = instances[idx]
-			var world_pos_2d := Vector2(origin_3d.x + t.origin.x, origin_3d.z + t.origin.z)
+			var world_pos_2d := Vector2(t.origin.x, t.origin.z)
 			var cull_foliage := false
+			var spawn_vine := false
+			var vine_species_idx := 1
+			var vine_scale_mult := 1.4
+
 			for poi in pois:
 				if poi == null or not ("world_position" in poi):
 					continue
@@ -512,22 +516,60 @@ func _filter_chunk_foliage_for_pois(
 				)
 				if eval.is_cleared:
 					cull_foliage = true
+					spawn_vine = false
 					break
 				
 				var raw_dist: float = (world_pos_2d - Vector2(poi.world_position.x, poi.world_position.z)).length()
-				# En la Necrópolis: cero flores ni hongos dentro de la zona de corrupción (< 18m)
+				# En la Necrópolis: cero flores ni hongos dentro de la zona de corrupción (< 22m)
 				if is_flower_or_shroom and raw_dist <= nec_profile.corruption_radius:
 					cull_foliage = true
 					break
 
 				if eval.influence > 0.0:
-					var survival_chance: float = _NecropolisEvaluatorScript.compute_survival_chance(raw_dist, eval.get("in_frontal_corridor", false))
+					# Reducción drástica del césped en la corrupción:
+					# 0% en cementerio (<= 12m), ~6% en corrupción (12-22m), y retorno gradual en transición (22-40m)
+					var grass_survival: float = 1.0
+					if raw_dist <= nec_profile.funeral_ground_radius:
+						grass_survival = 0.0
+					elif raw_dist <= nec_profile.corruption_radius:
+						var t_c: float = (raw_dist - nec_profile.funeral_ground_radius) / maxf(nec_profile.corruption_radius - nec_profile.funeral_ground_radius, 0.01)
+						grass_survival = lerpf(0.0, 0.06, t_c)
+					elif raw_dist <= nec_profile.transition_radius:
+						var t_t: float = (raw_dist - nec_profile.corruption_radius) / maxf(nec_profile.transition_radius - nec_profile.corruption_radius, 0.01)
+						grass_survival = lerpf(0.06, 1.0, t_t * t_t)
+
 					var hash_val: float = absf(sin(world_pos_2d.x * 23.456 + world_pos_2d.y * 67.891) * 43758.5453)
 					var rand_prob: float = hash_val - floorf(hash_val)
-					if rand_prob > survival_chance:
+					if rand_prob > grass_survival:
 						cull_foliage = true
+						# En lugar de la hierba, poblar abundantemente con thorn vines (zarzas de espinas secas y pútridas)
+						if raw_dist > nec_profile.entrance_clear_radius:
+							var vine_chance: float = 0.0
+							if raw_dist <= nec_profile.corruption_radius:
+								vine_chance = 0.72 # Gran densidad de enredaderas en la corrupción
+							elif raw_dist <= nec_profile.transition_radius:
+								var t_v: float = 1.0 - ((raw_dist - nec_profile.corruption_radius) / (nec_profile.transition_radius - nec_profile.corruption_radius))
+								vine_chance = t_v * 0.45
+
+							var vine_hash: float = absf(sin(world_pos_2d.x * 54.321 + world_pos_2d.y * 98.765) * 23456.789)
+							var vine_prob: float = vine_hash - floorf(vine_hash)
+							if vine_prob < vine_chance:
+								spawn_vine = true
+								vine_species_idx = 1 + (int(vine_hash * 1000.0) % 4)
+								vine_scale_mult = lerpf(1.2, 1.85, vine_prob / maxf(vine_chance, 0.001))
 						break
-			if not cull_foliage:
+					else:
+						# Si la hierba sobrevive en la zona de transición, marchitarla cromáticamente
+						if raw_dist <= nec_profile.transition_radius and idx < colors.size():
+							var t_wither: float = 1.0 - clampf((raw_dist - nec_profile.funeral_ground_radius) / (nec_profile.transition_radius - nec_profile.funeral_ground_radius), 0.0, 1.0)
+							colors[idx] = colors[idx].lerp(Color(0.25, 0.22, 0.18, 1.0), t_wither * 0.75)
+
+			if spawn_vine:
+				var v_id: StringName = StringName("thorn_vines_0%d" % vine_species_idx)
+				var v_t := Transform3D(t.basis.scaled(Vector3(vine_scale_mult, vine_scale_mult * 0.9, vine_scale_mult)), t.origin)
+				var v_col := Color(1.05, 0.98, 0.90, 1.0)
+				filtered.add_instance(v_id, v_t, v_col)
+			elif not cull_foliage:
 				var col: Color = colors[idx] if idx < colors.size() else Color.WHITE
 				filtered.add_instance(sp_id, t, col)
 	return filtered

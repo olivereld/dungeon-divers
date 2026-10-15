@@ -96,7 +96,7 @@ func evaluate_and_create_poi(master_seed: int, macro_coord: Vector2i, world_quer
 	var rot_basis := Basis(Vector3.UP, deg_to_rad(orientation_deg))
 	var entrance_xf := Transform3D(rot_basis, world_pos)
 	
-	var env_influence_radius: int = 36
+	var env_influence_radius: int = 48
 	var bounds_w: int = env_influence_radius * 2
 	var bounds_rect := Rect2i(wx - env_influence_radius, wz - env_influence_radius, bounds_w, bounds_w)
 	

@@ -54,6 +54,8 @@ func _init() -> void:
 	tree_density = 0.35
 	shrub_density = 0.35
 	rock_density = 0.20
+	log_density = 0.08
+	stump_density = 0.06
 	min_tree_spacing = 3.2
 	vegetation_bank_clearance = 1.5
 	max_walkable_slope = 35.0

@@ -149,6 +149,8 @@ static func _create_taiga_vegetation() -> Resource:
 	var veg = _VegetationProfileScript.new()
 	veg.tree_density = 0.35
 	veg.shrub_density = 0.35
+	veg.log_density = 0.08
+	veg.stump_density = 0.06
 	veg.min_tree_spacing = 3.2
 	veg.allowed_species = [&"conifer"]
 	return veg

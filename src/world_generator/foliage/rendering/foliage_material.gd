@@ -60,6 +60,17 @@ static func get_or_create_material(species: Resource, wind_strength: float = 0.2
 	if "use_upward_normals" in species:
 		mat.set_shader_parameter("use_upward_normals", species.use_upward_normals)
 
+	if "bark_texture_path" in species and not species.bark_texture_path.is_empty():
+		var bark_tex = load(species.bark_texture_path)
+		if bark_tex != null:
+			mat.set_shader_parameter("bark_detail_texture", bark_tex)
+			mat.set_shader_parameter("use_bark_detail", true)
+			mat.set_shader_parameter("bark_detail_strength", species.bark_influence if "bark_influence" in species else 0.75)
+		else:
+			mat.set_shader_parameter("use_bark_detail", false)
+	else:
+		mat.set_shader_parameter("use_bark_detail", false)
+
 	mat.set_shader_parameter("wind_strength", actual_wind_strength)
 	mat.set_shader_parameter("wind_speed", actual_wind_speed)
 

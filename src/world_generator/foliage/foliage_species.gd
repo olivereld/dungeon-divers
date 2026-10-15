@@ -37,6 +37,8 @@ enum FoliageType {
 @export var tint_with_grass_color: bool = true
 @export var canopy_preference: float = 0.0
 @export var use_upward_normals: bool = true
+@export var bark_texture_path: String = ""
+@export var bark_influence: float = 0.75
 @export var wind_strength: float = -1.0
 @export var wind_speed: float = -1.0
 

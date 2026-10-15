@@ -75,9 +75,15 @@ func render_world(
 
 const PINO_GLB_PATH: String = "res://assets/models/props/nature/pino.glb"
 const BUSH_GLB_PATH: String = "res://models/nature/bush/bush_1.glb"
+const WOOD_LOG_GLB_PATH: String = "res://models/nature/wood_log/wood_log.glb"
+const WOOD_LOG_TEX_PATH: String = "res://models/nature/wood_log/wood_log_tree_log.png"
+const STUMP_GLB_PATH: String = "res://models/nature/stump/STUMP.glb"
+const STUMP_TEX_PATH: String = "res://models/nature/stump/STUMP_stump.png"
 const PINO_SHADER_PATH: String = "res://src/world_renderer/shaders/pino_foliage.gdshader"
 static var _cached_conifer_mesh: Mesh = null
 static var _cached_shrub_mesh: Mesh = null
+static var _cached_wood_log_mesh: Mesh = null
+static var _cached_stump_mesh: Mesh = null
 
 func _spawn_vegetation_multimeshes(parent: Node3D, result: WorldResult, p_profile: WorldProfile = null) -> void:
 	spawn_vegetation(parent, result.vegetation, Vector3.ZERO, p_profile)
@@ -89,6 +95,8 @@ static func spawn_vegetation(parent: Node3D, items: Array, origin_3d: Vector3 = 
 	var conifers: Array[WorldVegetationItem] = []
 	var shrubs: Array[WorldVegetationItem] = []
 	var rocks: Array[WorldVegetationItem] = []
+	var wood_logs: Array[WorldVegetationItem] = []
+	var stumps: Array[WorldVegetationItem] = []
 
 	for it in items:
 		var item := it as WorldVegetationItem
@@ -98,6 +106,8 @@ static func spawn_vegetation(parent: Node3D, items: Array, origin_3d: Vector3 = 
 			WorldVegetationItem.Type.CONIFER: conifers.append(item)
 			WorldVegetationItem.Type.SHRUB: shrubs.append(item)
 			WorldVegetationItem.Type.ROCK: rocks.append(item)
+			WorldVegetationItem.Type.WOOD_LOG: wood_logs.append(item)
+			WorldVegetationItem.Type.STUMP: stumps.append(item)
 
 	var conifer_mesh := _create_conifer_mesh()
 	var conifer_offset := 0.0 if not (conifer_mesh is CylinderMesh) else 1.95
@@ -107,6 +117,12 @@ static func spawn_vegetation(parent: Node3D, items: Array, origin_3d: Vector3 = 
 	var shrub_offset := 0.0 if not (shrub_mesh is SphereMesh) else 0.30
 	_create_multimesh(parent, "Shrubs", shrub_mesh, shrubs, shrub_offset, origin_3d, foliage_variants)
 	_spawn_rock_multimeshes(parent, rocks, origin_3d)
+
+	var log_mesh := _create_wood_log_mesh()
+	_create_multimesh(parent, "WoodLogs", log_mesh, wood_logs, 0.0, origin_3d)
+
+	var stump_mesh := _create_stump_mesh()
+	_create_multimesh(parent, "Stumps", stump_mesh, stumps, 0.0, origin_3d)
 
 static func _create_multimesh(parent: Node3D, name_id: String, base_mesh: Mesh, items: Array, base_y_offset: float = 0.0, origin_3d: Vector3 = Vector3.ZERO, color_variants: Array = []) -> void:
 	if items.is_empty() or base_mesh == null:
@@ -380,6 +396,106 @@ static func _bake_bush_mesh(orig_mesh: Mesh, xform: Transform3D, mat: Material, 
 				final_mat = bm
 
 		new_mesh.surface_set_material(s, final_mat if final_mat != null else surface_mat)
+
+	return new_mesh
+
+static func _create_wood_log_mesh() -> Mesh:
+	if _cached_wood_log_mesh != null:
+		return _cached_wood_log_mesh
+
+	if ResourceLoader.exists(WOOD_LOG_GLB_PATH):
+		var glb: PackedScene = load(WOOD_LOG_GLB_PATH)
+		if glb != null:
+			var inst: Node = glb.instantiate()
+			var chain: Array[Node3D] = []
+			_find_mesh_instance_chain(inst, chain)
+			if not chain.is_empty() and chain.back() is MeshInstance3D:
+				var mi: MeshInstance3D = chain.back() as MeshInstance3D
+				var accumulated_xf := Transform3D.IDENTITY
+				for node in chain:
+					accumulated_xf = accumulated_xf * node.transform
+				var baked := _bake_prop_mesh(mi.mesh, accumulated_xf, WOOD_LOG_TEX_PATH, 1.0, 0.05)
+				inst.queue_free()
+				if baked != null:
+					_cached_wood_log_mesh = baked
+					return _cached_wood_log_mesh
+			inst.queue_free()
+
+	# Fallback a cilindro horizontal
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.2
+	cyl.bottom_radius = 0.22
+	cyl.height = 1.0
+	_cached_wood_log_mesh = cyl
+	return _cached_wood_log_mesh
+
+static func _create_stump_mesh() -> Mesh:
+	if _cached_stump_mesh != null:
+		return _cached_stump_mesh
+
+	if ResourceLoader.exists(STUMP_GLB_PATH):
+		var glb: PackedScene = load(STUMP_GLB_PATH)
+		if glb != null:
+			var inst: Node = glb.instantiate()
+			var chain: Array[Node3D] = []
+			_find_mesh_instance_chain(inst, chain)
+			if not chain.is_empty() and chain.back() is MeshInstance3D:
+				var mi: MeshInstance3D = chain.back() as MeshInstance3D
+				var accumulated_xf := Transform3D.IDENTITY
+				for node in chain:
+					accumulated_xf = accumulated_xf * node.transform
+				var baked := _bake_prop_mesh(mi.mesh, accumulated_xf, STUMP_TEX_PATH, 1.0, 0.08)
+				inst.queue_free()
+				if baked != null:
+					_cached_stump_mesh = baked
+					return _cached_stump_mesh
+			inst.queue_free()
+
+	# Fallback a cilindro vertical
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.45
+	cyl.bottom_radius = 0.60
+	cyl.height = 0.75
+	_cached_stump_mesh = cyl
+	return _cached_stump_mesh
+
+static func _bake_prop_mesh(orig_mesh: Mesh, xform: Transform3D, tex_path: String, scale_factor: float = 1.0, ground_embed_m: float = 0.05) -> ArrayMesh:
+	var new_mesh := ArrayMesh.new()
+	var min_y: float = INF
+	for s in range(orig_mesh.get_surface_count()):
+		var arr: Array = orig_mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		for v in verts:
+			var tv: Vector3 = xform * v
+			min_y = minf(min_y, tv.y)
+	if not is_finite(min_y):
+		min_y = 0.0
+
+	for s in range(orig_mesh.get_surface_count()):
+		var arr: Array = orig_mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+		var basis: Basis = xform.basis.orthonormalized()
+
+		for i in range(verts.size()):
+			var tv: Vector3 = xform * verts[i]
+			verts[i] = Vector3(tv.x * scale_factor, (tv.y - min_y) * scale_factor - ground_embed_m, tv.z * scale_factor)
+
+		if not normals.is_empty():
+			for i in range(normals.size()):
+				normals[i] = (basis * normals[i]).normalized()
+
+		arr[Mesh.ARRAY_VERTEX] = verts
+		arr[Mesh.ARRAY_NORMAL] = normals
+		new_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+
+		var mat := StandardMaterial3D.new()
+		if ResourceLoader.exists(tex_path):
+			mat.albedo_texture = load(tex_path) as Texture2D
+		mat.roughness = 0.85
+		mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+		mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		new_mesh.surface_set_material(s, mat)
 
 	return new_mesh
 

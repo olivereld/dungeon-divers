@@ -64,6 +64,12 @@ var max_elevation_level: int:
 @export_range(0.0, 1.0, 0.01) var tree_density: float = 0.35
 @export_range(0.0, 1.0, 0.01) var shrub_density: float = 0.35
 @export_range(0.0, 1.0, 0.01) var rock_density: float = 0.15
+@export_range(0.0, 1.0, 0.01) var log_density: float = 0.08
+@export_range(0.0, 1.0, 0.01) var stump_density: float = 0.06
+@export_range(0.5, 3.0, 0.05) var log_scale_min: float = 0.9
+@export_range(0.5, 3.0, 0.05) var log_scale_max: float = 1.4
+@export_range(0.5, 3.0, 0.05) var stump_scale_min: float = 0.85
+@export_range(0.5, 3.0, 0.05) var stump_scale_max: float = 1.25
 @export_range(0.5, 10.0, 0.1) var min_tree_spacing: float = 3.2
 @export_range(0.0, 5.0, 0.25) var vegetation_bank_clearance: float = 1.5
 

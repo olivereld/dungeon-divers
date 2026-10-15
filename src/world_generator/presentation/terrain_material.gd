@@ -11,6 +11,8 @@ const GRASS_TEXTURE_PATH: String = "res://assets/texture/world/grass/Grass_01.pn
 const FOREST_GRASS_TEXTURE_PATH: String = "res://assets/texture/world/grass/Grass_03.png"
 const FOREST_DIRT_TEXTURE_PATH: String = "res://assets/texture/world/dirt/Dirt_04.png"
 const CLIFF_TEXTURE_PATH: String = "res://assets/texture/world/cliff/cliff_02.jpg"
+const CLIFF_CORRUPTED_TEXTURE_PATH: String = "res://assets/texture/world/cliff/cliff_corrupted_01.jpg"
+const CLIFF_CORRUPTED_SECONDARY_TEXTURE_PATH: String = "res://assets/texture/world/cliff/cliff_corrupted_02.jpg"
 const CORRUPTED_TEXTURE_PATH: String = "res://assets/texture/world/corruption/floor_corrupted_01.jpg"
 const FUNERAL_TEXTURE_PATH: String = "res://assets/texture/world/corruption/floor_corrupted_cemetary_01.jpg"
 
@@ -21,6 +23,8 @@ static var _cached_grass_tex: Texture2D = null
 static var _cached_forest_grass_tex: Texture2D = null
 static var _cached_forest_dirt_tex: Texture2D = null
 static var _cached_cliff_tex: Texture2D = null
+static var _cached_cliff_corrupted_tex: Texture2D = null
+static var _cached_cliff_corrupted_secondary_tex: Texture2D = null
 static var _cached_corrupted_tex: Texture2D = null
 static var _cached_funeral_tex: Texture2D = null
 
@@ -59,6 +63,16 @@ static func _get_cliff_texture() -> Texture2D:
 		_cached_cliff_tex = load(CLIFF_TEXTURE_PATH) as Texture2D
 	return _cached_cliff_tex
 
+static func _get_cliff_corrupted_texture() -> Texture2D:
+	if _cached_cliff_corrupted_tex == null and ResourceLoader.exists(CLIFF_CORRUPTED_TEXTURE_PATH):
+		_cached_cliff_corrupted_tex = load(CLIFF_CORRUPTED_TEXTURE_PATH) as Texture2D
+	return _cached_cliff_corrupted_tex
+
+static func _get_cliff_corrupted_secondary_texture() -> Texture2D:
+	if _cached_cliff_corrupted_secondary_tex == null and ResourceLoader.exists(CLIFF_CORRUPTED_SECONDARY_TEXTURE_PATH):
+		_cached_cliff_corrupted_secondary_tex = load(CLIFF_CORRUPTED_SECONDARY_TEXTURE_PATH) as Texture2D
+	return _cached_cliff_corrupted_secondary_tex
+
 static func _get_corrupted_texture() -> Texture2D:
 	if _cached_corrupted_tex == null and ResourceLoader.exists(CORRUPTED_TEXTURE_PATH):
 		_cached_corrupted_tex = load(CORRUPTED_TEXTURE_PATH) as Texture2D
@@ -77,6 +91,8 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 	var forest_grass_tex: Texture2D = _get_forest_grass_texture() if use_shader else null
 	var forest_dirt_tex: Texture2D = _get_forest_dirt_texture() if use_shader else null
 	var cliff_tex: Texture2D = _get_cliff_texture() if use_shader else null
+	var cliff_corrupted_tex: Texture2D = _get_cliff_corrupted_texture() if use_shader else null
+	var cliff_corrupted_sec_tex: Texture2D = _get_cliff_corrupted_secondary_texture() if use_shader else null
 	var corrupted_tex: Texture2D = _get_corrupted_texture() if use_shader else null
 	var funeral_tex: Texture2D = _get_funeral_texture() if use_shader else null
 
@@ -121,6 +137,16 @@ static func create_material(profile: WorldProfile = null, use_shader: bool = tru
 			mat.set_shader_parameter("cliff_texture", river_tex)
 		var c_uv: float = float(profile.cliff_uv_scale) if (profile != null and "cliff_uv_scale" in profile) else 0.25
 		mat.set_shader_parameter("cliff_uv_scale", c_uv)
+
+		if cliff_corrupted_tex != null:
+			mat.set_shader_parameter("cliff_corrupted_texture", cliff_corrupted_tex)
+		else:
+			mat.set_shader_parameter("cliff_corrupted_texture", cliff_tex if cliff_tex != null else river_tex)
+
+		if cliff_corrupted_sec_tex != null:
+			mat.set_shader_parameter("cliff_corrupted_secondary_texture", cliff_corrupted_sec_tex)
+		else:
+			mat.set_shader_parameter("cliff_corrupted_secondary_texture", cliff_corrupted_tex if cliff_corrupted_tex != null else cliff_tex)
 
 		if corrupted_tex != null:
 			mat.set_shader_parameter("corrupted_ground_texture", corrupted_tex)

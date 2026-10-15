@@ -13,12 +13,15 @@ uniform sampler2D forest_grass_texture : source_color, filter_linear_mipmap, rep
 uniform sampler2D forest_dirt_texture : source_color, filter_linear_mipmap, repeat_enable;
 // Acantilados / paredes verticales de roca (cliff_02.jpg)
 uniform sampler2D cliff_texture : source_color, filter_linear_mipmap, repeat_enable;
+// Acantilados corruptos de Necrópolis (cliff_corrupted_01.jpg y cliff_corrupted_02.jpg)
+uniform sampler2D cliff_corrupted_texture : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D cliff_corrupted_secondary_texture : source_color, filter_linear_mipmap, repeat_enable;
 // Corrupción y Suelo Funerario de Necrópolis
 uniform sampler2D corrupted_ground_texture : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D funeral_ground_texture : source_color, filter_linear_mipmap, repeat_enable;
 uniform float corruption_uv_scale : hint_range(0.05, 2.0) = 0.35;
 uniform vec3 poi_nec_center = vec3(0.0, -999.0, 0.0);
-uniform vec4 poi_nec_radii = vec4(4.5, 14.0, 24.0, 32.0); // clear, funeral, corruption, transition
+uniform vec4 poi_nec_radii = vec4(4.5, 12.0, 22.0, 40.0); // clear, funeral, corruption, transition
 
 // 2. Escalas de UV (Coordenadas de mundo XZ/YZ/XY)
 uniform float riverbed_uv_scale : hint_range(0.05, 2.0) = 0.35;
@@ -46,6 +49,7 @@ uniform float roughness_forest_dirt : hint_range(0.0, 1.0) = 0.88;
 uniform float roughness_sand : hint_range(0.0, 1.0) = 0.82;
 uniform float roughness_riverbed : hint_range(0.0, 1.0) = 0.58;
 uniform float roughness_cliff : hint_range(0.0, 1.0) = 0.86;
+uniform float roughness_cliff_corrupted : hint_range(0.0, 1.0) = 0.88;
 
 // Tintes opcionales
 uniform vec4 riverbed_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
@@ -54,6 +58,7 @@ uniform vec4 grass_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 forest_grass_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 forest_dirt_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 cliff_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+uniform vec4 cliff_corrupted_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 
 // 5. Parámetros de Integración Roca-Hierba (Overhang & Rim de contacto estilo Stylized Anime)
 uniform float elevation_step_height : hint_range(0.5, 10.0) = 2.0;
@@ -138,6 +143,22 @@ void fragment() {
 	vec4 c_y = texture(cliff_texture, v_world_pos.xz * cliff_uv_scale);
 	vec4 c_z = texture(cliff_texture, vec2(v_world_pos.x, -v_world_pos.y) * cliff_uv_scale);
 	vec3 cliff_color = (c_x.rgb * blend_weights.x + c_y.rgb * blend_weights.y + c_z.rgb * blend_weights.z) * cliff_tint.rgb;
+
+	// Muestreo Cliff Corrupto (cliff_corrupted_01.jpg y cliff_corrupted_02.jpg)
+	vec4 cc1_x = texture(cliff_corrupted_texture, vec2(v_world_pos.z, -v_world_pos.y) * cliff_uv_scale);
+	vec4 cc1_y = texture(cliff_corrupted_texture, v_world_pos.xz * cliff_uv_scale);
+	vec4 cc1_z = texture(cliff_corrupted_texture, vec2(v_world_pos.x, -v_world_pos.y) * cliff_uv_scale);
+	vec3 cliff_cor_1 = (cc1_x.rgb * blend_weights.x + cc1_y.rgb * blend_weights.y + cc1_z.rgb * blend_weights.z);
+
+	vec4 cc2_x = texture(cliff_corrupted_secondary_texture, vec2(v_world_pos.z, -v_world_pos.y) * cliff_uv_scale);
+	vec4 cc2_y = texture(cliff_corrupted_secondary_texture, v_world_pos.xz * cliff_uv_scale);
+	vec4 cc2_z = texture(cliff_corrupted_secondary_texture, vec2(v_world_pos.x, -v_world_pos.y) * cliff_uv_scale);
+	vec3 cliff_cor_2 = (cc2_x.rgb * blend_weights.x + cc2_y.rgb * blend_weights.y + cc2_z.rgb * blend_weights.z);
+
+	// Variación orgánica entre ambas texturas de acantilado corrupto
+	float cliff_var_noise = sin(v_world_pos.x * 0.28 + v_world_pos.y * 0.38) * cos(v_world_pos.z * 0.28);
+	float cliff_mix_factor = clamp(cliff_var_noise * 0.5 + 0.5, 0.0, 1.0);
+	vec3 cliff_corrupted_color = mix(cliff_cor_1, cliff_cor_2, cliff_mix_factor) * cliff_corrupted_tint.rgb;
 
 	// 3. Combinación orgánica de Grass_03 y Dirt_04 debajo de los árboles:
 	// Patrones de variación espacial / acumulación irregular de acículas y suelo húmedo
@@ -227,55 +248,94 @@ void fragment() {
 	float land_roughness = mix(land_floor_roughness, roughness_cliff, cliff_factor);
 	land_roughness = mix(land_roughness, roughness_grass, overhang_mask);
 
-	// Influencia de Necrópolis: Gradiente en 5 niveles espaciales
-	// (Núcleo Cripta -> Tierra Funeral -> Corrupción -> Manchas/Venas Blight -> Mundo Normal)
+	// Influencia de Necrópolis: Gradiente orgánico con opacidad translúcida sobre terreno normal
 	if (poi_nec_center.y > -900.0) {
 		vec2 diff = v_world_pos.xz - poi_nec_center.xz;
 		float nec_dist = length(diff);
-		if (nec_dist < poi_nec_radii.w) {
+		// Margen de seguridad para evaluar la ondulación angular sin corte circular seco
+		if (nec_dist < poi_nec_radii.w + 4.0) {
 			// Perturbación angular suave para contorno orgánico y no un disco circular
 			float angle = atan(diff.y, diff.x);
 			float border_noise = sin(angle * 3.0) * 1.5 + cos(angle * 5.0) * 0.9;
 			float eff_dist = max(0.0, nec_dist + border_noise);
 
-			vec3 fun_col = texture(funeral_ground_texture, v_world_pos.xz * corruption_uv_scale).rgb;
-			vec3 cor_col = texture(corrupted_ground_texture, v_world_pos.xz * corruption_uv_scale).rgb;
+			if (eff_dist < poi_nec_radii.w) {
+				vec3 fun_col = texture(funeral_ground_texture, v_world_pos.xz * corruption_uv_scale).rgb;
+				vec3 cor_col = texture(corrupted_ground_texture, v_world_pos.xz * corruption_uv_scale).rgb;
 
-			// Nivel 1 & 2: Núcleo y Tierra Funeraria
-			float f_w = 0.0;
-			if (eff_dist <= poi_nec_radii.x) {
-				// Crypt Core: máxima presencia de tierra funeraria oscura y solemne
-				f_w = 1.0;
-			} else if (eff_dist <= poi_nec_radii.y) {
-				// Graveyard: mezcla gradual de tierra funeraria hacia suelo corrupto
-				float span_fg = max(poi_nec_radii.y - poi_nec_radii.x, 0.001);
-				f_w = clamp(1.0 - ((eff_dist - poi_nec_radii.x) / span_fg), 0.0, 1.0);
+				// Nivel 1 & 2: Núcleo y Tierra Funeraria
+				float f_w = 0.0;
+				if (eff_dist <= poi_nec_radii.x) {
+					// Crypt Core: máxima presencia de tierra funeraria oscura y solemne
+					f_w = 1.0;
+				} else if (eff_dist <= poi_nec_radii.y) {
+					// Graveyard: mezcla gradual de tierra funeraria hacia suelo corrupto
+					float span_fg = max(poi_nec_radii.y - poi_nec_radii.x, 0.001);
+					f_w = clamp(1.0 - ((eff_dist - poi_nec_radii.x) / span_fg), 0.0, 1.0);
+				}
+
+				vec3 nec_mix = mix(cor_col, fun_col, f_w) * vec3(0.78, 0.74, 0.82);
+
+				// Transición amplia de opacidad entre corruption_radius y transition_radius:
+				// Dentro del radio de corrupción: máxima opacidad (1.0).
+				// En la zona de transición: fundido translúcido donde el terreno y césped
+				// subyacentes se transparentan armoniosamente bajo la corrupción.
+				float opacity = 1.0;
+				if (eff_dist > poi_nec_radii.z) {
+					float span_trans = max(poi_nec_radii.w - poi_nec_radii.z, 0.001);
+					float ring_t = clamp((eff_dist - poi_nec_radii.z) / span_trans, 0.0, 1.0);
+
+					// Decaimiento base suave que garantiza llegar a 0.0 exactamente en el límite exterior
+					float base_fade = 1.0 - smoothstep(0.0, 1.0, ring_t);
+
+					// Velo continuo translúcido de corrupción sobre el terreno normal
+					float veil_opacity = pow(base_fade, 1.1) * 0.55;
+
+					// Ruido procedural multi-escala para generar manchas y zarcillos orgánicos
+					float patch_n1 = sin(v_world_pos.x * 0.38 + sin(v_world_pos.z * 0.32) * 2.2) 
+					               * cos(v_world_pos.z * 0.38 + cos(v_world_pos.x * 0.32) * 2.2);
+					float patch_n2 = sin(v_world_pos.x * 0.88 + v_world_pos.z * 0.78) * 0.5 + 0.5;
+					float patch_n3 = sin(v_world_pos.x * 1.75 - v_world_pos.z * 1.55) * 0.5 + 0.5;
+					float patch_noise = (patch_n1 * 0.5 + 0.5) * 0.55 + patch_n2 * 0.30 + patch_n3 * 0.15;
+
+					// Umbral dinámico con borde difuminado (feathering amplio para erradicar cortes duros)
+					float patch_threshold = mix(0.18, 0.78, ring_t);
+					float tendril_density = smoothstep(patch_threshold + 0.28, patch_threshold - 0.22, patch_noise);
+					float tendril_opacity = tendril_density * base_fade;
+
+					// Combinación armónica: velo translúcido + zarcillos de corrupción
+					opacity = clamp(veil_opacity + tendril_opacity * (1.0 - veil_opacity * 0.4), 0.0, 1.0);
+					opacity *= base_fade; // Cero absoluto garantizado al final
+				}
+
+				// 1. Superficie de acantilado corrupto:
+				vec3 cliff_corrupted_blended = mix(cliff_corrupted_color, cliff_corrupted_color * vec3(0.85, 0.80, 0.95), 0.25);
+				vec3 corrupted_cliff_surface = cliff_corrupted_blended;
+
+				// Rim de contacto en acantilado corrupto: tierra funeraria oscura y sombra de contacto
+				vec3 corrupted_dirt_rim = mix(fun_col * 0.70, vec3(0.06, 0.04, 0.08), 0.50);
+				corrupted_cliff_surface = mix(corrupted_cliff_surface, corrupted_dirt_rim, dirt_rim_mask * 0.90);
+				corrupted_cliff_surface = mix(corrupted_cliff_surface, corrupted_cliff_surface * (1.0 - cliff_base_ao_strength * 1.15), base_ao_factor);
+
+				// En la cima del acantilado corrupto, el fleco que cuelga (overhang) es el suelo corrupto (nec_mix)
+				corrupted_cliff_surface = mix(corrupted_cliff_surface, nec_mix, overhang_mask);
+
+				// 2. Componer la superficie corrupta total (suelo plano vs pared de acantilado)
+				vec3 corrupted_target = mix(nec_mix, corrupted_cliff_surface, cliff_factor);
+
+				// 3. Marchitamiento cromático del terreno normal previo a la corrupción (tanto hierba como roca)
+				float blight_tint = clamp(opacity * 1.35, 0.0, 1.0);
+				vec3 withered_palette = land_surface * mix(vec3(0.62, 0.68, 0.65), vec3(0.70, 0.65, 0.75), cliff_factor) * 0.82;
+				vec3 base_terrain_toned = mix(land_surface, withered_palette, blight_tint * 0.55);
+
+				// 4. Mezclar superficie normal (con marchitamiento) hacia superficie corrupta (suelo y acantilados)
+				land_surface = mix(base_terrain_toned, corrupted_target, opacity);
+
+				// 5. Modulación PBR en acantilados y suelo corruptos
+				float corrupted_roughness = mix(roughness_forest_dirt, roughness_cliff_corrupted, cliff_factor);
+				corrupted_roughness = mix(corrupted_roughness, roughness_grass, overhang_mask);
+				land_roughness = mix(land_roughness, corrupted_roughness, opacity);
 			}
-
-			vec3 nec_mix = mix(cor_col, fun_col, f_w) * vec3(0.78, 0.74, 0.82);
-
-			// Nivel 4: Transición por Manchas / Venas (18m - 28m)
-			// Rompe el manto púrpura continuo en manchas orgánicas que se disuelven en la hierba
-			float opacity = 1.0;
-			if (eff_dist > poi_nec_radii.z) {
-				float span_trans = max(poi_nec_radii.w - poi_nec_radii.z, 0.001);
-				float ring_t = clamp((eff_dist - poi_nec_radii.z) / span_trans, 0.0, 1.0);
-
-				// Ruido procedural multi-escala para generar manchas ('manchas') y venas corruptas
-				float patch_n1 = sin(v_world_pos.x * 0.40 + sin(v_world_pos.z * 0.35) * 2.2) 
-				               * cos(v_world_pos.z * 0.40 + cos(v_world_pos.x * 0.35) * 2.2);
-				float patch_n2 = sin(v_world_pos.x * 0.95 + v_world_pos.z * 0.85) * 0.5 + 0.5;
-				float patch_noise = (patch_n1 * 0.5 + 0.5) * 0.65 + patch_n2 * 0.35;
-
-				// Umbral dinámico: a 18m cubre el 100%, a 28m solo sobreviven pequeños zarcillos
-				float patch_threshold = mix(0.12, 0.86, ring_t);
-				float patch_mask = smoothstep(patch_threshold + 0.14, patch_threshold - 0.14, patch_noise);
-				opacity = (1.0 - ring_t * 0.85) * patch_mask;
-			}
-
-			// Mezclar superficie vegetal con la textura de corrupción modulada por la opacidad y cliff factor
-			float blend_weight = opacity * (1.0 - is_cliff_face * 0.6);
-			land_surface = mix(land_surface, nec_mix, blend_weight);
 		}
 	}
 

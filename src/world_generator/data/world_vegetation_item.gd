@@ -5,6 +5,8 @@ enum Type {
 	CONIFER,
 	SHRUB,
 	ROCK,
+	WOOD_LOG,
+	STUMP,
 }
 
 var type: Type

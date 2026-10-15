@@ -12,6 +12,7 @@ const _DungeonWorldBridgeScript = preload("res://src/world_generator/poi/dungeon
 const _BonePatchGenScript = preload("res://src/world_generator/poi/bone_patch_generator.gd")
 const _DeadTreeSpawnerScript = preload("res://src/world_generator/poi/dead_tree_spawner.gd")
 const _RockClusterScript = preload("res://src/world_generator/poi/necropolis_rock_cluster.gd")
+const _ThornVinesSpawnerScript = preload("res://src/world_generator/poi/necropolis_thorn_vines_spawner.gd")
 const _NecropolisProfileScript = preload("res://src/world_generator/poi/necropolis_entrance_profile.gd")
 const NECROPOLIS_MODEL_PATH: String = "res://models/dungeon/necropolis_entrance/entrance_dungeon_necropolis.glb"
 
@@ -143,8 +144,13 @@ func _build_necropolis_visuals(scene: PackedScene) -> void:
 	if dark_rocks != null:
 		add_child(dark_rocks)
 
+	var thorn_vines = _ThornVinesSpawnerScript.generate_thorn_vines(poi, profile, world_query)
+	if thorn_vines != null:
+		add_child(thorn_vines)
+
 	# 5. Aplicar tintado y texturas de suelo corrupto/funerario al shader de terreno circundante
 	_apply_necropolis_terrain_shading(profile)
+	_apply_necropolis_terrain_shading.call_deferred(profile)
 
 func _apply_necropolis_terrain_shading(profile: RefCounted) -> void:
 	if poi == null or not ("world_position" in poi):

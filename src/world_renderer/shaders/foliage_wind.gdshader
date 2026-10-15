@@ -17,6 +17,11 @@ uniform vec4 shadow_tint : source_color = vec4(0.18, 0.20, 0.10, 1.0);
 uniform float shadow_wrap : hint_range(0.0, 1.0) = 0.45;
 uniform float direct_light_strength : hint_range(0.0, 2.0) = 0.75;
 
+// --- Detalle de corteza / ramas secas y pútridas ---
+uniform bool use_bark_detail = false;
+uniform sampler2D bark_detail_texture : source_color, filter_linear_mipmap, repeat_enable;
+uniform float bark_detail_strength : hint_range(0.0, 1.0) = 0.70;
+
 // --- Parámetros de Viento Procedural en GPU ---
 uniform vec2 wind_direction = vec2(1.0, 0.3);
 uniform float wind_strength : hint_range(0.0, 2.0) = 0.25;
@@ -101,6 +106,15 @@ void fragment() {
 
 		// Modulación con textura de gradiente botánico
 		gradient_col = mix(base_gradient, tex_grad, gradient_influence);
+	}
+
+	// Detalle de ramas secas y pútridas (corteza de madera con betas y grietas orgánicas)
+	if (use_bark_detail) {
+		vec3 bark_tex = texture(bark_detail_texture, UV * vec2(1.0, 1.5)).rgb;
+		float bark_lum = dot(bark_tex, vec3(0.299, 0.587, 0.114));
+		// Modula el relieve de corteza preservando la gama de marrón leñoso sin aplastar a negro
+		vec3 bark_modulated = gradient_col * mix(0.72, 1.28, bark_lum);
+		gradient_col = mix(gradient_col, bark_modulated, bark_detail_strength);
 	}
 
 	// El detalle de la textura monocromática añade las hebras sin aplastar la raíz a negro
