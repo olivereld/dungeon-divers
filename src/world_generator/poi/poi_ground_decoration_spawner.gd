@@ -23,7 +23,7 @@ class DecorationSpec extends RefCounted:
 	var align_to_terrain: bool = false
 	var tilt_max_deg: float = 12.0
 	var ground_embed_m: float = 0.05
-	var cluster_anchor_points: Array[Vector2] = []
+	var cluster_anchor_points: Array = []
 	var cluster_bias: float = 0.0
 
 static func scatter_decorations(
