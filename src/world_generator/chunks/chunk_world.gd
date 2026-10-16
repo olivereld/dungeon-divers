@@ -491,7 +491,10 @@ func _filter_chunk_foliage_for_pois(
 
 	var filtered = _FoliageChunkDataScript.new(foliage_data.chunk_coord if "chunk_coord" in foliage_data else Vector2i.ZERO)
 	for sp_id in foliage_data.instances_by_species:
-		var is_flower_or_shroom: bool = (sp_id != &"grass" and not String(sp_id).begins_with("grass"))
+		var sp_str: String = String(sp_id).to_lower()
+		var is_flower: bool = sp_str.contains("flower")
+		var is_living_shroom: bool = sp_str.contains("mushroom") and not sp_str.contains("corrupt") and not sp_str.contains("necro")
+		var is_vital_flora: bool = is_flower or is_living_shroom
 		var instances: Array = foliage_data.instances_by_species[sp_id]
 		var colors: PackedColorArray = foliage_data.get_colors_for_species(sp_id)
 		for idx in range(instances.size()):
@@ -520,8 +523,9 @@ func _filter_chunk_foliage_for_pois(
 					break
 				
 				var raw_dist: float = (world_pos_2d - Vector2(poi.world_position.x, poi.world_position.z)).length()
-				# En la Necrópolis: cero flores ni hongos dentro de la zona de corrupción (< 22m)
-				if is_flower_or_shroom and raw_dist <= nec_profile.corruption_radius:
+				# En la Necrópolis: flores y hongos vivos mueren dentro de la zona de corrupción (< 22m),
+				# mientras que la flora corrupta o decorativa adaptada puede prevalecer.
+				if is_vital_flora and raw_dist <= nec_profile.corruption_radius:
 					cull_foliage = true
 					break
 
