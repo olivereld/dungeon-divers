@@ -119,7 +119,16 @@ static func generate_dead_trees(poi: RefCounted, profile: RefCounted, world_quer
 		{ "angle_offset": deg_to_rad(178.0),  "dist_min": 10.0,"dist_max": 14.5, "scale_min": 0.95, "scale_max": 1.25 }
 	]
 
-	var target_count: int = rng.randi_range(4, 5)
+	var density: float = profile.dead_tree_density if "dead_tree_density" in profile else 0.25
+	var h_min: float = profile.dead_tree_height_min if "dead_tree_height_min" in profile else 4.8
+	var h_max: float = profile.dead_tree_height_max if "dead_tree_height_max" in profile else 7.0
+	const BASE_MESH_HEIGHT: float = 5.8
+
+	# Target count proportionally scales from dead_tree_density
+	# density 0.25 -> 4-5 trees; density 0.05 -> 1 tree; density 0.50 -> 6 trees
+	var max_candidates: int = framing_sectors.size()
+	var base_count: int = clampi(int(round(float(max_candidates) * (density / 0.30))), 1, max_candidates)
+	var target_count: int = clampi(base_count + rng.randi_range(-1, 0), 1, max_candidates)
 
 	for sector in framing_sectors:
 		if transforms.size() >= target_count:
@@ -160,7 +169,8 @@ static func generate_dead_trees(poi: RefCounted, profile: RefCounted, world_quer
 				if absf(h_e - wy) > 0.40 or absf(h_s - wy) > 0.40:
 					continue
 
-			var s: float = rng.randf_range(sector.scale_min, sector.scale_max)
+			var target_height: float = rng.randf_range(h_min, h_max)
+			var s: float = target_height / BASE_MESH_HEIGHT
 			var rot_y: float = rng.randf() * TAU
 
 			var t := Transform3D()

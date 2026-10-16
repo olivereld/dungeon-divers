@@ -22,18 +22,33 @@ func _init() -> void:
 	assert(node != null, "Dead tree node must generate")
 	var mmi = node.get_node_or_null("DeadTreesMultiMesh") as MultiMeshInstance3D
 	assert(mmi != null, "Must contain DeadTreesMultiMesh")
-	assert(mmi.multimesh.instance_count >= 3, "Must spawn at least 3 dead trees in funeral/corruption zones")
 	
 	var transforms: Array = mmi.get_meta("tree_transforms", [])
-	assert(transforms.size() >= 3, "Must have at least 3 transforms")
+	assert(transforms.size() >= 3, "Must spawn trees according to density")
+	
 	const _EvaluatorScript = preload("res://src/world_generator/poi/necropolis_influence_evaluator.gd")
 	for i in range(transforms.size()):
 		var t: Transform3D = transforms[i]
 		var dist = Vector2(t.origin.x, t.origin.z).length()
-		assert(dist >= prof.entrance_clear_radius - 0.1, "Dead tree #%d at %.2fm is too close to entrance" % [i, dist])
+		assert(dist >= prof.entrance_clear_radius - 0.1, "Dead tree #%d is too close to entrance" % i)
 		var in_corridor = _EvaluatorScript.is_in_frontal_corridor(Vector2(t.origin.x, t.origin.z), Vector2.ZERO, poi.orientation_deg, 8.5, 3.5)
-		assert(not in_corridor, "Dead tree #%d must not block frontal ceremonial entrance corridor" % i)
+		assert(not in_corridor, "Dead tree #%d must not block frontal corridor" % i)
+
+		# Verify physical height: base mesh height is 5.8m
+		var tree_scale = t.basis.get_scale().y
+		var tree_height = tree_scale * 5.8
+		assert(tree_height >= prof.dead_tree_height_min - 0.05 and tree_height <= prof.dead_tree_height_max + 0.05,
+			"Tree #%d height %.2fm outside [%.2f, %.2f]" % [i, tree_height, prof.dead_tree_height_min, prof.dead_tree_height_max])
+
+	# Test density scaling
+	prof.dead_tree_density = 0.05
+	var low_density_node = _SpawnerScript.generate_dead_trees(poi, prof, query)
+	var low_mmi = low_density_node.get_node_or_null("DeadTreesMultiMesh") as MultiMeshInstance3D
+	var low_transforms: Array = low_mmi.get_meta("tree_transforms", []) if low_mmi != null else []
+	assert(low_transforms.size() < transforms.size(), "Lower density must yield fewer trees")
 
 	node.free()
+	if low_density_node != null:
+		low_density_node.free()
 	print("[PASS] test_dead_tree_spawner")
 	quit(0)
