@@ -13,6 +13,9 @@ const _BonePatchGenScript = preload("res://src/world_generator/poi/bone_patch_ge
 const _DeadTreeSpawnerScript = preload("res://src/world_generator/poi/dead_tree_spawner.gd")
 const _RockClusterScript = preload("res://src/world_generator/poi/necropolis_rock_cluster.gd")
 const _ThornVinesSpawnerScript = preload("res://src/world_generator/poi/necropolis_thorn_vines_spawner.gd")
+const _WoodPropsScript = preload("res://src/world_generator/poi/necropolis_wood_props.gd")
+const _MushroomClusterScript = preload("res://src/world_generator/poi/necropolis_mushroom_cluster.gd")
+const _GroundScattererScript = preload("res://src/world_generator/poi/poi_ground_decoration_spawner.gd")
 const _NecropolisProfileScript = preload("res://src/world_generator/poi/necropolis_entrance_profile.gd")
 const NECROPOLIS_MODEL_PATH: String = "res://models/dungeon/necropolis_entrance/entrance_dungeon_necropolis.glb"
 
@@ -147,6 +150,25 @@ func _build_necropolis_visuals(scene: PackedScene) -> void:
 	var thorn_vines = _ThornVinesSpawnerScript.generate_thorn_vines(poi, profile, world_query)
 	if thorn_vines != null:
 		add_child(thorn_vines)
+
+	# 4b. Generar decoración determinista de suelo (tocones, troncos caídos y racimos de hongos)
+	var anchor_points: Array[Vector2] = []
+	if dead_trees != null:
+		var tree_mmi = dead_trees.get_node_or_null("DeadTreesMultiMesh") as MultiMeshInstance3D
+		if tree_mmi != null:
+			var tree_xforms: Array = tree_mmi.get_meta("tree_transforms", [])
+			for t in tree_xforms:
+				anchor_points.append(Vector2(poi.world_position.x + t.origin.x, poi.world_position.z + t.origin.z))
+
+	var wood_specs = _WoodPropsScript.build_specs(profile, anchor_points)
+	var mush_specs = _MushroomClusterScript.build_specs(profile, anchor_points)
+	var all_ground_specs := []
+	all_ground_specs.append_array(wood_specs)
+	all_ground_specs.append_array(mush_specs)
+
+	var ground_decos = _GroundScattererScript.scatter_decorations(poi, profile, world_query, all_ground_specs)
+	if ground_decos != null:
+		add_child(ground_decos)
 
 	# 5. Aplicar tintado y texturas de suelo corrupto/funerario al shader de terreno circundante
 	_apply_necropolis_terrain_shading(profile)

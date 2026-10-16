@@ -18,6 +18,13 @@ func _init() -> void:
 	assert(view.get_node_or_null("DarkRocks") != null, "DarkRocks node must be instantiated")
 	assert(view.get_node_or_null("EntranceGlow") != null, "EntranceGlow must exist")
 
+	# Verify ground decorations (stumps, wood logs, mushroom accents)
+	var ground_decos = view.get_node_or_null("GroundDecorations")
+	assert(ground_decos != null, "GroundDecorations node must be present in POI view")
+	assert(ground_decos.has_node("MultiMesh_stump"), "Must include stump MultiMesh")
+	assert(ground_decos.has_node("MultiMesh_wood_log"), "Must include wood log MultiMesh")
+	assert(ground_decos.has_node("MultiMesh_necropolis_mushrooms"), "Must include mushroom MultiMesh")
+
 	view.free()
 	print("[PASS] test_necropolis_entrance_environment_e2e")
 	quit(0)
